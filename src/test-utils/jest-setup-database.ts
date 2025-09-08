@@ -32,6 +32,7 @@ beforeEach(async () => {
 
 // Make dbManager available globally for tests
 declare global {
+  // eslint-disable-next-line no-var
   var testDbManager: DatabaseTestManager;
 }
 

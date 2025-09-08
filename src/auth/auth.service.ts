@@ -29,46 +29,46 @@ import {
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
-    private configService: ConfigService,
-  ) {}
+  private readonly JWT_EXPIRES_IN: number;
+  private readonly REFRESH_TOKEN_EXPIRES_IN_MS: number;
+  private readonly PASSWORD_RESET_EXPIRES_IN_MS: number;
+  private readonly EMAIL_VERIFICATION_EXPIRES_IN_MS: number;
 
-  // =============================================================================
-  // Auth Flow & JWT Management
-  // =============================================================================
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {
+    this.JWT_EXPIRES_IN = this.configService.get<number>(
+      'JWT_EXPIRES_IN_SECONDS',
+      3600,
+    );
+    this.REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+    this.PASSWORD_RESET_EXPIRES_IN_MS = 60 * 60 * 1000; // 1 hour
+    this.EMAIL_VERIFICATION_EXPIRES_IN_MS = 24 * 60 * 60 * 1000; // 24 hours
+  }
 
   async register(registerDto: RegisterDto): Promise<RegisterResponse> {
-    const {
-      email,
-      password,
-      name,
-      phone,
-      organizationName,
-      organizationType,
-    } = registerDto;
+    const { email, password, name, phone, organizationName, organizationType } =
+      registerDto;
 
-    // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true },
     });
 
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Hash password
     const hashedPassword = await this.hashPassword(password);
 
-    // Create organization and user in transaction
     const result = await this.prisma.$transaction(async (tx) => {
-      // Create organization
       const organization = await tx.organization.create({
         data: {
           name: organizationName,
           type: organizationType,
-          email: email,
+          email,
           isActive: true,
           plan: 'basic',
           maxUsers: 5,
@@ -77,7 +77,6 @@ export class AuthService {
         },
       });
 
-      // Create user
       const user = await tx.user.create({
         data: {
           email,
@@ -90,58 +89,41 @@ export class AuthService {
         },
         include: {
           organization: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-          },
         },
       });
 
-      // Assign default admin role for organization owner
-      const adminRole = await tx.role.findFirst({
-        where: {
+      const adminRole = await tx.role.create({
+        data: {
           name: 'admin',
+          description: 'Organization administrator',
           organizationId: organization.id,
+          level: 100,
+          isActive: true,
+          isSystemRole: false,
         },
       });
 
-      if (!adminRole) {
-        // Create admin role for the organization
-        const newAdminRole = await tx.role.create({
-          data: {
-            name: 'admin',
-            description: 'Organization administrator',
-            organizationId: organization.id,
-            level: 100,
-            isActive: true,
-            isSystemRole: false,
-          },
-        });
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: adminRole.id,
+          isActive: true,
+        },
+      });
 
-        await tx.userRole.create({
-          data: {
-            userId: user.id,
-            roleId: newAdminRole.id,
-            isActive: true,
-          },
-        });
-      }
-
-      return { user, organization };
+      return user;
     });
 
-    // Generate tokens
     const tokens = await this.generateTokens(
-      result.user.id,
-      result.user.email,
-      result.user.organizationId,
+      result.id,
+      result.email,
+      result.organizationId,
     );
 
-    // Update refresh token in database
-    await this.updateRefreshToken(result.user.id, tokens.refreshToken);
+    await this.updateRefreshToken(result.id, tokens.refreshToken);
 
-    const userResponse = this.formatUserResponse(result.user);
+    const userWithRoles = await this.getUserWithRoles(result.id);
+    const userResponse = this.formatUserResponse(userWithRoles!);
 
     return {
       tokens,
@@ -150,7 +132,14 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<LoginResponse> {
+  async login(
+    loginDto: LoginDto,
+    sessionInfo?: {
+      deviceInfo?: string;
+      ipAddress?: string;
+      userAgent?: string;
+    }
+  ): Promise<LoginResponse> {
     const { email, password } = loginDto;
 
     const user = await this.validateUser(email, password);
@@ -162,20 +151,36 @@ export class AuthService {
       throw new ForbiddenException('Account is disabled');
     }
 
-    // Generate tokens
     const tokens = await this.generateTokens(
       user.id,
       user.email,
       user.organizationId,
     );
 
-    // Update refresh token and last login
+    // Store session metadata
+    const sessionMetadata = sessionInfo ? {
+      session: {
+        deviceInfo: sessionInfo.deviceInfo,
+        ipAddress: sessionInfo.ipAddress,
+        userAgent: sessionInfo.userAgent,
+        loginAt: new Date().toISOString(),
+      },
+    } : undefined;
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         lastLoginAt: new Date(),
         refreshTokenHash: await this.hashRefreshToken(tokens.refreshToken),
-        refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        refreshTokenExpiresAt: new Date(
+          Date.now() + this.REFRESH_TOKEN_EXPIRES_IN_MS,
+        ),
+        ...(sessionMetadata && { 
+          metadata: {
+            ...((user.metadata as any) || {}),
+            ...sessionMetadata,
+          },
+        }),
       },
     });
 
@@ -199,13 +204,20 @@ export class AuthService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
+        select: {
+          id: true,
+          email: true,
+          organizationId: true,
+          refreshTokenHash: true,
+          refreshTokenExpiresAt: true,
+          isActive: true,
+        },
       });
 
       if (!user || !user.refreshTokenHash || !user.isActive) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      // Verify refresh token hash
       const isValidRefreshToken = await verify(
         user.refreshTokenHash,
         refreshToken,
@@ -214,7 +226,6 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      // Check if refresh token is expired
       if (
         user.refreshTokenExpiresAt &&
         user.refreshTokenExpiresAt < new Date()
@@ -222,22 +233,15 @@ export class AuthService {
         throw new UnauthorizedException('Refresh token expired');
       }
 
-      // Generate new access token
-      const accessTokenPayload = {
+      const accessToken = this.jwtService.sign({
         email: user.email,
         sub: user.id,
         organizationId: user.organizationId,
-      };
-
-      const accessToken = this.jwtService.sign(accessTokenPayload);
-      const expiresIn = this.configService.get<number>(
-        'JWT_EXPIRES_IN_SECONDS',
-        3600,
-      );
+      });
 
       return {
         accessToken,
-        expiresIn,
+        expiresIn: this.JWT_EXPIRES_IN,
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -245,14 +249,7 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<SuccessMessageResponse> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        refreshTokenHash: null,
-        refreshTokenExpiresAt: null,
-      },
-    });
-
+    await this.clearRefreshToken(userId);
     return {
       message: 'Logged out successfully',
       success: true,
@@ -260,23 +257,12 @@ export class AuthService {
   }
 
   async logoutAll(userId: string): Promise<SuccessMessageResponse> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        refreshTokenHash: null,
-        refreshTokenExpiresAt: null,
-      },
-    });
-
+    await this.clearRefreshToken(userId);
     return {
       message: 'Logged out from all devices successfully',
       success: true,
     };
   }
-
-  // =============================================================================
-  // Password Management
-  // =============================================================================
 
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
@@ -285,9 +271,9 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true },
     });
 
-    // Always return success to prevent email enumeration
     if (!user) {
       return {
         message:
@@ -296,25 +282,19 @@ export class AuthService {
       };
     }
 
-    // Generate reset token
     const resetToken = this.generateSecureToken();
     const resetTokenHash = this.hashToken(resetToken);
-    const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = new Date(Date.now() + this.PASSWORD_RESET_EXPIRES_IN_MS);
 
-    // Store reset token (in a real app, you'd have a separate table for this)
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         metadata: {
-          ...((user.metadata as any) || {}),
           resetTokenHash,
-          resetTokenExpiresAt: resetTokenExpiresAt.toISOString(),
+          resetTokenExpiresAt: expiresAt.toISOString(),
         },
       },
     });
-
-    // TODO: Send email with reset token
-    // await this.emailService.sendPasswordResetEmail(user.email, resetToken);
 
     return {
       message:
@@ -329,43 +309,20 @@ export class AuthService {
     const { token, newPassword } = resetPasswordDto;
 
     const tokenHash = this.hashToken(token);
-
-    // Find user with matching reset token
-    const users = await this.prisma.user.findMany({
-      where: {
-        metadata: {
-          path: ['resetTokenHash'],
-          equals: tokenHash,
-        },
-      },
-    });
-
-    const user = users.find((u) => {
-      const metadata = u.metadata as any;
-      return (
-        metadata?.resetTokenExpiresAt &&
-        new Date(metadata.resetTokenExpiresAt) > new Date()
-      );
-    });
+    const user = await this.findUserByToken(tokenHash, 'resetTokenHash');
 
     if (!user) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    // Hash new password
     const hashedPassword = await this.hashPassword(newPassword);
 
-    // Update password and clear reset token
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         hashedPassword,
-        metadata: {
-          ...((user.metadata as any) || {}),
-          resetTokenHash: null,
-          resetTokenExpiresAt: null,
-        },
-        refreshTokenHash: null, // Invalidate all sessions
+        metadata: null,
+        refreshTokenHash: null,
         refreshTokenExpiresAt: null,
       },
     });
@@ -384,13 +341,13 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: { id: true, hashedPassword: true },
     });
 
-    if (!user || !user.hashedPassword) {
+    if (!user?.hashedPassword) {
       throw new BadRequestException('User not found');
     }
 
-    // Verify current password
     const isCurrentPasswordValid = await verify(
       user.hashedPassword,
       currentPassword,
@@ -399,15 +356,13 @@ export class AuthService {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    // Hash new password
     const hashedPassword = await this.hashPassword(newPassword);
 
-    // Update password
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         hashedPassword,
-        refreshTokenHash: null, // Invalidate all sessions
+        refreshTokenHash: null,
         refreshTokenExpiresAt: null,
       },
     });
@@ -418,13 +373,10 @@ export class AuthService {
     };
   }
 
-  // =============================================================================
-  // Email & Account Verification
-  // =============================================================================
-
   async sendVerification(userId: string): Promise<SuccessMessageResponse> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: { id: true, emailVerified: true },
     });
 
     if (!user) {
@@ -435,27 +387,21 @@ export class AuthService {
       throw new ConflictException('Email is already verified');
     }
 
-    // Generate verification token
     const verificationToken = this.generateSecureToken();
     const verificationTokenHash = this.hashToken(verificationToken);
-    const verificationTokenExpiresAt = new Date(
-      Date.now() + 24 * 60 * 60 * 1000,
-    ); // 24 hours
+    const expiresAt = new Date(
+      Date.now() + this.EMAIL_VERIFICATION_EXPIRES_IN_MS,
+    );
 
-    // Store verification token
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         metadata: {
-          ...((user.metadata as any) || {}),
           verificationTokenHash,
-          verificationTokenExpiresAt: verificationTokenExpiresAt.toISOString(),
+          verificationTokenExpiresAt: expiresAt.toISOString(),
         },
       },
     });
-
-    // TODO: Send verification email
-    // await this.emailService.sendVerificationEmail(user.email, verificationToken);
 
     return {
       message: 'Verification email sent',
@@ -469,24 +415,7 @@ export class AuthService {
     const { token } = verifyEmailDto;
 
     const tokenHash = this.hashToken(token);
-
-    // Find user with matching verification token
-    const users = await this.prisma.user.findMany({
-      where: {
-        metadata: {
-          path: ['verificationTokenHash'],
-          equals: tokenHash,
-        },
-      },
-    });
-
-    const user = users.find((u) => {
-      const metadata = u.metadata as any;
-      return (
-        metadata?.verificationTokenExpiresAt &&
-        new Date(metadata.verificationTokenExpiresAt) > new Date()
-      );
-    });
+    const user = await this.findUserByToken(tokenHash, 'verificationTokenHash');
 
     if (!user) {
       throw new BadRequestException('Invalid or expired verification token');
@@ -496,16 +425,11 @@ export class AuthService {
       throw new ConflictException('Email is already verified');
     }
 
-    // Mark email as verified
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: true,
-        metadata: {
-          ...((user.metadata as any) || {}),
-          verificationTokenHash: null,
-          verificationTokenExpiresAt: null,
-        },
+        metadata: null,
       },
     });
 
@@ -515,25 +439,8 @@ export class AuthService {
     };
   }
 
-  // =============================================================================
-  // Session Management
-  // =============================================================================
-
   async getCurrentUser(userId: string): Promise<AuthUserResponse> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-          where: {
-            isActive: true,
-          },
-        },
-      },
-    });
+    const user = await this.getUserWithRoles(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -549,23 +456,9 @@ export class AuthService {
 
     try {
       const payload = this.jwtService.verify(token);
+      const user = await this.getUserWithRoles(payload.sub);
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        include: {
-          organization: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-            where: {
-              isActive: true,
-            },
-          },
-        },
-      });
-
-      if (!user || !user.isActive) {
+      if (!user?.isActive) {
         throw new UnauthorizedException('Invalid token');
       }
 
@@ -575,62 +468,7 @@ export class AuthService {
     }
   }
 
-  async getSessions(userId: string) {
-    // In a real implementation, you'd store session information in the database
-    // For now, we'll return a mock response
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Mock session data - in production, you'd have a sessions table
-    // Return in JSON API collection format
-    return {
-      data: [
-        {
-          id: 'current-session',
-          type: 'sessions' as const,
-          attributes: {
-            id: 'current-session',
-            deviceInfo: 'Web Browser',
-            ipAddress: '127.0.0.1',
-            userAgent: 'Mozilla/5.0...',
-            lastActivity: new Date().toISOString(),
-            createdAt: (user.lastLoginAt || user.createdAt).toISOString(),
-            isActive: true,
-          },
-        },
-      ],
-      meta: {
-        totalCount: 1,
-      },
-    };
-  }
-
-  async revokeSession(
-    userId: string,
-    sessionId: string,
-  ): Promise<SuccessMessageResponse> {
-    // In a real implementation, you'd remove the specific session
-    // For now, we'll just invalidate all sessions if it's the current session
-    if (sessionId === 'current-session') {
-      await this.logout(userId);
-    }
-
-    return {
-      message: 'Session revoked successfully',
-      success: true,
-    };
-  }
-
-  // =============================================================================
-  // Helper Methods
-  // =============================================================================
-
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
@@ -646,15 +484,48 @@ export class AuthService {
       },
     });
 
-    if (user && user.hashedPassword) {
+    if (user?.hashedPassword) {
       const isPasswordValid = await verify(user.hashedPassword, password);
       if (isPasswordValid) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { hashedPassword, refreshTokenHash, ...result } = user;
-        return result;
+        return this.omitSensitiveFields(user);
       }
     }
     return null;
+  }
+
+  private async getUserWithRoles(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        organization: true,
+        userRoles: {
+          include: {
+            role: true,
+          },
+          where: {
+            isActive: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async findUserByToken(tokenHash: string, tokenType: string) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        metadata: {
+          path: [tokenType],
+          equals: tokenHash,
+        },
+      },
+      select: { id: true, emailVerified: true, metadata: true },
+    });
+
+    return users.find((user) => {
+      const metadata = user.metadata as any;
+      const expiresAt = metadata?.[tokenType.replace('Hash', 'ExpiresAt')];
+      return expiresAt && new Date(expiresAt) > new Date();
+    });
   }
 
   private async generateTokens(
@@ -674,15 +545,10 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    const expiresIn = this.configService.get<number>(
-      'JWT_EXPIRES_IN_SECONDS',
-      3600,
-    );
-
     return {
       accessToken,
       refreshToken,
-      expiresIn,
+      expiresIn: this.JWT_EXPIRES_IN,
       tokenType: 'Bearer',
     };
   }
@@ -693,14 +559,24 @@ export class AuthService {
   ): Promise<void> {
     const refreshTokenHash = await this.hashRefreshToken(refreshToken);
     const refreshTokenExpiresAt = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000,
-    ); // 7 days
+      Date.now() + this.REFRESH_TOKEN_EXPIRES_IN_MS,
+    );
 
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         refreshTokenHash,
         refreshTokenExpiresAt,
+      },
+    });
+  }
+
+  private async clearRefreshToken(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshTokenHash: null,
+        refreshTokenExpiresAt: null,
       },
     });
   }
@@ -721,6 +597,108 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  async getSessions(userId: string): Promise<{
+    data: Array<{
+      id: string;
+      type: 'sessions';
+      attributes: {
+        id: string;
+        deviceInfo: string | null;
+        ipAddress: string | null;
+        userAgent: string | null;
+        lastActivity: string;
+        createdAt: string;
+        isActive: boolean;
+      };
+    }>;
+    meta?: {
+      totalCount: number;
+    };
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        refreshTokenHash: true,
+        refreshTokenExpiresAt: true,
+        lastLoginAt: true,
+        createdAt: true,
+        metadata: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const sessions = [];
+
+    // If user has an active refresh token, create a session entry
+    if (user.refreshTokenHash && user.refreshTokenExpiresAt && user.refreshTokenExpiresAt > new Date()) {
+      const sessionMetadata = (user.metadata as any)?.session || {};
+      
+      sessions.push({
+        id: 'current-session',
+        type: 'sessions' as const,
+        attributes: {
+          id: 'current-session',
+          deviceInfo: sessionMetadata.deviceInfo || 'Unknown Device',
+          ipAddress: sessionMetadata.ipAddress || null,
+          userAgent: sessionMetadata.userAgent || null,
+          lastActivity: (user.lastLoginAt || user.createdAt).toISOString(),
+          createdAt: (user.lastLoginAt || user.createdAt).toISOString(),
+          isActive: true,
+        },
+      });
+    }
+
+    return {
+      data: sessions,
+      meta: {
+        totalCount: sessions.length,
+      },
+    };
+  }
+
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<SuccessMessageResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, refreshTokenHash: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // For current session management, we only support revoking the current session
+    if (sessionId === 'current-session') {
+      if (!user.refreshTokenHash) {
+        throw new BadRequestException('No active session found');
+      }
+
+      await this.clearRefreshToken(userId);
+      
+      return {
+        message: 'Session revoked successfully',
+        success: true,
+      };
+    }
+
+    throw new BadRequestException('Invalid session ID');
+  }
+
+  private omitSensitiveFields<
+    T extends { hashedPassword?: string; refreshTokenHash?: string },
+  >(user: T): Omit<T, 'hashedPassword' | 'refreshTokenHash'> {
+    const result = { ...user };
+    delete result.hashedPassword;
+    delete result.refreshTokenHash;
+    return result;
+  }
+
   private formatUserResponse(user: any): AuthUserResponse {
     return {
       id: user.id,
@@ -739,11 +717,12 @@ export class AuthService {
         isVerified: user.organization.isVerified,
         plan: user.organization.plan,
       },
-      roles: user.userRoles?.map((userRole: any) => ({
-        id: userRole.role.id,
-        name: userRole.role.name,
-        level: userRole.role.level,
-      })),
+      roles:
+        user.userRoles?.map((userRole: any) => ({
+          id: userRole.role.id,
+          name: userRole.role.name,
+          level: userRole.role.level,
+        })) ?? [],
       metadata: user.metadata,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),

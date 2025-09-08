@@ -67,7 +67,7 @@ export class DatabaseTestConfig {
  * Decorator for test classes that need database
  * Usage: @WithDatabase
  */
-export function WithDatabase<T extends { new (...args: any[]): {} }>(constructor: T) {
+export function WithDatabase<T extends { new (...args: any[]): object }>(constructor: T) {
   return class extends constructor {
     static async setupDatabase() {
       return await DatabaseTestConfig.setupDatabase();

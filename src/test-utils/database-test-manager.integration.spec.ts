@@ -97,7 +97,7 @@ describe('DatabaseTestManager - Available Tables Only', () => {
       });
 
       // Create user
-      const user = await prisma.user.create({
+      await prisma.user.create({
         data: {
           email: 'manager@complexfarm.com',
           name: 'Farm Manager',
@@ -106,7 +106,7 @@ describe('DatabaseTestManager - Available Tables Only', () => {
       });
 
       // Create farm
-      const farm = await prisma.farm.create({
+      await prisma.farm.create({
         data: {
           name: 'North Field',
           organizationId: org.id,
@@ -359,7 +359,7 @@ describe('DatabaseTestManager - Available Tables Only', () => {
       });
 
       // Create multiple commodities
-      const commodities = await Promise.all([
+      await Promise.all([
         prisma.commodity.create({
           data: {
             name: 'Corn',

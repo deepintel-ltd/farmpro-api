@@ -117,7 +117,7 @@ export class JsonApiExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let title = 'Database Error';
     let detail = exception.message;
-    let code = exception.code;
+    const code = exception.code;
 
     // Map Prisma error codes to appropriate HTTP status codes
     switch (exception.code) {
