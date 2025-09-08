@@ -1,0 +1,111 @@
+// Import domain-specific contracts
+import { farmContract, type FarmContract } from './farms.contract';
+import {
+  commodityContract,
+  type CommodityContract,
+} from './commodities.contract';
+import { orderContract, type OrderContract } from './orders.contract';
+import { userContract, type UserContract } from './users.contract';
+import { authContract, type AuthContract } from './auth.contract';
+import { healthContract, type HealthContract } from './health.contract';
+
+// Import common utilities
+import { initContract } from '@ts-rest/core';
+import {
+  validateRequestBody,
+  validateQueryParams,
+  validatePathParams,
+  validateResponse,
+  ContractValidator,
+} from './common';
+
+const c = initContract();
+
+// =============================================================================
+// Main API Contract
+// =============================================================================
+
+export const apiContract = c.router({
+  farms: farmContract,
+  commodities: commodityContract,
+  orders: orderContract,
+  users: userContract,
+  auth: authContract,
+  ...healthContract,
+});
+
+// =============================================================================
+// Type Exports
+// =============================================================================
+
+/**
+ * Type-safe contract endpoint extractor
+ */
+export type ApiContractType = typeof apiContract;
+
+/**
+ * Extract endpoint types from contract
+ */
+export type FarmEndpoints = ApiContractType['farms'];
+export type CommodityEndpoints = ApiContractType['commodities'];
+export type OrderEndpoints = ApiContractType['orders'];
+export type UserEndpoints = ApiContractType['users'];
+export type AuthEndpoints = ApiContractType['auth'];
+
+// Export contract type for use in NestJS controllers
+export type { ApiContractType as ApiContract };
+
+// =============================================================================
+// Utility Exports
+// =============================================================================
+
+export {
+  validateRequestBody,
+  validateQueryParams,
+  validatePathParams,
+  validateResponse,
+  ContractValidator,
+};
+
+// =============================================================================
+// Contract Metadata
+// =============================================================================
+
+/**
+ * Utility to extract contract metadata for documentation
+ */
+export function getContractMetadata() {
+  return {
+    version: '1.0.0',
+    title: 'FarmPro API',
+    description: 'JSON API compliant agricultural platform API',
+    endpoints: {
+      farms: Object.keys(farmContract),
+      commodities: Object.keys(commodityContract),
+      orders: Object.keys(orderContract),
+      users: Object.keys(userContract),
+      auth: Object.keys(authContract),
+    },
+  };
+}
+
+// =============================================================================
+// Re-export Domain Contracts
+// =============================================================================
+
+export {
+  farmContract,
+  commodityContract,
+  orderContract,
+  userContract,
+  authContract,
+  healthContract,
+};
+export type {
+  FarmContract,
+  CommodityContract,
+  OrderContract,
+  UserContract,
+  AuthContract,
+  HealthContract,
+};
