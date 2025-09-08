@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrganizationType } from '@prisma/client';
@@ -112,7 +116,9 @@ describe('AuthService', () => {
           },
           role: {
             findFirst: jest.fn().mockResolvedValue(null),
-            create: jest.fn().mockResolvedValue({ id: 'role-1', name: 'admin' }),
+            create: jest
+              .fn()
+              .mockResolvedValue({ id: 'role-1', name: 'admin' }),
           },
           userRole: {
             create: jest.fn().mockResolvedValue({}),
@@ -135,9 +141,13 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException if user already exists', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+      });
 
-      await expect(service.register(registerDto)).rejects.toThrow(ConflictException);
+      await expect(service.register(registerDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -154,7 +164,10 @@ describe('AuthService', () => {
 
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-      const result = await service.validateUser('test@example.com', 'password123');
+      const result = await service.validateUser(
+        'test@example.com',
+        'password123',
+      );
 
       expect(result).toBeDefined();
       expect(result.email).toBe('test@example.com');
@@ -164,7 +177,10 @@ describe('AuthService', () => {
     it('should return null for invalid credentials', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      const result = await service.validateUser('test@example.com', 'wrong-password');
+      const result = await service.validateUser(
+        'test@example.com',
+        'wrong-password',
+      );
 
       expect(result).toBeNull();
     });
@@ -192,7 +208,9 @@ describe('AuthService', () => {
         .mockReturnValueOnce('refresh-secret')
         .mockReturnValueOnce(3600);
 
-      const result = await service.refresh({ refreshToken: 'valid-refresh-token' });
+      const result = await service.refresh({
+        refreshToken: 'valid-refresh-token',
+      });
 
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('expiresIn');
@@ -204,9 +222,9 @@ describe('AuthService', () => {
         throw new Error('Invalid token');
       });
 
-      await expect(service.refresh({ refreshToken: 'invalid-token' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.refresh({ refreshToken: 'invalid-token' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -219,7 +237,9 @@ describe('AuthService', () => {
       });
       mockPrismaService.user.update.mockResolvedValue({});
 
-      const result = await service.forgotPassword({ email: 'test@example.com' });
+      const result = await service.forgotPassword({
+        email: 'test@example.com',
+      });
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('password reset link has been sent');
@@ -228,7 +248,9 @@ describe('AuthService', () => {
     it('should return success even for non-existent email', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      const result = await service.forgotPassword({ email: 'nonexistent@example.com' });
+      const result = await service.forgotPassword({
+        email: 'nonexistent@example.com',
+      });
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('password reset link has been sent');
@@ -241,7 +263,9 @@ describe('AuthService', () => {
         id: 'user-1',
         metadata: {
           resetTokenHash: 'valid-token-hash',
-          resetTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          resetTokenExpiresAt: new Date(
+            Date.now() + 60 * 60 * 1000,
+          ).toISOString(),
         },
       };
 
@@ -294,8 +318,8 @@ describe('AuthService', () => {
         hashedPassword: 'current-hashed-password',
       };
 
-      const argon2 = jest.mocked(await import('@node-rs/argon2'));
-      argon2.verify.mockResolvedValueOnce(false);
+      const mockVerify = jest.mocked((await import('@node-rs/argon2')).verify);
+      mockVerify.mockResolvedValueOnce(false);
 
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
