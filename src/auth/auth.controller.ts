@@ -6,6 +6,7 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { authContract } from '../../contracts/auth.contract';
+import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import {
   RegisterDto,
   LoginDto,
@@ -51,38 +52,12 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error(`Registration failed for ${body.email}:`, error);
 
-        const isConflict =
-          error instanceof Error && error.message.includes('already exists');
-
-        if (isConflict) {
-          return {
-            status: 409 as const,
-            body: {
-              errors: [
-                {
-                  status: '409',
-                  title: 'Conflict',
-                  detail: (error as Error).message || 'User already exists',
-                  code: 'USER_EXISTS',
-                },
-              ],
-            },
-          };
-        }
-
-        return {
-          status: 400 as const,
-          body: {
-            errors: [
-              {
-                status: '400',
-                title: 'Bad Request',
-                detail: (error as Error).message || 'Registration failed',
-                code: 'REGISTRATION_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          conflictMessage: 'User already exists',
+          conflictCode: 'USER_EXISTS',
+          badRequestMessage: 'Registration failed',
+          badRequestCode: 'REGISTRATION_FAILED',
+        });
       }
     });
   }
@@ -108,40 +83,12 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error(`Login failed for ${body.email}:`, error);
 
-        const isUnauthorized =
-          error instanceof Error &&
-          (error.message.includes('Invalid credentials') ||
-            error.message.includes('disabled'));
-
-        if (isUnauthorized) {
-          return {
-            status: 401 as const,
-            body: {
-              errors: [
-                {
-                  status: '401',
-                  title: 'Unauthorized',
-                  detail: (error as Error).message || 'Authentication failed',
-                  code: 'INVALID_CREDENTIALS',
-                },
-              ],
-            },
-          };
-        }
-
-        return {
-          status: 400 as const,
-          body: {
-            errors: [
-              {
-                status: '400',
-                title: 'Bad Request',
-                detail: (error as Error).message || 'Authentication failed',
-                code: 'LOGIN_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          unauthorizedMessage: 'Invalid credentials or account disabled',
+          unauthorizedCode: 'INVALID_CREDENTIALS',
+          badRequestMessage: 'Authentication failed',
+          badRequestCode: 'LOGIN_FAILED',
+        });
       }
     });
   }
@@ -168,19 +115,10 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error('Token refresh failed:', error);
 
-        return {
-          status: 401 as const,
-          body: {
-            errors: [
-              {
-                status: '401',
-                title: 'Unauthorized',
-                detail: (error as Error).message || 'Token refresh failed',
-                code: 'INVALID_REFRESH_TOKEN',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          unauthorizedMessage: 'Invalid or expired refresh token',
+          unauthorizedCode: 'INVALID_REFRESH_TOKEN',
+        });
       }
     });
   }
@@ -208,19 +146,10 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error(`Logout failed for user ${req.user.userId}:`, error);
 
-        return {
-          status: 500 as const,
-          body: {
-            errors: [
-              {
-                status: '500',
-                title: 'Internal Server Error',
-                detail: (error as Error).message || 'Logout failed',
-                code: 'LOGOUT_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          internalErrorMessage: 'Logout failed',
+          internalErrorCode: 'LOGOUT_FAILED',
+        });
       }
     });
   }
@@ -251,19 +180,10 @@ export class AuthController {
           error,
         );
 
-        return {
-          status: 500 as const,
-          body: {
-            errors: [
-              {
-                status: '500',
-                title: 'Internal Server Error',
-                detail: (error as Error).message || 'Logout all failed',
-                code: 'LOGOUT_ALL_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          internalErrorMessage: 'Logout all failed',
+          internalErrorCode: 'LOGOUT_ALL_FAILED',
+        });
       }
     });
   }
@@ -294,20 +214,10 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error(`Forgot password failed for ${body.email}:`, error);
 
-        return {
-          status: 400 as const,
-          body: {
-            errors: [
-              {
-                status: '400',
-                title: 'Bad Request',
-                detail:
-                  (error as Error).message || 'Password reset request failed',
-                code: 'FORGOT_PASSWORD_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Password reset request failed',
+          badRequestCode: 'FORGOT_PASSWORD_FAILED',
+        });
       }
     });
   }
@@ -334,19 +244,10 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error('Password reset failed:', error);
 
-        return {
-          status: 400 as const,
-          body: {
-            errors: [
-              {
-                status: '400',
-                title: 'Bad Request',
-                detail: (error as Error).message || 'Password reset failed',
-                code: 'RESET_PASSWORD_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid or expired reset token',
+          badRequestCode: 'RESET_PASSWORD_FAILED',
+        });
       }
     });
   }
@@ -381,39 +282,12 @@ export class AuthController {
           error,
         );
 
-        const isBadRequest =
-          error instanceof Error && error.message.includes('incorrect');
-
-        if (isBadRequest) {
-          return {
-            status: 400 as const,
-            body: {
-              errors: [
-                {
-                  status: '400',
-                  title: 'Bad Request',
-                  detail:
-                    (error as Error).message || 'Current password is incorrect',
-                  code: 'INVALID_CURRENT_PASSWORD',
-                },
-              ],
-            },
-          };
-        }
-
-        return {
-          status: 500 as const,
-          body: {
-            errors: [
-              {
-                status: '500',
-                title: 'Internal Server Error',
-                detail: (error as Error).message || 'Password change failed',
-                code: 'CHANGE_PASSWORD_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Current password is incorrect',
+          badRequestCode: 'INVALID_CURRENT_PASSWORD',
+          internalErrorMessage: 'Password change failed',
+          internalErrorCode: 'CHANGE_PASSWORD_FAILED',
+        });
       }
     });
   }
@@ -448,38 +322,12 @@ export class AuthController {
           error,
         );
 
-        const isConflict =
-          error instanceof Error && error.message.includes('already verified');
-
-        if (isConflict) {
-          return {
-            status: 409 as const,
-            body: {
-              errors: [
-                {
-                  status: '409',
-                  title: 'Conflict',
-                  detail: (error as Error).message || 'Email already verified',
-                  code: 'EMAIL_ALREADY_VERIFIED',
-                },
-              ],
-            },
-          };
-        }
-
-        return {
-          status: 500 as const,
-          body: {
-            errors: [
-              {
-                status: '500',
-                title: 'Internal Server Error',
-                detail: (error as Error).message || 'Send verification failed',
-                code: 'SEND_VERIFICATION_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          conflictMessage: 'Email already verified',
+          conflictCode: 'EMAIL_ALREADY_VERIFIED',
+          internalErrorMessage: 'Send verification failed',
+          internalErrorCode: 'SEND_VERIFICATION_FAILED',
+        });
       }
     });
   }
@@ -506,38 +354,12 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error('Email verification failed:', error);
 
-        const isConflict =
-          error instanceof Error && error.message.includes('already verified');
-
-        if (isConflict) {
-          return {
-            status: 409 as const,
-            body: {
-              errors: [
-                {
-                  status: '409',
-                  title: 'Conflict',
-                  detail: (error as Error).message || 'Email already verified',
-                  code: 'EMAIL_ALREADY_VERIFIED',
-                },
-              ],
-            },
-          };
-        }
-
-        return {
-          status: 400 as const,
-          body: {
-            errors: [
-              {
-                status: '400',
-                title: 'Bad Request',
-                detail: (error as Error).message || 'Email verification failed',
-                code: 'VERIFY_EMAIL_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          conflictMessage: 'Email already verified',
+          conflictCode: 'EMAIL_ALREADY_VERIFIED',
+          badRequestMessage: 'Invalid or expired verification token',
+          badRequestCode: 'VERIFY_EMAIL_FAILED',
+        });
       }
     });
   }
@@ -571,20 +393,10 @@ export class AuthController {
           error,
         );
 
-        return {
-          status: 401 as const,
-          body: {
-            errors: [
-              {
-                status: '401',
-                title: 'Unauthorized',
-                detail:
-                  (error as Error).message || 'Failed to get user profile',
-                code: 'GET_PROFILE_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          unauthorizedMessage: 'Failed to get user profile',
+          unauthorizedCode: 'GET_PROFILE_FAILED',
+        });
       }
     });
   }
@@ -610,19 +422,10 @@ export class AuthController {
       } catch (error: unknown) {
         this.logger.error('Token validation failed:', error);
 
-        return {
-          status: 400 as const,
-          body: {
-            errors: [
-              {
-                status: '400',
-                title: 'Bad Request',
-                detail: (error as Error).message || 'Token validation failed',
-                code: 'VALIDATE_TOKEN_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          unauthorizedMessage: 'Invalid token',
+          unauthorizedCode: 'VALIDATE_TOKEN_FAILED',
+        });
       }
     });
   }
@@ -646,19 +449,10 @@ export class AuthController {
           error,
         );
 
-        return {
-          status: 500 as const,
-          body: {
-            errors: [
-              {
-                status: '500',
-                title: 'Internal Server Error',
-                detail: (error as Error).message || 'Get sessions failed',
-                code: 'GET_SESSIONS_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          internalErrorMessage: 'Get sessions failed',
+          internalErrorCode: 'GET_SESSIONS_FAILED',
+        });
       }
     });
   }
@@ -693,38 +487,14 @@ export class AuthController {
           error,
         );
 
-        const isNotFound =
-          error instanceof Error && error.message.includes('not found');
-
-        if (isNotFound) {
-          return {
-            status: 404 as const,
-            body: {
-              errors: [
-                {
-                  status: '404',
-                  title: 'Not Found',
-                  detail: (error as Error).message || 'Session not found',
-                  code: 'SESSION_NOT_FOUND',
-                },
-              ],
-            },
-          };
-        }
-
-        return {
-          status: 500 as const,
-          body: {
-            errors: [
-              {
-                status: '500',
-                title: 'Internal Server Error',
-                detail: (error as Error).message || 'Revoke session failed',
-                code: 'REVOKE_SESSION_FAILED',
-              },
-            ],
-          },
-        };
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Session not found',
+          notFoundCode: 'SESSION_NOT_FOUND',
+          badRequestMessage: 'Invalid session ID',
+          badRequestCode: 'INVALID_SESSION_ID',
+          internalErrorMessage: 'Revoke session failed',
+          internalErrorCode: 'REVOKE_SESSION_FAILED',
+        });
       }
     });
   }
