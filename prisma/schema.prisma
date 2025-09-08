@@ -1,6 +1,3 @@
-// FarmPro Integrated Platform - Prisma Schema with Modern Auth + RBAC
-// Authentication: JWT-based with NestJS Passport + custom RBAC implementation
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,10 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// USER MANAGEMENT (JWT-based Authentication)
-// ============================================================================
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -21,39 +14,27 @@ model User {
   phone     String?
   avatar    String?
   
-  // Password auth (hashed with argon2)
   hashedPassword String?
-  
-  // OAuth fields (optional)
   googleId   String?  @unique
   githubId   String?  @unique
   
-  // Account status
   isActive      Boolean  @default(true)
   emailVerified Boolean  @default(false)
   lastLoginAt   DateTime?
   
-  // JWT refresh token management
   refreshTokenHash String?
   refreshTokenExpiresAt DateTime?
   
-  // Multi-tenant relationship - REQUIRED for data isolation
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
-  // Flexible profile data
-  metadata  Json?    // Profile data, preferences, certifications
+  metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  // RBAC relationships
   userRoles UserRole[]
-  
-  // Farm activities (tenant-isolated)
   farmActivities FarmActivity[]
   observations   Observation[]
-  
-  // Exchange activities (tenant-isolated)
   createdOrders  Order[]       @relation("OrderCreatedBy")
   messages       Message[]
   activities     Activity[]
@@ -63,42 +44,35 @@ model User {
   @@map("users")
 }
 
-// ============================================================================
-// RBAC SYSTEM (Custom Implementation)
-// ============================================================================
-
 model Role {
   id          String @id @default(cuid())
-  name        String // 'admin', 'farm_manager', 'buyer', 'supplier'
+  name        String
   description String?
   
-  // Tenant isolation - roles can be org-specific or global
-  organizationId String? // null = global role, set = org-specific role
+  organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
-  // Role hierarchy and permissions
-  level       Int      @default(0) // For role hierarchy (higher = more permissions)
+  level       Int      @default(0)
   isActive    Boolean  @default(true)
-  isSystemRole Boolean @default(false) // System roles can't be deleted
+  isSystemRole Boolean @default(false)
   
-  metadata    Json?    // Role configuration, limits, etc.
+  metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relationships
   permissions RolePermission[]
   userRoles   UserRole[]
 
-  @@unique([name, organizationId]) // Unique role names per org (null for global)
+  @@unique([name, organizationId])
   @@index([organizationId])
   @@map("roles")
 }
 
 model Permission {
   id          String  @id @default(cuid())
-  resource    String  // 'farm', 'order', 'user', 'inventory'
-  action      String  // 'create', 'read', 'update', 'delete', 'manage'
-  conditions  Json?   // Optional conditions: {"own": true, "status": "active"}
+  resource    String
+  action      String
+  conditions  Json?
   description String?
   
   isSystemPermission Boolean @default(false)
@@ -106,7 +80,7 @@ model Permission {
 
   rolePermissions RolePermission[]
 
-  @@unique([resource, action]) // Unique permission per resource-action combo
+  @@unique([resource, action])
   @@index([resource])
   @@map("permissions")
 }
@@ -116,10 +90,7 @@ model RolePermission {
   roleId       String
   permissionId String
   
-  // Permission can be granted or denied
   granted   Boolean @default(true)
-  
-  // Optional conditions override
   conditions Json?
   createdAt  DateTime @default(now())
 
@@ -135,29 +106,21 @@ model UserRole {
   userId  String
   roleId  String
   
-  // Scope limitation - can assign role to specific farms/resources
-  farmId  String? // Limit role scope to specific farm
-  
-  // Temporal role assignment
+  farmId  String?
   expiresAt DateTime?
   isActive  Boolean   @default(true)
-  
-  assignedBy String?   // Who assigned this role
+  assignedBy String?
   assignedAt DateTime  @default(now())
-  metadata   Json?     // Assignment context, notes
+  metadata   Json?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, roleId, farmId]) // User can have same role multiple times for different farms
+  @@unique([userId, roleId, farmId])
   @@index([userId])
   @@index([roleId])
   @@map("user_roles")
 }
-
-// ============================================================================
-// ORGANIZATIONS (Enhanced with RBAC)
-// ============================================================================
 
 model Organization {
   id           String           @id @default(cuid())
@@ -170,27 +133,21 @@ model Organization {
   isVerified   Boolean          @default(false)
   isActive     Boolean          @default(true)
   
-  // Subscription and limits
   plan         String           @default("basic")
   maxUsers     Int              @default(5)
   maxFarms     Int              @default(1)
   features     String[]
-  
-  // RBAC configuration
-  allowCustomRoles Boolean @default(false) // Can create custom roles
+  allowCustomRoles Boolean @default(false)
   
   metadata     Json?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  // Relationships
   users           User[]
-  roles           Role[]          // Organization-specific roles
+  roles           Role[]
   farms           Farm[]
   inventory       Inventory[]
   transactions    Transaction[]
-  
-  // Exchange relationships
   buyerOrders     Order[]         @relation("BuyerOrganization")
   supplierOrders  Order[]         @relation("SupplierOrganization")
   drivers         Driver[]
@@ -209,10 +166,6 @@ enum OrganizationType {
   OTHER
 }
 
-// ============================================================================
-// FARM MANAGEMENT (RBAC-Protected)
-// ============================================================================
-
 model Farm {
   id             String   @id @default(cuid())
   organizationId String
@@ -222,8 +175,10 @@ model Farm {
   timezone       String   @default("UTC")
   isActive       Boolean  @default(true)
   
-  // Access control
-  isPublic       Boolean  @default(false) // For marketplace visibility
+  cropTypes      String[]
+  establishedDate DateTime
+  certifications String[]
+  isPublic       Boolean  @default(false)
   
   metadata       Json?
   createdAt      DateTime @default(now())
@@ -236,6 +191,8 @@ model Farm {
   observations Observation[]
   inventory    Inventory[]
   sensors      Sensor[]
+  commodities  Commodity[]     @relation("FarmCommodities")
+  orders       Order[]         @relation("FarmOrders")
 
   @@index([organizationId])
   @@index([organizationId, isActive])
@@ -281,27 +238,34 @@ model Season {
   @@map("seasons")
 }
 
-// ============================================================================
-// COMMODITY & CROPS (Global + Tenant-Specific)
-// ============================================================================
-
 model Commodity {
   id          String @id @default(cuid())
   name        String
   category    String
+  variety     String?
+  qualityGrade String?
+  quantity    Float
   unit        String
+  harvestDate DateTime?
+  storageLocation String?
   description String?
   metadata    Json?
   isActive    Boolean @default(true)
   isGlobal    Boolean @default(true)
-  createdBy   String? // Organization that created
+  createdBy   String?
+  
+  farmId      String?
+  farm        Farm?   @relation("FarmCommodities", fields: [farmId], references: [id])
+  
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   cropCycles CropCycle[]
   orderItems OrderItem[]
   inventory  Inventory[]
 
   @@index([isGlobal, createdBy])
+  @@index([farmId])
   @@map("commodities")
 }
 
@@ -332,9 +296,7 @@ model CropCycle {
   @@map("crop_cycles")
 }
 
-// ============================================================================
-// FARM ACTIVITIES (RBAC-Protected)
-// ============================================================================
+
 
 model FarmActivity {
   id          String         @id @default(cuid())
@@ -382,9 +344,7 @@ model Harvest {
   @@map("harvests")
 }
 
-// ============================================================================
-// INVENTORY MANAGEMENT (RBAC-Protected)
-// ============================================================================
+
 
 model Inventory {
   id              String          @id @default(cuid())
@@ -413,44 +373,49 @@ model Inventory {
   @@map("inventory")
 }
 
-// ============================================================================
-// ORDER MANAGEMENT (Cross-tenant with RBAC)
-// ============================================================================
-
 model Order {
   id              String      @id @default(cuid())
   orderNumber     String      @unique
   title           String
   type            OrderType
-  status          OrderStatus
+  status          OrderStatus @default(PENDING)
+  
+  commodityId     String
+  quantity        Float
+  pricePerUnit    Float
+  totalPrice      Float
+  deliveryDate    DateTime
+  deliveryLocation String
+  terms           Json?
+  
   totalAmount     Decimal?
   currency        String      @default("USD")
   
-  // Parties
   buyerOrgId      String
   supplierOrgId   String?
   createdById     String
+  farmId          String?
   
-  // Delivery
-  deliveryDate    DateTime?
   deliveryAddress Json?
-  
   metadata        Json?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  buyerOrg     Organization @relation("BuyerOrganization", fields: [buyerOrgId], references: [id])
-  supplierOrg  Organization? @relation("SupplierOrganization", fields: [supplierOrgId], references: [id])
-  createdBy    User         @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  items        OrderItem[]
-  deliveries   Delivery[]
+  farm        Farm?         @relation("FarmOrders", fields: [farmId], references: [id])
+  buyerOrg    Organization  @relation("BuyerOrganization", fields: [buyerOrgId], references: [id])
+  supplierOrg Organization? @relation("SupplierOrganization", fields: [supplierOrgId], references: [id])
+  createdBy   User          @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  items       OrderItem[]
+  deliveries  Delivery[]
   transactions Transaction[]
-  messages     Message[]
-  documents    Document[]
+  messages    Message[]
+  documents   Document[]
 
   @@index([buyerOrgId, status])
   @@index([supplierOrgId, status])
   @@index([status, createdAt])
+  @@index([farmId])
+  @@index([commodityId])
   @@map("orders")
 }
 
@@ -472,9 +437,7 @@ model OrderItem {
   @@map("order_items")
 }
 
-// ============================================================================
-// DELIVERY & LOGISTICS
-// ============================================================================
+
 
 model Delivery {
   id              String         @id @default(cuid())
@@ -531,10 +494,6 @@ model TrackingUpdate {
   @@map("tracking_updates")
 }
 
-// ============================================================================
-// FINANCIAL MANAGEMENT
-// ============================================================================
-
 model Transaction {
   id             String            @id @default(cuid())
   organizationId String
@@ -559,9 +518,7 @@ model Transaction {
   @@map("transactions")
 }
 
-// ============================================================================
-// DATA & MONITORING
-// ============================================================================
+
 
 model SoilData {
   id         String   @id @default(cuid())
@@ -610,10 +567,6 @@ model SensorReading {
   @@map("sensor_readings")
 }
 
-// ============================================================================
-// OBSERVATIONS & MEDIA
-// ============================================================================
-
 model Observation {
   id          String   @id @default(cuid())
   farmId      String
@@ -660,10 +613,6 @@ model Media {
   @@map("media")
 }
 
-// ============================================================================
-// RATINGS & FEEDBACK
-// ============================================================================
-
 model Rating {
   id        String   @id @default(cuid())
   fromOrgId String
@@ -683,10 +632,6 @@ model Rating {
   @@index([orderId])
   @@map("ratings")
 }
-
-// ============================================================================
-// COMMUNICATION
-// ============================================================================
 
 model Message {
   id        String    @id @default(cuid())
@@ -709,10 +654,6 @@ model Message {
   @@map("messages")
 }
 
-// ============================================================================
-// DOCUMENT MANAGEMENT
-// ============================================================================
-
 model Document {
   id        String   @id @default(cuid())
   orderId   String?
@@ -730,10 +671,6 @@ model Document {
   @@index([farmId])
   @@map("documents")
 }
-
-// ============================================================================
-// ACTIVITY LOG
-// ============================================================================
 
 model Activity {
   id             String   @id @default(cuid())
@@ -754,10 +691,6 @@ model Activity {
   @@map("activities")
 }
 
-// ============================================================================
-// SYSTEM CONFIGURATION
-// ============================================================================
-
 model Setting {
   key       String @id
   value     String
@@ -769,10 +702,6 @@ model Setting {
   @@index([scope, scopeId])
   @@map("settings")
 }
-
-// ============================================================================
-// ENUMS
-// ============================================================================
 
 enum CropStatus {
   PLANNED
@@ -816,12 +745,10 @@ enum OrderType {
 }
 
 enum OrderStatus {
-  DRAFT
-  PUBLISHED
-  ACCEPTED
-  IN_PROGRESS
+  PENDING
+  CONFIRMED
+  IN_TRANSIT
   DELIVERED
-  COMPLETED
   CANCELLED
 }
 
