@@ -1,7 +1,7 @@
-import { 
-  Injectable, 
-  ConflictException, 
-  UnauthorizedException, 
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
   BadRequestException,
   NotFoundException,
   ForbiddenException,
@@ -11,9 +11,9 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/prisma/prisma.service';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
-import { 
-  RegisterDto, 
-  LoginDto, 
+import {
+  RegisterDto,
+  LoginDto,
   RefreshTokenDto,
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -24,8 +24,6 @@ import {
   RegisterResponse,
   TokensResponse,
   AuthUserResponse,
-  SessionResponse,
-  TokenValidationResponse,
   SuccessMessageResponse,
 } from './dto/auth.dto';
 
@@ -42,7 +40,14 @@ export class AuthService {
   // =============================================================================
 
   async register(registerDto: RegisterDto): Promise<RegisterResponse> {
-    const { email, password, name, phone, organizationName, organizationType, inviteCode } = registerDto;
+    const {
+      email,
+      password,
+      name,
+      phone,
+      organizationName,
+      organizationType,
+    } = registerDto;
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -127,7 +132,11 @@ export class AuthService {
     });
 
     // Generate tokens
-    const tokens = await this.generateTokens(result.user.id, result.user.email, result.user.organizationId);
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      result.user.organizationId,
+    );
 
     // Update refresh token in database
     await this.updateRefreshToken(result.user.id, tokens.refreshToken);
@@ -141,7 +150,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string): Promise<LoginResponse> {
+  async login(loginDto: LoginDto): Promise<LoginResponse> {
     const { email, password } = loginDto;
 
     const user = await this.validateUser(email, password);
@@ -154,7 +163,11 @@ export class AuthService {
     }
 
     // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.organizationId);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.organizationId,
+    );
 
     // Update refresh token and last login
     await this.prisma.user.update({
@@ -174,7 +187,9 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshTokenDto: RefreshTokenDto): Promise<{ accessToken: string; expiresIn: number }> {
+  async refresh(
+    refreshTokenDto: RefreshTokenDto,
+  ): Promise<{ accessToken: string; expiresIn: number }> {
     const { refreshToken } = refreshTokenDto;
 
     try {
@@ -191,13 +206,19 @@ export class AuthService {
       }
 
       // Verify refresh token hash
-      const isValidRefreshToken = await verify(user.refreshTokenHash, refreshToken);
+      const isValidRefreshToken = await verify(
+        user.refreshTokenHash,
+        refreshToken,
+      );
       if (!isValidRefreshToken) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
       // Check if refresh token is expired
-      if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt < new Date()) {
+      if (
+        user.refreshTokenExpiresAt &&
+        user.refreshTokenExpiresAt < new Date()
+      ) {
         throw new UnauthorizedException('Refresh token expired');
       }
 
@@ -209,13 +230,16 @@ export class AuthService {
       };
 
       const accessToken = this.jwtService.sign(accessTokenPayload);
-      const expiresIn = this.configService.get<number>('JWT_EXPIRES_IN_SECONDS', 3600);
+      const expiresIn = this.configService.get<number>(
+        'JWT_EXPIRES_IN_SECONDS',
+        3600,
+      );
 
       return {
         accessToken,
         expiresIn,
       };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -254,7 +278,9 @@ export class AuthService {
   // Password Management
   // =============================================================================
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<SuccessMessageResponse> {
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<SuccessMessageResponse> {
     const { email } = forgotPasswordDto;
 
     const user = await this.prisma.user.findUnique({
@@ -264,7 +290,8 @@ export class AuthService {
     // Always return success to prevent email enumeration
     if (!user) {
       return {
-        message: 'If an account with that email exists, a password reset link has been sent.',
+        message:
+          'If an account with that email exists, a password reset link has been sent.',
         success: true,
       };
     }
@@ -290,12 +317,15 @@ export class AuthService {
     // await this.emailService.sendPasswordResetEmail(user.email, resetToken);
 
     return {
-      message: 'If an account with that email exists, a password reset link has been sent.',
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
       success: true,
     };
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<SuccessMessageResponse> {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<SuccessMessageResponse> {
     const { token, newPassword } = resetPasswordDto;
 
     const tokenHash = this.hashToken(token);
@@ -310,9 +340,12 @@ export class AuthService {
       },
     });
 
-    const user = users.find(u => {
+    const user = users.find((u) => {
       const metadata = u.metadata as any;
-      return metadata?.resetTokenExpiresAt && new Date(metadata.resetTokenExpiresAt) > new Date();
+      return (
+        metadata?.resetTokenExpiresAt &&
+        new Date(metadata.resetTokenExpiresAt) > new Date()
+      );
     });
 
     if (!user) {
@@ -343,7 +376,10 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: string, changePasswordDto: ChangePasswordDto): Promise<SuccessMessageResponse> {
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<SuccessMessageResponse> {
     const { currentPassword, newPassword } = changePasswordDto;
 
     const user = await this.prisma.user.findUnique({
@@ -355,7 +391,10 @@ export class AuthService {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await verify(user.hashedPassword, currentPassword);
+    const isCurrentPasswordValid = await verify(
+      user.hashedPassword,
+      currentPassword,
+    );
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
     }
@@ -399,7 +438,9 @@ export class AuthService {
     // Generate verification token
     const verificationToken = this.generateSecureToken();
     const verificationTokenHash = this.hashToken(verificationToken);
-    const verificationTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const verificationTokenExpiresAt = new Date(
+      Date.now() + 24 * 60 * 60 * 1000,
+    ); // 24 hours
 
     // Store verification token
     await this.prisma.user.update({
@@ -422,7 +463,9 @@ export class AuthService {
     };
   }
 
-  async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<SuccessMessageResponse> {
+  async verifyEmail(
+    verifyEmailDto: VerifyEmailDto,
+  ): Promise<SuccessMessageResponse> {
     const { token } = verifyEmailDto;
 
     const tokenHash = this.hashToken(token);
@@ -437,9 +480,12 @@ export class AuthService {
       },
     });
 
-    const user = users.find(u => {
+    const user = users.find((u) => {
       const metadata = u.metadata as any;
-      return metadata?.verificationTokenExpiresAt && new Date(metadata.verificationTokenExpiresAt) > new Date();
+      return (
+        metadata?.verificationTokenExpiresAt &&
+        new Date(metadata.verificationTokenExpiresAt) > new Date()
+      );
     });
 
     if (!user) {
@@ -496,12 +542,14 @@ export class AuthService {
     return this.formatUserResponse(user);
   }
 
-  async validateToken(validateTokenDto: ValidateTokenDto): Promise<TokenValidationResponse> {
+  async validateToken(
+    validateTokenDto: ValidateTokenDto,
+  ): Promise<AuthUserResponse> {
     const { token } = validateTokenDto;
 
     try {
       const payload = this.jwtService.verify(token);
-      
+
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
         include: {
@@ -518,20 +566,16 @@ export class AuthService {
       });
 
       if (!user || !user.isActive) {
-        return { valid: false };
+        throw new UnauthorizedException('Invalid token');
       }
 
-      return {
-        valid: true,
-        user: this.formatUserResponse(user),
-        expiresAt: new Date(payload.exp * 1000),
-      };
-    } catch (error) {
-      return { valid: false };
+      return this.formatUserResponse(user);
+    } catch {
+      throw new UnauthorizedException('Invalid token');
     }
   }
 
-  async getSessions(userId: string): Promise<{ sessions: SessionResponse[] }> {
+  async getSessions(userId: string) {
     // In a real implementation, you'd store session information in the database
     // For now, we'll return a mock response
     const user = await this.prisma.user.findUnique({
@@ -543,22 +587,33 @@ export class AuthService {
     }
 
     // Mock session data - in production, you'd have a sessions table
-    const sessions: SessionResponse[] = [
-      {
-        id: 'current-session',
-        deviceInfo: 'Web Browser',
-        ipAddress: '127.0.0.1',
-        userAgent: 'Mozilla/5.0...',
-        lastActivity: new Date(),
-        createdAt: user.lastLoginAt || user.createdAt,
-        isCurrent: true,
+    // Return in JSON API collection format
+    return {
+      data: [
+        {
+          id: 'current-session',
+          type: 'sessions' as const,
+          attributes: {
+            id: 'current-session',
+            deviceInfo: 'Web Browser',
+            ipAddress: '127.0.0.1',
+            userAgent: 'Mozilla/5.0...',
+            lastActivity: new Date().toISOString(),
+            createdAt: (user.lastLoginAt || user.createdAt).toISOString(),
+            isActive: true,
+          },
+        },
+      ],
+      meta: {
+        totalCount: 1,
       },
-    ];
-
-    return { sessions };
+    };
   }
 
-  async revokeSession(userId: string, sessionId: string): Promise<SuccessMessageResponse> {
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<SuccessMessageResponse> {
     // In a real implementation, you'd remove the specific session
     // For now, we'll just invalidate all sessions if it's the current session
     if (sessionId === 'current-session') {
@@ -602,7 +657,11 @@ export class AuthService {
     return null;
   }
 
-  private async generateTokens(userId: string, email: string, organizationId: string): Promise<TokensResponse> {
+  private async generateTokens(
+    userId: string,
+    email: string,
+    organizationId: string,
+  ): Promise<TokensResponse> {
     const payload = {
       email,
       sub: userId,
@@ -615,7 +674,10 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    const expiresIn = this.configService.get<number>('JWT_EXPIRES_IN_SECONDS', 3600);
+    const expiresIn = this.configService.get<number>(
+      'JWT_EXPIRES_IN_SECONDS',
+      3600,
+    );
 
     return {
       accessToken,
@@ -625,9 +687,14 @@ export class AuthService {
     };
   }
 
-  private async updateRefreshToken(userId: string, refreshToken: string): Promise<void> {
+  private async updateRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
     const refreshTokenHash = await this.hashRefreshToken(refreshToken);
-    const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const refreshTokenExpiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ); // 7 days
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -663,7 +730,7 @@ export class AuthService {
       avatar: user.avatar,
       emailVerified: user.emailVerified,
       isActive: user.isActive,
-      lastLoginAt: user.lastLoginAt,
+      lastLoginAt: user.lastLoginAt?.toISOString(),
       organizationId: user.organizationId,
       organization: {
         id: user.organization.id,
@@ -678,8 +745,8 @@ export class AuthService {
         level: userRole.role.level,
       })),
       metadata: user.metadata,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
   }
 }

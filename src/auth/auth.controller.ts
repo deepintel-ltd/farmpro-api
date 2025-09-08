@@ -1,25 +1,11 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Delete,
-  Body, 
-  Param,
-  UseGuards, 
-  HttpCode,
-  HttpStatus,
-  Req,
-  UsePipes,
-} from '@nestjs/common';
-import { Request } from 'express';
-import { AuthService } from '@/auth/auth.service';
-import { LocalAuthGuard } from '@/auth/guards/local-auth.guard';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { Public } from '@/auth/decorators/public.decorator';
-import { GetCurrentUser, CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
-import { UuidValidationPipe } from '@/common/pipes/uuid-validation.pipe';
-import { createJsonApiResource } from '@/common/utils/json-api-response.util';
+import { Controller, UseGuards, Logger, Request, Body } from '@nestjs/common';
+import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { Request as ExpressRequest } from 'express';
+import { AuthService } from './auth.service';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { authContract } from '../../contracts/auth.contract';
 import {
   RegisterDto,
   LoginDto,
@@ -30,196 +16,716 @@ import {
   VerifyEmailDto,
   ValidateTokenDto,
 } from './dto/auth.dto';
-import {
-  RegisterRequestSchema,
-  LoginRequestSchema,
-  RefreshTokenRequestSchema,
-  ForgotPasswordRequestSchema,
-  ResetPasswordRequestSchema,
-  ChangePasswordRequestSchema,
-  VerifyEmailRequestSchema,
-  ValidateTokenRequestSchema,
-} from '../../contracts/auth.schemas';
 
-@Controller('auth')
+interface AuthenticatedRequest extends ExpressRequest {
+  user: CurrentUser;
+}
+
+@Controller()
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
+
+  constructor(private readonly authService: AuthService) {}
 
   // =============================================================================
   // Auth Flow & JWT Management
   // =============================================================================
 
-  @Public()
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(RegisterRequestSchema))
-  async register(@Body() registerDto: RegisterDto) {
-    const result = await this.authService.register(registerDto);
-    return createJsonApiResource('register', 'auth', result);
+  @TsRestHandler(authContract.register)
+  public register(@Body() body: RegisterDto): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.register, async () => {
+      try {
+        const result = await this.authService.register(body);
+        this.logger.log(`User registered successfully: ${body.email}`);
+
+        return {
+          status: 201 as const,
+          body: {
+            data: {
+              id: 'register',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(`Registration failed for ${body.email}:`, error);
+
+        const isConflict =
+          error instanceof Error && error.message.includes('already exists');
+
+        if (isConflict) {
+          return {
+            status: 409 as const,
+            body: {
+              errors: [
+                {
+                  status: '409',
+                  title: 'Conflict',
+                  detail: (error as Error).message || 'User already exists',
+                  code: 'USER_EXISTS',
+                },
+              ],
+            },
+          };
+        }
+
+        return {
+          status: 400 as const,
+          body: {
+            errors: [
+              {
+                status: '400',
+                title: 'Bad Request',
+                detail: (error as Error).message || 'Registration failed',
+                code: 'REGISTRATION_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
-  async login(@Req() req: Request & { user: any }) {
-    const ipAddress = req.ip;
-    const userAgent = req.get('User-Agent');
-    
-    const result = await this.authService.login(req.user, ipAddress, userAgent);
-    return createJsonApiResource('login', 'auth', result);
+  @TsRestHandler(authContract.login)
+  public login(@Body() body: LoginDto): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.login, async () => {
+      try {
+        const result = await this.authService.login(body);
+        this.logger.log(`User logged in successfully: ${body.email}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'login',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(`Login failed for ${body.email}:`, error);
+
+        const isUnauthorized =
+          error instanceof Error &&
+          (error.message.includes('Invalid credentials') ||
+            error.message.includes('disabled'));
+
+        if (isUnauthorized) {
+          return {
+            status: 401 as const,
+            body: {
+              errors: [
+                {
+                  status: '401',
+                  title: 'Unauthorized',
+                  detail: (error as Error).message || 'Authentication failed',
+                  code: 'INVALID_CREDENTIALS',
+                },
+              ],
+            },
+          };
+        }
+
+        return {
+          status: 400 as const,
+          body: {
+            errors: [
+              {
+                status: '400',
+                title: 'Bad Request',
+                detail: (error as Error).message || 'Authentication failed',
+                code: 'LOGIN_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Public()
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(RefreshTokenRequestSchema))
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    const result = await this.authService.refresh(refreshTokenDto);
-    return createJsonApiResource('refresh', 'auth', result);
+  @TsRestHandler(authContract.refresh)
+  public refresh(
+    @Body() body: RefreshTokenDto,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.refresh, async () => {
+      try {
+        const result = await this.authService.refresh(body);
+        this.logger.log('Token refreshed successfully');
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'refresh',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Token refresh failed:', error);
+
+        return {
+          status: 401 as const,
+          body: {
+            errors: [
+              {
+                status: '401',
+                title: 'Unauthorized',
+                detail: (error as Error).message || 'Token refresh failed',
+                code: 'INVALID_REFRESH_TOKEN',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Post('logout')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async logout(@GetCurrentUser() user: CurrentUser) {
-    const result = await this.authService.logout(user.userId);
-    return createJsonApiResource('logout', 'auth', result);
+  @TsRestHandler(authContract.logout)
+  public logout(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.logout, async () => {
+      try {
+        const result = await this.authService.logout(req.user.userId);
+        this.logger.log(`User logged out: ${req.user.userId}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'logout',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(`Logout failed for user ${req.user.userId}:`, error);
+
+        return {
+          status: 500 as const,
+          body: {
+            errors: [
+              {
+                status: '500',
+                title: 'Internal Server Error',
+                detail: (error as Error).message || 'Logout failed',
+                code: 'LOGOUT_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Post('logout-all')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async logoutAll(@GetCurrentUser() user: CurrentUser) {
-    const result = await this.authService.logoutAll(user.userId);
-    return createJsonApiResource('logout-all', 'auth', result);
+  @TsRestHandler(authContract.logoutAll)
+  public logoutAll(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.logoutAll, async () => {
+      try {
+        const result = await this.authService.logoutAll(req.user.userId);
+        this.logger.log(`User logged out from all devices: ${req.user.userId}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'logout-all',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Logout all failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        return {
+          status: 500 as const,
+          body: {
+            errors: [
+              {
+                status: '500',
+                title: 'Internal Server Error',
+                detail: (error as Error).message || 'Logout all failed',
+                code: 'LOGOUT_ALL_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
   // =============================================================================
   // Password Management
   // =============================================================================
 
-  @Public()
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(ForgotPasswordRequestSchema))
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    const result = await this.authService.forgotPassword(forgotPasswordDto);
-    return createJsonApiResource('forgot-password', 'auth', result);
+  @TsRestHandler(authContract.forgotPassword)
+  public forgotPassword(
+    @Body() body: ForgotPasswordDto,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.forgotPassword, async () => {
+      try {
+        const result = await this.authService.forgotPassword(body);
+        this.logger.log(`Password reset requested for: ${body.email}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'forgot-password',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(`Forgot password failed for ${body.email}:`, error);
+
+        return {
+          status: 400 as const,
+          body: {
+            errors: [
+              {
+                status: '400',
+                title: 'Bad Request',
+                detail:
+                  (error as Error).message || 'Password reset request failed',
+                code: 'FORGOT_PASSWORD_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Public()
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(ResetPasswordRequestSchema))
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    const result = await this.authService.resetPassword(resetPasswordDto);
-    return createJsonApiResource('reset-password', 'auth', result);
+  @TsRestHandler(authContract.resetPassword)
+  public resetPassword(
+    @Body() body: ResetPasswordDto,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.resetPassword, async () => {
+      try {
+        const result = await this.authService.resetPassword(body);
+        this.logger.log('Password reset successfully');
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'reset-password',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Password reset failed:', error);
+
+        return {
+          status: 400 as const,
+          body: {
+            errors: [
+              {
+                status: '400',
+                title: 'Bad Request',
+                detail: (error as Error).message || 'Password reset failed',
+                code: 'RESET_PASSWORD_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Post('change-password')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @UsePipes(new ZodValidationPipe(ChangePasswordRequestSchema))
-  async changePassword(
-    @GetCurrentUser() user: CurrentUser,
-    @Body() changePasswordDto: ChangePasswordDto,
-  ) {
-    const result = await this.authService.changePassword(user.userId, changePasswordDto);
-    return createJsonApiResource('change-password', 'auth', result);
+  @TsRestHandler(authContract.changePassword)
+  public changePassword(
+    @Body() body: ChangePasswordDto,
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.changePassword, async () => {
+      try {
+        const result = await this.authService.changePassword(
+          req.user.userId,
+          body,
+        );
+        this.logger.log(`Password changed for user: ${req.user.userId}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'change-password',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Password change failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        const isBadRequest =
+          error instanceof Error && error.message.includes('incorrect');
+
+        if (isBadRequest) {
+          return {
+            status: 400 as const,
+            body: {
+              errors: [
+                {
+                  status: '400',
+                  title: 'Bad Request',
+                  detail:
+                    (error as Error).message || 'Current password is incorrect',
+                  code: 'INVALID_CURRENT_PASSWORD',
+                },
+              ],
+            },
+          };
+        }
+
+        return {
+          status: 500 as const,
+          body: {
+            errors: [
+              {
+                status: '500',
+                title: 'Internal Server Error',
+                detail: (error as Error).message || 'Password change failed',
+                code: 'CHANGE_PASSWORD_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
   // =============================================================================
   // Email & Account Verification
   // =============================================================================
 
-  @Post('send-verification')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async sendVerification(@GetCurrentUser() user: CurrentUser) {
-    const result = await this.authService.sendVerification(user.userId);
-    return createJsonApiResource('send-verification', 'auth', result);
+  @TsRestHandler(authContract.sendVerification)
+  public sendVerification(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.sendVerification, async () => {
+      try {
+        const result = await this.authService.sendVerification(req.user.userId);
+        this.logger.log(`Verification email sent for user: ${req.user.userId}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'send-verification',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Send verification failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        const isConflict =
+          error instanceof Error && error.message.includes('already verified');
+
+        if (isConflict) {
+          return {
+            status: 409 as const,
+            body: {
+              errors: [
+                {
+                  status: '409',
+                  title: 'Conflict',
+                  detail: (error as Error).message || 'Email already verified',
+                  code: 'EMAIL_ALREADY_VERIFIED',
+                },
+              ],
+            },
+          };
+        }
+
+        return {
+          status: 500 as const,
+          body: {
+            errors: [
+              {
+                status: '500',
+                title: 'Internal Server Error',
+                detail: (error as Error).message || 'Send verification failed',
+                code: 'SEND_VERIFICATION_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Public()
-  @Post('verify-email')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(VerifyEmailRequestSchema))
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    const result = await this.authService.verifyEmail(verifyEmailDto);
-    return createJsonApiResource('verify-email', 'auth', result);
-  }
+  @TsRestHandler(authContract.verifyEmail)
+  public verifyEmail(
+    @Body() body: VerifyEmailDto,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.verifyEmail, async () => {
+      try {
+        const result = await this.authService.verifyEmail(body);
+        this.logger.log('Email verified successfully');
 
-  // =============================================================================
-  // OAuth Integration (Placeholder - would need actual OAuth implementation)
-  // =============================================================================
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'verify-email',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Email verification failed:', error);
 
-  @Public()
-  @Get('google')
-  async googleAuth() {
-    // This would redirect to Google OAuth
-    // Implementation would use Passport Google OAuth2 strategy
-    throw new Error('Google OAuth not implemented yet');
-  }
+        const isConflict =
+          error instanceof Error && error.message.includes('already verified');
 
-  @Public()
-  @Get('google/callback')
-  async googleCallback() {
-    // This would handle Google OAuth callback
-    throw new Error('Google OAuth callback not implemented yet');
-  }
+        if (isConflict) {
+          return {
+            status: 409 as const,
+            body: {
+              errors: [
+                {
+                  status: '409',
+                  title: 'Conflict',
+                  detail: (error as Error).message || 'Email already verified',
+                  code: 'EMAIL_ALREADY_VERIFIED',
+                },
+              ],
+            },
+          };
+        }
 
-  @Public()
-  @Get('github')
-  async githubAuth() {
-    // This would redirect to GitHub OAuth
-    // Implementation would use Passport GitHub OAuth2 strategy
-    throw new Error('GitHub OAuth not implemented yet');
-  }
-
-  @Public()
-  @Get('github/callback')
-  async githubCallback() {
-    // This would handle GitHub OAuth callback
-    throw new Error('GitHub OAuth callback not implemented yet');
+        return {
+          status: 400 as const,
+          body: {
+            errors: [
+              {
+                status: '400',
+                title: 'Bad Request',
+                detail: (error as Error).message || 'Email verification failed',
+                code: 'VERIFY_EMAIL_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
   // =============================================================================
   // Session Management
   // =============================================================================
 
-  @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getCurrentUser(@GetCurrentUser() user: CurrentUser) {
-    const result = await this.authService.getCurrentUser(user.userId);
-    return createJsonApiResource(user.userId, 'users', result);
+  @TsRestHandler(authContract.me)
+  public getCurrentUser(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.me, async () => {
+      try {
+        const result = await this.authService.getCurrentUser(req.user.userId);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: req.user.userId,
+              type: 'users',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Get current user failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        return {
+          status: 401 as const,
+          body: {
+            errors: [
+              {
+                status: '401',
+                title: 'Unauthorized',
+                detail:
+                  (error as Error).message || 'Failed to get user profile',
+                code: 'GET_PROFILE_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Public()
-  @Post('validate-token')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(ValidateTokenRequestSchema))
-  async validateToken(@Body() validateTokenDto: ValidateTokenDto) {
-    const result = await this.authService.validateToken(validateTokenDto);
-    return createJsonApiResource('validate-token', 'auth', result);
+  @TsRestHandler(authContract.validateToken)
+  public validateToken(
+    @Body() body: ValidateTokenDto,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.validateToken, async () => {
+      try {
+        const result = await this.authService.validateToken(body);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'validate-token',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Token validation failed:', error);
+
+        return {
+          status: 400 as const,
+          body: {
+            errors: [
+              {
+                status: '400',
+                title: 'Bad Request',
+                detail: (error as Error).message || 'Token validation failed',
+                code: 'VALIDATE_TOKEN_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Get('sessions')
   @UseGuards(JwtAuthGuard)
-  async getSessions(@GetCurrentUser() user: CurrentUser) {
-    const result = await this.authService.getSessions(user.userId);
-    return createJsonApiResource('sessions', 'auth', result);
+  @TsRestHandler(authContract.getSessions)
+  public getSessions(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.getSessions, async () => {
+      try {
+        const result = await this.authService.getSessions(req.user.userId);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Get sessions failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        return {
+          status: 500 as const,
+          body: {
+            errors: [
+              {
+                status: '500',
+                title: 'Internal Server Error',
+                detail: (error as Error).message || 'Get sessions failed',
+                code: 'GET_SESSIONS_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 
-  @Delete('sessions/:sessionId')
-  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @UsePipes(UuidValidationPipe)
-  async revokeSession(
-    @GetCurrentUser() user: CurrentUser,
-    @Param('sessionId') sessionId: string,
-  ) {
-    const result = await this.authService.revokeSession(user.userId, sessionId);
-    return createJsonApiResource('revoke-session', 'auth', result);
+  @TsRestHandler(authContract.revokeSession)
+  public revokeSession(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { sessionId: string },
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.revokeSession, async () => {
+      try {
+        const result = await this.authService.revokeSession(
+          req.user.userId,
+          body.sessionId,
+        );
+        this.logger.log(`Session revoked for user: ${req.user.userId}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'revoke-session',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Revoke session failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        const isNotFound =
+          error instanceof Error && error.message.includes('not found');
+
+        if (isNotFound) {
+          return {
+            status: 404 as const,
+            body: {
+              errors: [
+                {
+                  status: '404',
+                  title: 'Not Found',
+                  detail: (error as Error).message || 'Session not found',
+                  code: 'SESSION_NOT_FOUND',
+                },
+              ],
+            },
+          };
+        }
+
+        return {
+          status: 500 as const,
+          body: {
+            errors: [
+              {
+                status: '500',
+                title: 'Internal Server Error',
+                detail: (error as Error).message || 'Revoke session failed',
+                code: 'REVOKE_SESSION_FAILED',
+              },
+            ],
+          },
+        };
+      }
+    });
   }
 }

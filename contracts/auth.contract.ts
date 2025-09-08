@@ -1,5 +1,4 @@
 import { initContract } from '@ts-rest/core';
-import { z } from 'zod';
 import {
   RegisterRequestSchema,
   LoginRequestSchema,
@@ -9,14 +8,12 @@ import {
   ChangePasswordRequestSchema,
   VerifyEmailRequestSchema,
   ValidateTokenRequestSchema,
-  LoginResourceSchema,
-  RegisterResourceSchema,
-  RefreshTokenResourceSchema,
-  AuthUserResourceSchema,
-  SessionsResourceSchema,
-  TokenValidationResourceSchema,
-  SuccessMessageResourceSchema,
-  OAuthCallbackQuerySchema,
+  AuthResourceSchema,
+  UserProfileResourceSchema,
+  TokenResourceSchema,
+  MessageResourceSchema,
+  SessionCollectionSchema,
+  OAuthCallbackSchema,
 } from './auth.schemas';
 import { JsonApiErrorResponseSchema } from './schemas';
 import { UuidPathParam } from './common';
@@ -28,19 +25,16 @@ const c = initContract();
 // =============================================================================
 
 export const authContract = c.router({
-  // =============================================================================
   // Auth Flow & JWT Management
-  // =============================================================================
-
   register: {
     method: 'POST',
     path: '/auth/register',
     body: RegisterRequestSchema,
     responses: {
-      201: RegisterResourceSchema,
+      201: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
-      409: JsonApiErrorResponseSchema, // Email already exists
-      422: JsonApiErrorResponseSchema, // Validation errors
+      409: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Register new user with organization',
@@ -51,11 +45,10 @@ export const authContract = c.router({
     path: '/auth/login',
     body: LoginRequestSchema,
     responses: {
-      200: LoginResourceSchema,
+      200: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
-      401: JsonApiErrorResponseSchema, // Invalid credentials
-      403: JsonApiErrorResponseSchema, // Account disabled
-      422: JsonApiErrorResponseSchema, // Validation errors
+      401: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Authenticate user and get tokens',
@@ -66,9 +59,9 @@ export const authContract = c.router({
     path: '/auth/refresh',
     body: RefreshTokenRequestSchema,
     responses: {
-      200: RefreshTokenResourceSchema,
+      200: TokenResourceSchema,
       400: JsonApiErrorResponseSchema,
-      401: JsonApiErrorResponseSchema, // Invalid refresh token
+      401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Refresh JWT access token',
@@ -79,8 +72,8 @@ export const authContract = c.router({
     path: '/auth/logout',
     body: c.noBody(),
     responses: {
-      200: SuccessMessageResourceSchema,
-      401: JsonApiErrorResponseSchema, // Not authenticated
+      200: MessageResourceSchema,
+      401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Invalidate refresh token',
@@ -91,25 +84,22 @@ export const authContract = c.router({
     path: '/auth/logout-all',
     body: c.noBody(),
     responses: {
-      200: SuccessMessageResourceSchema,
-      401: JsonApiErrorResponseSchema, // Not authenticated
+      200: MessageResourceSchema,
+      401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Invalidate all refresh tokens for user',
   },
 
-  // =============================================================================
   // Password Management
-  // =============================================================================
-
   forgotPassword: {
     method: 'POST',
     path: '/auth/forgot-password',
     body: ForgotPasswordRequestSchema,
     responses: {
-      200: SuccessMessageResourceSchema,
+      200: MessageResourceSchema,
       400: JsonApiErrorResponseSchema,
-      422: JsonApiErrorResponseSchema, // Validation errors
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Request password reset email',
@@ -120,9 +110,10 @@ export const authContract = c.router({
     path: '/auth/reset-password',
     body: ResetPasswordRequestSchema,
     responses: {
-      200: SuccessMessageResourceSchema,
-      400: JsonApiErrorResponseSchema, // Invalid or expired token
-      422: JsonApiErrorResponseSchema, // Validation errors
+      200: MessageResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Reset password with token',
@@ -133,27 +124,24 @@ export const authContract = c.router({
     path: '/auth/change-password',
     body: ChangePasswordRequestSchema,
     responses: {
-      200: SuccessMessageResourceSchema,
-      400: JsonApiErrorResponseSchema, // Invalid current password
-      401: JsonApiErrorResponseSchema, // Not authenticated
-      422: JsonApiErrorResponseSchema, // Validation errors
+      200: MessageResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Change password for authenticated user',
   },
 
-  // =============================================================================
   // Email & Account Verification
-  // =============================================================================
-
   sendVerification: {
     method: 'POST',
     path: '/auth/send-verification',
     body: c.noBody(),
     responses: {
-      200: SuccessMessageResourceSchema,
-      401: JsonApiErrorResponseSchema, // Not authenticated
-      409: JsonApiErrorResponseSchema, // Already verified
+      200: MessageResourceSchema,
+      401: JsonApiErrorResponseSchema,
+      429: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Send email verification',
@@ -164,24 +152,21 @@ export const authContract = c.router({
     path: '/auth/verify-email',
     body: VerifyEmailRequestSchema,
     responses: {
-      200: SuccessMessageResourceSchema,
-      400: JsonApiErrorResponseSchema, // Invalid or expired token
-      409: JsonApiErrorResponseSchema, // Already verified
-      422: JsonApiErrorResponseSchema, // Validation errors
+      200: MessageResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Verify email with token',
   },
 
-  // =============================================================================
   // OAuth Integration
-  // =============================================================================
-
   googleAuth: {
     method: 'GET',
     path: '/auth/google',
     responses: {
-      302: z.void(), // Redirect to Google
+      302: c.type<never>(),
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Initiate Google OAuth',
@@ -190,10 +175,10 @@ export const authContract = c.router({
   googleCallback: {
     method: 'GET',
     path: '/auth/google/callback',
-    query: OAuthCallbackQuerySchema,
+    query: OAuthCallbackSchema,
     responses: {
-      302: z.void(), // Redirect with tokens
-      400: JsonApiErrorResponseSchema, // OAuth error
+      302: c.type<never>(),
+      400: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Handle Google OAuth callback',
@@ -203,7 +188,7 @@ export const authContract = c.router({
     method: 'GET',
     path: '/auth/github',
     responses: {
-      302: z.void(), // Redirect to GitHub
+      302: c.type<never>(),
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Initiate GitHub OAuth',
@@ -212,25 +197,22 @@ export const authContract = c.router({
   githubCallback: {
     method: 'GET',
     path: '/auth/github/callback',
-    query: OAuthCallbackQuerySchema,
+    query: OAuthCallbackSchema,
     responses: {
-      302: z.void(), // Redirect with tokens
-      400: JsonApiErrorResponseSchema, // OAuth error
+      302: c.type<never>(),
+      400: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Handle GitHub OAuth callback',
   },
 
-  // =============================================================================
   // Session Management
-  // =============================================================================
-
   me: {
     method: 'GET',
     path: '/auth/me',
     responses: {
-      200: AuthUserResourceSchema,
-      401: JsonApiErrorResponseSchema, // Not authenticated
+      200: UserProfileResourceSchema,
+      401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Get current user profile',
@@ -241,9 +223,10 @@ export const authContract = c.router({
     path: '/auth/validate-token',
     body: ValidateTokenRequestSchema,
     responses: {
-      200: TokenValidationResourceSchema,
+      200: UserProfileResourceSchema,
       400: JsonApiErrorResponseSchema,
-      422: JsonApiErrorResponseSchema, // Validation errors
+      401: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Validate JWT token',
@@ -253,8 +236,8 @@ export const authContract = c.router({
     method: 'GET',
     path: '/auth/sessions',
     responses: {
-      200: SessionsResourceSchema,
-      401: JsonApiErrorResponseSchema, // Not authenticated
+      200: SessionCollectionSchema,
+      401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'List active sessions',
@@ -264,10 +247,11 @@ export const authContract = c.router({
     method: 'DELETE',
     path: '/auth/sessions/:sessionId',
     pathParams: UuidPathParam('Session'),
+    body: c.noBody(),
     responses: {
-      200: SuccessMessageResourceSchema,
-      401: JsonApiErrorResponseSchema, // Not authenticated
-      404: JsonApiErrorResponseSchema, // Session not found
+      200: MessageResourceSchema,
+      401: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Revoke specific session',
