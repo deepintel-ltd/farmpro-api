@@ -27,6 +27,35 @@ import {
   SuccessMessageResponse,
 } from './dto/auth.dto';
 
+interface UserWithOrganizationAndRoles {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  avatar: string | null;
+  emailVerified: boolean;
+  isActive: boolean;
+  lastLoginAt: Date | null;
+  organizationId: string;
+  metadata: any;
+  createdAt: Date;
+  updatedAt: Date;
+  organization: {
+    id: string;
+    name: string;
+    type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'FOOD_PROCESSOR' | 'LOGISTICS_PROVIDER' | 'COOPERATIVE' | 'OTHER';
+    isVerified: boolean;
+    plan: string;
+  };
+  userRoles?: Array<{
+    role: {
+      id: string;
+      name: string;
+      level: number;
+    };
+  }>;
+}
+
 @Injectable()
 export class AuthService {
   private readonly JWT_EXPIRES_IN: number;
@@ -123,7 +152,10 @@ export class AuthService {
     await this.updateRefreshToken(result.id, tokens.refreshToken);
 
     const userWithRoles = await this.getUserWithRoles(result.id);
-    const userResponse = this.formatUserResponse(userWithRoles!);
+    if (!userWithRoles) {
+      throw new BadRequestException('Failed to retrieve user after registration');
+    }
+    const userResponse = this.formatUserResponse(userWithRoles);
 
     return {
       tokens,
@@ -468,7 +500,7 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, password: string) {
+  async validateUser(email: string, password: string): Promise<UserWithOrganizationAndRoles | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
@@ -487,13 +519,13 @@ export class AuthService {
     if (user?.hashedPassword) {
       const isPasswordValid = await verify(user.hashedPassword, password);
       if (isPasswordValid) {
-        return this.omitSensitiveFields(user);
+        return this.omitSensitiveFields(user) as UserWithOrganizationAndRoles;
       }
     }
     return null;
   }
 
-  private async getUserWithRoles(userId: string) {
+  private async getUserWithRoles(userId: string): Promise<UserWithOrganizationAndRoles | null> {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -699,7 +731,7 @@ export class AuthService {
     return result;
   }
 
-  private formatUserResponse(user: any): AuthUserResponse {
+  private formatUserResponse(user: UserWithOrganizationAndRoles): AuthUserResponse {
     return {
       id: user.id,
       email: user.email,
@@ -717,12 +749,11 @@ export class AuthService {
         isVerified: user.organization.isVerified,
         plan: user.organization.plan,
       },
-      roles:
-        user.userRoles?.map((userRole: any) => ({
-          id: userRole.role.id,
-          name: userRole.role.name,
-          level: userRole.role.level,
-        })) ?? [],
+      roles: user.userRoles?.map((userRole) => ({
+        id: userRole.role.id,
+        name: userRole.role.name,
+        level: userRole.role.level,
+      })) ?? [],
       metadata: user.metadata,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
