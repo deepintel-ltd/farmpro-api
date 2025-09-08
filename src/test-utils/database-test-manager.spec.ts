@@ -1,5 +1,4 @@
 import { DatabaseTestManager } from './database-test-manager';
-import { PrismaClient } from '@prisma/client';
 
 describe('DatabaseTestManager', () => {
   let dbManager: DatabaseTestManager;
