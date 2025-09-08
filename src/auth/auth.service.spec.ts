@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { OrganizationType } from '@prisma/client';
 
 // Mock argon2
@@ -14,9 +14,6 @@ jest.mock('@node-rs/argon2', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
-  let prismaService: PrismaService;
-  let jwtService: JwtService;
-  let configService: ConfigService;
 
   const mockPrismaService = {
     user: {
@@ -67,9 +64,6 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
@@ -300,8 +294,8 @@ describe('AuthService', () => {
         hashedPassword: 'current-hashed-password',
       };
 
-      const { verify } = require('@node-rs/argon2');
-      verify.mockResolvedValueOnce(false);
+      const argon2 = jest.mocked(await import('@node-rs/argon2'));
+      argon2.verify.mockResolvedValueOnce(false);
 
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
