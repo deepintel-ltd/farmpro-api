@@ -88,6 +88,76 @@ export const UserSchema = z.object({
   updatedAt: z.string().datetime().optional()
 });
 
+/**
+ * Inventory resource schema with comprehensive validation
+ */
+export const InventorySchema = z.object({
+  farmId: z.string().uuid('Invalid farm ID'),
+  commodityId: z.string().uuid('Invalid commodity ID'),
+  harvestId: z.string().uuid().optional(),
+  quantity: z.number().positive('Quantity must be positive'),
+  unit: z.string().min(1, 'Unit is required'),
+  quality: z.object({
+    grade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
+    moisture: z.number().optional(),
+    specifications: z.record(z.any()).optional(),
+    certifications: z.array(z.string()).optional()
+  }),
+  location: z.object({
+    facility: z.string().min(1, 'Facility is required'),
+    section: z.string().optional(),
+    coordinates: z.object({
+      lat: z.number(),
+      lng: z.number()
+    }).optional()
+  }),
+  costBasis: z.number().positive('Cost basis must be positive'),
+  batchNumber: z.string().optional(),
+  harvestDate: z.string().datetime().optional(),
+  expiryDate: z.string().datetime().optional(),
+  storageConditions: z.object({
+    temperature: z.number().optional(),
+    humidity: z.number().optional(),
+    requirements: z.string().optional()
+  }).optional(),
+  status: z.enum(['AVAILABLE', 'RESERVED', 'SOLD', 'CONSUMED', 'EXPIRED']).default('AVAILABLE'),
+  metadata: z.record(z.any()).optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional()
+});
+
+/**
+ * Inventory movement schema for tracking changes
+ */
+export const InventoryMovementSchema = z.object({
+  inventoryId: z.string().uuid(),
+  type: z.enum(['adjustment', 'reservation', 'release', 'transfer', 'consumption']),
+  quantity: z.number(),
+  reason: z.string(),
+  notes: z.string().optional(),
+  performedBy: z.string().uuid(),
+  performedAt: z.string().datetime(),
+  metadata: z.record(z.any()).optional()
+});
+
+/**
+ * Inventory quality test schema
+ */
+export const InventoryQualityTestSchema = z.object({
+  inventoryId: z.string().uuid(),
+  testType: z.enum(['moisture', 'protein', 'contamination', 'pesticide', 'custom']),
+  testDate: z.string().datetime(),
+  testedBy: z.string(),
+  results: z.object({
+    passed: z.boolean(),
+    values: z.record(z.any()),
+    grade: z.string().optional(),
+    notes: z.string().optional()
+  }),
+  certificate: z.string().optional(),
+  nextTestDue: z.string().datetime().optional()
+});
+
 // =============================================================================
 // JSON API Resource Wrapper Schemas
 // =============================================================================
@@ -192,6 +262,15 @@ export const OrderCollectionSchema = JsonApiCollectionSchema(OrderSchema);
 
 export const UserResourceSchema = JsonApiResourceSchema(UserSchema);
 export const UserCollectionSchema = JsonApiCollectionSchema(UserSchema);
+
+export const InventoryResourceSchema = JsonApiResourceSchema(InventorySchema);
+export const InventoryCollectionSchema = JsonApiCollectionSchema(InventorySchema);
+
+export const InventoryMovementResourceSchema = JsonApiResourceSchema(InventoryMovementSchema);
+export const InventoryMovementCollectionSchema = JsonApiCollectionSchema(InventoryMovementSchema);
+
+export const InventoryQualityTestResourceSchema = JsonApiResourceSchema(InventoryQualityTestSchema);
+export const InventoryQualityTestCollectionSchema = JsonApiCollectionSchema(InventoryQualityTestSchema);
 
 // =============================================================================
 // Error Response Schemas
@@ -305,6 +384,52 @@ export const UpdateOrderRequestSchema = JsonApiUpdateRequestSchema(OrderSchema);
 export const CreateUserRequestSchema = JsonApiCreateRequestSchema(UserSchema);
 export const UpdateUserRequestSchema = JsonApiUpdateRequestSchema(UserSchema);
 
+export const CreateInventoryRequestSchema = JsonApiCreateRequestSchema(InventorySchema);
+export const UpdateInventoryRequestSchema = JsonApiUpdateRequestSchema(InventorySchema);
+
+// Inventory-specific request schemas
+export const InventoryAdjustmentRequestSchema = z.object({
+  adjustment: z.number(),
+  reason: z.enum(['damage', 'spoilage', 'theft', 'count_error', 'consumption', 'sale', 'transfer']),
+  notes: z.string().optional(),
+  evidence: z.array(z.string()).optional(),
+  approvedBy: z.string().uuid().optional()
+});
+
+export const InventoryReservationRequestSchema = z.object({
+  quantity: z.number().positive(),
+  orderId: z.string().uuid(),
+  reservedUntil: z.string().datetime(),
+  notes: z.string().optional()
+});
+
+export const InventoryTransferRequestSchema = z.object({
+  fromInventoryId: z.string().uuid(),
+  toLocation: z.object({
+    farmId: z.string().uuid(),
+    facility: z.string(),
+    section: z.string().optional()
+  }),
+  quantity: z.number().positive(),
+  transferDate: z.string().datetime(),
+  transportMethod: z.string().optional(),
+  notes: z.string().optional()
+});
+
+export const InventoryQualityTestRequestSchema = z.object({
+  testType: z.enum(['moisture', 'protein', 'contamination', 'pesticide', 'custom']),
+  testDate: z.string().datetime(),
+  testedBy: z.string(),
+  results: z.object({
+    passed: z.boolean(),
+    values: z.record(z.any()),
+    grade: z.string().optional(),
+    notes: z.string().optional()
+  }),
+  certificate: z.string().optional(),
+  nextTestDue: z.string().datetime().optional()
+});
+
 // =============================================================================
 // Query Parameter Schemas
 // =============================================================================
@@ -332,6 +457,9 @@ export type Farm = z.infer<typeof FarmSchema>;
 export type Commodity = z.infer<typeof CommoditySchema>;
 export type Order = z.infer<typeof OrderSchema>;
 export type User = z.infer<typeof UserSchema>;
+export type Inventory = z.infer<typeof InventorySchema>;
+export type InventoryMovement = z.infer<typeof InventoryMovementSchema>;
+export type InventoryQualityTest = z.infer<typeof InventoryQualityTestSchema>;
 
 export type JsonApiResource<T> = z.infer<ReturnType<typeof JsonApiResourceSchema<z.ZodType<T>>>>;
 export type JsonApiCollection<T> = z.infer<ReturnType<typeof JsonApiCollectionSchema<z.ZodType<T>>>>;
@@ -346,6 +474,12 @@ export type OrderResource = z.infer<typeof OrderResourceSchema>;
 export type OrderCollection = z.infer<typeof OrderCollectionSchema>;
 export type UserResource = z.infer<typeof UserResourceSchema>;
 export type UserCollection = z.infer<typeof UserCollectionSchema>;
+export type InventoryResource = z.infer<typeof InventoryResourceSchema>;
+export type InventoryCollection = z.infer<typeof InventoryCollectionSchema>;
+export type InventoryMovementResource = z.infer<typeof InventoryMovementResourceSchema>;
+export type InventoryMovementCollection = z.infer<typeof InventoryMovementCollectionSchema>;
+export type InventoryQualityTestResource = z.infer<typeof InventoryQualityTestResourceSchema>;
+export type InventoryQualityTestCollection = z.infer<typeof InventoryQualityTestCollectionSchema>;
 
 export type CreateFarmRequest = z.infer<typeof CreateFarmRequestSchema>;
 export type UpdateFarmRequest = z.infer<typeof UpdateFarmRequestSchema>;
@@ -355,6 +489,12 @@ export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
 export type UpdateOrderRequest = z.infer<typeof UpdateOrderRequestSchema>;
 export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
+export type CreateInventoryRequest = z.infer<typeof CreateInventoryRequestSchema>;
+export type UpdateInventoryRequest = z.infer<typeof UpdateInventoryRequestSchema>;
+export type InventoryAdjustmentRequest = z.infer<typeof InventoryAdjustmentRequestSchema>;
+export type InventoryReservationRequest = z.infer<typeof InventoryReservationRequestSchema>;
+export type InventoryTransferRequest = z.infer<typeof InventoryTransferRequestSchema>;
+export type InventoryQualityTestRequest = z.infer<typeof InventoryQualityTestRequestSchema>;
 
 export type JsonApiQuery = z.infer<typeof JsonApiQuerySchema>;
 

@@ -8,6 +8,7 @@ export * from './orders.contract';
 export * from './users.contract';
 export * from './auth.contract';
 export * from './health.contract';
+export * from './inventory.contract';
 
 // Auth schemas
 export * from './auth.schemas';
