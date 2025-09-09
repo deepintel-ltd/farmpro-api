@@ -5,6 +5,7 @@ import { activitiesContract } from '../../contracts/activities.contract';
 import { ActivitiesService } from './activities.service';
 import { ActivityCostService } from './activity-cost.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
+import { ActivityHelpService } from './activity-help.service';
 
 @Controller()
 export class ActivitiesController {
@@ -12,6 +13,7 @@ export class ActivitiesController {
     private readonly activitiesService: ActivitiesService,
     private readonly costService: ActivityCostService,
     private readonly assignmentService: ActivityAssignmentService,
+    private readonly helpService: ActivityHelpService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -108,8 +110,8 @@ export class ActivitiesController {
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(activitiesContract.resumeActivity)
   public resumeActivity() {
-    return tsRestHandler(activitiesContract.resumeActivity, async ({ req, params }) => {
-      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId);
+    return tsRestHandler(activitiesContract.resumeActivity, async ({ req, params, body }) => {
+      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body);
       return { status: 200 as const, body: { data: result } };
     });
   }
@@ -199,7 +201,41 @@ export class ActivitiesController {
   public assignActivity() {
     return tsRestHandler(activitiesContract.assignActivity, async ({ req, params, body }) => {
       const assignments = body.assignedTo.map(userId => ({ userId, role: 'ASSIGNED' as const }));
-      const result = await this.assignmentService.assignUsers(params.activityId, assignments, req.user.userId, req.user.organizationId);
+      const result = await this.assignmentService.assignUsers(params.activityId, assignments, req.user.userId, req.user.organizationId, {
+        reassignReason: body.reassignReason,
+        notifyUsers: body.notifyUsers
+      });
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.requestHelp)
+  public requestHelp() {
+    return tsRestHandler(activitiesContract.requestHelp, async ({ req, params, body }) => {
+      await this.helpService.requestHelp(params.activityId, body, req.user.userId, req.user.organizationId);
+      return { 
+        status: 200 as const, 
+        body: {
+          data: {
+            id: params.activityId,
+            type: 'help-requests' as const,
+            attributes: {
+              message: 'Help request sent successfully',
+              success: true,
+            },
+          },
+        },
+      };
+    });
+  }
+
+  // Team Performance Analytics
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.getTeamPerformance)
+  public getTeamPerformance() {
+    return tsRestHandler(activitiesContract.getTeamPerformance, async ({ req, query }) => {
+      const result = await this.activitiesService.getTeamPerformance(query, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
   }

@@ -228,6 +228,9 @@ export const activitiesContract = c.router({
     pathParams: z.object({
       activityId: z.string(),
     }),
+    body: z.object({
+      notes: z.string().optional(),
+    }),
     responses: {
       200: ActivityResourceSchema,
       400: JsonApiErrorResponseSchema,

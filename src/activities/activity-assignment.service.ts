@@ -16,6 +16,10 @@ export class ActivityAssignmentService {
     assignments: AssignmentData[],
     assignedById: string,
     organizationId: string,
+    options: {
+      reassignReason?: string;
+      notifyUsers?: boolean;
+    } = {}
   ) {
     // Verify activity exists and belongs to organization
     const activity = await this.prisma.farmActivity.findFirst({
@@ -74,6 +78,10 @@ export class ActivityAssignmentService {
               role: assignment.role || ActivityRole.ASSIGNED,
               assignedById,
               isActive: true,
+              metadata: options.reassignReason ? {
+                reassignReason: options.reassignReason,
+                reassignedAt: new Date().toISOString(),
+              } : undefined,
             },
             include: {
               user: {

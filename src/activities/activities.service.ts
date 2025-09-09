@@ -406,7 +406,7 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async resumeActivity(activityId: string, userId: string) {
+  async resumeActivity(activityId: string, userId: string, data?: { notes?: string }) {
     const activity = await this.prisma.farmActivity.findUnique({
       where: { id: activityId },
     });
@@ -423,7 +423,14 @@ export class ActivitiesService {
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
-      data: { status: 'IN_PROGRESS' },
+      data: { 
+        status: 'IN_PROGRESS',
+        metadata: data?.notes ? {
+          ...(activity.metadata as object || {}),
+          resumeNotes: data.notes,
+          resumedAt: new Date().toISOString(),
+        } : activity.metadata,
+      },
       include: {
         farm: { select: { id: true, name: true } },
         user: { select: { id: true, name: true, email: true } },
@@ -556,6 +563,139 @@ export class ActivitiesService {
       averageDuration: 0, // Not available in current schema
       costEfficiency: 0, // Would need estimated vs actual cost
       typeBreakdown,
+    };
+  }
+
+  async getTeamPerformance(query: any, organizationId: string) {
+    const startDate = this.getStartDate(query.period || 'month');
+    const endDate = new Date();
+
+    // Get team activity assignments with performance data
+    const assignments = await this.prisma.activityAssignment.findMany({
+      where: {
+        isActive: true,
+        activity: {
+          farm: { organizationId },
+          ...(query.farmId && { farmId: query.farmId }),
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        ...(query.userId && { userId: query.userId }),
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        activity: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            status: true,
+            cost: true,
+            scheduledAt: true,
+            completedAt: true,
+            createdAt: true,
+            metadata: true,
+          }
+        }
+      },
+    });
+
+    // Calculate team performance metrics
+    const teamStats = assignments.reduce((acc, assignment) => {
+      const userId = assignment.userId;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: assignment.user,
+          totalAssigned: 0,
+          completed: 0,
+          inProgress: 0,
+          overdue: 0,
+          totalCost: 0,
+          avgCompletionTime: 0,
+          helpRequests: 0,
+        };
+      }
+
+      const stats = acc[userId];
+      stats.totalAssigned++;
+      stats.totalCost += assignment.activity.cost || 0;
+
+      // Count activity statuses
+      if (assignment.activity.status === 'COMPLETED') {
+        stats.completed++;
+      } else if (assignment.activity.status === 'IN_PROGRESS') {
+        stats.inProgress++;
+      }
+
+      // Check for overdue activities
+      if (assignment.activity.scheduledAt && assignment.activity.scheduledAt < new Date() && assignment.activity.status !== 'COMPLETED') {
+        stats.overdue++;
+      }
+
+      // Count help requests from metadata
+      const helpRequests = (assignment.activity.metadata as any)?.helpRequests || [];
+      const userHelpRequests = helpRequests.filter((req: any) => req.requestedBy === userId);
+      stats.helpRequests += userHelpRequests.length;
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Calculate team-wide metrics
+    const teamMetrics = Object.values(teamStats).reduce((total: any, userStats: any) => {
+      total.totalActivities += userStats.totalAssigned;
+      total.totalCompleted += userStats.completed;
+      total.totalCost += userStats.totalCost;
+      total.totalHelpRequests += userStats.helpRequests;
+      return total;
+    }, {
+      totalActivities: 0,
+      totalCompleted: 0,
+      totalCost: 0,
+      totalHelpRequests: 0,
+    });
+
+    const overallCompletionRate = teamMetrics.totalActivities > 0 
+      ? (teamMetrics.totalCompleted / teamMetrics.totalActivities) * 100 
+      : 0;
+
+    // Format user performance data
+    const userPerformance = Object.values(teamStats).map((stats: any) => ({
+      id: stats.user.id,
+      type: 'team-member-performance' as const,
+      attributes: {
+        user: stats.user,
+        totalAssigned: stats.totalAssigned,
+        completed: stats.completed,
+        inProgress: stats.inProgress,
+        overdue: stats.overdue,
+        completionRate: stats.totalAssigned > 0 ? (stats.completed / stats.totalAssigned) * 100 : 0,
+        totalCost: stats.totalCost,
+        avgCostPerActivity: stats.totalAssigned > 0 ? stats.totalCost / stats.totalAssigned : 0,
+        helpRequests: stats.helpRequests,
+        efficiency: stats.totalAssigned > 0 ? (stats.completed - stats.overdue) / stats.totalAssigned * 100 : 0,
+      },
+    }));
+
+    return {
+      data: [{
+        id: 'team-performance',
+        type: 'team-performance-summary' as const,
+        attributes: {
+          period: query.period || 'month',
+          overallCompletionRate,
+          totalActivities: teamMetrics.totalActivities,
+          totalCompleted: teamMetrics.totalCompleted,
+          totalCost: teamMetrics.totalCost,
+          avgCostPerActivity: teamMetrics.totalActivities > 0 ? teamMetrics.totalCost / teamMetrics.totalActivities : 0,
+          totalHelpRequests: teamMetrics.totalHelpRequests,
+          teamSize: Object.keys(teamStats).length,
+        },
+      }],
+      included: userPerformance,
+      meta: {
+        period: { start: startDate.toISOString(), end: endDate.toISOString() },
+        teamSize: Object.keys(teamStats).length,
+        totalMembers: Object.keys(teamStats).length,
+      },
     };
   }
 
