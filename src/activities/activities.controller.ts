@@ -6,6 +6,8 @@ import { ActivitiesService } from './activities.service';
 import { ActivityCostService } from './activity-cost.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityHelpService } from './activity-help.service';
+import { ActivityTemplateService } from './activity-template.service';
+import { ActivitySchedulingService } from './activity-scheduling.service';
 
 @Controller()
 export class ActivitiesController {
@@ -14,6 +16,8 @@ export class ActivitiesController {
     private readonly costService: ActivityCostService,
     private readonly assignmentService: ActivityAssignmentService,
     private readonly helpService: ActivityHelpService,
+    private readonly templateService: ActivityTemplateService,
+    private readonly schedulingService: ActivitySchedulingService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -236,6 +240,76 @@ export class ActivitiesController {
   public getTeamPerformance() {
     return tsRestHandler(activitiesContract.getTeamPerformance, async ({ req, query }) => {
       const result = await this.activitiesService.getTeamPerformance(query, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  // Template Management
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.getActivityTemplates)
+  public getActivityTemplates() {
+    return tsRestHandler(activitiesContract.getActivityTemplates, async ({ req, query }) => {
+      const result = await this.templateService.getTemplates(req.user.organizationId, query);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.getActivityTemplate)
+  public getActivityTemplate() {
+    return tsRestHandler(activitiesContract.getActivityTemplate, async ({ req, params }) => {
+      const result = await this.templateService.getTemplate(params.templateId, req.user.organizationId);
+      return { status: 200 as const, body: { data: result } };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.createActivityTemplate)
+  public createActivityTemplate() {
+    return tsRestHandler(activitiesContract.createActivityTemplate, async ({ req, body }) => {
+      const result = await this.templateService.createTemplate(body, req.user.organizationId);
+      return { status: 201 as const, body: { data: result } };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.createFromTemplate)
+  public createFromTemplate() {
+    return tsRestHandler(activitiesContract.createFromTemplate, async ({ req, params, body }) => {
+      const result = await this.templateService.createFromTemplate(
+        params.templateId,
+        body,
+        req.user.userId,
+        req.user.organizationId
+      );
+      return { status: 201 as const, body: { data: result } };
+    });
+  }
+
+  // Scheduling & Planning
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.checkConflicts)
+  public checkConflicts() {
+    return tsRestHandler(activitiesContract.checkConflicts, async ({ req, query }) => {
+      const result = await this.schedulingService.checkConflicts(query, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.bulkSchedule)
+  public bulkSchedule() {
+    return tsRestHandler(activitiesContract.bulkSchedule, async ({ req, body }) => {
+      const result = await this.schedulingService.bulkSchedule(body, req.user.userId, req.user.organizationId);
+      return { status: 201 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.getWorkload)
+  public getWorkload() {
+    return tsRestHandler(activitiesContract.getWorkload, async ({ req, query }) => {
+      const result = await this.schedulingService.getWorkloadAnalysis(query, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
   }
