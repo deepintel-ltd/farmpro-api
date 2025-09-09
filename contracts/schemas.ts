@@ -507,3 +507,139 @@ export const HealthCheckSchema = z.object({
   timestamp: z.string(),
   service: z.string(),
 });
+
+// =============================================================================
+// User Management Extended Schemas
+// =============================================================================
+
+// Profile Management
+export const UpdateProfileRequestSchema = z.object({
+  name: z.string().min(1).max(255),
+  phone: z.string().optional(),
+  avatar: z.string().url().optional(),
+  metadata: z.object({
+    preferences: z.record(z.any()).optional(),
+    certifications: z.array(z.string()).optional(),
+    specialties: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+// User Management Query Params
+export const UserQueryParamsSchema = z.object({
+  page: z.coerce.number().positive().optional(),
+  limit: z.coerce.number().positive().max(100).optional(),
+  search: z.string().optional(),
+  role: z.string().optional(),
+  isActive: z.coerce.boolean().optional(),
+  farmId: z.string().uuid().optional(),
+});
+
+// Role Assignment
+export const AssignRoleRequestSchema = z.object({
+  roleId: z.string().uuid(),
+  farmId: z.string().uuid().optional(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+// User Preferences
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).optional(),
+  language: z.enum(['en', 'es', 'fr']).optional(),
+  timezone: z.string().optional(),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    sms: z.boolean(),
+  }).optional(),
+  dashboard: z.object({
+    defaultView: z.string(),
+    widgets: z.array(z.any()),
+  }).optional(),
+  mobile: z.object({
+    offlineMode: z.boolean(),
+    gpsTracking: z.boolean(),
+  }).optional(),
+});
+
+// Notification Settings
+export const NotificationSettingsSchema = z.object({
+  channels: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    sms: z.boolean(),
+  }),
+  events: z.object({
+    activityReminders: z.boolean(),
+    orderUpdates: z.boolean(),
+    marketAlerts: z.boolean(),
+    systemUpdates: z.boolean(),
+  }),
+  quiet_hours: z.object({
+    enabled: z.boolean(),
+    start: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/),
+    end: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  }),
+});
+
+// Activity & Stats Query Params
+export const ActivityQueryParamsSchema = z.object({
+  limit: z.coerce.number().positive().max(100).optional(),
+  days: z.coerce.number().positive().max(365).optional(),
+  type: z.string().optional(),
+});
+
+export const StatsQueryParamsSchema = z.object({
+  period: z.enum(['week', 'month', 'quarter', 'year']).optional(),
+});
+
+// User Profile Response
+export const UserProfileResponseSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  name: z.string(),
+  phone: z.string().nullable(),
+  avatar: z.string().url().nullable(),
+  isActive: z.boolean(),
+  organization: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+  }),
+  roles: z.array(z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    permissions: z.array(z.string()),
+  })),
+  metadata: z.record(z.any()),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+// Activity Log
+export const ActivityLogItemSchema = z.object({
+  id: z.string().uuid(),
+  action: z.string(),
+  entity: z.string(),
+  entityId: z.string().nullable(),
+  details: z.record(z.any()),
+  timestamp: z.string().datetime(),
+  ipAddress: z.string().nullable(),
+  userAgent: z.string().nullable(),
+});
+
+// User Stats
+export const UserStatsResponseSchema = z.object({
+  period: z.string(),
+  activitiesCompleted: z.number(),
+  hoursWorked: z.number(),
+  efficiency: z.number(),
+  qualityScore: z.number(),
+  ordersProcessed: z.number(),
+  revenue: z.number().nullable(),
+});
+
+// Resource wrappers for user management
+export const UserProfileResourceSchema = JsonApiResourceSchema(UserProfileResponseSchema);
+export const ActivityLogCollectionSchema = JsonApiCollectionSchema(ActivityLogItemSchema);
+export const PreferencesResourceSchema = JsonApiResourceSchema(UserPreferencesSchema);
+export const NotificationSettingsResourceSchema = JsonApiResourceSchema(NotificationSettingsSchema);
+export const StatsResourceSchema = JsonApiResourceSchema(UserStatsResponseSchema);
