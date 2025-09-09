@@ -9,12 +9,15 @@ export * from './users.contract';
 export * from './auth.contract';
 export * from './health.contract';
 export * from './inventory.contract';
+export * from './market.contract';
 
 // Auth schemas
 export * from './auth.schemas';
 
-// Schemas
 export * from './schemas';
+
+
+export * from './market.schemas';
 
 // Common utilities
 export * from './common';

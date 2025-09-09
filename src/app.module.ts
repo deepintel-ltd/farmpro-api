@@ -7,6 +7,8 @@ import { AuthModule } from '@/auth/auth.module';
 import { FarmsModule } from '@/farms/farms.module';
 import { InventoryModule } from '@/inventory/inventory.module';
 import { OrganizationsModule } from '@/organizations/organizations.module';
+import { MarketModule } from '@/market/market.module';
+import { AnalyticsModule } from '@/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { OrganizationsModule } from '@/organizations/organizations.module';
     FarmsModule,
     InventoryModule,
     OrganizationsModule,
+    MarketModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

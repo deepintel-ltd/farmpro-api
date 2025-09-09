@@ -182,7 +182,7 @@ export class ActivitiesService {
     }
 
     if (activity.status !== 'PLANNED') {
-      throw new BadRequestException('Activity cannot be started');
+      throw new BadRequestException('Activity cannot be started - current status: ' + activity.status);
     }
 
     const updated = await this.prisma.farmActivity.update({
@@ -218,7 +218,12 @@ export class ActivitiesService {
     }
 
     if (activity.status !== 'IN_PROGRESS') {
-      throw new BadRequestException('Activity is not in progress');
+      throw new BadRequestException('Activity is not in progress - current status: ' + activity.status);
+    }
+
+    // Validate progress percentage
+    if (data.percentComplete < 0 || data.percentComplete > 100) {
+      throw new BadRequestException('Progress percentage must be between 0 and 100');
     }
 
     const updated = await this.prisma.farmActivity.update({

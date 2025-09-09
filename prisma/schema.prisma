@@ -156,6 +156,7 @@ model Organization {
   drivers         Driver[]
   ratings         Rating[]        @relation("RatingGiven")
   ratingsReceived Rating[]        @relation("RatingReceived")
+  activityTemplates ActivityTemplate[]
 
   @@map("organizations")
 }
@@ -328,6 +329,29 @@ model FarmActivity {
   @@index([userId, farmId])
   @@index([farmId, type])
   @@map("farm_activities")
+}
+
+model ActivityTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  type             String
+  description      String
+  defaultDuration  Int
+  instructions     String
+  safetyNotes      String
+  applicableCrops  String[]
+  isSystem         Boolean  @default(false)
+  organizationId   String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([isSystem])
+  @@map("activity_templates")
 }
 
 model Harvest {

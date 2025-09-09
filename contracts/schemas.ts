@@ -1082,7 +1082,7 @@ export const UserStatsResponseSchema = z.object({
 });
 
 // Resource wrappers for user management
-export const UserProfileResourceSchema = JsonApiResourceSchema(UserProfileResponseSchema);
+// export const UserProfileResourceSchema = JsonApiResourceSchema(UserProfileResponseSchema);
 export const ActivityLogCollectionSchema = JsonApiCollectionSchema(ActivityLogItemSchema);
 export const PreferencesResourceSchema = JsonApiResourceSchema(UserPreferencesSchema);
 export const NotificationSettingsResourceSchema = JsonApiResourceSchema(NotificationSettingsSchema);

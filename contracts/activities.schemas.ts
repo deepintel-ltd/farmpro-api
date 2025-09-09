@@ -18,12 +18,12 @@ export const ActivityTypeEnum = z.enum([
 ]);
 
 export const ActivityStatusEnum = z.enum([
-  'planned',
-  'scheduled',
-  'in_progress',
-  'paused',
-  'completed',
-  'cancelled'
+  'PLANNED',
+  'SCHEDULED',
+  'IN_PROGRESS',
+  'PAUSED',
+  'COMPLETED',
+  'CANCELLED'
 ]);
 
 export const ActivityPriorityEnum = z.enum(['low', 'normal', 'high', 'urgent']);
@@ -358,34 +358,22 @@ export const AnalyticsQueryParams = z.object({
 // JSON:API Resource Schemas
 // =============================================================================
 
-export const ActivityResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('activities'),
-  attributes: ActivitySchema,
-});
+export const ActivityResourceSchema = JsonApiResourceSchema(ActivitySchema);
 
-export const ActivityTemplateResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('activity-templates'),
-  attributes: ActivityTemplateSchema,
-});
+export const ActivityTemplateResourceSchema = JsonApiResourceSchema(ActivityTemplateSchema);
 
-export const CostEntryResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('cost-entries'),
-  attributes: CostEntrySchema,
-});
+export const CostEntryResourceSchema = JsonApiResourceSchema(CostEntrySchema);
 
-export const ActivityNoteResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('activity-notes'),
-  attributes: ActivityNoteSchema,
-});
+export const ActivityNoteResourceSchema = JsonApiResourceSchema(ActivityNoteSchema);
 
 // =============================================================================
 // Collection Schemas
 // =============================================================================
 
-export const ActivityCollectionSchema = JsonApiCollectionSchema(ActivityResourceSchema);
-export const ActivityTemplateCollectionSchema = JsonApiCollectionSchema(ActivityTemplateResourceSchema);
-export const CostEntryCollectionSchema = JsonApiCollectionSchema(CostEntryResourceSchema);
-export const ActivityNoteCollectionSchema = JsonApiCollectionSchema(ActivityNoteResourceSchema);
+export const ActivityCollectionSchema = JsonApiCollectionSchema(z.array(ActivityResourceSchema));
+export const ActivityTemplateCollectionSchema = JsonApiCollectionSchema(z.array(ActivityTemplateResourceSchema));
+export const CostEntryCollectionSchema = JsonApiCollectionSchema(z.array(CostEntryResourceSchema));
+export const ActivityNoteCollectionSchema = JsonApiCollectionSchema(z.array(ActivityNoteResourceSchema));
 
 // =============================================================================
 // Response-specific Schemas
@@ -491,12 +479,6 @@ export const TeamPerformanceCollectionSchema = z.object({
   })),
 });
 
-export const AnalyticsResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('activity-analytics'),
-  attributes: ActivityAnalyticsSchema,
-});
+export const AnalyticsResourceSchema = JsonApiResourceSchema(ActivityAnalyticsSchema);
 
-export const BulkScheduleResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('bulk-schedule-results'),
-  attributes: BulkScheduleResultSchema,
-});
+export const BulkScheduleResourceSchema = JsonApiResourceSchema(BulkScheduleResultSchema);
