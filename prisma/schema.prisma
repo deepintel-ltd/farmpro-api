@@ -130,6 +130,9 @@ model Organization {
   phone        String?
   address      Json?
   taxId        String?
+  website      String?
+  description  String?
+  logo         String?
   isVerified   Boolean          @default(false)
   isActive     Boolean          @default(true)
   

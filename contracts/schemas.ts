@@ -75,7 +75,7 @@ export const UserSchema = z.object({
   role: z.enum(['farmer', 'buyer', 'admin'], {
     errorMap: () => ({ message: 'Invalid user role' })
   }),
-  phone: z.string().regex(/^\+?[\d\s\-\(\)]+$/, 'Invalid phone number format').optional(),
+  phone: z.string().regex(/^\+?[\d\s\-()]+$/, 'Invalid phone number format').optional(),
   address: z.object({
     street: z.string().min(1, 'Street address is required'),
     city: z.string().min(1, 'City is required'),
@@ -156,6 +156,195 @@ export const InventoryQualityTestSchema = z.object({
   }),
   certificate: z.string().optional(),
   nextTestDue: z.string().datetime().optional()
+});
+
+/**
+ * Storage facility schema
+ */
+export const StorageFacilitySchema = z.object({
+  name: z.string().min(1, 'Facility name is required'),
+  farmId: z.string().uuid('Invalid farm ID'),
+  capacity: z.number().positive('Capacity must be positive'),
+  currentUtilization: z.number().min(0).max(100, 'Utilization must be between 0-100'),
+  location: z.object({
+    facility: z.string(),
+    section: z.string().optional(),
+    coordinates: z.object({
+      lat: z.number(),
+      lng: z.number()
+    }).optional()
+  }),
+  conditions: z.object({
+    temperature: z.number().optional(),
+    humidity: z.number().optional(),
+    condition: z.enum(['excellent', 'good', 'fair', 'poor', 'critical']),
+    lastChecked: z.string().datetime().optional()
+  }).optional(),
+  metadata: z.record(z.any()).optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional()
+});
+
+/**
+ * Inventory valuation schema
+ */
+export const InventoryValuationSchema = z.object({
+  method: z.enum(['fifo', 'lifo', 'average', 'current_market']),
+  totalValue: z.number().positive(),
+  commodityBreakdown: z.array(z.object({
+    commodityId: z.string().uuid(),
+    commodityName: z.string(),
+    quantity: z.number().positive(),
+    unitValue: z.number().positive(),
+    totalValue: z.number().positive()
+  })),
+  locationBreakdown: z.array(z.object({
+    location: z.string(),
+    value: z.number().positive(),
+    percentage: z.number().min(0).max(100)
+  })),
+  asOfDate: z.string().datetime(),
+  metadata: z.record(z.any()).optional()
+});
+
+/**
+ * Cost basis schema
+ */
+export const CostBasisSchema = z.object({
+  inventoryId: z.string().uuid(),
+  productionCosts: z.number().positive(),
+  storageCosts: z.number().min(0),
+  handlingCosts: z.number().min(0),
+  adjustments: z.array(z.object({
+    amount: z.number(),
+    reason: z.string(),
+    date: z.string().datetime()
+  })),
+  totalCostBasis: z.number().positive(),
+  effectiveDate: z.string().datetime(),
+  metadata: z.record(z.any()).optional()
+});
+
+/**
+ * Aging report schema
+ */
+export const AgingReportSchema = z.object({
+  period: z.string(),
+  ageBuckets: z.array(z.object({
+    ageRange: z.string(),
+    quantity: z.number().min(0),
+    value: z.number().min(0),
+    percentage: z.number().min(0).max(100)
+  })),
+  turnoverAnalysis: z.object({
+    averageAge: z.number().positive(),
+    turnoverRate: z.number().min(0).max(100),
+    slowMovingItems: z.array(z.string())
+  }),
+  recommendations: z.array(z.string()),
+  generatedAt: z.string().datetime()
+});
+
+/**
+ * Demand forecast schema
+ */
+export const DemandForecastSchema = z.object({
+  commodityId: z.string().uuid().optional(),
+  farmId: z.string().uuid().optional(),
+  period: z.string(),
+  forecastData: z.array(z.object({
+    date: z.string().datetime(),
+    predictedDemand: z.number().min(0),
+    confidence: z.number().min(0).max(100),
+    factors: z.record(z.any()).optional()
+  })),
+  recommendations: z.object({
+    suggestedInventoryLevel: z.number().min(0),
+    reorderPoint: z.number().min(0),
+    reorderQuantity: z.number().min(0)
+  }),
+  generatedAt: z.string().datetime()
+});
+
+/**
+ * Reorder points schema
+ */
+export const ReorderPointsSchema = z.object({
+  commodityId: z.string().uuid().optional(),
+  farmId: z.string().uuid().optional(),
+  reorderPoints: z.array(z.object({
+    commodityId: z.string().uuid(),
+    commodityName: z.string(),
+    currentStock: z.number().min(0),
+    reorderPoint: z.number().min(0),
+    reorderQuantity: z.number().min(0),
+    leadTime: z.number().positive(),
+    urgency: z.enum(['low', 'medium', 'high', 'critical'])
+  })),
+  generatedAt: z.string().datetime()
+});
+
+/**
+ * Replenishment plan schema
+ */
+export const ReplenishmentPlanSchema = z.object({
+  commodityId: z.string().uuid().optional(),
+  farmId: z.string().uuid().optional(),
+  timeHorizon: z.enum(['30', '60', '90', '180']),
+  plan: z.array(z.object({
+    date: z.string().datetime(),
+    action: z.enum(['order', 'harvest', 'transfer', 'maintain']),
+    quantity: z.number().min(0),
+    commodityId: z.string().uuid(),
+    priority: z.enum(['low', 'medium', 'high', 'critical']),
+    notes: z.string().optional()
+  })),
+  totalCost: z.number().min(0),
+  generatedAt: z.string().datetime()
+});
+
+/**
+ * Waste analysis schema
+ */
+export const WasteAnalysisSchema = z.object({
+  period: z.string(),
+  totalWaste: z.number().min(0),
+  wasteByReason: z.array(z.object({
+    reason: z.string(),
+    quantity: z.number().min(0),
+    value: z.number().min(0),
+    percentage: z.number().min(0).max(100)
+  })),
+  wasteByCommodity: z.array(z.object({
+    commodityId: z.string().uuid(),
+    commodityName: z.string(),
+    quantity: z.number().min(0),
+    value: z.number().min(0)
+  })),
+  reductionOpportunities: z.array(z.string()),
+  generatedAt: z.string().datetime()
+});
+
+/**
+ * Traceability schema
+ */
+export const TraceabilitySchema = z.object({
+  inventoryId: z.string().uuid(),
+  chain: z.array(z.object({
+    step: z.string(),
+    location: z.string(),
+    timestamp: z.string().datetime(),
+    actor: z.string(),
+    details: z.record(z.any()).optional()
+  })),
+  certifications: z.array(z.string()),
+  qualityChecks: z.array(z.object({
+    date: z.string().datetime(),
+    type: z.string(),
+    result: z.string(),
+    certificate: z.string().optional()
+  })),
+  generatedAt: z.string().datetime()
 });
 
 // =============================================================================
@@ -272,6 +461,19 @@ export const InventoryMovementCollectionSchema = JsonApiCollectionSchema(Invento
 export const InventoryQualityTestResourceSchema = JsonApiResourceSchema(InventoryQualityTestSchema);
 export const InventoryQualityTestCollectionSchema = JsonApiCollectionSchema(InventoryQualityTestSchema);
 
+export const StorageFacilityResourceSchema = JsonApiResourceSchema(StorageFacilitySchema);
+export const StorageFacilityCollectionSchema = JsonApiCollectionSchema(StorageFacilitySchema);
+
+export const InventoryValuationResourceSchema = JsonApiResourceSchema(InventoryValuationSchema);
+export const CostBasisResourceSchema = JsonApiResourceSchema(CostBasisSchema);
+export const AgingReportResourceSchema = JsonApiResourceSchema(AgingReportSchema);
+export const DemandForecastResourceSchema = JsonApiResourceSchema(DemandForecastSchema);
+export const ReorderPointsResourceSchema = JsonApiResourceSchema(ReorderPointsSchema);
+export const ReplenishmentPlanResourceSchema = JsonApiResourceSchema(ReplenishmentPlanSchema);
+export const WasteAnalysisResourceSchema = JsonApiResourceSchema(WasteAnalysisSchema);
+export const TraceabilityResourceSchema = JsonApiResourceSchema(TraceabilitySchema);
+
+
 // =============================================================================
 // Error Response Schemas
 // =============================================================================
@@ -387,6 +589,7 @@ export const UpdateUserRequestSchema = JsonApiUpdateRequestSchema(UserSchema);
 export const CreateInventoryRequestSchema = JsonApiCreateRequestSchema(InventorySchema);
 export const UpdateInventoryRequestSchema = JsonApiUpdateRequestSchema(InventorySchema);
 
+
 // Inventory-specific request schemas
 export const InventoryAdjustmentRequestSchema = z.object({
   adjustment: z.number(),
@@ -460,6 +663,15 @@ export type User = z.infer<typeof UserSchema>;
 export type Inventory = z.infer<typeof InventorySchema>;
 export type InventoryMovement = z.infer<typeof InventoryMovementSchema>;
 export type InventoryQualityTest = z.infer<typeof InventoryQualityTestSchema>;
+export type StorageFacility = z.infer<typeof StorageFacilitySchema>;
+export type InventoryValuation = z.infer<typeof InventoryValuationSchema>;
+export type CostBasis = z.infer<typeof CostBasisSchema>;
+export type AgingReport = z.infer<typeof AgingReportSchema>;
+export type DemandForecast = z.infer<typeof DemandForecastSchema>;
+export type ReorderPoints = z.infer<typeof ReorderPointsSchema>;
+export type ReplenishmentPlan = z.infer<typeof ReplenishmentPlanSchema>;
+export type WasteAnalysis = z.infer<typeof WasteAnalysisSchema>;
+export type Traceability = z.infer<typeof TraceabilitySchema>;
 
 export type JsonApiResource<T> = z.infer<ReturnType<typeof JsonApiResourceSchema<z.ZodType<T>>>>;
 export type JsonApiCollection<T> = z.infer<ReturnType<typeof JsonApiCollectionSchema<z.ZodType<T>>>>;
@@ -481,6 +693,26 @@ export type InventoryMovementCollection = z.infer<typeof InventoryMovementCollec
 export type InventoryQualityTestResource = z.infer<typeof InventoryQualityTestResourceSchema>;
 export type InventoryQualityTestCollection = z.infer<typeof InventoryQualityTestCollectionSchema>;
 
+export type Organization = z.infer<typeof OrganizationSchema>;
+export type OrganizationSettings = z.infer<typeof OrganizationSettingsSchema>;
+export type OrganizationAnalyticsQuery = z.infer<typeof OrganizationAnalyticsQuerySchema>;
+export type OrganizationActivityQuery = z.infer<typeof OrganizationActivityQuerySchema>;
+export type OrganizationComplianceQuery = z.infer<typeof OrganizationComplianceQuerySchema>;
+export type IntegrationConfig = z.infer<typeof IntegrationConfigSchema>;
+export type OrganizationBackupRequest = z.infer<typeof OrganizationBackupRequestSchema>;
+export type OrganizationBilling = z.infer<typeof OrganizationBillingSchema>;
+export type OrganizationUsage = z.infer<typeof OrganizationUsageSchema>;
+export type OrganizationTeamMember = z.infer<typeof OrganizationTeamMemberSchema>;
+export type OrganizationTeamStats = z.infer<typeof OrganizationTeamStatsSchema>;
+
+export type OrganizationResource = z.infer<typeof OrganizationResourceSchema>;
+export type OrganizationCollection = z.infer<typeof OrganizationCollectionSchema>;
+export type OrganizationSettingsResource = z.infer<typeof OrganizationSettingsResourceSchema>;
+export type OrganizationTeamStatsResource = z.infer<typeof OrganizationTeamStatsResourceSchema>;
+export type OrganizationTeamCollection = z.infer<typeof OrganizationTeamCollectionSchema>;
+export type OrganizationUsageResource = z.infer<typeof OrganizationUsageResourceSchema>;
+export type OrganizationBillingResource = z.infer<typeof OrganizationBillingResourceSchema>;
+
 export type CreateFarmRequest = z.infer<typeof CreateFarmRequestSchema>;
 export type UpdateFarmRequest = z.infer<typeof UpdateFarmRequestSchema>;
 export type CreateCommodityRequest = z.infer<typeof CreateCommodityRequestSchema>;
@@ -496,6 +728,14 @@ export type InventoryReservationRequest = z.infer<typeof InventoryReservationReq
 export type InventoryTransferRequest = z.infer<typeof InventoryTransferRequestSchema>;
 export type InventoryQualityTestRequest = z.infer<typeof InventoryQualityTestRequestSchema>;
 
+export type CreateOrganizationRequest = z.infer<typeof CreateOrganizationRequestSchema>;
+export type UpdateOrganizationRequest = z.infer<typeof UpdateOrganizationRequestSchema>;
+export type UpdateOrganizationSettingsRequest = z.infer<typeof UpdateOrganizationSettingsRequestSchema>;
+export type OrganizationVerificationRequest = z.infer<typeof OrganizationVerificationRequestSchema>;
+export type IntegrationConfigRequest = z.infer<typeof IntegrationConfigRequestSchema>;
+export type OrganizationExportRequest = z.infer<typeof OrganizationExportRequestSchema>;
+export type OrganizationBillingRequest = z.infer<typeof OrganizationBillingRequestSchema>;
+
 export type JsonApiQuery = z.infer<typeof JsonApiQuerySchema>;
 
 // =============================================================================
@@ -507,6 +747,210 @@ export const HealthCheckSchema = z.object({
   timestamp: z.string(),
   service: z.string(),
 });
+
+// =============================================================================
+// Organization Management Schemas
+// =============================================================================
+
+/**
+ * Organization resource schema with comprehensive validation
+ */
+export const OrganizationSchema = z.object({
+  name: z.string().min(1, 'Organization name is required').max(255, 'Organization name too long'),
+  email: z.string().email('Invalid email format'),
+  phone: z.string().regex(/^\+?[\d\s\-()]+$/, 'Invalid phone number format').optional(),
+  address: z.object({
+    street: z.string().min(1, 'Street address is required'),
+    city: z.string().min(1, 'City is required'),
+    state: z.string().min(2, 'State is required').max(2, 'State must be 2 characters'),
+    zip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Invalid ZIP code format'),
+    country: z.string().min(2, 'Country is required').max(2, 'Country must be 2 characters')
+  }).optional(),
+  taxId: z.string().optional(),
+  website: z.string().url('Invalid website URL').optional(),
+  description: z.string().max(1000, 'Description too long').optional(),
+  type: z.enum(['individual', 'cooperative', 'corporation', 'nonprofit'], {
+    errorMap: () => ({ message: 'Invalid organization type' })
+  }),
+  isActive: z.boolean().default(true),
+  isVerified: z.boolean().default(false),
+  plan: z.string().optional(),
+  maxUsers: z.number().positive().optional(),
+  maxFarms: z.number().positive().optional(),
+  features: z.array(z.string()).optional(),
+  logo: z.string().url().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional()
+});
+
+
+
+/**
+ * Organization settings schema
+ */
+export const OrganizationSettingsSchema = z.object({
+  allowCustomRoles: z.boolean().default(false),
+  requireEmailVerification: z.boolean().default(true),
+  passwordPolicy: z.object({
+    minLength: z.number().min(8).max(128),
+    requireSpecialChar: z.boolean(),
+    requireNumbers: z.boolean()
+  }).optional(),
+  defaultTimezone: z.string().default('UTC'),
+  defaultCurrency: z.string().length(3).default('USD'),
+  features: z.array(z.string()).optional(),
+  integrations: z.record(z.any()).optional(),
+  notifications: z.object({
+    emailFromName: z.string().optional(),
+    emailFromAddress: z.string().email().optional()
+  }).optional()
+});
+
+/**
+ * Organization verification request schema
+ */
+export const OrganizationVerificationRequestSchema = z.object({
+  documents: z.array(z.string()).min(1, 'At least one document is required'),
+  businessType: z.string().min(1, 'Business type is required'),
+  description: z.string().min(10, 'Description must be at least 10 characters')
+});
+
+/**
+ * Organization analytics query schema
+ */
+export const OrganizationAnalyticsQuerySchema = z.object({
+  period: z.enum(['week', 'month', 'quarter', 'year']).optional(),
+  metric: z.string().optional(),
+  farmId: z.string().uuid().optional()
+});
+
+/**
+ * Organization activity feed query schema
+ */
+export const OrganizationActivityQuerySchema = z.object({
+  limit: z.coerce.number().positive().max(100).optional(),
+  days: z.coerce.number().positive().max(365).optional(),
+  type: z.string().optional(),
+  userId: z.string().uuid().optional()
+});
+
+/**
+ * Organization compliance report query schema
+ */
+export const OrganizationComplianceQuerySchema = z.object({
+  period: z.enum(['week', 'month', 'quarter', 'year']).optional(),
+  standard: z.string().optional(),
+  farmId: z.string().uuid().optional()
+});
+
+/**
+ * Integration configuration schema
+ */
+export const IntegrationConfigSchema = z.object({
+  config: z.record(z.any()),
+  credentials: z.record(z.any()).optional(),
+  isActive: z.boolean().default(true)
+});
+
+/**
+ * Organization export request schema
+ */
+export const OrganizationExportRequestSchema = z.object({
+  dataTypes: z.array(z.string()).min(1, 'At least one data type is required'),
+  format: z.enum(['json', 'csv', 'excel'], {
+    errorMap: () => ({ message: 'Invalid export format' })
+  }),
+  dateRange: z.object({
+    start: z.string().datetime(),
+    end: z.string().datetime()
+  }).optional()
+});
+
+/**
+ * Organization backup request schema
+ */
+export const OrganizationBackupRequestSchema = z.object({
+  includeMedia: z.boolean().default(false),
+  retention: z.enum(['30d', '90d', '1y'], {
+    errorMap: () => ({ message: 'Invalid retention period' })
+  })
+});
+
+/**
+ * Organization billing schema
+ */
+export const OrganizationBillingSchema = z.object({
+  planId: z.string(),
+  billingCycle: z.enum(['monthly', 'yearly'], {
+    errorMap: () => ({ message: 'Invalid billing cycle' })
+  }),
+  paymentMethod: z.string().optional(),
+  status: z.enum(['active', 'past_due', 'cancelled', 'incomplete']),
+  currentPeriodStart: z.string().datetime(),
+  currentPeriodEnd: z.string().datetime(),
+  cancelAtPeriodEnd: z.boolean().default(false)
+});
+
+/**
+ * Organization usage schema
+ */
+export const OrganizationUsageSchema = z.object({
+  users: z.object({
+    current: z.number(),
+    limit: z.number(),
+    percentage: z.number()
+  }),
+  farms: z.object({
+    current: z.number(),
+    limit: z.number(),
+    percentage: z.number()
+  }),
+  storage: z.object({
+    current: z.number(), // in MB
+    limit: z.number(),
+    percentage: z.number()
+  }),
+  apiCalls: z.object({
+    current: z.number(),
+    limit: z.number(),
+    percentage: z.number()
+  })
+});
+
+/**
+ * Organization team member schema
+ */
+export const OrganizationTeamMemberSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  email: z.string().email(),
+  role: z.string(),
+  isActive: z.boolean(),
+  lastActive: z.string().datetime().optional(),
+  permissions: z.array(z.string()).optional()
+});
+
+/**
+ * Organization team stats schema
+ */
+export const OrganizationTeamStatsSchema = z.object({
+  period: z.string(),
+  roleId: z.string().uuid().optional(),
+  farmId: z.string().uuid().optional(),
+  totalMembers: z.number(),
+  activeMembers: z.number(),
+  productivity: z.number(),
+  efficiency: z.number(),
+  completedTasks: z.number(),
+  hoursWorked: z.number()
+});
+
+// Organization request schemas
+export const CreateOrganizationRequestSchema = JsonApiCreateRequestSchema(OrganizationSchema);
+export const UpdateOrganizationRequestSchema = JsonApiUpdateRequestSchema(OrganizationSchema);
+export const UpdateOrganizationSettingsRequestSchema = JsonApiUpdateRequestSchema(OrganizationSettingsSchema);
+export const IntegrationConfigRequestSchema = JsonApiCreateRequestSchema(IntegrationConfigSchema);
+export const OrganizationBillingRequestSchema = JsonApiCreateRequestSchema(OrganizationBillingSchema);
 
 // =============================================================================
 // User Management Extended Schemas
@@ -643,3 +1087,13 @@ export const ActivityLogCollectionSchema = JsonApiCollectionSchema(ActivityLogIt
 export const PreferencesResourceSchema = JsonApiResourceSchema(UserPreferencesSchema);
 export const NotificationSettingsResourceSchema = JsonApiResourceSchema(NotificationSettingsSchema);
 export const StatsResourceSchema = JsonApiResourceSchema(UserStatsResponseSchema);
+
+// Organization resource schemas
+export const OrganizationResourceSchema = JsonApiResourceSchema(OrganizationSchema);
+export const OrganizationCollectionSchema = JsonApiCollectionSchema(OrganizationSchema);
+export const OrganizationSettingsResourceSchema = JsonApiResourceSchema(OrganizationSettingsSchema);
+export const OrganizationTeamStatsResourceSchema = JsonApiResourceSchema(OrganizationTeamStatsSchema);
+export const OrganizationTeamCollectionSchema = JsonApiCollectionSchema(OrganizationTeamMemberSchema);
+export const OrganizationUsageResourceSchema = JsonApiResourceSchema(OrganizationUsageSchema);
+export const OrganizationBillingResourceSchema = JsonApiResourceSchema(OrganizationBillingSchema);
+

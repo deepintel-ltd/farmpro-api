@@ -9,6 +9,7 @@ import { userContract, type UserContract } from './users.contract';
 import { authContract, type AuthContract } from './auth.contract';
 import { healthContract, type HealthContract } from './health.contract';
 import { inventoryContract, type InventoryContract } from './inventory.contract';
+import { organizationContract, type OrganizationContract } from './organizations.contract';
 
 // Import common utilities
 import { initContract } from '@ts-rest/core';
@@ -33,6 +34,7 @@ export const apiContract = c.router({
   users: userContract,
   auth: authContract,
   inventory: inventoryContract,
+  organizations: organizationContract,
   ...healthContract,
 });
 
@@ -54,6 +56,7 @@ export type OrderEndpoints = ApiContractType['orders'];
 export type UserEndpoints = ApiContractType['users'];
 export type AuthEndpoints = ApiContractType['auth'];
 export type InventoryEndpoints = ApiContractType['inventory'];
+export type OrganizationEndpoints = ApiContractType['organizations'];
 
 // Export contract type for use in NestJS controllers
 export type { ApiContractType as ApiContract };
@@ -89,6 +92,7 @@ export function getContractMetadata() {
       users: Object.keys(userContract),
       auth: Object.keys(authContract),
       inventory: Object.keys(inventoryContract),
+      organizations: Object.keys(organizationContract),
     },
   };
 }
@@ -105,6 +109,7 @@ export {
   authContract,
   healthContract,
   inventoryContract,
+  organizationContract,
 };
 export type {
   FarmContract,
@@ -114,4 +119,5 @@ export type {
   AuthContract,
   HealthContract,
   InventoryContract,
+  OrganizationContract,
 };

@@ -1,25 +1,18 @@
-import { Controller, UseGuards, Logger, Request, Body } from '@nestjs/common';
-import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
+import { tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { inventoryContract } from '../../contracts/inventory.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
-import {
-  CreateInventoryDto,
-  UpdateInventoryDto,
-  InventoryAdjustmentDto,
-  InventoryReservationDto,
-  InventoryTransferDto,
-  InventoryQualityTestDto,
-} from './dto/inventory.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class InventoryController {
   private readonly logger = new Logger(InventoryController.name);
 
@@ -29,11 +22,9 @@ export class InventoryController {
   // Basic CRUD Operations
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.getInventory)
   public getInventory(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(inventoryContract.getInventory, async ({ query }) => {
       try {
         const result = await this.inventoryService.findAll(req.user, query);
@@ -59,11 +50,9 @@ export class InventoryController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.getInventoryItem)
   public getInventoryItem(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.getInventoryItem,
       async ({ params }) => {
@@ -82,28 +71,27 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Get inventory item ${params.id} failed for user ${req.user.userId}:`,
+            `Get inventory item failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve inventory item',
+            badRequestCode: 'GET_INVENTORY_ITEM_FAILED',
           });
         }
       },
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.createInventory)
   public createInventory(
-    @Body() body: CreateInventoryDto,
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(inventoryContract.createInventory, async () => {
+  ) {
+    return tsRestHandler(inventoryContract.createInventory, async ({ body }) => {
       try {
-        const result = await this.inventoryService.create(req.user, body);
+        const result = await this.inventoryService.create(req.user, body.data.attributes);
         this.logger.log(`Created inventory item for user: ${req.user.userId}`);
 
         return {
@@ -124,15 +112,12 @@ export class InventoryController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.updateInventory)
   public updateInventory(
-    @Body() body: UpdateInventoryDto,
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.updateInventory,
-      async ({ params }) => {
+      async ({ params, body }) => {
         try {
           const result = await this.inventoryService.update(
             req.user,
@@ -149,13 +134,13 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Update inventory ${params.id} failed for user ${req.user.userId}:`,
+            `Update inventory failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
             badRequestMessage: 'Failed to update inventory item',
             badRequestCode: 'UPDATE_INVENTORY_FAILED',
           });
@@ -164,11 +149,9 @@ export class InventoryController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.deleteInventory)
   public deleteInventory(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.deleteInventory,
       async ({ params }) => {
@@ -184,13 +167,15 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Delete inventory ${params.id} failed for user ${req.user.userId}:`,
+            `Delete inventory failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to delete inventory item',
+            badRequestCode: 'DELETE_INVENTORY_FAILED',
           });
         }
       },
@@ -198,14 +183,12 @@ export class InventoryController {
   }
 
   // =============================================================================
-  // Inventory Tracking & Movements
+  // Inventory Management Operations
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.getInventoryMovements)
   public getInventoryMovements(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.getInventoryMovements,
       async ({ params }) => {
@@ -215,7 +198,7 @@ export class InventoryController {
             params.id,
           );
           this.logger.log(
-            `Retrieved movements for inventory ${params.id} for user: ${req.user.userId}`,
+            `Retrieved inventory movements for user: ${req.user.userId}`,
           );
 
           return {
@@ -224,28 +207,25 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Get inventory movements ${params.id} failed for user ${req.user.userId}:`,
+            `Get inventory movements failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
-            notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve inventory movements',
+            badRequestCode: 'GET_INVENTORY_MOVEMENTS_FAILED',
           });
         }
       },
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.adjustInventory)
   public adjustInventory(
-    @Body() body: InventoryAdjustmentDto,
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.adjustInventory,
-      async ({ params }) => {
+      async ({ params, body }) => {
         try {
           const result = await this.inventoryService.adjustQuantity(
             req.user,
@@ -253,7 +233,7 @@ export class InventoryController {
             body,
           );
           this.logger.log(
-            `Adjusted inventory ${params.id} for user: ${req.user.userId}`,
+            `Adjusted inventory item ${params.id} for user: ${req.user.userId}`,
           );
 
           return {
@@ -262,13 +242,13 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Adjust inventory ${params.id} failed for user ${req.user.userId}:`,
+            `Adjust inventory failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
             badRequestMessage: 'Failed to adjust inventory',
             badRequestCode: 'ADJUST_INVENTORY_FAILED',
           });
@@ -277,15 +257,12 @@ export class InventoryController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.reserveInventory)
   public reserveInventory(
-    @Body() body: InventoryReservationDto,
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.reserveInventory,
-      async ({ params }) => {
+      async ({ params, body }) => {
         try {
           const result = await this.inventoryService.reserveQuantity(
             req.user,
@@ -293,7 +270,7 @@ export class InventoryController {
             body,
           );
           this.logger.log(
-            `Reserved inventory ${params.id} for user: ${req.user.userId}`,
+            `Reserved inventory item ${params.id} for user: ${req.user.userId}`,
           );
 
           return {
@@ -302,13 +279,13 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Reserve inventory ${params.id} failed for user ${req.user.userId}:`,
+            `Reserve inventory failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
             badRequestMessage: 'Failed to reserve inventory',
             badRequestCode: 'RESERVE_INVENTORY_FAILED',
           });
@@ -317,11 +294,9 @@ export class InventoryController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.releaseInventory)
   public releaseInventory(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.releaseInventory,
       async ({ params, body }) => {
@@ -330,13 +305,13 @@ export class InventoryController {
             req.user,
             params.id,
             {
-              quantity: body.quantity,
-              orderId: body.orderId,
-              reason: body.reason,
+              quantity: body.quantity || 0,
+              orderId: body.orderId || '',
+              reason: body.reason || 'order_cancelled',
             },
           );
           this.logger.log(
-            `Released inventory reservation ${params.id} for user: ${req.user.userId}`,
+            `Released inventory item ${params.id} for user: ${req.user.userId}`,
           );
 
           return {
@@ -345,14 +320,14 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Release inventory ${params.id} failed for user ${req.user.userId}:`,
+            `Release inventory failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
-            badRequestMessage: 'Failed to release inventory reservation',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to release inventory',
             badRequestCode: 'RELEASE_INVENTORY_FAILED',
           });
         }
@@ -360,47 +335,49 @@ export class InventoryController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.transferInventory)
   public transferInventory(
-    @Body() body: InventoryTransferDto,
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(inventoryContract.transferInventory, async () => {
-      try {
-        const result = await this.inventoryService.transferInventory(
-          req.user,
-          body,
-        );
-        this.logger.log(`Transferred inventory for user: ${req.user.userId}`);
+  ) {
+    return tsRestHandler(
+      inventoryContract.transferInventory,
+      async ({ body }) => {
+        try {
+          const result = await this.inventoryService.transferInventory(
+            req.user,
+            body,
+          );
+          this.logger.log(
+            `Transferred inventory for user: ${req.user.userId}`,
+          );
 
-        return {
-          status: 201 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(
-          `Transfer inventory failed for user ${req.user.userId}:`,
-          error,
-        );
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Transfer inventory failed for user ${req.user.userId}:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Failed to transfer inventory',
-          badRequestCode: 'TRANSFER_INVENTORY_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Inventory item not found',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to transfer inventory',
+            badRequestCode: 'TRANSFER_INVENTORY_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
   // Quality Management
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.getQualityTests)
   public getQualityTests(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.getQualityTests,
       async ({ params }) => {
@@ -410,7 +387,7 @@ export class InventoryController {
             params.id,
           );
           this.logger.log(
-            `Retrieved quality tests for inventory ${params.id} for user: ${req.user.userId}`,
+            `Retrieved quality tests for user: ${req.user.userId}`,
           );
 
           return {
@@ -419,28 +396,25 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Get quality tests ${params.id} failed for user ${req.user.userId}:`,
+            `Get quality tests failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
-            notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve quality tests',
+            badRequestCode: 'GET_QUALITY_TESTS_FAILED',
           });
         }
       },
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.addQualityTest)
   public addQualityTest(
-    @Body() body: InventoryQualityTestDto,
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.addQualityTest,
-      async ({ params }) => {
+      async ({ params, body }) => {
         try {
           const result = await this.inventoryService.addQualityTest(
             req.user,
@@ -448,7 +422,7 @@ export class InventoryController {
             body,
           );
           this.logger.log(
-            `Added quality test for inventory ${params.id} for user: ${req.user.userId}`,
+            `Added quality test for inventory item ${params.id} for user: ${req.user.userId}`,
           );
 
           return {
@@ -457,13 +431,13 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Add quality test ${params.id} failed for user ${req.user.userId}:`,
+            `Add quality test failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
             badRequestMessage: 'Failed to add quality test',
             badRequestCode: 'ADD_QUALITY_TEST_FAILED',
           });
@@ -472,11 +446,9 @@ export class InventoryController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.updateQualityGrade)
   public updateQualityGrade(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.updateQualityGrade,
       async ({ params, body }) => {
@@ -487,7 +459,7 @@ export class InventoryController {
             body,
           );
           this.logger.log(
-            `Updated quality grade for inventory ${params.id} for user: ${req.user.userId}`,
+            `Updated quality grade for inventory item ${params.id} for user: ${req.user.userId}`,
           );
 
           return {
@@ -496,13 +468,13 @@ export class InventoryController {
           };
         } catch (error: unknown) {
           this.logger.error(
-            `Update quality grade ${params.id} failed for user ${req.user.userId}:`,
+            `Update quality grade failed for user ${req.user.userId}:`,
             error,
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_NOT_FOUND',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
             badRequestMessage: 'Failed to update quality grade',
             badRequestCode: 'UPDATE_QUALITY_GRADE_FAILED',
           });
@@ -515,11 +487,9 @@ export class InventoryController {
   // Analytics & Reporting
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.getInventoryAnalytics)
   public getInventoryAnalytics(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.getInventoryAnalytics,
       async () => {
@@ -542,22 +512,20 @@ export class InventoryController {
           );
 
           return ErrorResponseUtil.handleCommonError(error, {
-            badRequestMessage: 'Failed to retrieve analytics',
-            badRequestCode: 'GET_ANALYTICS_FAILED',
+            badRequestMessage: 'Failed to retrieve inventory analytics',
+            badRequestCode: 'GET_INVENTORY_ANALYTICS_FAILED',
           });
         }
       },
     );
   }
 
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(inventoryContract.getStockAlerts)
   public getStockAlerts(
     @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  ) {
     return tsRestHandler(
       inventoryContract.getStockAlerts,
-      async ({query}) => {
+      async ({ query }) => {
         try {
           const result = await this.inventoryService.getStockAlerts(
             req.user,
@@ -580,6 +548,678 @@ export class InventoryController {
           return ErrorResponseUtil.handleCommonError(error, {
             badRequestMessage: 'Failed to retrieve stock alerts',
             badRequestCode: 'GET_STOCK_ALERTS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Batch Management
+  // =============================================================================
+
+  public getBatchInventory(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getBatchInventory,
+      async ({ params }) => {
+        try {
+          const result = await this.inventoryService.getBatchInventory(
+            req.user,
+            params.batchNumber,
+          );
+          this.logger.log(
+            `Retrieved batch inventory ${params.batchNumber} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get batch inventory failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Batch not found',
+            notFoundCode: 'BATCH_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve batch inventory',
+            badRequestCode: 'GET_BATCH_INVENTORY_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public mergeBatches(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.mergeBatches,
+      async ({ params, body }) => {
+        try {
+          await this.inventoryService.mergeBatches(
+            req.user,
+            params.batchNumber,
+            body,
+          );
+          this.logger.log(
+            `Merged batches for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: { message: 'Batches merged successfully' },
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Merge batches failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to merge batches',
+            badRequestCode: 'MERGE_BATCHES_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public splitBatch(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.splitBatch,
+      async ({ params, body }) => {
+        try {
+          await this.inventoryService.splitBatch(
+            req.user,
+            params.batchNumber,
+            body,
+          );
+          this.logger.log(
+            `Split batch ${params.batchNumber} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: { message: 'Batch split successfully' },
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Split batch failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to split batch',
+            badRequestCode: 'SPLIT_BATCH_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Traceability & Compliance
+  // =============================================================================
+
+  public getTraceability(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getTraceability,
+      async ({ params }) => {
+        try {
+          const result = await this.inventoryService.getTraceability(
+            req.user,
+            params.id,
+          );
+          this.logger.log(
+            `Retrieved traceability for inventory item ${params.id} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get traceability failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Inventory item not found',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve traceability',
+            badRequestCode: 'GET_TRACEABILITY_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Facility Management
+  // =============================================================================
+
+  public getFacilities(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getFacilities,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getFacilities(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved facilities for user: ${req.user.userId}`,
+          );
+
+          // Transform the response to match contract expectations
+          const transformedResult = {
+            data: result.data.map((facility: any) => ({
+              ...facility,
+              type: 'facilities' as const,
+            })),
+          };
+
+          return {
+            status: 200 as const,
+            body: transformedResult,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get facilities failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve facilities',
+            badRequestCode: 'GET_FACILITIES_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public getFacility(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getFacility,
+      async ({ params }) => {
+        try {
+          const result = await this.inventoryService.getFacility(
+            req.user,
+            params.facilityId,
+          );
+          this.logger.log(
+            `Retrieved facility ${params.facilityId} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get facility failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Facility not found',
+            notFoundCode: 'FACILITY_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve facility',
+            badRequestCode: 'GET_FACILITY_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public logFacilityConditions(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.logFacilityConditions,
+      async ({ params, body }) => {
+        try {
+          await this.inventoryService.logFacilityConditions(
+            req.user,
+            params.facilityId,
+            body,
+          );
+          this.logger.log(
+            `Logged facility conditions for facility ${params.facilityId} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 201 as const,
+            body: { message: 'Facility conditions logged successfully' },
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Log facility conditions failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Facility not found',
+            notFoundCode: 'FACILITY_NOT_FOUND',
+            badRequestMessage: 'Failed to log facility conditions',
+            badRequestCode: 'LOG_FACILITY_CONDITIONS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Storage Optimization
+  // =============================================================================
+
+  public getStorageOptimization(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getStorageOptimization,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getStorageOptimization(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved storage optimization for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get storage optimization failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve storage optimization',
+            badRequestCode: 'GET_STORAGE_OPTIMIZATION_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Valuation & Cost Management
+  // =============================================================================
+
+  public getInventoryValuation(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getInventoryValuation,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getInventoryValuation(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved inventory valuation for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get inventory valuation failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve inventory valuation',
+            badRequestCode: 'GET_INVENTORY_VALUATION_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public getCostBasis(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getCostBasis,
+      async ({ params }) => {
+        try {
+          const result = await this.inventoryService.getCostBasis(
+            req.user,
+            params.id,
+          );
+          this.logger.log(
+            `Retrieved cost basis for inventory item ${params.id} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get cost basis failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Inventory item not found',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to retrieve cost basis',
+            badRequestCode: 'GET_COST_BASIS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public updateCostBasis(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.updateCostBasis,
+      async ({ params, body }) => {
+        try {
+          const result = await this.inventoryService.updateCostBasis(
+            req.user,
+            params.id,
+            body,
+          );
+          this.logger.log(
+            `Updated cost basis for inventory item ${params.id} for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Update cost basis failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Inventory item not found',
+            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
+            badRequestMessage: 'Failed to update cost basis',
+            badRequestCode: 'UPDATE_COST_BASIS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Reporting & Analytics
+  // =============================================================================
+
+  public getAgingReport(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getAgingReport,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getAgingReport(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved aging report for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get aging report failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve aging report',
+            badRequestCode: 'GET_AGING_REPORT_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public getDemandForecast(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getDemandForecast,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getDemandForecast(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved demand forecast for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get demand forecast failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve demand forecast',
+            badRequestCode: 'GET_DEMAND_FORECAST_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public getReorderPoints(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getReorderPoints,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getReorderPoints(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved reorder points for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get reorder points failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve reorder points',
+            badRequestCode: 'GET_REORDER_POINTS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  public generateReplenishmentPlan(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.generateReplenishmentPlan,
+      async ({ body }) => {
+        try {
+          const result = await this.inventoryService.generateReplenishmentPlan(
+            req.user,
+            body,
+          );
+          this.logger.log(
+            `Generated replenishment plan for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Generate replenishment plan failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to generate replenishment plan',
+            badRequestCode: 'GENERATE_REPLENISHMENT_PLAN_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Alert Management
+  // =============================================================================
+
+  public configureAlerts(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.configureAlerts,
+      async ({ body }) => {
+        try {
+          await this.inventoryService.configureAlerts(
+            req.user,
+            body,
+          );
+          this.logger.log(
+            `Configured alerts for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: { message: 'Alerts configured successfully' },
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Configure alerts failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to configure alerts',
+            badRequestCode: 'CONFIGURE_ALERTS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Waste Analysis
+  // =============================================================================
+
+  public getWasteAnalysis(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getWasteAnalysis,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getWasteAnalysis(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved waste analysis for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get waste analysis failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve waste analysis',
+            badRequestCode: 'GET_WASTE_ANALYSIS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Report Generation
+  // =============================================================================
+
+  public generateReports(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.generateReports,
+      async ({ body }) => {
+        try {
+          await this.inventoryService.generateReports(
+            req.user,
+            body,
+          );
+          this.logger.log(
+            `Generated reports for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 202 as const,
+            body: { message: 'Report generation initiated successfully' },
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Generate reports failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to generate reports',
+            badRequestCode: 'GENERATE_REPORTS_FAILED',
           });
         }
       },
