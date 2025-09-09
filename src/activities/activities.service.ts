@@ -113,52 +113,19 @@ export class ActivitiesService {
   }
 
   async createActivity(data: CreateActivityDto, userId: string, organizationId: string) {
-    // Input validation
     this.validateActivityData(data);
 
     // Verify farm belongs to organization
     const farm = await this.prisma.farm.findFirst({
       where: { id: data.farmId, organizationId },
     });
-
     if (!farm) {
       throw new BadRequestException('Invalid farm ID');
     }
 
-    // Validate area belongs to farm if provided
-    if (data.areaId) {
-      const area = await this.prisma.area.findFirst({
-        where: { id: data.areaId, farmId: data.farmId },
-      });
-      if (!area) {
-        throw new BadRequestException('Invalid area ID for this farm');
-      }
-    }
-
-    // Validate crop cycle belongs to farm if provided
-    if (data.cropCycleId) {
-      const cropCycle = await this.prisma.cropCycle.findFirst({
-        where: { id: data.cropCycleId, farmId: data.farmId },
-      });
-      if (!cropCycle) {
-        throw new BadRequestException('Invalid crop cycle ID for this farm');
-      }
-    }
-
-    // Validate assigned users exist and belong to organization
+    // Use assignment service for creating activity with assignments
     const assignedUserIds = data.assignedTo || [userId];
-    const users = await this.prisma.user.findMany({
-      where: {
-        id: { in: assignedUserIds },
-        organizationId,
-        isActive: true,
-      },
-    });
-
-    if (users.length !== assignedUserIds.length) {
-      throw new BadRequestException('Some assigned users not found or inactive');
-    }
-
+    
     const result = await this.prisma.$transaction(async (tx) => {
       // Create activity
       const activity = await tx.farmActivity.create({
@@ -174,71 +141,58 @@ export class ActivitiesService {
           scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
           estimatedDuration: data.estimatedDuration,
           status: 'PLANNED',
-          cost: 0, // Will be updated when costs are added
+          cost: 0,
           metadata: {
             instructions: data.instructions,
             safetyNotes: data.safetyNotes,
             resources: data.resources || [],
           },
         },
+        include: {
+          farm: { select: { id: true, name: true } },
+          area: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
+        },
       });
 
       // Create assignments
       const assignments = await Promise.all(
-        assignedUserIds.map(async (assignedUserId, index) => {
-          return tx.activityAssignment.create({
+        assignedUserIds.map(assignedUserId =>
+          tx.activityAssignment.create({
             data: {
               activityId: activity.id,
               userId: assignedUserId,
-              role: index === 0 ? 'ASSIGNED' : 'ASSIGNED', // First user is primary
+              role: 'ASSIGNED',
               assignedById: userId,
               isActive: true,
             },
             include: {
               user: { select: { id: true, name: true, email: true } }
             }
-          });
-        })
+          })
+        )
       );
 
-      this.logger.log(`Created activity "${data.name}" with ${assignments.length} assignments`);
-
-      return { activity, assignments };
+      return { ...activity, assignments };
     });
 
-    // Fetch complete activity with all relations
-    const completeActivity = await this.prisma.farmActivity.findUnique({
-      where: { id: result.activity.id },
-      include: {
-        farm: { select: { id: true, name: true } },
-        area: { select: { id: true, name: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
-        assignments: {
-          where: { isActive: true },
-          include: {
-            user: { select: { id: true, name: true, email: true } }
-          }
-        },
-      },
-    });
-
-    return this.formatActivityResponse(completeActivity);
+    return this.formatActivityResponse(result);
   }
 
   async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, organizationId: string) {
-    const activity = await this.prisma.farmActivity.findFirst({
+    const activity = await this.prisma.farmActivity.findFirstOrThrow({
       where: {
         id: activityId,
         farm: { organizationId },
       },
+      include: {
+        assignments: { where: { userId, isActive: true } }
+      }
     });
 
-    if (!activity) {
-      throw new NotFoundException('Activity not found');
-    }
-
-    // Check if user can edit (assigned user)
-    if (activity.userId !== userId) {
+    // Check if user can update (assigned or creator)
+    const canUpdate = activity.createdById === userId || activity.assignments.length > 0;
+    if (!canUpdate) {
       throw new ForbiddenException('Not authorized to edit this activity');
     }
 
@@ -248,13 +202,17 @@ export class ActivitiesService {
         name: data.name,
         description: data.description,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-        cost: data.estimatedCost,
-        metadata: data.instructions ? { instructions: data.instructions } : undefined,
+        priority: data.priority,
+        estimatedDuration: data.estimatedDuration,
       },
       include: {
         farm: { select: { id: true, name: true } },
         area: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        assignments: {
+          where: { isActive: true },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        },
       },
     });
 
@@ -278,7 +236,8 @@ export class ActivitiesService {
     }
 
     // Check if user can delete (assigned user)
-    if (activity.userId !== userId) {
+    // Check if user can delete (creator only for simplicity)
+    if (activity.createdById !== userId) {
       throw new ForbiddenException('Not authorized to delete this activity');
     }
 
@@ -297,7 +256,9 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    if (activity.userId !== userId) {
+    // Check if user is assigned to this activity
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -333,7 +294,9 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    if (activity.userId !== userId) {
+    // Check if user is assigned to this activity
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -373,7 +336,9 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    if (activity.userId !== userId) {
+    // Check if user is assigned to this activity
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -412,7 +377,9 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    if (activity.userId !== userId) {
+    // Check if user is assigned to this activity
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -448,7 +415,9 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    if (activity.userId !== userId) {
+    // Check if user is assigned to this activity
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -656,41 +625,8 @@ export class ActivitiesService {
     if (!data.name?.trim()) {
       throw new BadRequestException('Activity name is required');
     }
-
-    if (data.name.length > 255) {
-      throw new BadRequestException('Activity name must be less than 255 characters');
-    }
-
-    if (data.description && data.description.length > 2000) {
-      throw new BadRequestException('Description must be less than 2000 characters');
-    }
-
-    if (data.scheduledAt && new Date(data.scheduledAt) < new Date()) {
-      this.logger.warn(`Activity scheduled in the past: ${data.scheduledAt}`);
-    }
-
     if (data.estimatedDuration && data.estimatedDuration <= 0) {
-      throw new BadRequestException('Estimated duration must be greater than 0');
-    }
-
-    if (data.estimatedCost && data.estimatedCost < 0) {
-      throw new BadRequestException('Estimated cost cannot be negative');
-    }
-  }
-
-  private validateActivityStateTransition(currentStatus: string, newStatus: string) {
-    const validTransitions = {
-      'PLANNED': ['IN_PROGRESS', 'CANCELLED'],
-      'IN_PROGRESS': ['COMPLETED', 'CANCELLED'],
-      'COMPLETED': [], // No transitions from completed
-      'CANCELLED': [], // No transitions from cancelled
-    };
-
-    const allowed = validTransitions[currentStatus] || [];
-    if (!allowed.includes(newStatus)) {
-      throw new BadRequestException(
-        `Invalid status transition from ${currentStatus} to ${newStatus}`
-      );
+      throw new BadRequestException('Estimated duration must be positive');
     }
   }
 
