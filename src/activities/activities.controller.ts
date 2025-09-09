@@ -9,6 +9,7 @@ import { ActivitiesService } from './activities.service';
 import { PermissionsService } from './permissions.service';
 import { ActivityTemplateService } from './activity-template.service';
 import { ActivityCostService } from './activity-cost.service';
+import { ActivityAssignmentService } from './activity-assignment.service';
 import {
   CreateActivityDto,
   UpdateActivityDto,
@@ -35,6 +36,7 @@ export class ActivitiesController {
     private readonly permissionsService: PermissionsService,
     private readonly activityTemplateService: ActivityTemplateService,
     private readonly activityCostService: ActivityCostService,
+    private readonly activityAssignmentService: ActivityAssignmentService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -381,7 +383,7 @@ export class ActivitiesController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(activitiesContract.getMyTasks, async () => {
       try {
-        const result = await this.activitiesService.getMyTasks(req.user.userId, query);
+        const result = await this.activitiesService.getMyTasks(req.user.userId, query, req.user.organizationId);
 
         return {
           status: 200 as const,

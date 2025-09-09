@@ -78,7 +78,8 @@ export class PermissionsService {
   async checkActivityAccess(
     user: CurrentUser,
     activityId: string,
-  ): Promise<void> {
+    action: 'read' | 'update' | 'execute' | 'delete' = 'read',
+  ): Promise<boolean> {
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
@@ -86,6 +87,12 @@ export class PermissionsService {
       },
       include: {
         farm: true,
+        assignments: {
+          where: { 
+            userId: user.userId,
+            isActive: true 
+          }
+        },
       },
     });
 
@@ -93,13 +100,63 @@ export class PermissionsService {
       throw new ForbiddenException('Activity not found or access denied');
     }
 
-    // Additional check: user must be assigned to activity or be the creator for certain actions
-    const isAssignedOrCreator = activity.userId === user.userId;
+    // Check if user is assigned to the activity
+    const isAssigned = activity.assignments.length > 0;
+    const isCreator = activity.createdById === user.userId;
+    const isManager = await this.checkManagerRole(user, activity.farmId);
 
-    if (!isAssignedOrCreator) {
-      // For read-only operations, organization membership is enough
-      // For execute operations, assignment is required
-      // This is handled in the service layer
+    switch (action) {
+      case 'read':
+        // Read access: assigned user, creator, manager, or organization member with permission
+        return isAssigned || isCreator || isManager;
+      
+      case 'update':
+        // Update access: assigned user, creator, or manager
+        return isAssigned || isCreator || isManager;
+      
+      case 'execute':
+        // Execute access: only assigned users (supervisors and assigned workers)
+        return isAssigned;
+      
+      case 'delete':
+        // Delete access: creator or manager only
+        return isCreator || isManager;
+      
+      default:
+        return false;
     }
+  }
+
+  async checkManagerRole(user: CurrentUser, farmId: string): Promise<boolean> {
+    // Check if user has manager role for this farm
+    const managerRole = await this.prisma.userRole.findFirst({
+      where: {
+        userId: user.userId,
+        farmId: farmId,
+        isActive: true,
+        role: {
+          name: {
+            in: ['FARM_MANAGER', 'FARM_OWNER', 'ADMIN']
+          }
+        }
+      },
+      include: {
+        role: true
+      }
+    });
+
+    return !!managerRole;
+  }
+
+  async checkAssignment(user: CurrentUser, activityId: string): Promise<boolean> {
+    const assignment = await this.prisma.activityAssignment.findFirst({
+      where: {
+        activityId,
+        userId: user.userId,
+        isActive: true,
+      },
+    });
+
+    return !!assignment;
   }
 }

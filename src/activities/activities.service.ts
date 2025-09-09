@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ActivityAssignmentService } from './activity-assignment.service';
 import {
   CreateActivityDto,
   UpdateActivityDto,
@@ -17,7 +18,12 @@ import {
 
 @Injectable()
 export class ActivitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ActivitiesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly assignmentService: ActivityAssignmentService,
+  ) {}
 
   async getActivities(organizationId: string, query: ActivityQueryOptions) {
     const where: any = {
@@ -28,7 +34,24 @@ export class ActivitiesService {
     if (query.areaId) where.areaId = query.areaId;
     if (query.type) where.type = query.type;
     if (query.status) where.status = query.status;
-    if (query.assignedTo) where.userId = query.assignedTo;
+    if (query.priority) where.priority = query.priority;
+
+    // Handle assignedTo filter properly with assignments
+    if (query.assignedTo) {
+      where.assignments = {
+        some: {
+          userId: query.assignedTo,
+          isActive: true,
+        }
+      };
+    }
+
+    // Add date range filters
+    if (query.startDate || query.endDate) {
+      where.scheduledAt = {};
+      if (query.startDate) where.scheduledAt.gte = new Date(query.startDate);
+      if (query.endDate) where.scheduledAt.lte = new Date(query.endDate);
+    }
 
     const [activities, totalCount] = await Promise.all([
       this.prisma.farmActivity.findMany({
@@ -36,9 +59,23 @@ export class ActivitiesService {
         include: {
           farm: { select: { id: true, name: true } },
           area: { select: { id: true, name: true } },
-          user: { select: { id: true, name: true, email: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
+          assignments: {
+            where: { isActive: true },
+            include: {
+              user: { select: { id: true, name: true, email: true } }
+            }
+          },
+          _count: {
+            select: {
+              costs: true,
+              progressLogs: true,
+            }
+          }
         },
-        orderBy: { scheduledAt: 'asc' },
+        orderBy: query.sort === 'priority' 
+          ? [{ priority: 'desc' }, { scheduledAt: 'asc' }]
+          : { scheduledAt: 'asc' },
         skip: query.page ? (query.page - 1) * (query.pageSize || 25) : 0,
         take: query.pageSize || 25,
       }),
@@ -47,7 +84,11 @@ export class ActivitiesService {
 
     return {
       data: activities.map(activity => this.formatActivityResponse(activity)),
-      meta: { totalCount },
+      meta: { 
+        totalCount,
+        page: query.page || 1,
+        pageSize: query.pageSize || 25,
+      },
     };
   }
 
@@ -72,6 +113,9 @@ export class ActivitiesService {
   }
 
   async createActivity(data: CreateActivityDto, userId: string, organizationId: string) {
+    // Input validation
+    this.validateActivityData(data);
+
     // Verify farm belongs to organization
     const farm = await this.prisma.farm.findFirst({
       where: { id: data.farmId, organizationId },
@@ -81,28 +125,104 @@ export class ActivitiesService {
       throw new BadRequestException('Invalid farm ID');
     }
 
-    const activity = await this.prisma.farmActivity.create({
-      data: {
-        farmId: data.farmId,
-        areaId: data.areaId,
-        cropCycleId: data.cropCycleId,
-        userId,
-        type: data.type,
-        name: data.name,
-        description: data.description || '',
-        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-        status: 'PLANNED',
-        cost: data.estimatedCost,
-        metadata: data.instructions ? { instructions: data.instructions } : undefined,
-      },
-      include: {
-        farm: { select: { id: true, name: true } },
-        area: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+    // Validate area belongs to farm if provided
+    if (data.areaId) {
+      const area = await this.prisma.area.findFirst({
+        where: { id: data.areaId, farmId: data.farmId },
+      });
+      if (!area) {
+        throw new BadRequestException('Invalid area ID for this farm');
+      }
+    }
+
+    // Validate crop cycle belongs to farm if provided
+    if (data.cropCycleId) {
+      const cropCycle = await this.prisma.cropCycle.findFirst({
+        where: { id: data.cropCycleId, farmId: data.farmId },
+      });
+      if (!cropCycle) {
+        throw new BadRequestException('Invalid crop cycle ID for this farm');
+      }
+    }
+
+    // Validate assigned users exist and belong to organization
+    const assignedUserIds = data.assignedTo || [userId];
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { in: assignedUserIds },
+        organizationId,
+        isActive: true,
       },
     });
 
-    return this.formatActivityResponse(activity);
+    if (users.length !== assignedUserIds.length) {
+      throw new BadRequestException('Some assigned users not found or inactive');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create activity
+      const activity = await tx.farmActivity.create({
+        data: {
+          farmId: data.farmId,
+          areaId: data.areaId,
+          cropCycleId: data.cropCycleId,
+          createdById: userId,
+          type: data.type,
+          name: data.name,
+          description: data.description || '',
+          priority: data.priority || 'NORMAL',
+          scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+          estimatedDuration: data.estimatedDuration,
+          status: 'PLANNED',
+          cost: 0, // Will be updated when costs are added
+          metadata: {
+            instructions: data.instructions,
+            safetyNotes: data.safetyNotes,
+            resources: data.resources || [],
+          },
+        },
+      });
+
+      // Create assignments
+      const assignments = await Promise.all(
+        assignedUserIds.map(async (assignedUserId, index) => {
+          return tx.activityAssignment.create({
+            data: {
+              activityId: activity.id,
+              userId: assignedUserId,
+              role: index === 0 ? 'ASSIGNED' : 'ASSIGNED', // First user is primary
+              assignedById: userId,
+              isActive: true,
+            },
+            include: {
+              user: { select: { id: true, name: true, email: true } }
+            }
+          });
+        })
+      );
+
+      this.logger.log(`Created activity "${data.name}" with ${assignments.length} assignments`);
+
+      return { activity, assignments };
+    });
+
+    // Fetch complete activity with all relations
+    const completeActivity = await this.prisma.farmActivity.findUnique({
+      where: { id: result.activity.id },
+      include: {
+        farm: { select: { id: true, name: true } },
+        area: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        assignments: {
+          where: { isActive: true },
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        },
+      },
+    });
+
+    return this.formatActivityResponse(completeActivity);
   }
 
   async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, organizationId: string) {
@@ -345,58 +465,74 @@ export class ActivitiesService {
   }
 
   async getCalendarEvents(query: CalendarQueryOptions, organizationId: string): Promise<CalendarEvent[]> {
-    const activities = await this.prisma.farmActivity.findMany({
-      where: {
-        farmId: query.farmId,
-        farm: { organizationId },
-        scheduledAt: {
-          gte: new Date(query.startDate),
-          lte: new Date(query.endDate),
-        },
-        ...(query.userId && { userId: query.userId }),
+    const where: any = {
+      farmId: query.farmId,
+      farm: { organizationId },
+      scheduledAt: {
+        gte: new Date(query.startDate),
+        lte: new Date(query.endDate),
       },
+    };
+
+    // Filter by assigned user if provided
+    if (query.userId) {
+      where.assignments = {
+        some: {
+          userId: query.userId,
+          isActive: true,
+        }
+      };
+    }
+
+    const activities = await this.prisma.farmActivity.findMany({
+      where,
       include: {
         farm: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        assignments: {
+          where: { isActive: true },
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        },
       },
+      orderBy: { scheduledAt: 'asc' },
     });
 
-    return activities.map(activity => ({
-      id: activity.id,
-      title: activity.name,
-      start: activity.scheduledAt || new Date(),
-      end: activity.completedAt || new Date(Date.now() + 2 * 60 * 60 * 1000), // Default 2 hours
-      allDay: false,
-      color: this.getActivityColor(activity.type, activity.status),
-      activity: this.formatActivityResponse(activity) as any,
-    }));
+    return activities.map(activity => {
+      const scheduledTime = activity.scheduledAt || new Date();
+      let endTime: Date;
+
+      // Calculate end time based on activity state and duration
+      if (activity.status === 'COMPLETED' && activity.completedAt) {
+        endTime = activity.completedAt;
+      } else if (activity.estimatedDuration) {
+        endTime = new Date(scheduledTime.getTime() + activity.estimatedDuration * 60 * 1000);
+      } else {
+        // Default to 2 hours if no duration specified
+        endTime = new Date(scheduledTime.getTime() + 2 * 60 * 60 * 1000);
+      }
+
+      return {
+        id: activity.id,
+        title: activity.name,
+        start: scheduledTime,
+        end: endTime,
+        allDay: false,
+        color: this.getActivityColor(activity.type, activity.status),
+        activity: this.formatActivityResponse(activity) as any,
+      };
+    });
   }
 
-  async getMyTasks(userId: string, query: MyTasksQueryOptions) {
-    const where: any = {
-      userId,
-    };
-
-    if (query.status) where.status = query.status;
-    if (query.farmId) where.farmId = query.farmId;
-
-    const [activities, totalCount] = await Promise.all([
-      this.prisma.farmActivity.findMany({
-        where,
-        include: {
-          farm: { select: { id: true, name: true } },
-          user: { select: { id: true, name: true, email: true } },
-        },
-        orderBy: { scheduledAt: 'asc' },
-        take: 50,
-      }),
-      this.prisma.farmActivity.count({ where }),
-    ]);
-
-    return {
-      data: activities.map(activity => this.formatActivityResponse(activity)),
-      meta: { totalCount },
-    };
+  async getMyTasks(userId: string, query: MyTasksQueryOptions, organizationId: string) {
+    // Use the assignment service to get user's activities
+    return this.assignmentService.getUserActivities(userId, organizationId, {
+      status: query.status,
+      farmId: query.farmId,
+      priority: query.priority,
+      limit: 50,
+    });
   }
 
   async getAnalytics(query: AnalyticsQueryOptions): Promise<ActivityAnalytics> {
@@ -467,16 +603,30 @@ export class ActivitiesService {
         name: activity.name,
         description: activity.description,
         status: activity.status,
+        priority: activity.priority,
         scheduledAt: activity.scheduledAt?.toISOString() || null,
         completedAt: activity.completedAt?.toISOString() || null,
+        startedAt: activity.startedAt?.toISOString() || null,
+        estimatedDuration: activity.estimatedDuration,
+        actualDuration: activity.actualDuration,
         cost: activity.cost,
-        userId: activity.userId,
+        createdById: activity.createdById,
         metadata: activity.metadata,
         createdAt: activity.createdAt.toISOString(),
         updatedAt: activity.updatedAt.toISOString(),
         farm: activity.farm,
         area: activity.area,
-        user: activity.user,
+        createdBy: activity.createdBy,
+        assignments: activity.assignments?.map((assignment: any) => ({
+          id: assignment.id,
+          userId: assignment.userId,
+          role: assignment.role,
+          assignedAt: assignment.assignedAt.toISOString(),
+          user: assignment.user,
+        })) || [],
+        assignedUsers: activity.assignments?.map((assignment: any) => assignment.user) || [],
+        costCount: activity._count?.costs || 0,
+        progressLogCount: activity._count?.progressLogs || 0,
       },
     };
   }
@@ -500,6 +650,48 @@ export class ActivitiesService {
     if (status === 'CANCELLED') color = '#BDBDBD';
 
     return color;
+  }
+
+  private validateActivityData(data: CreateActivityDto) {
+    if (!data.name?.trim()) {
+      throw new BadRequestException('Activity name is required');
+    }
+
+    if (data.name.length > 255) {
+      throw new BadRequestException('Activity name must be less than 255 characters');
+    }
+
+    if (data.description && data.description.length > 2000) {
+      throw new BadRequestException('Description must be less than 2000 characters');
+    }
+
+    if (data.scheduledAt && new Date(data.scheduledAt) < new Date()) {
+      this.logger.warn(`Activity scheduled in the past: ${data.scheduledAt}`);
+    }
+
+    if (data.estimatedDuration && data.estimatedDuration <= 0) {
+      throw new BadRequestException('Estimated duration must be greater than 0');
+    }
+
+    if (data.estimatedCost && data.estimatedCost < 0) {
+      throw new BadRequestException('Estimated cost cannot be negative');
+    }
+  }
+
+  private validateActivityStateTransition(currentStatus: string, newStatus: string) {
+    const validTransitions = {
+      'PLANNED': ['IN_PROGRESS', 'CANCELLED'],
+      'IN_PROGRESS': ['COMPLETED', 'CANCELLED'],
+      'COMPLETED': [], // No transitions from completed
+      'CANCELLED': [], // No transitions from cancelled
+    };
+
+    const allowed = validTransitions[currentStatus] || [];
+    if (!allowed.includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status transition from ${currentStatus} to ${newStatus}`
+      );
+    }
   }
 
   private getStartDate(period: string): Date {

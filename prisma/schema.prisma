@@ -32,12 +32,17 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  userRoles UserRole[]
-  farmActivities FarmActivity[]
-  observations   Observation[]
-  createdOrders  Order[]       @relation("OrderCreatedBy")
-  messages       Message[]
-  activities     Activity[]
+  userRoles            UserRole[]
+  createdActivities    FarmActivity[]      @relation("ActivityCreatedBy")
+  activityAssignments  ActivityAssignment[] @relation("ActivityAssignments")
+  assignedActivities   ActivityAssignment[] @relation("ActivityAssignedBy")
+  activityCostsCreated ActivityCost[]      @relation("ActivityCostCreatedBy")
+  activityCostsUpdated ActivityCost[]      @relation("ActivityCostUpdatedBy")
+  activityProgressLogs ActivityProgressLog[] @relation("ActivityProgressLogs")
+  observations         Observation[]
+  createdOrders        Order[]             @relation("OrderCreatedBy")
+  messages             Message[]
+  activities           Activity[]
 
   @@index([organizationId])
   @@index([email])
@@ -303,32 +308,105 @@ model CropCycle {
 
 
 model FarmActivity {
-  id          String         @id @default(cuid())
-  farmId      String
-  areaId      String?
-  cropCycleId String?
-  userId      String
-  type        ActivityType
-  name        String
-  description String?
-  scheduledAt DateTime?
-  completedAt DateTime?
-  status      ActivityStatus @default(PLANNED)
-  cost        Float?
-  metadata    Json?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id                String               @id @default(cuid())
+  farmId            String
+  areaId            String?
+  cropCycleId       String?
+  type              ActivityType
+  name              String
+  description       String?
+  scheduledAt       DateTime?
+  completedAt       DateTime?
+  startedAt         DateTime?
+  status            ActivityStatus       @default(PLANNED)
+  priority          ActivityPriority     @default(NORMAL)
+  cost              Float?               // Total cost calculated from cost entries
+  estimatedDuration Int?                 // in minutes
+  actualDuration    Int?                 // in minutes
+  createdById       String
+  metadata          Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
-  farm      Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  area      Area?      @relation(fields: [areaId], references: [id])
-  cropCycle CropCycle? @relation(fields: [cropCycleId], references: [id])
-  user      User       @relation(fields: [userId], references: [id])
-  media     Media[]
+  farm         Farm                   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  area         Area?                  @relation(fields: [areaId], references: [id])
+  cropCycle    CropCycle?             @relation(fields: [cropCycleId], references: [id])
+  createdBy    User                   @relation("ActivityCreatedBy", fields: [createdById], references: [id])
+  media        Media[]
+  assignments  ActivityAssignment[]
+  costs        ActivityCost[]
+  progressLogs ActivityProgressLog[]
 
   @@index([farmId, status])
-  @@index([userId, farmId])
   @@index([farmId, type])
+  @@index([createdById])
+  @@index([farmId, priority])
+  @@index([status, scheduledAt])
   @@map("farm_activities")
+}
+
+model ActivityAssignment {
+  id           String   @id @default(cuid())
+  activityId   String
+  userId       String
+  role         ActivityRole @default(ASSIGNED)
+  assignedAt   DateTime @default(now())
+  assignedById String
+  isActive     Boolean  @default(true)
+  metadata     Json?
+
+  activity   FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User         @relation("ActivityAssignments", fields: [userId], references: [id])
+  assignedBy User         @relation("ActivityAssignedBy", fields: [assignedById], references: [id])
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
+  @@map("activity_assignments")
+}
+
+model ActivityCost {
+  id          String    @id @default(cuid())
+  activityId  String
+  type        CostType
+  description String
+  amount      Decimal   @db.Decimal(10,2)
+  quantity    Decimal?  @db.Decimal(8,2)
+  unit        String?
+  receipt     String?
+  vendor      String?
+  createdAt   DateTime  @default(now())
+  createdById String
+  updatedAt   DateTime  @default(now()) @updatedAt
+  updatedById String?
+
+  activity   FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdBy  User         @relation("ActivityCostCreatedBy", fields: [createdById], references: [id])
+  updatedBy  User?        @relation("ActivityCostUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([activityId])
+  @@index([type])
+  @@index([createdById])
+  @@map("activity_costs")
+}
+
+model ActivityProgressLog {
+  id              String   @id @default(cuid())
+  activityId      String
+  userId          String
+  percentComplete Int      // 0-100
+  notes           String?
+  issues          String?
+  location        Json?
+  timestamp       DateTime @default(now())
+  metadata        Json?
+
+  activity FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User         @relation("ActivityProgressLogs", fields: [userId], references: [id])
+
+  @@index([activityId])
+  @@index([timestamp])
+  @@map("activity_progress_logs")
 }
 
 model ActivityTemplate {
@@ -800,4 +878,25 @@ enum TransactionStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum ActivityPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ActivityRole {
+  ASSIGNED
+  SUPERVISOR
+  OBSERVER
+}
+
+enum CostType {
+  LABOR
+  EQUIPMENT
+  MATERIAL
+  FUEL
+  OTHER
 }
