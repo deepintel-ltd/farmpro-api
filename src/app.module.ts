@@ -9,6 +9,7 @@ import { InventoryModule } from '@/inventory/inventory.module';
 import { OrganizationsModule } from '@/organizations/organizations.module';
 import { MarketModule } from '@/market/market.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
+import { OrdersModule } from '@/orders/orders.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AnalyticsModule } from '@/analytics/analytics.module';
     OrganizationsModule,
     MarketModule,
     AnalyticsModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
