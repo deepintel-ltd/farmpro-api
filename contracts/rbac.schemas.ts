@@ -215,45 +215,21 @@ export const BulkOperationResultSchema = z.object({
 // JSON:API Resource Schemas
 // =============================================================================
 
-export const RoleResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('roles'),
-  attributes: RoleSchema,
-});
+export const RoleResourceSchema = JsonApiResourceSchema(RoleSchema);
 
-export const PermissionResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('permissions'),
-  attributes: PermissionSchema,
-});
+export const PermissionResourceSchema = JsonApiResourceSchema(PermissionSchema);
 
-export const RolePermissionResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('role-permissions'),
-  attributes: RolePermissionSchema,
-});
+export const RolePermissionResourceSchema = JsonApiResourceSchema(RolePermissionSchema);
 
-export const UserRoleResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('user-roles'),
-  attributes: UserRoleSchema,
-});
+export const UserRoleResourceSchema = JsonApiResourceSchema(UserRoleSchema);
 
-export const PermissionCheckResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('permission-checks'),
-  attributes: PermissionCheckResultSchema,
-});
+export const PermissionCheckResourceSchema = JsonApiResourceSchema(PermissionCheckResultSchema);
 
-export const RoleTemplateResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('role-templates'),
-  attributes: RoleTemplateSchema,
-});
+export const RoleTemplateResourceSchema = JsonApiResourceSchema(RoleTemplateSchema);
 
-export const AccessAnalyticsResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('access-analytics'),
-  attributes: AccessAnalyticsSchema,
-});
+export const AccessAnalyticsResourceSchema = JsonApiResourceSchema(AccessAnalyticsSchema);
 
-export const BulkOperationResourceSchema = JsonApiResourceSchema.extend({
-  type: z.literal('bulk-operations'),
-  attributes: BulkOperationResultSchema,
-});
+export const BulkOperationResourceSchema = JsonApiResourceSchema(BulkOperationResultSchema);
 
 // =============================================================================
 // Collection Schemas
