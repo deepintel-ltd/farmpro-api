@@ -9,7 +9,7 @@ import {
   VerifyEmailRequestSchema,
   ValidateTokenRequestSchema,
   AuthResourceSchema,
-  UserProfileResourceSchema,
+  AuthUserProfileResourceSchema,
   TokenResourceSchema,
   MessageResourceSchema,
   SessionCollectionSchema,
@@ -211,7 +211,7 @@ export const authContract = c.router({
     method: 'GET',
     path: '/auth/me',
     responses: {
-      200: UserProfileResourceSchema,
+      200: AuthUserProfileResourceSchema,
       401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
@@ -223,7 +223,7 @@ export const authContract = c.router({
     path: '/auth/validate-token',
     body: ValidateTokenRequestSchema,
     responses: {
-      200: UserProfileResourceSchema,
+      200: AuthUserProfileResourceSchema,
       400: JsonApiErrorResponseSchema,
       401: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,

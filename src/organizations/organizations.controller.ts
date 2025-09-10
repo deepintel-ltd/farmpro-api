@@ -1,4 +1,11 @@
-import { Controller, UseGuards, Logger, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Logger,
+  Request,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
@@ -29,7 +36,9 @@ export class OrganizationsController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getProfile, async () => {
       try {
-        const result = await this.organizationsService.getProfile(req.user.organizationId);
+        const result = await this.organizationsService.getProfile(
+          req.user.organizationId,
+        );
 
         return {
           status: 200 as const,
@@ -52,32 +61,37 @@ export class OrganizationsController {
   public updateProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.updateProfile, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.updateProfile(
-          req.user.organizationId,
-          body,
-        );
+    return tsRestHandler(
+      organizationContract.updateProfile,
+      async ({ body }) => {
+        try {
+          const result = await this.organizationsService.updateProfile(
+            req.user.organizationId,
+            body,
+          );
 
-        this.logger.log(`Organization profile updated by user ${req.user.userId}`);
+          this.logger.log(
+            `Organization profile updated by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Update organization profile failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Update organization profile failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Organization not found',
-          notFoundCode: 'ORGANIZATION_NOT_FOUND',
-          badRequestMessage: 'Invalid organization data',
-          badRequestCode: 'INVALID_ORGANIZATION_DATA',
-          internalErrorMessage: 'Failed to update organization profile',
-          internalErrorCode: 'UPDATE_ORGANIZATION_PROFILE_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Organization not found',
+            notFoundCode: 'ORGANIZATION_NOT_FOUND',
+            badRequestMessage: 'Invalid organization data',
+            badRequestCode: 'INVALID_ORGANIZATION_DATA',
+            internalErrorMessage: 'Failed to update organization profile',
+            internalErrorCode: 'UPDATE_ORGANIZATION_PROFILE_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.uploadLogo)
@@ -93,7 +107,9 @@ export class OrganizationsController {
           file,
         );
 
-        this.logger.log(`Organization logo uploaded by user ${req.user.userId}`);
+        this.logger.log(
+          `Organization logo uploaded by user ${req.user.userId}`,
+        );
 
         return {
           status: 200 as const,
@@ -118,7 +134,9 @@ export class OrganizationsController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getSettings, async () => {
       try {
-        const result = await this.organizationsService.getSettings(req.user.organizationId);
+        const result = await this.organizationsService.getSettings(
+          req.user.organizationId,
+        );
 
         return {
           status: 200 as const,
@@ -141,32 +159,37 @@ export class OrganizationsController {
   public updateSettings(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.updateSettings, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.updateSettings(
-          req.user.organizationId,
-          body,
-        );
+    return tsRestHandler(
+      organizationContract.updateSettings,
+      async ({ body }) => {
+        try {
+          const result = await this.organizationsService.updateSettings(
+            req.user.organizationId,
+            body,
+          );
 
-        this.logger.log(`Organization settings updated by user ${req.user.userId}`);
+          this.logger.log(
+            `Organization settings updated by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Update organization settings failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Update organization settings failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Organization not found',
-          notFoundCode: 'ORGANIZATION_NOT_FOUND',
-          badRequestMessage: 'Invalid settings data',
-          badRequestCode: 'INVALID_SETTINGS_DATA',
-          internalErrorMessage: 'Failed to update organization settings',
-          internalErrorCode: 'UPDATE_ORGANIZATION_SETTINGS_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Organization not found',
+            notFoundCode: 'ORGANIZATION_NOT_FOUND',
+            badRequestMessage: 'Invalid settings data',
+            badRequestCode: 'INVALID_SETTINGS_DATA',
+            internalErrorMessage: 'Failed to update organization settings',
+            internalErrorCode: 'UPDATE_ORGANIZATION_SETTINGS_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -177,55 +200,65 @@ export class OrganizationsController {
   public requestVerification(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.requestVerification, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.requestVerification(
-          req.user.organizationId,
-          body,
-        );
+    return tsRestHandler(
+      organizationContract.requestVerification,
+      async ({ body }) => {
+        try {
+          const result = await this.organizationsService.requestVerification(
+            req.user.organizationId,
+            body,
+          );
 
-        this.logger.log(`Verification request submitted by user ${req.user.userId}`);
+          this.logger.log(
+            `Verification request submitted by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Request verification failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Request verification failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid verification data',
-          badRequestCode: 'INVALID_VERIFICATION_DATA',
-          internalErrorMessage: 'Failed to submit verification request',
-          internalErrorCode: 'REQUEST_VERIFICATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid verification data',
+            badRequestCode: 'INVALID_VERIFICATION_DATA',
+            internalErrorMessage: 'Failed to submit verification request',
+            internalErrorCode: 'REQUEST_VERIFICATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getVerificationStatus)
   public getVerificationStatus(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getVerificationStatus, async () => {
-      try {
-        const result = await this.organizationsService.getVerificationStatus(req.user.organizationId);
+    return tsRestHandler(
+      organizationContract.getVerificationStatus,
+      async () => {
+        try {
+          const result = await this.organizationsService.getVerificationStatus(
+            req.user.organizationId,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get verification status failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get verification status failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Organization not found',
-          notFoundCode: 'ORGANIZATION_NOT_FOUND',
-          internalErrorMessage: 'Failed to retrieve verification status',
-          internalErrorCode: 'GET_VERIFICATION_STATUS_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Organization not found',
+            notFoundCode: 'ORGANIZATION_NOT_FOUND',
+            internalErrorMessage: 'Failed to retrieve verification status',
+            internalErrorCode: 'GET_VERIFICATION_STATUS_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -236,78 +269,92 @@ export class OrganizationsController {
   public getAnalytics(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getAnalytics, async ({ query }) => {
-      try {
-        const result = await this.organizationsService.getAnalytics(
-          req.user.organizationId,
-          query,
-        );
+    return tsRestHandler(
+      organizationContract.getAnalytics,
+      async ({ query }) => {
+        try {
+          const result = await this.organizationsService.getAnalytics(
+            req.user.organizationId,
+            query,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get organization analytics failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get organization analytics failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          internalErrorMessage: 'Failed to retrieve organization analytics',
-          internalErrorCode: 'GET_ORGANIZATION_ANALYTICS_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            internalErrorMessage: 'Failed to retrieve organization analytics',
+            internalErrorCode: 'GET_ORGANIZATION_ANALYTICS_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getActivityFeed)
   public getActivityFeed(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getActivityFeed, async ({ query }) => {
-      try {
-        const result = await this.organizationsService.getActivityFeed(
-          req.user.organizationId,
-          query,
-        );
+    return tsRestHandler(
+      organizationContract.getActivityFeed,
+      async ({ query }) => {
+        try {
+          const result = await this.organizationsService.getActivityFeed(
+            req.user.organizationId,
+            query,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get organization activity feed failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get organization activity feed failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          internalErrorMessage: 'Failed to retrieve organization activity feed',
-          internalErrorCode: 'GET_ORGANIZATION_ACTIVITY_FEED_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            internalErrorMessage:
+              'Failed to retrieve organization activity feed',
+            internalErrorCode: 'GET_ORGANIZATION_ACTIVITY_FEED_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getComplianceReport)
   public getComplianceReport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getComplianceReport, async ({ query }) => {
-      try {
-        const result = await this.organizationsService.getComplianceReport(
-          req.user.organizationId,
-          query,
-        );
+    return tsRestHandler(
+      organizationContract.getComplianceReport,
+      async ({ query }) => {
+        try {
+          const result = await this.organizationsService.getComplianceReport(
+            req.user.organizationId,
+            query,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get organization compliance report failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            'Get organization compliance report failed:',
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          internalErrorMessage: 'Failed to retrieve organization compliance report',
-          internalErrorCode: 'GET_ORGANIZATION_COMPLIANCE_REPORT_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            internalErrorMessage:
+              'Failed to retrieve organization compliance report',
+            internalErrorCode: 'GET_ORGANIZATION_COMPLIANCE_REPORT_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -320,7 +367,9 @@ export class OrganizationsController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getTeam, async () => {
       try {
-        const result = await this.organizationsService.getTeam(req.user.organizationId);
+        const result = await this.organizationsService.getTeam(
+          req.user.organizationId,
+        );
 
         return {
           status: 200 as const,
@@ -341,26 +390,29 @@ export class OrganizationsController {
   public getTeamStats(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getTeamStats, async ({ query }) => {
-      try {
-        const result = await this.organizationsService.getTeamStats(
-          req.user.organizationId,
-          query,
-        );
+    return tsRestHandler(
+      organizationContract.getTeamStats,
+      async ({ query }) => {
+        try {
+          const result = await this.organizationsService.getTeamStats(
+            req.user.organizationId,
+            query,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get organization team stats failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get organization team stats failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          internalErrorMessage: 'Failed to retrieve organization team stats',
-          internalErrorCode: 'GET_ORGANIZATION_TEAM_STATS_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            internalErrorMessage: 'Failed to retrieve organization team stats',
+            internalErrorCode: 'GET_ORGANIZATION_TEAM_STATS_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -373,7 +425,9 @@ export class OrganizationsController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getIntegrations, async () => {
       try {
-        const result = await this.organizationsService.getIntegrations(req.user.organizationId);
+        const result = await this.organizationsService.getIntegrations(
+          req.user.organizationId,
+        );
 
         return {
           status: 200 as const,
@@ -394,120 +448,150 @@ export class OrganizationsController {
   public configureIntegration(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.configureIntegration, async ({ params, body }) => {
-      try {
-        const result = await this.organizationsService.configureIntegration(
-          req.user.organizationId,
-          params.integrationId,
-          body.data.attributes,
-        );
+    return tsRestHandler(
+      organizationContract.configureIntegration,
+      async ({ params, body }) => {
+        try {
+          const result = await this.organizationsService.configureIntegration(
+            req.user.organizationId,
+            params.integrationId,
+            body.data.attributes,
+          );
 
-        this.logger.log(`Integration ${params.integrationId} configured by user ${req.user.userId}`);
+          this.logger.log(
+            `Integration ${params.integrationId} configured by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Configure integration ${params.integrationId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Configure integration ${params.integrationId} failed:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid integration configuration',
-          badRequestCode: 'INVALID_INTEGRATION_CONFIG',
-          internalErrorMessage: 'Failed to configure integration',
-          internalErrorCode: 'CONFIGURE_INTEGRATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid integration configuration',
+            badRequestCode: 'INVALID_INTEGRATION_CONFIG',
+            internalErrorMessage: 'Failed to configure integration',
+            internalErrorCode: 'CONFIGURE_INTEGRATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.updateIntegration)
   public updateIntegration(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.updateIntegration, async ({ params, body }) => {
-      try {
-        const result = await this.organizationsService.updateIntegration(
-          req.user.organizationId,
-          params.integrationId,
-          body.data.attributes,
-        );
+    return tsRestHandler(
+      organizationContract.updateIntegration,
+      async ({ params, body }) => {
+        try {
+          const result = await this.organizationsService.updateIntegration(
+            req.user.organizationId,
+            params.integrationId,
+            body.data.attributes,
+          );
 
-        this.logger.log(`Integration ${params.integrationId} updated by user ${req.user.userId}`);
+          this.logger.log(
+            `Integration ${params.integrationId} updated by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Update integration ${params.integrationId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Update integration ${params.integrationId} failed:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid integration update data',
-          badRequestCode: 'INVALID_INTEGRATION_UPDATE',
-          internalErrorMessage: 'Failed to update integration',
-          internalErrorCode: 'UPDATE_INTEGRATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid integration update data',
+            badRequestCode: 'INVALID_INTEGRATION_UPDATE',
+            internalErrorMessage: 'Failed to update integration',
+            internalErrorCode: 'UPDATE_INTEGRATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.deleteIntegration)
   public deleteIntegration(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.deleteIntegration, async ({ params }) => {
-      try {
-        const result = await this.organizationsService.deleteIntegration(
-          req.user.organizationId,
-          params.integrationId,
-        );
+    return tsRestHandler(
+      organizationContract.deleteIntegration,
+      async ({ params }) => {
+        try {
+          const result = await this.organizationsService.deleteIntegration(
+            req.user.organizationId,
+            params.integrationId,
+          );
 
-        this.logger.log(`Integration ${params.integrationId} deleted by user ${req.user.userId}`);
+          this.logger.log(
+            `Integration ${params.integrationId} deleted by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Delete integration ${params.integrationId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Delete integration ${params.integrationId} failed:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Integration not found',
-          notFoundCode: 'INTEGRATION_NOT_FOUND',
-          internalErrorMessage: 'Failed to delete integration',
-          internalErrorCode: 'DELETE_INTEGRATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Integration not found',
+            notFoundCode: 'INTEGRATION_NOT_FOUND',
+            internalErrorMessage: 'Failed to delete integration',
+            internalErrorCode: 'DELETE_INTEGRATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getIntegrationStatus)
   public getIntegrationStatus(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getIntegrationStatus, async ({ params }) => {
-      try {
-        const result = await this.organizationsService.getIntegrationStatus(
-          req.user.organizationId,
-          params.integrationId,
-        );
+    return tsRestHandler(
+      organizationContract.getIntegrationStatus,
+      async ({ params }) => {
+        try {
+          const result = await this.organizationsService.getIntegrationStatus(
+            req.user.organizationId,
+            params.integrationId,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Get integration status ${params.integrationId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get integration status ${params.integrationId} failed:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Integration not found',
-          notFoundCode: 'INTEGRATION_NOT_FOUND',
-          internalErrorMessage: 'Failed to retrieve integration status',
-          internalErrorCode: 'GET_INTEGRATION_STATUS_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Integration not found',
+            notFoundCode: 'INTEGRATION_NOT_FOUND',
+            internalErrorMessage: 'Failed to retrieve integration status',
+            internalErrorCode: 'GET_INTEGRATION_STATUS_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -518,36 +602,37 @@ export class OrganizationsController {
   public requestExport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.requestExport, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.requestExport(
-          req.user.organizationId,
-          body,
-        );
+    return tsRestHandler(
+      organizationContract.requestExport,
+      async ({ body }) => {
+        try {
+          const result = await this.organizationsService.requestExport(
+            req.user.organizationId,
+            body,
+          );
 
-        this.logger.log(`Export requested by user ${req.user.userId}`);
+          this.logger.log(`Export requested by user ${req.user.userId}`);
 
-        return {
-          status: 202 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Request export failed:', error);
+          return {
+            status: 202 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Request export failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid export request',
-          badRequestCode: 'INVALID_EXPORT_REQUEST',
-          internalErrorMessage: 'Failed to request export',
-          internalErrorCode: 'REQUEST_EXPORT_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid export request',
+            badRequestCode: 'INVALID_EXPORT_REQUEST',
+            internalErrorMessage: 'Failed to request export',
+            internalErrorCode: 'REQUEST_EXPORT_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getExports)
-  public getExports(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  public getExports(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getExports, async () => {
       try {
         const result = await this.organizationsService.getExports();
@@ -599,30 +684,33 @@ export class OrganizationsController {
   public createBackup(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.createBackup, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.createBackup(
-          req.user.organizationId,
-          body,
-        );
+    return tsRestHandler(
+      organizationContract.createBackup,
+      async ({ body }) => {
+        try {
+          const result = await this.organizationsService.createBackup(
+            req.user.organizationId,
+            body,
+          );
 
-        this.logger.log(`Backup created by user ${req.user.userId}`);
+          this.logger.log(`Backup created by user ${req.user.userId}`);
 
-        return {
-          status: 202 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Create backup failed:', error);
+          return {
+            status: 202 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Create backup failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid backup request',
-          badRequestCode: 'INVALID_BACKUP_REQUEST',
-          internalErrorMessage: 'Failed to create backup',
-          internalErrorCode: 'CREATE_BACKUP_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid backup request',
+            badRequestCode: 'INVALID_BACKUP_REQUEST',
+            internalErrorMessage: 'Failed to create backup',
+            internalErrorCode: 'CREATE_BACKUP_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -635,7 +723,9 @@ export class OrganizationsController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getBilling, async () => {
       try {
-        const result = await this.organizationsService.getBilling(req.user.organizationId);
+        const result = await this.organizationsService.getBilling(
+          req.user.organizationId,
+        );
 
         return {
           status: 200 as const,
@@ -660,7 +750,9 @@ export class OrganizationsController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getUsage, async () => {
       try {
-        const result = await this.organizationsService.getUsage(req.user.organizationId);
+        const result = await this.organizationsService.getUsage(
+          req.user.organizationId,
+        );
 
         return {
           status: 200 as const,
@@ -680,9 +772,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getPlans)
-  public getPlans(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  public getPlans(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getPlans, async () => {
       try {
         const result = await this.organizationsService.getPlans();
@@ -736,84 +826,93 @@ export class OrganizationsController {
   public updateSubscription(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.updateSubscription, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.updateSubscription(
-          req.user.organizationId,
-          body.data.attributes,
-        );
+    return tsRestHandler(
+      organizationContract.updateSubscription,
+      async ({ body }) => {
+        try {
+          const result = await this.organizationsService.updateSubscription(
+            req.user.organizationId,
+            body.data.attributes as { planId: string; billingCycle: string },
+          );
 
-        this.logger.log(`Subscription updated by user ${req.user.userId}`);
+          this.logger.log(`Subscription updated by user ${req.user.userId}`);
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Update subscription failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Update subscription failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid subscription update data',
-          badRequestCode: 'INVALID_SUBSCRIPTION_UPDATE',
-          internalErrorMessage: 'Failed to update subscription',
-          internalErrorCode: 'UPDATE_SUBSCRIPTION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid subscription update data',
+            badRequestCode: 'INVALID_SUBSCRIPTION_UPDATE',
+            internalErrorMessage: 'Failed to update subscription',
+            internalErrorCode: 'UPDATE_SUBSCRIPTION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getInvoices)
   public getInvoices(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getInvoices, async ({ query }) => {
-      try {
-        const result = await this.organizationsService.getInvoices(
-          req.user.organizationId,
-          query,
-        );
+    return tsRestHandler(
+      organizationContract.getInvoices,
+      async ({ query }) => {
+        try {
+          const result = await this.organizationsService.getInvoices(
+            req.user.organizationId,
+            query,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get organization invoices failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get organization invoices failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          internalErrorMessage: 'Failed to retrieve organization invoices',
-          internalErrorCode: 'GET_ORGANIZATION_INVOICES_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            internalErrorMessage: 'Failed to retrieve organization invoices',
+            internalErrorCode: 'GET_ORGANIZATION_INVOICES_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getInvoice)
   public getInvoice(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getInvoice, async ({ params }) => {
-      try {
-        const result = await this.organizationsService.getInvoice(
-          req.user.organizationId,
-          params.invoiceId,
-        );
+    return tsRestHandler(
+      organizationContract.getInvoice,
+      async ({ params }) => {
+        try {
+          const result = await this.organizationsService.getInvoice(
+            req.user.organizationId,
+            params.invoiceId,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Get invoice ${params.invoiceId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(`Get invoice ${params.invoiceId} failed:`, error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Invoice not found',
-          notFoundCode: 'INVOICE_NOT_FOUND',
-          internalErrorMessage: 'Failed to retrieve invoice',
-          internalErrorCode: 'GET_INVOICE_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Invoice not found',
+            notFoundCode: 'INVOICE_NOT_FOUND',
+            internalErrorMessage: 'Failed to retrieve invoice',
+            internalErrorCode: 'GET_INVOICE_FAILED',
+          });
+        }
+      },
+    );
   }
 
   // =============================================================================
@@ -821,137 +920,164 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getOrganizations)
-  public getOrganizations(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getOrganizations, async ({ query }) => {
-      try {
-        const result = await this.organizationsService.getOrganizations(query);
+  public getOrganizations(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(
+      organizationContract.getOrganizations,
+      async ({ query }) => {
+        try {
+          const result =
+            await this.organizationsService.getOrganizations(query);
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get organizations failed:', error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get organizations failed:', error);
 
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve organizations',
-          'GET_ORGANIZATIONS_FAILED',
-        );
-      }
-    });
+          return ErrorResponseUtil.internalServerError(
+            error,
+            'Failed to retrieve organizations',
+            'GET_ORGANIZATIONS_FAILED',
+          );
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.getOrganization)
-  public getOrganization(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.getOrganization, async ({ params }) => {
-      try {
-        const result = await this.organizationsService.getOrganization(params.orgId);
+  public getOrganization(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(
+      organizationContract.getOrganization,
+      async ({ params }) => {
+        try {
+          const result = await this.organizationsService.getOrganization(
+            params.orgId,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Get organization ${params.orgId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(`Get organization ${params.orgId} failed:`, error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Organization not found',
-          notFoundCode: 'ORGANIZATION_NOT_FOUND',
-          internalErrorMessage: 'Failed to retrieve organization',
-          internalErrorCode: 'GET_ORGANIZATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Organization not found',
+            notFoundCode: 'ORGANIZATION_NOT_FOUND',
+            internalErrorMessage: 'Failed to retrieve organization',
+            internalErrorCode: 'GET_ORGANIZATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.createOrganization)
   public createOrganization(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.createOrganization, async ({ body }) => {
-      try {
-        const result = await this.organizationsService.createOrganization(body);
+    return tsRestHandler(
+      organizationContract.createOrganization,
+      async ({ body }) => {
+        try {
+          const result =
+            await this.organizationsService.createOrganization(body);
 
-        this.logger.log(`Organization created by user ${req.user.userId}`);
+          this.logger.log(`Organization created by user ${req.user.userId}`);
 
-        return {
-          status: 201 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Create organization failed:', error);
+          return {
+            status: 201 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error('Create organization failed:', error);
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid organization data',
-          badRequestCode: 'INVALID_ORGANIZATION_DATA',
-          internalErrorMessage: 'Failed to create organization',
-          internalErrorCode: 'CREATE_ORGANIZATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Invalid organization data',
+            badRequestCode: 'INVALID_ORGANIZATION_DATA',
+            internalErrorMessage: 'Failed to create organization',
+            internalErrorCode: 'CREATE_ORGANIZATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.updateOrganization)
   public updateOrganization(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.updateOrganization, async ({ params, body }) => {
-      try {
-        const result = await this.organizationsService.updateOrganization(
-          params.orgId,
-          body,
-        );
+    return tsRestHandler(
+      organizationContract.updateOrganization,
+      async ({ params, body }) => {
+        try {
+          const result = await this.organizationsService.updateOrganization(
+            params.orgId,
+            body,
+          );
 
-        this.logger.log(`Organization ${params.orgId} updated by user ${req.user.userId}`);
+          this.logger.log(
+            `Organization ${params.orgId} updated by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Update organization ${params.orgId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Update organization ${params.orgId} failed:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Organization not found',
-          notFoundCode: 'ORGANIZATION_NOT_FOUND',
-          badRequestMessage: 'Invalid organization data',
-          badRequestCode: 'INVALID_ORGANIZATION_DATA',
-          internalErrorMessage: 'Failed to update organization',
-          internalErrorCode: 'UPDATE_ORGANIZATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Organization not found',
+            notFoundCode: 'ORGANIZATION_NOT_FOUND',
+            badRequestMessage: 'Invalid organization data',
+            badRequestCode: 'INVALID_ORGANIZATION_DATA',
+            internalErrorMessage: 'Failed to update organization',
+            internalErrorCode: 'UPDATE_ORGANIZATION_FAILED',
+          });
+        }
+      },
+    );
   }
 
   @TsRestHandler(organizationContract.deleteOrganization)
   public deleteOrganization(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(organizationContract.deleteOrganization, async ({ params }) => {
-      try {
-        const result = await this.organizationsService.deleteOrganization(params.orgId);
+    return tsRestHandler(
+      organizationContract.deleteOrganization,
+      async ({ params }) => {
+        try {
+          const result = await this.organizationsService.deleteOrganization(
+            params.orgId,
+          );
 
-        this.logger.log(`Organization ${params.orgId} deleted by user ${req.user.userId}`);
+          this.logger.log(
+            `Organization ${params.orgId} deleted by user ${req.user.userId}`,
+          );
 
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Delete organization ${params.orgId} failed:`, error);
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Delete organization ${params.orgId} failed:`,
+            error,
+          );
 
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Organization not found',
-          notFoundCode: 'ORGANIZATION_NOT_FOUND',
-          internalErrorMessage: 'Failed to delete organization',
-          internalErrorCode: 'DELETE_ORGANIZATION_FAILED',
-        });
-      }
-    });
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Organization not found',
+            notFoundCode: 'ORGANIZATION_NOT_FOUND',
+            internalErrorMessage: 'Failed to delete organization',
+            internalErrorCode: 'DELETE_ORGANIZATION_FAILED',
+          });
+        }
+      },
+    );
   }
 }

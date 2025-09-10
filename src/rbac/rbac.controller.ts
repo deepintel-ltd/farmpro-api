@@ -5,20 +5,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { rbacContract } from '../../contracts/rbac.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
+import { RbacService } from './rbac.service';
 import {
   CreateRoleDto,
   UpdateRoleDto,
-  CreatePermissionDto,
-  AssignPermissionDto,
-  UpdateRolePermissionDto,
-  AssignUserRoleDto,
-  UpdateUserRoleDto,
   CheckPermissionDto,
   CheckPermissionsDto,
-  ApplyRoleTemplateDto,
   BulkAssignRolesDto,
-  BulkRemoveRolesDto,
-  BulkUpdatePermissionsDto,
 } from './dto/rbac.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -30,7 +23,7 @@ export class RbacController {
   private readonly logger = new Logger(RbacController.name);
 
   constructor(
-    // private readonly rbacService: RbacService, // TODO: Create RbacService
+    private readonly rbacService: RbacService,
   ) {}
 
   // =============================================================================
@@ -41,19 +34,10 @@ export class RbacController {
   @TsRestHandler(rbacContract.getRoles)
   public getRoles(
     @Request() req: AuthenticatedRequest,
-    @Query() query: any,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(rbacContract.getRoles, async () => {
+    return tsRestHandler(rbacContract.getRoles, async ({ query }) => {
       try {
-        // TODO: Implement role fetching with permissions check
-        // await this.permissionService.checkPermission(req.user, 'role', 'read');
-        // const result = await this.rbacService.getRoles(req.user.organizationId, query);
-
-        // Placeholder response
-        const result = {
-          data: [],
-          meta: { totalCount: 0 },
-        };
+        const result = await this.rbacService.getRoles(req.user, query);
 
         this.logger.log(`Retrieved roles for organization: ${req.user.organizationId}`);
         return {
@@ -78,30 +62,7 @@ export class RbacController {
     return tsRestHandler(rbacContract.getRole, async ({ params }) => {
       try {
         const { roleId } = params;
-        // TODO: Implement role fetching with permissions check
-        // await this.permissionService.checkPermission(req.user, 'role', 'read');
-        // const result = await this.rbacService.getRole(roleId, req.user.organizationId);
-
-        // Placeholder response
-        const result = {
-          data: {
-            id: roleId,
-            type: 'roles' as const,
-            attributes: {
-              id: roleId,
-              name: 'Admin',
-              description: 'Organization administrator',
-              organizationId: req.user.organizationId,
-              level: 100,
-              isActive: true,
-              isSystemRole: false,
-              metadata: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              userCount: 1,
-            },
-          },
-        };
+        const result = await this.rbacService.getRole(roleId, req.user);
 
         this.logger.log(`Retrieved role: ${roleId}`);
         return {
@@ -128,29 +89,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.createRole, async () => {
       try {
-        // TODO: Implement role creation with permissions check
-        // await this.permissionService.checkPermission(req.user, 'role', 'create');
-        // const result = await this.rbacService.createRole(req.user.organizationId, body);
-
-        // Placeholder response
-        const result = {
-          data: {
-            id: 'new-role-id',
-            type: 'roles' as const,
-            attributes: {
-              id: 'new-role-id',
-              name: body.name,
-              description: body.description || null,
-              organizationId: req.user.organizationId,
-              level: body.level,
-              isActive: true,
-              isSystemRole: false,
-              metadata: body.metadata || null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          },
-        };
+        const result = await this.rbacService.createRole(req.user, body);
 
         this.logger.log(`Created role: ${body.name} for organization: ${req.user.organizationId}`);
         return {
@@ -180,29 +119,7 @@ export class RbacController {
     return tsRestHandler(rbacContract.updateRole, async ({ params }) => {
       try {
         const { roleId } = params;
-        // TODO: Implement role update with permissions check
-        // await this.permissionService.checkPermission(req.user, 'role', 'update');
-        // const result = await this.rbacService.updateRole(roleId, req.user.organizationId, body);
-
-        // Placeholder response
-        const result = {
-          data: {
-            id: roleId,
-            type: 'roles' as const,
-            attributes: {
-              id: roleId,
-              name: body.name || 'Updated Role',
-              description: body.description || null,
-              organizationId: req.user.organizationId,
-              level: body.level || 50,
-              isActive: body.isActive ?? true,
-              isSystemRole: false,
-              metadata: body.metadata || null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          },
-        };
+        const result = await this.rbacService.updateRole(roleId, req.user, body);
 
         this.logger.log(`Updated role: ${roleId}`);
         return {
@@ -231,20 +148,7 @@ export class RbacController {
     return tsRestHandler(rbacContract.deleteRole, async ({ params }) => {
       try {
         const { roleId } = params;
-        // TODO: Implement role deletion with permissions check
-        // await this.permissionService.checkPermission(req.user, 'role', 'delete');
-        // await this.rbacService.deleteRole(roleId, req.user.organizationId);
-
-        const result = {
-          data: {
-            id: roleId,
-            type: 'roles' as const,
-            attributes: {
-              message: 'Role deleted successfully',
-              success: true,
-            },
-          },
-        };
+        const result = await this.rbacService.deleteRole(roleId, req.user);
 
         this.logger.log(`Deleted role: ${roleId}`);
         return {
@@ -277,15 +181,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.getPermissions, async () => {
       try {
-        // TODO: Implement permission fetching
-        // await this.permissionService.checkPermission(req.user, 'permission', 'read');
-        // const result = await this.rbacService.getPermissions(query);
-
-        // Placeholder response
-        const result = {
-          data: [],
-          meta: { totalCount: 0 },
-        };
+        const result = await this.rbacService.getPermissions(query);
 
         this.logger.log(`Retrieved permissions`);
         return {
@@ -314,24 +210,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.checkPermission, async () => {
       try {
-        // TODO: Implement permission checking
-        // const result = await this.rbacService.checkPermission(req.user.userId, body);
-
-        // Placeholder response
-        const result = {
-          data: {
-            id: 'permission-check',
-            type: 'permission-checks' as const,
-            attributes: {
-              resource: body.resource,
-              action: body.action,
-              resourceId: body.resourceId || null,
-              granted: true, // Placeholder
-              reason: 'User has required permission',
-              matchedRole: 'admin',
-            },
-          },
-        };
+        const result = await this.rbacService.checkPermission(req.user, body);
 
         this.logger.log(`Permission check: ${body.resource}:${body.action} for user: ${req.user.userId}`);
         return {
@@ -356,25 +235,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.checkPermissions, async () => {
       try {
-        // TODO: Implement batch permission checking
-        // const result = await this.rbacService.checkPermissions(req.user.userId, body.permissions);
-
-        // Placeholder response
-        const result = {
-          data: body.permissions.map((permission, index) => ({
-            id: `permission-check-${index}`,
-            type: 'permission-checks' as const,
-            attributes: {
-              resource: permission.resource,
-              action: permission.action,
-              resourceId: permission.resourceId || null,
-              granted: true, // Placeholder
-              reason: 'User has required permission',
-              matchedRole: 'admin',
-            },
-          })),
-          meta: { totalCount: body.permissions.length },
-        };
+        const result = await this.rbacService.checkPermissions(req.user, body);
 
         this.logger.log(`Batch permission check for ${body.permissions.length} permissions`);
         return {
@@ -399,14 +260,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.getCurrentUserPermissions, async () => {
       try {
-        // TODO: Implement user permissions fetching
-        // const result = await this.rbacService.getUserPermissions(req.user.userId, query);
-
-        // Placeholder response
-        const result = {
-          data: [],
-          meta: { totalCount: 0 },
-        };
+        const result = await this.rbacService.getCurrentUserPermissions(req.user, query);
 
         this.logger.log(`Retrieved permissions for user: ${req.user.userId}`);
         return {
@@ -435,15 +289,7 @@ export class RbacController {
     return tsRestHandler(rbacContract.getUserRoles, async ({ params }) => {
       try {
         const { userId } = params;
-        // TODO: Implement user roles fetching with permissions check
-        // await this.permissionService.checkPermission(req.user, 'user', 'read');
-        // const result = await this.rbacService.getUserRoles(userId);
-
-        // Placeholder response
-        const result = {
-          data: [],
-          meta: { totalCount: 0 },
-        };
+        const result = await this.rbacService.getUserRoles(userId, req.user);
 
         this.logger.log(`Retrieved roles for user: ${userId}`);
         return {
@@ -474,25 +320,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.bulkAssignRoles, async () => {
       try {
-        // TODO: Implement bulk role assignment
-        // await this.permissionService.checkPermission(req.user, 'role', 'assign');
-        // const result = await this.rbacService.bulkAssignRoles(body);
-
-        // Placeholder response
-        const result = {
-          data: {
-            id: 'bulk-assign-roles',
-            type: 'bulk-operations' as const,
-            attributes: {
-              successCount: body.userIds.length,
-              failureCount: 0,
-              results: body.userIds.map(userId => ({
-                id: userId,
-                success: true,
-              })),
-            },
-          },
-        };
+        const result = await this.rbacService.bulkAssignRoles(req.user, body);
 
         this.logger.log(`Bulk assigned role ${body.roleId} to ${body.userIds.length} users`);
         return {

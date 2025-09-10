@@ -122,7 +122,7 @@ export const MessageResponseSchema = z.object({
 // =============================================================================
 
 export const AuthResourceSchema = JsonApiResourceSchema(AuthResponseSchema);
-export const UserProfileResourceSchema = JsonApiResourceSchema(UserProfileSchema);
+export const AuthUserProfileResourceSchema = JsonApiResourceSchema(UserProfileSchema);
 export const TokenResourceSchema = JsonApiResourceSchema(TokenResponseSchema);
 export const MessageResourceSchema = JsonApiResourceSchema(MessageResponseSchema);
 export const SessionCollectionSchema = z.object({

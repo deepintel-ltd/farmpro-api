@@ -518,7 +518,7 @@ export class UsersService {
     // Get farm activity stats if available
     const farmActivities = await this.prisma.farmActivity.findMany({
       where: {
-        userId: user.userId,
+        createdById: user.userId,
         createdAt: { gte: startDate },
       },
       select: {

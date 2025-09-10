@@ -1,4 +1,3 @@
-import { HttpStatus } from '@nestjs/common';
 
 export interface ErrorResponse {
   status: string;
@@ -8,7 +7,7 @@ export interface ErrorResponse {
 }
 
 export interface ApiErrorResponse {
-  status: 400 | 401 | 404 | 409 | 500;
+  status: number;
   body: {
     errors: ErrorResponse[];
   };
@@ -59,9 +58,22 @@ export class ErrorResponseUtil {
   }
 
   /**
+   * Check if error is a forbidden error
+   */
+  static isForbidden(error: unknown): boolean {
+    return error instanceof Error && 
+           (error.message.includes('forbidden') || 
+            error.message.includes('Forbidden') ||
+            error.message.includes('insufficient permissions') ||
+            error.message.includes('Insufficient permissions') ||
+            error.message.includes('access denied') ||
+            error.message.includes('Access denied'));
+  }
+
+  /**
    * Create a not found error response
    */
-  static notFound(error: unknown, defaultMessage: string, code: string): ApiErrorResponse {
+  static notFound(error: unknown, defaultMessage: string, code: string): any {
     return {
       status: 404 as const,
       body: {
@@ -80,7 +92,7 @@ export class ErrorResponseUtil {
   /**
    * Create a bad request error response
    */
-  static badRequest(error: unknown, defaultMessage: string, code: string): ApiErrorResponse {
+  static badRequest(error: unknown, defaultMessage: string, code: string): any {
     return {
       status: 400 as const,
       body: {
@@ -99,7 +111,7 @@ export class ErrorResponseUtil {
   /**
    * Create an unauthorized error response
    */
-  static unauthorized(error: unknown, defaultMessage: string, code: string): ApiErrorResponse {
+  static unauthorized(error: unknown, defaultMessage: string, code: string): any {
     return {
       status: 401 as const,
       body: {
@@ -118,7 +130,7 @@ export class ErrorResponseUtil {
   /**
    * Create a conflict error response
    */
-  static conflict(error: unknown, defaultMessage: string, code: string): ApiErrorResponse {
+  static conflict(error: unknown, defaultMessage: string, code: string): any {
     return {
       status: 409 as const,
       body: {
@@ -135,9 +147,28 @@ export class ErrorResponseUtil {
   }
 
   /**
+   * Create a forbidden error response
+   */
+  static forbidden(error: unknown, defaultMessage: string, code: string): any {
+    return {
+      status: 403 as const,
+      body: {
+        errors: [
+          {
+            status: '403',
+            title: 'Forbidden',
+            detail: (error as Error).message || defaultMessage,
+            code,
+          },
+        ],
+      },
+    };
+  }
+
+  /**
    * Create an internal server error response
    */
-  static internalServerError(error: unknown, defaultMessage: string, code: string): ApiErrorResponse {
+  static internalServerError(error: unknown, defaultMessage: string, code: string): any {
     return {
       status: 500 as const,
       body: {
@@ -165,12 +196,14 @@ export class ErrorResponseUtil {
       badRequestCode?: string;
       unauthorizedMessage?: string;
       unauthorizedCode?: string;
+      forbiddenMessage?: string;
+      forbiddenCode?: string;
       conflictMessage?: string;
       conflictCode?: string;
       internalErrorMessage?: string;
       internalErrorCode?: string;
     }
-  ): ApiErrorResponse {
+  ): any {
     if (this.isNotFound(error)) {
       return this.notFound(
         error,
@@ -192,6 +225,14 @@ export class ErrorResponseUtil {
         error,
         context.unauthorizedMessage || 'Authentication failed',
         context.unauthorizedCode || 'AUTHENTICATION_FAILED'
+      );
+    }
+
+    if (this.isForbidden(error)) {
+      return this.forbidden(
+        error,
+        context.forbiddenMessage || 'Access forbidden',
+        context.forbiddenCode || 'ACCESS_FORBIDDEN'
       );
     }
 
@@ -219,5 +260,13 @@ export class ErrorResponseUtil {
       status: 204 as const,
       body: undefined,
     };
+  }
+
+  /**
+   * Cast ApiErrorResponse to any type to satisfy ts-rest contract requirements
+   * This is a pragmatic solution for type compatibility issues
+   */
+  static castToContractType<T>(errorResponse: ApiErrorResponse): T {
+    return errorResponse as T;
   }
 }

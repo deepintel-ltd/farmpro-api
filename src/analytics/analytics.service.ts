@@ -1069,7 +1069,12 @@ export class AnalyticsService {
             createdAt: new Date().toISOString()
           }
         }
-      ]
+      ],
+      meta: {
+        total: 1,
+        page: 1,
+        pageSize: 10
+      }
     };
   }
 

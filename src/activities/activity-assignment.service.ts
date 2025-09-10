@@ -92,15 +92,8 @@ export class ActivityAssignmentService {
         })
       );
 
-      // Update activity assignment count and primary assigned user
-      const primaryUser = assignments[0];
-      await tx.farmActivity.update({
-        where: { id: activityId },
-        data: {
-          userId: primaryUser.userId, // Keep backward compatibility
-          assignmentCount: assignments.length,
-        },
-      });
+      // Note: Assignment count and primary user are handled through the ActivityAssignment model
+      // No direct fields on FarmActivity need to be updated
 
       return newAssignments;
     });
@@ -212,13 +205,8 @@ export class ActivityAssignmentService {
       },
     });
 
-    // Update assignment count
-    await this.prisma.farmActivity.update({
-      where: { id: activityId },
-      data: {
-        assignmentCount: activity.assignments.length - 1,
-      },
-    });
+    // Note: Assignment count is handled through the ActivityAssignment model
+    // No direct fields on FarmActivity need to be updated
   }
 
   async getUserActivities(userId: string, organizationId: string, filters: {
