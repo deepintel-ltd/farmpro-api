@@ -7,6 +7,7 @@ import { ActivityCostService } from './activity-cost.service';
 import { ActivityHelpService } from './activity-help.service';
 import { ActivityTemplateService } from './activity-template.service';
 import { ActivitySchedulingService } from './activity-scheduling.service';
+import { ActivityNotesService } from './activity-notes.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     ActivityHelpService,
     ActivityTemplateService,
     ActivitySchedulingService,
+    ActivityNotesService,
   ],
   exports: [
     ActivitiesService,
@@ -29,6 +31,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     ActivityHelpService,
     ActivityTemplateService,
     ActivitySchedulingService,
+    ActivityNotesService,
   ],
 })
 export class ActivitiesModule {}

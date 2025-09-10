@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CostType, Decimal } from '@prisma/client';
+import { CostType, Prisma } from '@prisma/client';
 
 export interface CostEntryData {
-  type: CostType;
+  type?: CostType;
   description: string;
   amount: number;
   quantity?: number;
@@ -99,8 +99,8 @@ export class ActivityCostService {
           activityId,
           type: data.type,
           description: data.description,
-          amount: new Decimal(data.amount),
-          quantity: data.quantity ? new Decimal(data.quantity) : null,
+          amount: new Prisma.Decimal(data.amount),
+          quantity: data.quantity ? new Prisma.Decimal(data.quantity) : null,
           unit: data.unit,
           receipt: data.receipt,
           vendor: data.vendor,
@@ -197,11 +197,11 @@ export class ActivityCostService {
         updatedById: userId,
       };
 
-      if (data.amount !== undefined) updateData.amount = new Decimal(data.amount);
+      if (data.amount !== undefined) updateData.amount = new Prisma.Decimal(data.amount);
       if (data.description !== undefined) updateData.description = data.description;
       if (data.receipt !== undefined) updateData.receipt = data.receipt;
       if (data.vendor !== undefined) updateData.vendor = data.vendor;
-      if (data.quantity !== undefined) updateData.quantity = data.quantity ? new Decimal(data.quantity) : null;
+      if (data.quantity !== undefined) updateData.quantity = data.quantity ? new Prisma.Decimal(data.quantity) : null;
       if (data.unit !== undefined) updateData.unit = data.unit;
 
       const costEntry = await tx.activityCost.update({

@@ -65,15 +65,17 @@ export class ActivityTemplateService {
         attributes: {
           id: template.id,
           name: template.name,
-          type: template.type,
+          type: template.type as any,
           description: template.description,
           defaultDuration: template.defaultDuration,
           instructions: template.instructions,
           safetyNotes: template.safetyNotes,
-          applicableCrops: template.applicableCrops,
+          applicableCrops: template.applicableCrops || [],
           isSystem: template.isSystem,
+          organizationId: template.organizationId,
           metadata: template.metadata,
           createdAt: template.createdAt.toISOString(),
+          updatedAt: template.updatedAt.toISOString(),
         },
       })),
     };
@@ -100,15 +102,17 @@ export class ActivityTemplateService {
       attributes: {
         id: template.id,
         name: template.name,
-        type: template.type,
+        type: template.type as any,
         description: template.description,
         defaultDuration: template.defaultDuration,
         instructions: template.instructions,
         safetyNotes: template.safetyNotes,
-        applicableCrops: template.applicableCrops,
+        applicableCrops: template.applicableCrops || [],
         isSystem: template.isSystem,
+        organizationId: template.organizationId,
         metadata: template.metadata,
         createdAt: template.createdAt.toISOString(),
+        updatedAt: template.updatedAt.toISOString(),
       },
     };
   }
@@ -134,7 +138,7 @@ export class ActivityTemplateService {
       attributes: {
         id: template.id,
         name: template.name,
-        type: template.type,
+        type: template.type as any,
         description: template.description,
         defaultDuration: template.defaultDuration,
         instructions: template.instructions,

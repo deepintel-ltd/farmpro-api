@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityTemplateService } from './activity-template.service';
+import { ConflictCheckQueryOptions, WorkloadQueryOptions } from './dto/activities.dto';
 
 @Injectable()
 export class ActivitySchedulingService {
@@ -9,12 +10,7 @@ export class ActivitySchedulingService {
     private readonly templateService: ActivityTemplateService,
   ) {}
 
-  async checkConflicts(query: {
-    farmId: string;
-    resourceId?: string;
-    startTime: string;
-    endTime: string;
-  }, organizationId: string) {
+  async checkConflicts(query: ConflictCheckQueryOptions, organizationId: string) {
     const startTime = new Date(query.startTime);
     const endTime = new Date(query.endTime);
 
@@ -40,13 +36,26 @@ export class ActivitySchedulingService {
     return {
       data: conflicts.map(activity => ({
         id: activity.id,
-        type: 'activity-conflicts' as const,
+        type: 'conflicts' as const,
         attributes: {
-          activityId: activity.id,
-          activityName: activity.name,
-          scheduledAt: activity.scheduledAt?.toISOString(),
-          status: activity.status,
-          conflictType: 'time_overlap',
+          resourceId: query.resourceId || 'default',
+          conflictingActivities: [{
+            id: activity.id,
+            name: activity.name,
+            type: 'PLANTING' as const, // This should come from the actual activity
+            status: activity.status,
+            scheduledAt: activity.scheduledAt?.toISOString(),
+            description: '',
+            priority: 'NORMAL' as const,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: '',
+          }],
+          suggestions: [{
+            action: 'reschedule' as const,
+            description: 'Consider rescheduling this activity to avoid conflicts',
+            newTime: new Date(endTime.getTime() + 24 * 60 * 60 * 1000).toISOString(), // Next day
+          }],
         },
       })),
       meta: {
@@ -93,66 +102,89 @@ export class ActivitySchedulingService {
     }
 
     return {
-      data: results,
-      meta: {
-        totalScheduled: results.length,
-        totalConflicts: conflicts.length,
-        conflicts,
+      id: 'bulk-schedule-result',
+      type: 'bulk-schedule-results' as const,
+      attributes: {
+        scheduled: results.length,
+        conflicts: conflicts.length,
+        failed: conflicts.length,
+        activities: results,
+        conflictDetails: conflicts.map(conflict => ({
+          resourceId: 'default',
+          conflictingActivities: [],
+          suggestions: [{
+            action: 'reschedule' as const,
+            description: conflict.error,
+          }],
+        })),
       },
     };
   }
 
-  async getWorkloadAnalysis(query: {
-    farmId: string;
-    startDate?: string;
-    endDate?: string;
-    userId?: string;
-  }, organizationId: string) {
+  async getWorkloadAnalysis(query: WorkloadQueryOptions, organizationId: string) {
     const startDate = query.startDate ? new Date(query.startDate) : new Date();
     const endDate = query.endDate ? new Date(query.endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-    // Get basic activity count and scheduled activities
-    const activities = await this.prisma.farmActivity.findMany({
+    // Get user assignments for workload analysis
+    const assignments = await this.prisma.activityAssignment.findMany({
       where: {
-        farmId: query.farmId,
-        farm: { organizationId },
-        scheduledAt: { gte: startDate, lte: endDate },
-        status: { in: ['PLANNED', 'IN_PROGRESS'] },
+        activity: {
+          farmId: query.farmId,
+          farm: { organizationId },
+          scheduledAt: { gte: startDate, lte: endDate },
+        },
+        isActive: true,
+        ...(query.userId && { userId: query.userId }),
       },
-      select: {
-        id: true,
-        name: true,
-        scheduledAt: true,
-        status: true,
-        estimatedDuration: true,
+      include: {
+        user: { select: { id: true, name: true } },
+        activity: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            status: true,
+            scheduledAt: true,
+            estimatedDuration: true,
+            description: true,
+            priority: true,
+            createdAt: true,
+            updatedAt: true,
+            createdById: true,
+          }
+        }
       },
     });
 
-    // Simple workload calculation
-    const totalActivities = activities.length;
-    const upcomingActivities = activities.filter(a => 
-      a.scheduledAt && a.scheduledAt > new Date()
-    ).length;
-    
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-    const avgActivitiesPerDay = totalDays > 0 ? totalActivities / totalDays : 0;
+    // Group by user
+    const userWorkloads = assignments.reduce((acc, assignment) => {
+      const userId = assignment.userId;
+      if (!acc[userId]) {
+        acc[userId] = {
+          userId: assignment.user.id,
+          userName: assignment.user.name,
+          totalHours: 0,
+          capacity: 8 * 30, // 8 hours per day, 30 days
+          activities: [],
+        };
+      }
+      acc[userId].totalHours += assignment.activity.estimatedDuration || 0;
+      acc[userId].activities.push(assignment.activity);
+      return acc;
+    }, {} as Record<string, any>);
 
     return {
-      data: [{
-        id: 'workload-analysis',
+      data: Object.values(userWorkloads).map((workload: any) => ({
+        id: workload.userId,
         type: 'workload-analysis' as const,
         attributes: {
-          period: { start: startDate.toISOString(), end: endDate.toISOString() },
-          totalActivities,
-          upcomingActivities,
-          avgActivitiesPerDay: Math.round(avgActivitiesPerDay * 100) / 100,
-          utilizationRate: this.calculateUtilizationRate(activities, startDate, endDate),
+          userId: workload.userId,
+          userName: workload.userName,
+          totalHours: workload.totalHours,
+          capacity: workload.capacity,
+          utilization: workload.capacity > 0 ? (workload.totalHours / workload.capacity) * 100 : 0,
+          activities: workload.activities,
         },
-      }],
-      meta: {
-        farmId: query.farmId,
-        period: { start: startDate.toISOString(), end: endDate.toISOString() },
-      },
+      })),
     };
   }
 

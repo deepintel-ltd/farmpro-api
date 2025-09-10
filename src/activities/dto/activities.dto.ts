@@ -37,6 +37,7 @@ export interface CalendarQueryOptions {
   startDate: string;
   endDate: string;
   userId?: string;
+  view?: string;
 }
 
 export interface MyTasksQueryOptions {
@@ -48,14 +49,14 @@ export interface MyTasksQueryOptions {
 export interface AnalyticsQueryOptions {
   farmId: string;
   period?: string;
-  type?: string;
+  type?: 'LAND_PREP' | 'PLANTING' | 'FERTILIZING' | 'IRRIGATION' | 'PEST_CONTROL' | 'HARVESTING' | 'MAINTENANCE' | 'MONITORING' | 'OTHER';
 }
 
 export interface CalendarEvent {
   id: string;
   title: string;
-  start: Date;
-  end: Date;
+  start: string;
+  end: string;
   allDay: boolean;
   color: string;
   activity: any;
@@ -68,9 +69,34 @@ export interface ActivityAnalytics {
   averageDuration: number;
   costEfficiency: number;
   typeBreakdown: Array<{
-    type: string;
+    type: "LAND_PREP" | "PLANTING" | "FERTILIZING" | "IRRIGATION" | "PEST_CONTROL" | "HARVESTING" | "MAINTENANCE" | "MONITORING" | "OTHER";
     count: number;
     avgDuration: number;
     avgCost: number;
   }>;
+}
+
+export interface ConflictCheckQueryOptions {
+  farmId: string;
+  resourceId?: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface BulkScheduleRequestOptions {
+  activities: Array<{
+    templateId: string;
+    scheduledAt: string;
+    farmId: string;
+    areaId?: string;
+    customizations?: any;
+  }>;
+  resolveConflicts?: 'auto' | 'manual';
+}
+
+export interface WorkloadQueryOptions {
+  farmId: string;
+  startDate: string;
+  endDate: string;
+  userId?: string;
 }

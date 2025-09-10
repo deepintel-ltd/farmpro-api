@@ -26,7 +26,7 @@ export const ActivityStatusEnum = z.enum([
   'CANCELLED'
 ]);
 
-export const ActivityPriorityEnum = z.enum(['low', 'normal', 'high', 'urgent']);
+export const ActivityPriorityEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
 
 export const ResourceTypeEnum = z.enum(['equipment', 'labor', 'material']);
 
@@ -34,9 +34,9 @@ export const QualityEnum = z.enum(['excellent', 'good', 'fair', 'poor']);
 
 export const PauseReasonEnum = z.enum(['weather', 'equipment', 'break', 'other']);
 
-export const NoteTypeEnum = z.enum(['observation', 'issue', 'recommendation', 'general']);
+export const NoteTypeEnum = z.enum(['OBSERVATION', 'ISSUE', 'RECOMMENDATION', 'GENERAL']);
 
-export const CostTypeEnum = z.enum(['labor', 'equipment', 'material', 'other']);
+export const CostTypeEnum = z.enum(['LABOR', 'EQUIPMENT', 'MATERIAL', 'OTHER', 'FUEL']);
 
 // =============================================================================
 // Base Schemas
@@ -75,7 +75,11 @@ export const CostEntrySchema = z.object({
   receipt: z.string().optional(),
   vendor: z.string().optional(),
   createdAt: z.string(),
-  createdBy: z.string(),
+  createdBy: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+  }),
 });
 
 export const ActivityNoteSchema = z.object({
@@ -127,7 +131,6 @@ export const ActivityTemplateSchema = z.object({
   type: ActivityTypeEnum,
   description: z.string(),
   defaultDuration: z.number(),
-  defaultResources: z.array(ResourceSchema),
   instructions: z.string(),
   safetyNotes: z.string(),
   applicableCrops: z.array(z.string()),
@@ -152,7 +155,7 @@ export const CreateActivityRequestSchema = z.object({
   description: z.string(),
   scheduledAt: z.string().datetime(),
   estimatedDuration: z.number().positive(),
-  priority: ActivityPriorityEnum.default('normal'),
+  priority: ActivityPriorityEnum.default('NORMAL'),
   assignedTo: z.array(z.string()).default([]),
   resources: z.array(ResourceSchema).default([]),
   instructions: z.string().default(''),
@@ -166,6 +169,7 @@ export const UpdateActivityRequestSchema = z.object({
   description: z.string().optional(),
   scheduledAt: z.string().datetime().optional(),
   priority: ActivityPriorityEnum.optional(),
+  estimatedDuration: z.number().positive().optional(),
   assignedTo: z.array(z.string()).optional(),
   instructions: z.string().optional(),
   estimatedCost: z.number().nonnegative().optional(),
@@ -271,7 +275,7 @@ export const UpdateCostEntryRequestSchema = z.object({
 // Notes & Documentation
 export const AddNoteRequestSchema = z.object({
   content: z.string().min(1),
-  type: NoteTypeEnum.default('general'),
+  type: NoteTypeEnum.default('GENERAL'),
   isPrivate: z.boolean().default(false),
   attachments: z.array(z.string()).default([]),
 });
@@ -370,10 +374,10 @@ export const ActivityNoteResourceSchema = JsonApiResourceSchema(ActivityNoteSche
 // Collection Schemas
 // =============================================================================
 
-export const ActivityCollectionSchema = JsonApiCollectionSchema(z.array(ActivityResourceSchema));
-export const ActivityTemplateCollectionSchema = JsonApiCollectionSchema(z.array(ActivityTemplateResourceSchema));
-export const CostEntryCollectionSchema = JsonApiCollectionSchema(z.array(CostEntryResourceSchema));
-export const ActivityNoteCollectionSchema = JsonApiCollectionSchema(z.array(ActivityNoteResourceSchema));
+export const ActivityCollectionSchema = JsonApiCollectionSchema(ActivitySchema);
+export const ActivityTemplateCollectionSchema = JsonApiCollectionSchema(ActivityTemplateSchema);
+export const CostEntryCollectionSchema = JsonApiCollectionSchema(CostEntrySchema);
+export const ActivityNoteCollectionSchema = JsonApiCollectionSchema(ActivityNoteSchema);
 
 // =============================================================================
 // Response-specific Schemas

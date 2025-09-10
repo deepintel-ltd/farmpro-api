@@ -39,6 +39,7 @@ model User {
   activityCostsCreated ActivityCost[]      @relation("ActivityCostCreatedBy")
   activityCostsUpdated ActivityCost[]      @relation("ActivityCostUpdatedBy")
   activityProgressLogs ActivityProgressLog[] @relation("ActivityProgressLogs")
+  activityNotes        ActivityNote[]        @relation("ActivityNotes")
   observations         Observation[]
   createdOrders        Order[]             @relation("OrderCreatedBy")
   messages             Message[]
@@ -336,6 +337,7 @@ model FarmActivity {
   assignments  ActivityAssignment[]
   costs        ActivityCost[]
   progressLogs ActivityProgressLog[]
+  notes        ActivityNote[]
 
   @@index([farmId, status])
   @@index([farmId, type])
@@ -407,6 +409,27 @@ model ActivityProgressLog {
   @@index([activityId])
   @@index([timestamp])
   @@map("activity_progress_logs")
+}
+
+model ActivityNote {
+  id         String       @id @default(cuid())
+  activityId String
+  userId     String
+  content    String
+  type       ActivityNoteType @default(general)
+  isPrivate  Boolean      @default(false)
+  attachments String[]    // Array of media file IDs
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  activity FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User         @relation("ActivityNotes", fields: [userId], references: [id])
+
+  @@index([activityId])
+  @@index([userId])
+  @@index([activityId, createdAt])
+  @@map("activity_notes")
 }
 
 model ActivityTemplate {
@@ -891,6 +914,13 @@ enum ActivityRole {
   ASSIGNED
   SUPERVISOR
   OBSERVER
+}
+
+enum ActivityNoteType {
+  observation
+  issue
+  recommendation
+  general
 }
 
 enum CostType {

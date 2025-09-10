@@ -83,7 +83,11 @@ export class ActivitiesService {
     ]);
 
     return {
-      data: activities.map(activity => this.formatActivityResponse(activity)),
+      data: activities.map(activity => ({
+        id: activity.id,
+        type: 'activities' as const,
+        attributes: this.formatActivityResponse(activity)
+      })),
       meta: { 
         totalCount,
         page: query.page || 1,
@@ -101,7 +105,7 @@ export class ActivitiesService {
       include: {
         farm: { select: { id: true, name: true } },
         area: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -278,7 +282,7 @@ export class ActivitiesService {
       },
       include: {
         farm: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -320,7 +324,7 @@ export class ActivitiesService {
       },
       include: {
         farm: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -361,7 +365,7 @@ export class ActivitiesService {
       },
       include: {
         farm: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -399,7 +403,7 @@ export class ActivitiesService {
       },
       include: {
         farm: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -433,7 +437,7 @@ export class ActivitiesService {
       },
       include: {
         farm: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -492,8 +496,8 @@ export class ActivitiesService {
       return {
         id: activity.id,
         title: activity.name,
-        start: scheduledTime,
-        end: endTime,
+        start: scheduledTime.toISOString(),
+        end: endTime.toISOString(),
         allDay: false,
         color: this.getActivityColor(activity.type, activity.status),
         activity: this.formatActivityResponse(activity) as any,
@@ -702,41 +706,35 @@ export class ActivitiesService {
   private formatActivityResponse(activity: any) {
     return {
       id: activity.id,
-      type: 'activities' as const,
-      attributes: {
-        id: activity.id,
-        farmId: activity.farmId,
-        areaId: activity.areaId,
-        cropCycleId: activity.cropCycleId,
-        type: activity.type,
-        name: activity.name,
-        description: activity.description,
-        status: activity.status,
-        priority: activity.priority,
-        scheduledAt: activity.scheduledAt?.toISOString() || null,
-        completedAt: activity.completedAt?.toISOString() || null,
-        startedAt: activity.startedAt?.toISOString() || null,
-        estimatedDuration: activity.estimatedDuration,
-        actualDuration: activity.actualDuration,
-        cost: activity.cost,
-        createdById: activity.createdById,
-        metadata: activity.metadata,
-        createdAt: activity.createdAt.toISOString(),
-        updatedAt: activity.updatedAt.toISOString(),
-        farm: activity.farm,
-        area: activity.area,
-        createdBy: activity.createdBy,
-        assignments: activity.assignments?.map((assignment: any) => ({
-          id: assignment.id,
-          userId: assignment.userId,
-          role: assignment.role,
-          assignedAt: assignment.assignedAt.toISOString(),
-          user: assignment.user,
-        })) || [],
-        assignedUsers: activity.assignments?.map((assignment: any) => assignment.user) || [],
-        costCount: activity._count?.costs || 0,
-        progressLogCount: activity._count?.progressLogs || 0,
-      },
+      farmId: activity.farmId,
+      areaId: activity.areaId,
+      cropCycleId: activity.cropCycleId,
+      type: activity.type,
+      name: activity.name,
+      description: activity.description,
+      status: activity.status,
+      priority: activity.priority,
+      scheduledAt: activity.scheduledAt?.toISOString() || null,
+      completedAt: activity.completedAt?.toISOString() || null,
+      startedAt: activity.startedAt?.toISOString() || null,
+      estimatedDuration: activity.estimatedDuration,
+      actualDuration: activity.actualDuration,
+      percentComplete: (activity.metadata?.percentComplete as number) || 0,
+      assignedTo: activity.assignments?.map((assignment: any) => assignment.userId) || [],
+      resources: activity.metadata?.resources || [],
+      actualResources: activity.metadata?.actualResources || [],
+      instructions: activity.metadata?.instructions || '',
+      safetyNotes: activity.metadata?.safetyNotes || '',
+      estimatedCost: activity.metadata?.estimatedCost || 0,
+      actualCost: activity.metadata?.actualCost || null,
+      location: activity.metadata?.location || null,
+      results: activity.metadata?.results || null,
+      issues: activity.metadata?.issues || null,
+      recommendations: activity.metadata?.recommendations || null,
+      metadata: activity.metadata,
+      createdAt: activity.createdAt.toISOString(),
+      updatedAt: activity.updatedAt.toISOString(),
+      createdBy: activity.createdById,
     };
   }
 
