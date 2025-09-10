@@ -6,6 +6,53 @@ import {
   OrderStatus,
   Prisma 
 } from '@prisma/client';
+import { z } from 'zod';
+import {
+  CreateOrderRequestSchema,
+  UpdateOrderRequestSchema,
+  OrderSearchRequestSchema,
+  CreateOrderItemRequestSchema,
+  UpdateOrderItemRequestSchema,
+  CreateOrderMessageRequestSchema,
+  CreateOrderDocumentRequestSchema,
+  CreateOrderDisputeRequestSchema,
+  DisputeResponseRequestSchema,
+  DisputeResolutionRequestSchema,
+  AcceptOrderRequestSchema,
+  RejectOrderRequestSchema,
+  CounterOfferRequestSchema,
+  StartFulfillmentRequestSchema,
+  CompleteOrderRequestSchema,
+  OrderAnalyticsQuerySchema,
+  OrderFinancialSummaryQuerySchema,
+  OrderPerformanceMetricsQuerySchema,
+  OrderReportRequestSchema,
+  OrderStatusUpdateRequestSchema,
+  ContractSignatureRequestSchema,
+} from '../../contracts/orders.schemas';
+
+// Extract types from schemas
+type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
+type UpdateOrderRequest = z.infer<typeof UpdateOrderRequestSchema>;
+type OrderSearchRequest = z.infer<typeof OrderSearchRequestSchema>;
+type CreateOrderItemRequest = z.infer<typeof CreateOrderItemRequestSchema>;
+type UpdateOrderItemRequest = z.infer<typeof UpdateOrderItemRequestSchema>;
+type CreateOrderMessageRequest = z.infer<typeof CreateOrderMessageRequestSchema>;
+type CreateOrderDocumentRequest = z.infer<typeof CreateOrderDocumentRequestSchema>;
+type CreateOrderDisputeRequest = z.infer<typeof CreateOrderDisputeRequestSchema>;
+type DisputeResponseRequest = z.infer<typeof DisputeResponseRequestSchema>;
+type DisputeResolutionRequest = z.infer<typeof DisputeResolutionRequestSchema>;
+type AcceptOrderRequest = z.infer<typeof AcceptOrderRequestSchema>;
+type RejectOrderRequest = z.infer<typeof RejectOrderRequestSchema>;
+type CounterOfferRequest = z.infer<typeof CounterOfferRequestSchema>;
+type StartFulfillmentRequest = z.infer<typeof StartFulfillmentRequestSchema>;
+type CompleteOrderRequest = z.infer<typeof CompleteOrderRequestSchema>;
+type OrderAnalyticsQuery = z.infer<typeof OrderAnalyticsQuerySchema>;
+type OrderFinancialSummaryQuery = z.infer<typeof OrderFinancialSummaryQuerySchema>;
+type OrderPerformanceMetricsQuery = z.infer<typeof OrderPerformanceMetricsQuerySchema>;
+type OrderReportRequest = z.infer<typeof OrderReportRequestSchema>;
+type OrderStatusUpdateRequest = z.infer<typeof OrderStatusUpdateRequestSchema>;
+type ContractSignatureRequest = z.infer<typeof ContractSignatureRequestSchema>;
 
 @Injectable()
 export class OrdersService {
@@ -17,7 +64,16 @@ export class OrdersService {
   // Order CRUD Operations
   // =============================================================================
 
-  async getOrders(user: CurrentUser, query: any) {
+  async getOrders(user: CurrentUser, query: {
+    page?: number;
+    limit?: number;
+    type?: OrderType;
+    status?: OrderStatus;
+    buyerOrgId?: string;
+    supplierOrgId?: string;
+    commodityId?: string;
+    dateRange?: string;
+  }) {
     this.logger.log(`Getting orders for user: ${user.userId}`);
     
     const { page = 1, limit = 10, type, status, buyerOrgId, supplierOrgId, commodityId, dateRange } = query;
@@ -112,7 +168,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(order) };
   }
 
-  async createOrder(user: CurrentUser, data: any) {
+  async createOrder(user: CurrentUser, data: CreateOrderRequest) {
     this.logger.log(`Creating order for user: ${user.userId}`);
     
     const { data: orderData } = data;
@@ -158,7 +214,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(order) };
   }
 
-  async updateOrder(user: CurrentUser, orderId: string, data: any) {
+  async updateOrder(user: CurrentUser, orderId: string, data: UpdateOrderRequest) {
     this.logger.log(`Updating order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -283,7 +339,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(updatedOrder) };
   }
 
-  async acceptOrder(user: CurrentUser, orderId: string, data: any) {
+  async acceptOrder(user: CurrentUser, orderId: string, data: AcceptOrderRequest) {
     this.logger.log(`Accepting order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -328,7 +384,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(updatedOrder) };
   }
 
-  async rejectOrder(user: CurrentUser, orderId: string, data: any) {
+  async rejectOrder(user: CurrentUser, orderId: string, data: RejectOrderRequest) {
     this.logger.log(`Rejecting order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -395,7 +451,7 @@ export class OrdersService {
     };
   }
 
-  async addOrderItem(user: CurrentUser, orderId: string, data: any) {
+  async addOrderItem(user: CurrentUser, orderId: string, data: CreateOrderItemRequest) {
     this.logger.log(`Adding item to order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -409,8 +465,7 @@ export class OrdersService {
       throw new BadRequestException('Items can only be added to pending orders');
     }
 
-    const { data: itemData } = data;
-    const { commodityId, inventoryId, quantity, qualityRequirements, unitPrice } = itemData.attributes;
+    const { commodityId, inventoryId, quantity, qualityRequirements, unitPrice } = data;
 
     const item = await this.prisma.orderItem.create({
       data: {
@@ -431,7 +486,7 @@ export class OrdersService {
     return { data: this.mapOrderItemToResource(item) };
   }
 
-  async updateOrderItem(user: CurrentUser, orderId: string, itemId: string, data: any) {
+  async updateOrderItem(user: CurrentUser, orderId: string, itemId: string, data: UpdateOrderItemRequest) {
     this.logger.log(`Updating item ${itemId} in order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -445,8 +500,7 @@ export class OrdersService {
       throw new BadRequestException('Items can only be updated in pending orders');
     }
 
-    const { data: itemData } = data;
-    const { quantity, qualityRequirements, unitPrice, notes } = itemData.attributes;
+    const { quantity, qualityRequirements, unitPrice, notes } = data;
 
     const existingItem = await this.prisma.orderItem.findUnique({
       where: { id: itemId },
@@ -496,7 +550,12 @@ export class OrdersService {
   // Order Search & Discovery
   // =============================================================================
 
-  async getMarketplaceOrders(user: CurrentUser, query: any) {
+  async getMarketplaceOrders(user: CurrentUser, query: {
+    page?: number;
+    limit?: number;
+    type?: OrderType;
+    commodityId?: string;
+  }) {
     this.logger.log(`Getting marketplace orders for user: ${user.userId}`);
     
     const { page = 1, limit = 10, type, commodityId } = query;
@@ -574,7 +633,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(order) };
   }
 
-  async searchOrders(user: CurrentUser, data: any) {
+  async searchOrders(user: CurrentUser, data: OrderSearchRequest) {
     this.logger.log(`Searching orders for user: ${user.userId}`);
     
     const { filters, sort } = data;
@@ -641,7 +700,10 @@ export class OrdersService {
     };
   }
 
-  async getOrderRecommendations(user: CurrentUser, query: any) {
+  async getOrderRecommendations(user: CurrentUser, query: {
+    type?: OrderType;
+    limit?: number;
+  }) {
     this.logger.log(`Getting order recommendations for user: ${user.userId}`);
     
     const { type, limit = 10 } = query;
@@ -713,7 +775,10 @@ export class OrdersService {
   // Order Communication
   // =============================================================================
 
-  async getOrderMessages(user: CurrentUser, orderId: string, query: any) {
+  async getOrderMessages(user: CurrentUser, orderId: string, query: {
+    page?: number;
+    limit?: number;
+  }) {
     this.logger.log(`Getting messages for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -751,7 +816,7 @@ export class OrdersService {
     };
   }
 
-  async sendOrderMessage(user: CurrentUser, orderId: string, data: any) {
+  async sendOrderMessage(user: CurrentUser, orderId: string, data: CreateOrderMessageRequest) {
     this.logger.log(`Sending message for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -761,8 +826,7 @@ export class OrdersService {
       throw new ForbiddenException('Access denied to this order');
     }
 
-    const { data: messageData } = data;
-    const { content, type } = messageData.attributes;
+    const { content, type } = data;
 
     const message = await this.prisma.message.create({
       data: {
@@ -805,7 +869,7 @@ export class OrdersService {
   // Order Analytics & Reporting
   // =============================================================================
 
-  async getOrderAnalytics(user: CurrentUser, query: any) {
+  async getOrderAnalytics(user: CurrentUser, query: OrderAnalyticsQuery) {
     this.logger.log(`Getting order analytics for user: ${user.userId}`);
     
     const { period = 'month', type, status, commodityId } = query;
@@ -867,7 +931,7 @@ export class OrdersService {
     };
   }
 
-  async getOrderFinancialSummary(user: CurrentUser, query: any) {
+  async getOrderFinancialSummary(user: CurrentUser, query: OrderFinancialSummaryQuery) {
     this.logger.log(`Getting financial summary for user: ${user.userId}`);
     
     const { period = 'month', type, status } = query;
@@ -915,7 +979,7 @@ export class OrdersService {
     };
   }
 
-  async getOrderPerformanceMetrics(user: CurrentUser, query: any) {
+  async getOrderPerformanceMetrics(user: CurrentUser, query: OrderPerformanceMetricsQuery) {
     this.logger.log(`Getting performance metrics for user: ${user.userId}`);
     
     const { period = 'month' } = query;
@@ -954,7 +1018,7 @@ export class OrdersService {
     };
   }
 
-  async generateOrderReport(user: CurrentUser, data: any) {
+  async generateOrderReport(user: CurrentUser, data: OrderReportRequest) {
     this.logger.log(`Generating order report for user: ${user.userId}` , data);
     
     // This would be implemented by a proper report generation service
@@ -986,7 +1050,7 @@ export class OrdersService {
   // Additional Order Lifecycle Methods
   // =============================================================================
 
-  async counterOffer(user: CurrentUser, orderId: string, data: any) {
+  async counterOffer(user: CurrentUser, orderId: string, data: CounterOfferRequest) {
     this.logger.log(`Making counter offer for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1064,7 +1128,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(updatedOrder) };
   }
 
-  async startFulfillment(user: CurrentUser, orderId: string, data: any) {
+  async startFulfillment(user: CurrentUser, orderId: string, data: StartFulfillmentRequest) {
     this.logger.log(`Starting fulfillment for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1107,7 +1171,7 @@ export class OrdersService {
     return { data: this.mapOrderToResource(updatedOrder) };
   }
 
-  async completeOrder(user: CurrentUser, orderId: string, data: any) {
+  async completeOrder(user: CurrentUser, orderId: string, data: CompleteOrderRequest) {
     this.logger.log(`Completing order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1177,7 +1241,7 @@ export class OrdersService {
     };
   }
 
-  async uploadOrderDocument(user: CurrentUser, orderId: string, data: any) {
+  async uploadOrderDocument(user: CurrentUser, orderId: string, data: CreateOrderDocumentRequest) {
     this.logger.log(`Uploading document for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1187,8 +1251,7 @@ export class OrdersService {
       throw new ForbiddenException('Access denied to this order');
     }
 
-    const { data: docData } = data;
-    const { type, name } = docData.attributes;
+    const { type, name } = data;
 
     const document = await this.prisma.document.create({
       data: {
@@ -1240,7 +1303,7 @@ export class OrdersService {
     };
   }
 
-  async signOrderContract(user: CurrentUser, orderId: string, data: any) {
+  async signOrderContract(user: CurrentUser, orderId: string, data: ContractSignatureRequest) {
     this.logger.log(`Signing contract for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1361,7 +1424,7 @@ export class OrdersService {
     };
   }
 
-  async addStatusUpdate(user: CurrentUser, orderId: string, data: any) {
+  async addStatusUpdate(user: CurrentUser, orderId: string, data: OrderStatusUpdateRequest) {
     this.logger.log(`Adding status update for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1412,7 +1475,7 @@ export class OrdersService {
   // Order Disputes & Resolution
   // =============================================================================
 
-  async createOrderDispute(user: CurrentUser, orderId: string, data: any) {
+  async createOrderDispute(user: CurrentUser, orderId: string, data: CreateOrderDisputeRequest) {
     this.logger.log(`Creating dispute for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1422,8 +1485,7 @@ export class OrdersService {
       throw new ForbiddenException('Access denied to this order');
     }
 
-    const { data: disputeData } = data;
-    const { type, description, evidence, requestedResolution, severity } = disputeData.attributes;
+    const { type, description, evidence, requestedResolution, severity } = data;
 
     // Note: Dispute model would need to be defined in Prisma schema
     const dispute = {
@@ -1462,7 +1524,7 @@ export class OrdersService {
     };
   }
 
-  async respondToDispute(user: CurrentUser, orderId: string, disputeId: string, data: any) {
+  async respondToDispute(user: CurrentUser, orderId: string, disputeId: string, data: DisputeResponseRequest) {
     this.logger.log(`Responding to dispute ${disputeId} for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);
@@ -1492,7 +1554,7 @@ export class OrdersService {
     return { data: this.mapDisputeToResource(dispute) };
   }
 
-  async resolveDispute(user: CurrentUser, orderId: string, disputeId: string, data: any) {
+  async resolveDispute(user: CurrentUser, orderId: string, disputeId: string, data: DisputeResolutionRequest) {
     this.logger.log(`Resolving dispute ${disputeId} for order ${orderId} for user: ${user.userId}`);
     
     const order = await this.getOrderById(orderId);

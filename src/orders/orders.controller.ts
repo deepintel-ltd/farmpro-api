@@ -28,7 +28,16 @@ export class OrdersController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(orderContract.getOrders, async ({ query }) => {
       try {
-        const result = await this.ordersService.getOrders(req.user, query);
+        const result = await this.ordersService.getOrders(req.user, {
+          page: query['page[number]'] ? parseInt(query['page[number]'].toString()) : undefined,
+          limit: query['page[size]'] ? parseInt(query['page[size]'].toString()) : undefined,
+          type: query.type as any,
+          status: query.status as any,
+          buyerOrgId: query.buyerOrgId,
+          supplierOrgId: query.supplierOrgId,
+          commodityId: query.commodityId,
+          dateRange: query.dateRange,
+        });
 
         return {
           status: 200 as const,
@@ -587,7 +596,10 @@ export class OrdersController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(orderContract.getOrderMessages, async ({ params, query }) => {
       try {
-        const result = await this.ordersService.getOrderMessages(req.user, params.id, query);
+        const result = await this.ordersService.getOrderMessages(req.user, params.id, {
+          page: query['page[number]'] ? parseInt(query['page[number]'].toString()) : undefined,
+          limit: query['page[size]'] ? parseInt(query['page[size]'].toString()) : undefined,
+        });
 
         return {
           status: 200 as const,
