@@ -5,7 +5,6 @@ import {
   CommodityCollectionSchema,
   CreateCommodityRequestSchema,
   UpdateCommodityRequestSchema,
-  OrderCollectionSchema,
   JsonApiErrorResponseSchema,
 } from './schemas';
 import {
@@ -16,6 +15,7 @@ import {
   CollectionErrorResponses,
   UuidPathParam,
 } from './common';
+import { OrderCollectionSchema } from './orders.schemas';
 
 const c = initContract();
 

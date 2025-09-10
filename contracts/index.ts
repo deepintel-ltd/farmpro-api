@@ -14,6 +14,9 @@ export * from './market.contract';
 // Auth schemas
 export * from './auth.schemas';
 
+// Orders schemas
+export * from './orders.schemas';
+
 export * from './schemas';
 
 

@@ -6,7 +6,6 @@ import {
   CreateUserRequestSchema,
   UpdateUserRequestSchema,
   FarmCollectionSchema,
-  OrderCollectionSchema,
   JsonApiErrorResponseSchema,
   UpdateProfileRequestSchema,
   UserQueryParamsSchema,
@@ -21,6 +20,9 @@ import {
   NotificationSettingsResourceSchema,
   StatsResourceSchema,
 } from './schemas';
+import {
+  OrderCollectionSchema,
+} from './orders.schemas';
 import {
   CommonQueryParams,
   ResourceFieldsParams,

@@ -40,30 +40,6 @@ export const CommoditySchema = z.object({
   storageLocation: z.string().min(1, 'Storage location is required')
 });
 
-/**
- * Order resource schema with business logic validation
- */
-export const OrderSchema = z.object({
-  orderType: z.enum(['buy', 'sell'], {
-    errorMap: () => ({ message: 'Order type must be buy or sell' })
-  }),
-  commodityId: z.string().uuid('Invalid commodity ID format'),
-  quantity: z.number().positive('Order quantity must be positive'),
-  pricePerUnit: z.number().positive('Price per unit must be positive'),
-  totalPrice: z.number().positive('Total price must be positive'),
-  deliveryDate: z.string().datetime('Invalid delivery date format'),
-  deliveryLocation: z.string().min(1, 'Delivery location is required'),
-  status: z.enum(['pending', 'confirmed', 'in_transit', 'delivered', 'cancelled'], {
-    errorMap: () => ({ message: 'Invalid order status' })
-  }),
-  terms: z.object({
-    paymentMethod: z.enum(['cash', 'credit', 'escrow'], {
-      errorMap: () => ({ message: 'Invalid payment method' })
-    }),
-    deliveryTerms: z.string().min(1, 'Delivery terms are required'),
-    qualityRequirements: z.string().optional()
-  })
-});
 
 /**
  * User resource schema with role-based validation
@@ -446,8 +422,6 @@ export const FarmCollectionSchema = JsonApiCollectionSchema(FarmSchema);
 export const CommodityResourceSchema = JsonApiResourceSchema(CommoditySchema);
 export const CommodityCollectionSchema = JsonApiCollectionSchema(CommoditySchema);
 
-export const OrderResourceSchema = JsonApiResourceSchema(OrderSchema);
-export const OrderCollectionSchema = JsonApiCollectionSchema(OrderSchema);
 
 export const UserResourceSchema = JsonApiResourceSchema(UserSchema);
 export const UserCollectionSchema = JsonApiCollectionSchema(UserSchema);
@@ -580,8 +554,6 @@ export const UpdateFarmRequestSchema = JsonApiUpdateRequestSchema(FarmSchema);
 export const CreateCommodityRequestSchema = JsonApiCreateRequestSchema(CommoditySchema);
 export const UpdateCommodityRequestSchema = JsonApiUpdateRequestSchema(CommoditySchema);
 
-export const CreateOrderRequestSchema = JsonApiCreateRequestSchema(OrderSchema);
-export const UpdateOrderRequestSchema = JsonApiUpdateRequestSchema(OrderSchema);
 
 export const CreateUserRequestSchema = JsonApiCreateRequestSchema(UserSchema);
 export const UpdateUserRequestSchema = JsonApiUpdateRequestSchema(UserSchema);
@@ -658,7 +630,6 @@ export const JsonApiQuerySchema = z.object({
 
 export type Farm = z.infer<typeof FarmSchema>;
 export type Commodity = z.infer<typeof CommoditySchema>;
-export type Order = z.infer<typeof OrderSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type Inventory = z.infer<typeof InventorySchema>;
 export type InventoryMovement = z.infer<typeof InventoryMovementSchema>;
@@ -682,8 +653,6 @@ export type FarmResource = z.infer<typeof FarmResourceSchema>;
 export type FarmCollection = z.infer<typeof FarmCollectionSchema>;
 export type CommodityResource = z.infer<typeof CommodityResourceSchema>;
 export type CommodityCollection = z.infer<typeof CommodityCollectionSchema>;
-export type OrderResource = z.infer<typeof OrderResourceSchema>;
-export type OrderCollection = z.infer<typeof OrderCollectionSchema>;
 export type UserResource = z.infer<typeof UserResourceSchema>;
 export type UserCollection = z.infer<typeof UserCollectionSchema>;
 export type InventoryResource = z.infer<typeof InventoryResourceSchema>;
@@ -717,8 +686,6 @@ export type CreateFarmRequest = z.infer<typeof CreateFarmRequestSchema>;
 export type UpdateFarmRequest = z.infer<typeof UpdateFarmRequestSchema>;
 export type CreateCommodityRequest = z.infer<typeof CreateCommodityRequestSchema>;
 export type UpdateCommodityRequest = z.infer<typeof UpdateCommodityRequestSchema>;
-export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
-export type UpdateOrderRequest = z.infer<typeof UpdateOrderRequestSchema>;
 export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
 export type CreateInventoryRequest = z.infer<typeof CreateInventoryRequestSchema>;
