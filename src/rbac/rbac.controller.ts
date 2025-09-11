@@ -1,5 +1,6 @@
 import { Controller, UseGuards, Logger, Request, Body, Query } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -18,6 +19,8 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
+@ApiTags('rbac')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 export class RbacController {
   private readonly logger = new Logger(RbacController.name);

@@ -1,5 +1,5 @@
 import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
-import { tsRestHandler } from '@ts-rest/nest';
+import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -22,6 +22,7 @@ export class InventoryController {
   // Basic CRUD Operations
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getInventory)
   public getInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -50,6 +51,7 @@ export class InventoryController {
     });
   }
 
+  @TsRestHandler(inventoryContract.getInventoryItem)
   public getInventoryItem(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -86,6 +88,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.createInventory)
   public createInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -112,6 +115,7 @@ export class InventoryController {
     });
   }
 
+  @TsRestHandler(inventoryContract.updateInventory)
   public updateInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -149,6 +153,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.deleteInventory)
   public deleteInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -186,6 +191,7 @@ export class InventoryController {
   // Inventory Management Operations
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getInventoryMovements)
   public getInventoryMovements(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -220,6 +226,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.adjustInventory)
   public adjustInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -257,6 +264,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.reserveInventory)
   public reserveInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -294,6 +302,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.releaseInventory)
   public releaseInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -335,6 +344,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.transferInventory)
   public transferInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -375,6 +385,7 @@ export class InventoryController {
   // Quality Management
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getQualityTests)
   public getQualityTests(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -409,6 +420,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.addQualityTest)
   public addQualityTest(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -446,6 +458,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.updateQualityGrade)
   public updateQualityGrade(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -487,6 +500,7 @@ export class InventoryController {
   // Analytics & Reporting
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getInventoryAnalytics)
   public getInventoryAnalytics(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -520,6 +534,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.getStockAlerts)
   public getStockAlerts(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -558,6 +573,7 @@ export class InventoryController {
   // Batch Management
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getBatchInventory)
   public getBatchInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -594,6 +610,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.mergeBatches)
   public mergeBatches(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -629,6 +646,7 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.splitBatch)
   public splitBatch(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -668,6 +686,7 @@ export class InventoryController {
   // Traceability & Compliance
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getTraceability)
   public getTraceability(
     @Request() req: AuthenticatedRequest,
   ) {

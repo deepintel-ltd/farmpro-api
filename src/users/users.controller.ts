@@ -1,5 +1,6 @@
 import { Controller, UseGuards, Logger, Request, Body, Query, Param, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -12,6 +13,8 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
+@ApiTags('users')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);

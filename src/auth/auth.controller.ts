@@ -1,6 +1,7 @@
 import { Controller, UseGuards, Logger, Request, Body } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -22,6 +23,7 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
+@ApiTags('auth')
 @Controller()
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -32,6 +34,42 @@ export class AuthController {
   // Auth Flow & JWT Management
   // =============================================================================
 
+  @ApiOperation({ 
+    summary: 'Register new user',
+    description: 'Create a new user account with email and password'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'User registered successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                user: { type: 'object' },
+                tokens: {
+                  type: 'object',
+                  properties: {
+                    accessToken: { type: 'string' },
+                    refreshToken: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 409, description: 'Conflict - user already exists' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(authContract.register)
   public register(@Body() body: RegisterDto): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(authContract.register, async () => {
@@ -62,6 +100,42 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'User login',
+    description: 'Authenticate user with email and password'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Login successful',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                user: { type: 'object' },
+                tokens: {
+                  type: 'object',
+                  properties: {
+                    accessToken: { type: 'string' },
+                    refreshToken: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid credentials' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(LocalAuthGuard)
   @TsRestHandler(authContract.login)
   public login(@Body() body: LoginDto): ReturnType<typeof tsRestHandler> {

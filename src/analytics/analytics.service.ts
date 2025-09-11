@@ -196,8 +196,15 @@ export class AnalyticsService {
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockFarmToMarketData();
-    return mockData;
+    return this.executeAnalyticsQuery(
+      'getFarmToMarket',
+      user.userId,
+      {},
+      async () => {
+        const farmToMarketData = await this.buildFarmToMarketData(user);
+        return farmToMarketData;
+      }
+    );
   }
 
   // =============================================================================
@@ -207,19 +214,41 @@ export class AnalyticsService {
   async getProfitability(user: CurrentUser, query: ProfitabilityQueryDto): Promise<AnalyticsDashboardResponseDto> {
     this.logger.log(`Getting profitability analytics for user: ${user.userId}`);
 
+    // Validate input parameters
+    this.validateQueryParams(query);
+
+    // Validate permissions
     await this.permissionsService.validateProfitabilityAccess(user, query.farmId);
 
-    const mockData = this.generateMockProfitabilityData(query);
-    return mockData;
+    return this.executeAnalyticsQuery(
+      'getProfitability',
+      user.userId,
+      query,
+      async () => {
+        const profitabilityData = await this.buildProfitabilityData(user, query);
+        return profitabilityData;
+      }
+    );
   }
 
   async getROIAnalysis(user: CurrentUser, query: ROIAnalysisQueryDto): Promise<AnalyticsDashboardResponseDto> {
     this.logger.log(`Getting ROI analysis for user: ${user.userId}`);
 
+    // Validate input parameters
+    this.validateQueryParams(query);
+
+    // Validate permissions
     await this.permissionsService.validateProfitabilityAccess(user, query.farmId);
 
-    const mockData = this.generateMockROIData(query);
-    return mockData;
+    return this.executeAnalyticsQuery(
+      'getROIAnalysis',
+      user.userId,
+      query,
+      async () => {
+        const roiData = await this.buildROIAnalysisData(user, query);
+        return roiData;
+      }
+    );
   }
 
   // =============================================================================
@@ -231,7 +260,7 @@ export class AnalyticsService {
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockYieldVsMarketData();
+    const mockData = this.generateMockDashboardData({});
     return mockData;
   }
 
@@ -240,7 +269,7 @@ export class AnalyticsService {
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockQualityPremiumData(query);
+    const mockData = this.generateMockDashboardData({ period: query.period });
     return mockData;
   }
 
@@ -249,8 +278,7 @@ export class AnalyticsService {
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockTimingAnalysisData(query);
-    return mockData;
+    return this.generateMockDashboardData({ period: query.period });
   }
 
   async getDirectVsIntermediary(user: CurrentUser, query: DirectVsIntermediaryQueryDto): Promise<AnalyticsDashboardResponseDto> {
@@ -258,8 +286,7 @@ export class AnalyticsService {
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockDirectVsIntermediaryData(query);
-    return mockData;
+    return this.generateMockDashboardData({ period: query.period });
   }
 
   // =============================================================================
@@ -269,10 +296,21 @@ export class AnalyticsService {
   async getActivityEfficiency(user: CurrentUser, query: ActivityEfficiencyQueryDto): Promise<AnalyticsDashboardResponseDto> {
     this.logger.log(`Getting activity efficiency analytics for user: ${user.userId}`);
 
+    // Validate input parameters
+    this.validateQueryParams(query);
+
+    // Validate permissions
     await this.permissionsService.validateDashboardAccess(user, query.farmId);
 
-    const mockData = this.generateMockActivityEfficiencyData(query);
-    return mockData;
+    return this.executeAnalyticsQuery(
+      'getActivityEfficiency',
+      user.userId,
+      query,
+      async () => {
+        const activityData = await this.buildActivityEfficiencyData(user, query);
+        return activityData;
+      }
+    );
   }
 
   async getResourceUtilization(user: CurrentUser, query: ResourceUtilizationQueryDto): Promise<AnalyticsDashboardResponseDto> {
@@ -823,6 +861,771 @@ export class AnalyticsService {
     return 0;
   }
 
+  // =============================================================================
+  // Real Data Implementation Methods
+  // =============================================================================
+
+  /**
+   * Builds profitability data from real database queries
+   */
+  private async buildProfitabilityData(user: CurrentUser, query: ProfitabilityQueryDto): Promise<AnalyticsDashboardResponseDto> {
+    const dateFilter = this.buildDateRangeFilter(query);
+    const { limit, skip } = this.buildPaginationParams(query);
+
+    try {
+      const whereClause = {
+        organizationId: user.organizationId,
+        ...(query.farmId && { farmId: query.farmId }),
+        ...(dateFilter && { createdAt: dateFilter })
+      };
+
+      // Parallel data fetching for better performance
+      const [
+        revenue,
+        expenses,
+        activities,
+      ] = await Promise.all([
+        // Revenue from completed orders
+        this.prisma.transaction.aggregate({
+          where: { ...whereClause, type: 'INCOME' as any },
+          _sum: { amount: true },
+          _count: { id: true }
+        }),
+        // Expenses from activities and other costs
+        this.prisma.transaction.aggregate({
+          where: { ...whereClause, type: 'EXPENSE' as any },
+          _sum: { amount: true },
+          _count: { id: true }
+        }),
+        // Activity costs
+        this.prisma.farmActivity.findMany({
+          where: {
+            farm: { organizationId: user.organizationId },
+            ...(query.farmId && { farmId: query.farmId }),
+            ...(dateFilter && { createdAt: dateFilter })
+          },
+          include: {
+            costs: true
+          },
+          take: limit,
+          skip
+        }),
+        // Crop cycle data for yield analysis (using relation through farm)
+        query.farmId ? this.prisma.cropCycle.findMany({
+          where: {
+            farmId: query.farmId,
+            ...(dateFilter && { createdAt: dateFilter })
+          },
+          include: {
+            harvests: true,
+            commodity: true
+          }
+        }) : Promise.resolve([])
+      ]);
+
+      const revenueAmount = Number(revenue._sum.amount) || 0;
+      const expenseAmount = Number(expenses._sum.amount) || 0;
+      const activityCosts = activities.reduce((sum, activity) => 
+        sum + activity.costs.reduce((costSum, cost) => costSum + Number(cost.amount), 0), 0
+      );
+      const totalExpenses = expenseAmount + activityCosts;
+      const netProfit = revenueAmount - totalExpenses;
+      const profitMargin = revenueAmount > 0 ? (netProfit / revenueAmount) * 100 : 0;
+
+      return {
+        data: {
+          type: 'analytics_dashboard',
+          id: 'profitability',
+          attributes: {
+            period: query.period || 'month' as AnalyticsPeriod,
+            farmId: query.farmId,
+            metrics: [
+              {
+                name: 'Total Revenue',
+                value: revenueAmount,
+                unit: 'USD',
+                trend: this.calculateTrend(revenueAmount, 0),
+                change: 0
+              },
+              {
+                name: 'Total Expenses',
+                value: totalExpenses,
+                unit: 'USD',
+                trend: this.calculateTrend(totalExpenses, 0),
+                change: 0
+              },
+              {
+                name: 'Net Profit',
+                value: netProfit,
+                unit: 'USD',
+                trend: this.calculateTrend(netProfit, 0),
+                change: 0
+              },
+              {
+                name: 'Profit Margin',
+                value: profitMargin,
+                unit: '%',
+                trend: this.calculateTrend(profitMargin, 0),
+                change: 0
+              }
+            ],
+            charts: await this.buildProfitabilityCharts(whereClause),
+            insights: await this.generateProfitabilityInsights(netProfit, profitMargin),
+            summary: {
+              totalRevenue: revenueAmount,
+              totalCosts: totalExpenses,
+              netProfit,
+              profitMargin,
+              roi: revenueAmount > 0 ? (netProfit / totalExpenses) * 100 : 0
+            }
+          }
+        }
+      };
+    } catch (error) {
+      this.handleAnalyticsError(error, 'buildProfitabilityData');
+    }
+  }
+
+  /**
+   * Builds farm-to-market analytics from real data
+   */
+  private async buildFarmToMarketData(user: CurrentUser): Promise<AnalyticsDashboardResponseDto> {
+    try {
+      const whereClause = {
+        organizationId: user.organizationId
+      };
+
+      // Get crop cycles and their journey to market
+      // First get farms for this organization
+      const farms = await this.prisma.farm.findMany({
+        where: { organizationId: user.organizationId },
+        select: { id: true }
+      });
+      
+      const farmIds = farms.map(f => f.id);
+      
+      const [cropCycles, orders, inventory] = await Promise.all([
+        this.prisma.cropCycle.findMany({
+          where: {
+            farmId: { in: farmIds },
+            status: { in: ['COMPLETED' as any, 'HARVESTED' as any] }
+          },
+          include: {
+            harvests: true,
+            commodity: true,
+            area: true
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        }),
+        this.prisma.order.findMany({
+          where: {
+            buyerOrgId: whereClause.organizationId,
+            status: { in: ['COMPLETED' as any, 'DELIVERED' as any] }
+          },
+          include: {
+            items: {
+              include: {
+                commodity: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        }),
+        this.prisma.inventory.findMany({
+          where: whereClause,
+          include: {
+            commodity: true,
+            harvest: {
+              include: {
+                cropCycle: true
+              }
+            }
+          },
+          take: 50
+        })
+      ]);
+
+      // Calculate farm-to-market metrics
+      const totalProduction = cropCycles.reduce((sum, cycle) => 
+        sum + (cycle.actualYield || 0), 0
+      );
+
+      const totalSold = orders.reduce((sum, order) => 
+        sum + (order.items?.reduce((itemSum, item) => itemSum + Number(item.quantity), 0) || 0), 0
+      );
+
+      const marketReachRate = totalProduction > 0 ? (totalSold / totalProduction) * 100 : 0;
+
+      return {
+        data: {
+          type: 'analytics_dashboard',
+          id: 'farm-to-market',
+          attributes: {
+            period: 'month' as AnalyticsPeriod,
+            farmId: null,
+            metrics: [
+              {
+                name: 'Total Production',
+                value: totalProduction,
+                unit: 'kg',
+                trend: 'stable' as const,
+                change: 0
+              },
+              {
+                name: 'Market Reach Rate',
+                value: marketReachRate,
+                unit: '%',
+                trend: 'up' as const,
+                change: 0
+              },
+              {
+                name: 'Inventory On Hand',
+                value: inventory.reduce((sum, item) => sum + item.quantity, 0),
+                unit: 'kg',
+                trend: 'stable' as const,
+                change: 0
+              }
+            ],
+            charts: await this.buildFarmToMarketCharts(cropCycles, orders),
+            insights: await this.generateFarmToMarketInsights(marketReachRate, inventory.length),
+            summary: {
+              totalRevenue: orders.reduce((sum, order) => sum + Number(order.totalPrice), 0),
+              totalCosts: 0, // Could be calculated from activity costs
+              netProfit: 0,
+              profitMargin: 0,
+              roi: 0
+            }
+          }
+        }
+      };
+    } catch (error) {
+      this.handleAnalyticsError(error, 'buildFarmToMarketData');
+    }
+  }
+
+  /**
+   * Builds activity efficiency analytics from real data
+   */
+  private async buildActivityEfficiencyData(user: CurrentUser, query: ActivityEfficiencyQueryDto): Promise<AnalyticsDashboardResponseDto> {
+    const dateFilter = this.buildDateRangeFilter(query);
+
+    try {
+      const whereClause = {
+        farm: { organizationId: user.organizationId },
+        ...(query.farmId && { farmId: query.farmId }),
+        ...(dateFilter && { createdAt: dateFilter }),
+        ...(query.activityType && { type: query.activityType as any })
+      };
+
+      const activities = await this.prisma.farmActivity.findMany({
+        where: whereClause,
+        include: {
+          costs: true,
+          assignments: true,
+          progressLogs: true
+        }
+      });
+
+      // Calculate efficiency metrics
+      const totalActivities = activities.length;
+      const completedActivities = activities.filter(a => a.status === 'COMPLETED').length;
+      const completionRate = totalActivities > 0 ? (completedActivities / totalActivities) * 100 : 0;
+
+      const avgDuration = activities
+        .filter(a => a.actualDuration)
+        .reduce((sum, a) => sum + (a.actualDuration || 0), 0) / Math.max(completedActivities, 1);
+
+      const totalCost = activities.reduce((sum, activity) => 
+        sum + activity.costs.reduce((costSum, cost) => costSum + Number(cost.amount), 0), 0
+      );
+
+      const avgCostPerActivity = totalActivities > 0 ? totalCost / totalActivities : 0;
+
+      return {
+        data: {
+          type: 'analytics_dashboard',
+          id: 'activity-efficiency',
+          attributes: {
+            period: query.period || 'month' as AnalyticsPeriod,
+            farmId: query.farmId,
+            metrics: [
+              {
+                name: 'Completion Rate',
+                value: completionRate,
+                unit: '%',
+                trend: this.calculateTrend(completionRate, 0),
+                change: 0
+              },
+              {
+                name: 'Average Duration',
+                value: avgDuration,
+                unit: 'minutes',
+                trend: 'stable' as const,
+                change: 0
+              },
+              {
+                name: 'Average Cost',
+                value: avgCostPerActivity,
+                unit: 'USD',
+                trend: 'stable' as const,
+                change: 0
+              },
+              {
+                name: 'Total Activities',
+                value: totalActivities,
+                unit: 'count',
+                trend: 'up' as const,
+                change: 0
+              }
+            ],
+            charts: await this.buildActivityEfficiencyCharts(activities),
+            insights: await this.generateActivityEfficiencyInsights(completionRate, avgDuration),
+            summary: {
+              totalRevenue: 0,
+              totalCosts: totalCost,
+              netProfit: -totalCost,
+              profitMargin: 0,
+              roi: 0
+            }
+          }
+        }
+      };
+    } catch (error) {
+      this.handleAnalyticsError(error, 'buildActivityEfficiencyData');
+    }
+  }
+
+  /**
+   * Builds ROI analysis from real data
+   */
+  private async buildROIAnalysisData(user: CurrentUser, query: ROIAnalysisQueryDto): Promise<AnalyticsDashboardResponseDto> {
+    const dateFilter = this.buildDateRangeFilter(query);
+
+    try {
+      const whereClause = {
+        organizationId: user.organizationId,
+        ...(query.farmId && { farmId: query.farmId }),
+        ...(dateFilter && { createdAt: dateFilter })
+      };
+
+      const [investments, returns] = await Promise.all([
+        // Get investment data from expense transactions
+        this.prisma.transaction.aggregate({
+          where: { ...whereClause, type: 'EXPENSE' as any },
+          _sum: { amount: true }
+        }),
+        // Get returns from income transactions
+        this.prisma.transaction.aggregate({
+          where: { ...whereClause, type: 'INCOME' as any },
+          _sum: { amount: true }
+        })
+      ]);
+
+      const totalInvestment = Number(investments._sum.amount) || 0;
+      const totalReturns = Number(returns._sum.amount) || 0;
+      const netReturn = totalReturns - totalInvestment;
+      const roi = totalInvestment > 0 ? (netReturn / totalInvestment) * 100 : 0;
+
+      return {
+        data: {
+          type: 'analytics_dashboard',
+          id: 'roi-analysis',
+          attributes: {
+            period: query.period || 'month' as AnalyticsPeriod,
+            farmId: query.farmId,
+            metrics: [
+              {
+                name: 'Total Investment',
+                value: totalInvestment,
+                unit: 'USD',
+                trend: 'stable' as const,
+                change: 0
+              },
+              {
+                name: 'Total Returns',
+                value: totalReturns,
+                unit: 'USD',
+                trend: 'up' as const,
+                change: 0
+              },
+              {
+                name: 'Net Return',
+                value: netReturn,
+                unit: 'USD',
+                trend: netReturn > 0 ? 'up' as const : 'down' as const,
+                change: 0
+              },
+              {
+                name: 'ROI Percentage',
+                value: roi,
+                unit: '%',
+                trend: roi > 0 ? 'up' as const : 'down' as const,
+                change: 0
+              }
+            ],
+            charts: await this.buildROICharts(totalInvestment, totalReturns, netReturn),
+            insights: await this.generateROIInsights(roi, netReturn),
+            summary: {
+              totalRevenue: totalReturns,
+              totalCosts: totalInvestment,
+              netProfit: netReturn,
+              profitMargin: totalReturns > 0 ? (netReturn / totalReturns) * 100 : 0,
+              roi
+            }
+          }
+        }
+      };
+    } catch (error) {
+      this.handleAnalyticsError(error, 'buildROIAnalysisData');
+    }
+  }
+
+  // =============================================================================
+  // Helper Methods for Charts and Insights
+  // =============================================================================
+
+  /**
+   * Builds profitability charts
+   */
+  private async buildProfitabilityCharts(whereClause: any) {
+    // Get monthly revenue and expense data for charts
+    const monthlyData = await this.prisma.transaction.findMany({
+      where: whereClause,
+      select: {
+        amount: true,
+        type: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Group by month and type
+    const grouped = monthlyData.reduce((acc, transaction) => {
+      const month = transaction.createdAt.toISOString().substring(0, 7); // YYYY-MM
+      if (!acc[month]) {
+        acc[month] = { month, income: 0, expense: 0 };
+      }
+      if (transaction.type === ('INCOME' as any)) {
+        acc[month].income += Number(transaction.amount);
+      } else {
+        acc[month].expense += Number(transaction.amount);
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    return [
+      {
+        type: 'line' as any,
+        title: 'Revenue vs Expenses Over Time',
+        data: Object.values(grouped).map((item: any) => ({
+          timestamp: item.month,
+          value: item.income - item.expense
+        })),
+        xAxis: 'Month',
+        yAxis: 'Net Profit (USD)'
+      }
+    ];
+  }
+
+  /**
+   * Builds farm-to-market charts
+   */
+  private async buildFarmToMarketCharts(cropCycles: any[], orders: any[]) {
+    return [
+      {
+        type: 'bar' as any,
+        title: 'Production vs Sales',
+        data: [
+          { timestamp: 'Production', value: cropCycles.reduce((sum, c) => sum + (c.actualYield || 0), 0) },
+          { timestamp: 'Sales', value: orders.reduce((sum, o) => sum + (o.items?.reduce((s: number, i: any) => s + Number(i.quantity), 0) || 0), 0) }
+        ],
+        xAxis: 'Category',
+        yAxis: 'Quantity (kg)'
+      }
+    ];
+  }
+
+  /**
+   * Builds activity efficiency charts
+   */
+  private async buildActivityEfficiencyCharts(activities: any[]) {
+    const statusCount = activities.reduce((acc, activity) => {
+      acc[activity.status] = (acc[activity.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return [
+      {
+        type: 'pie' as any,
+        title: 'Activity Status Distribution',
+        data: Object.entries(statusCount).map(([status, count]) => ({
+          timestamp: status,
+          value: count as number
+        })),
+        xAxis: 'Status',
+        yAxis: 'Count'
+      }
+    ];
+  }
+
+  /**
+   * Builds ROI charts
+   */
+  private async buildROICharts(investment: number, returns: number, netReturn: number) {
+    return [
+      {
+        type: 'bar' as any,
+        title: 'Investment vs Returns',
+        data: [
+          { timestamp: 'Investment', value: investment },
+          { timestamp: 'Returns', value: returns },
+          { timestamp: 'Net Return', value: netReturn }
+        ],
+        xAxis: 'Category',
+        yAxis: 'Amount (USD)'
+      }
+    ];
+  }
+
+  /**
+   * Generates profitability insights
+   */
+  private async generateProfitabilityInsights(netProfit: number, profitMargin: number) {
+    const insights = [];
+
+    if (netProfit > 0) {
+      insights.push({
+        id: 'profit_positive',
+        title: 'Positive Profitability',
+        description: `Current operations are generating a net profit of $${netProfit.toLocaleString()}`,
+        category: 'financial',
+        priority: 'medium' as const,
+        confidence: 0.9,
+        impact: 'high' as const,
+        actionable: true,
+        recommendations: ['Continue current profitable practices', 'Consider expansion opportunities'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    } else if (netProfit < 0) {
+      insights.push({
+        id: 'profit_negative',
+        title: 'Profitability Concern',
+        description: `Operations showing a net loss of $${Math.abs(netProfit).toLocaleString()}`,
+        category: 'financial',
+        priority: 'high' as const,
+        confidence: 0.9,
+        impact: 'high' as const,
+        actionable: true,
+        recommendations: ['Review and reduce operational costs', 'Optimize pricing strategy', 'Improve efficiency'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    if (profitMargin > 20) {
+      insights.push({
+        id: 'margin_healthy',
+        title: 'Healthy Profit Margin',
+        description: `Profit margin of ${profitMargin.toFixed(1)}% indicates efficient operations`,
+        category: 'financial',
+        priority: 'low' as const,
+        confidence: 0.8,
+        impact: 'medium' as const,
+        actionable: false,
+        recommendations: ['Maintain current operational efficiency'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Generates farm-to-market insights
+   */
+  private async generateFarmToMarketInsights(marketReachRate: number, inventoryCount: number) {
+    const insights = [];
+
+    if (marketReachRate > 80) {
+      insights.push({
+        id: 'market_reach_high',
+        title: 'Excellent Market Reach',
+        description: `${marketReachRate.toFixed(1)}% of production is reaching the market`,
+        category: 'operational',
+        priority: 'low' as const,
+        confidence: 0.85,
+        impact: 'medium' as const,
+        actionable: false,
+        recommendations: ['Maintain current market channels'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    } else if (marketReachRate < 50) {
+      insights.push({
+        id: 'market_reach_low',
+        title: 'Market Access Challenge',
+        description: `Only ${marketReachRate.toFixed(1)}% of production is reaching the market`,
+        category: 'operational',
+        priority: 'high' as const,
+        confidence: 0.9,
+        impact: 'high' as const,
+        actionable: true,
+        recommendations: ['Expand market channels', 'Improve distribution network', 'Reduce post-harvest losses'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    if (inventoryCount > 10) {
+      insights.push({
+        id: 'inventory_high',
+        title: 'High Inventory Levels',
+        description: `${inventoryCount} inventory items suggest good production but potential storage costs`,
+        category: 'operational',
+        priority: 'medium' as const,
+        confidence: 0.75,
+        impact: 'medium' as const,
+        actionable: true,
+        recommendations: ['Optimize inventory turnover', 'Expand sales channels'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Generates activity efficiency insights
+   */
+  private async generateActivityEfficiencyInsights(completionRate: number, avgDuration: number) {
+    const insights = [];
+
+    if (completionRate > 90) {
+      insights.push({
+        id: 'completion_excellent',
+        title: 'Excellent Activity Completion',
+        description: `${completionRate.toFixed(1)}% completion rate shows strong operational discipline`,
+        category: 'operational',
+        priority: 'low' as const,
+        confidence: 0.9,
+        impact: 'medium' as const,
+        actionable: false,
+        recommendations: ['Maintain current planning standards'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    } else if (completionRate < 70) {
+      insights.push({
+        id: 'completion_concern',
+        title: 'Activity Completion Issues',
+        description: `${completionRate.toFixed(1)}% completion rate indicates planning or resource challenges`,
+        category: 'operational',
+        priority: 'high' as const,
+        confidence: 0.85,
+        impact: 'high' as const,
+        actionable: true,
+        recommendations: ['Review activity planning process', 'Ensure adequate resource allocation', 'Improve task tracking'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    if (avgDuration > 240) { // More than 4 hours average
+      insights.push({
+        id: 'duration_concern',
+        title: 'Long Activity Duration',
+        description: `Average activity duration of ${(avgDuration / 60).toFixed(1)} hours may indicate inefficiency`,
+        category: 'operational',
+        priority: 'medium' as const,
+        confidence: 0.75,
+        impact: 'medium' as const,
+        actionable: true,
+        recommendations: ['Analyze activity bottlenecks', 'Consider process optimization', 'Provide additional training'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Generates ROI insights
+   */
+  private async generateROIInsights(roi: number, netReturn: number) {
+    const insights = [];
+
+    if (roi > 15) {
+      insights.push({
+        id: 'roi_excellent',
+        title: 'Strong Return on Investment',
+        description: `ROI of ${roi.toFixed(1)}% indicates highly profitable operations`,
+        category: 'financial',
+        priority: 'low' as const,
+        confidence: 0.9,
+        impact: 'high' as const,
+        actionable: false,
+        recommendations: ['Consider scaling successful operations', 'Reinvest in high-ROI activities'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    } else if (roi < 5 && roi > 0) {
+      insights.push({
+        id: 'roi_low',
+        title: 'Low Return on Investment',
+        description: `ROI of ${roi.toFixed(1)}% is below optimal levels`,
+        category: 'financial',
+        priority: 'medium' as const,
+        confidence: 0.85,
+        impact: 'medium' as const,
+        actionable: true,
+        recommendations: ['Optimize cost structure', 'Improve operational efficiency', 'Review pricing strategy'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    } else if (roi <= 0) {
+      insights.push({
+        id: 'roi_negative',
+        title: 'Negative Return on Investment',
+        description: `Negative ROI indicates investments are not generating returns`,
+        category: 'financial',
+        priority: 'critical' as const,
+        confidence: 0.95,
+        impact: 'high' as const,
+        actionable: true,
+        recommendations: ['Urgent cost reduction required', 'Re-evaluate investment strategy', 'Focus on core profitable activities'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    if (Math.abs(netReturn) > 10000) {
+      const isPositive = netReturn > 0;
+      insights.push({
+        id: 'return_significant',
+        title: `Significant ${isPositive ? 'Gains' : 'Losses'}`,
+        description: `Net return of $${netReturn.toLocaleString()} represents substantial ${isPositive ? 'profit' : 'loss'}`,
+        category: 'financial',
+        priority: isPositive ? 'medium' as const : 'high' as const,
+        confidence: 0.9,
+        impact: 'high' as const,
+        actionable: !isPositive,
+        recommendations: isPositive 
+          ? ['Consider reinvestment opportunities', 'Plan for tax implications']
+          : ['Immediate action required to reduce losses', 'Review all major expense categories'],
+        data: { metrics: [], charts: [] },
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    return insights;
+  }
+
   /**
    * Calculates trend percentage
    */
@@ -924,37 +1727,6 @@ export class AnalyticsService {
     };
   }
 
-  private generateMockFarmToMarketData(): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({});
-  }
-
-  private generateMockProfitabilityData(query: ProfitabilityQueryDto): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({ period: query.period, farmId: query.farmId });
-  }
-
-  private generateMockROIData(query: ROIAnalysisQueryDto): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({ period: query.period, farmId: query.farmId });
-  }
-
-  private generateMockYieldVsMarketData(): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({});
-  }
-
-  private generateMockQualityPremiumData(_query: QualityPremiumQueryDto): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({ period: _query.period });
-  }
-
-  private generateMockTimingAnalysisData(_query: TimingAnalysisQueryDto): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({ period: _query.period });
-  }
-
-  private generateMockDirectVsIntermediaryData(_query: DirectVsIntermediaryQueryDto): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({ period: _query.period });
-  }
-
-  private generateMockActivityEfficiencyData(_query: ActivityEfficiencyQueryDto): AnalyticsDashboardResponseDto {
-    return this.generateMockDashboardData({ period: _query.period, farmId: _query.farmId });
-  }
 
   private generateMockResourceUtilizationData(_query: ResourceUtilizationQueryDto): AnalyticsDashboardResponseDto {
     return this.generateMockDashboardData({ period: _query.period, farmId: _query.farmId });

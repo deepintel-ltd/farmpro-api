@@ -1,5 +1,6 @@
 import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
-import { tsRestHandler } from '@ts-rest/nest';
+import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { MarketService } from './market.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -11,6 +12,8 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
+@ApiTags('market')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class MarketController {
@@ -22,6 +25,7 @@ export class MarketController {
   // Market Discovery & Browse
   // =============================================================================
 
+  @TsRestHandler(marketContract.getMarketplaceCommodities)
   public getMarketplaceCommodities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -50,6 +54,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getMarketplaceSuppliers)
   public getMarketplaceSuppliers(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -78,6 +83,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getMarketplaceSupplier)
   public getMarketplaceSupplier(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -114,6 +120,7 @@ export class MarketController {
     );
   }
 
+  @TsRestHandler(marketContract.getMarketplaceBuyers)
   public getMarketplaceBuyers(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -142,6 +149,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.searchMarketplace)
   public searchMarketplace(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -174,6 +182,7 @@ export class MarketController {
   // Market Intelligence & Pricing
   // =============================================================================
 
+  @TsRestHandler(marketContract.getPriceTrends)
   public getPriceTrends(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -202,6 +211,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getPriceAlerts)
   public getPriceAlerts(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -230,6 +240,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.createPriceAlert)
   public createPriceAlert(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -258,6 +269,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.deletePriceAlert)
   public deletePriceAlert(
     @Request() req: AuthenticatedRequest,
   ) {

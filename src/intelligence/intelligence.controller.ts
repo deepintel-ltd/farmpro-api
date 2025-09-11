@@ -1,14 +1,42 @@
 import { Controller, UseGuards, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { intelligenceContract } from '../../contracts/intelligence.contract';
 import { IntelligenceService } from './intelligence.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 
+@ApiTags('intelligence')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class IntelligenceController {
   constructor(private readonly intelligenceService: IntelligenceService) {}
 
+  @ApiOperation({ 
+    summary: 'Generate AI response',
+    description: 'Generate an AI-powered response based on user input and context'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'AI response generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        response: { type: 'string', description: 'AI-generated response' },
+        usage: {
+          type: 'object',
+          properties: {
+            promptTokens: { type: 'number' },
+            completionTokens: { type: 'number' },
+            totalTokens: { type: 'number' }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(intelligenceContract.generateResponse)
   async generateResponse(@Request() req: any) {
     return tsRestHandler(intelligenceContract.generateResponse, async ({ body }) => {
@@ -26,6 +54,14 @@ export class IntelligenceController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Analyze farm data',
+    description: 'Perform AI-powered analysis of farm data and operations'
+  })
+  @ApiResponse({ status: 200, description: 'Farm analysis completed successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(intelligenceContract.analyzeFarm)
   async analyzeFarm(@Request() req: any) {
     return tsRestHandler(intelligenceContract.analyzeFarm, async ({ body }) => {
@@ -182,6 +218,28 @@ export class IntelligenceController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Health check',
+    description: 'Check the health and availability of the intelligence service'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Service health status',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['healthy', 'unhealthy'] },
+        timestamp: { type: 'string', format: 'date-time' },
+        version: { type: 'string' },
+        models: { 
+          type: 'array', 
+          items: { type: 'string' },
+          description: 'Available AI models'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 500, description: 'Service unavailable' })
   @TsRestHandler(intelligenceContract.health)
   async health() {
     return tsRestHandler(intelligenceContract.health, async () => {

@@ -31,12 +31,13 @@ export class OpenAIService {
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+      // throw new Error('OPENAI_API_KEY environment variable is required');
+      this.logger.warn('OPENAI_API_KEY environment variable is not set. OpenAI functionality will be limited.');
+    } else {
+      this.openai = new OpenAI({
+        apiKey,
+      });
     }
-
-    this.openai = new OpenAI({
-      apiKey,
-    });
   }
 
   /**

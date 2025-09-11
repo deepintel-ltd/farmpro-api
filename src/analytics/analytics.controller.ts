@@ -1,6 +1,7 @@
 import { Controller, UseGuards, Logger } from '@nestjs/common';
-import { tsRestHandler } from '@ts-rest/nest';
+import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -11,6 +12,8 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
+@ApiTags('analytics')
+@ApiBearerAuth('JWT-auth')
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class AnalyticsController {
@@ -22,6 +25,15 @@ export class AnalyticsController {
   // Cross-Platform Dashboard Analytics
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getDashboard)
+  @ApiOperation({ 
+    summary: 'Get dashboard analytics',
+    description: 'Retrieve comprehensive dashboard analytics including metrics, charts, and insights'
+  })
+  @ApiResponse({ status: 200, description: 'Dashboard analytics retrieved successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   public getDashboard(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getDashboard, async ({ query }) => {
       try {
@@ -43,6 +55,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getFarmToMarket)
   public getFarmToMarket(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getFarmToMarket, async () => {
       try {
@@ -64,6 +77,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getProfitability)
   public getProfitability(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getProfitability, async ({ query }) => {
       try {
@@ -85,6 +99,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getROIAnalysis)
   public getROIAnalysis(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getROIAnalysis, async ({ query }) => {
       try {
@@ -110,6 +125,7 @@ export class AnalyticsController {
   // Production vs Market Performance
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getYieldVsMarket)
   public getYieldVsMarket(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getYieldVsMarket, async () => {
       try {
@@ -131,6 +147,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getQualityPremium)
   public getQualityPremium(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getQualityPremium, async ({ query }) => {
       try {
@@ -152,6 +169,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getTimingAnalysis)
   public getTimingAnalysis(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getTimingAnalysis, async ({ query }) => {
       try {
@@ -173,6 +191,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getDirectVsIntermediary)
   public getDirectVsIntermediary(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getDirectVsIntermediary, async ({ query }) => {
       try {
@@ -198,6 +217,7 @@ export class AnalyticsController {
   // Operational Efficiency Analytics
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getActivityEfficiency)
   public getActivityEfficiency(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getActivityEfficiency, async ({ query }) => {
       try {
@@ -219,6 +239,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getResourceUtilization)
   public getResourceUtilization(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getResourceUtilization, async ({ query }) => {
       try {
@@ -240,6 +261,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getCostOptimization)
   public getCostOptimization(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getCostOptimization, async ({ query }) => {
       try {
@@ -261,6 +283,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getWorkflowAnalysis)
   public getWorkflowAnalysis(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getWorkflowAnalysis, async ({ query }) => {
       try {
@@ -286,6 +309,7 @@ export class AnalyticsController {
   // Market Intelligence & Competitiveness
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getMarketPositioning)
   public getMarketPositioning(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getMarketPositioning, async ({ query }) => {
       try {
@@ -307,6 +331,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getCustomerAnalysis)
   public getCustomerAnalysis(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getCustomerAnalysis, async ({ query }) => {
       try {
@@ -328,6 +353,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getSupplierPerformance)
   public getSupplierPerformance(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getSupplierPerformance, async ({ query }) => {
       try {
@@ -349,6 +375,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getPriceRealization)
   public getPriceRealization(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getPriceRealization, async ({ query }) => {
       try {
@@ -374,6 +401,7 @@ export class AnalyticsController {
   // Predictive Analytics & Forecasting
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getDemandPrediction)
   public getDemandPrediction(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getDemandPrediction, async ({ query }) => {
       try {
@@ -395,6 +423,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getYieldPrediction)
   public getYieldPrediction(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getYieldPrediction, async ({ query }) => {
       try {
@@ -416,6 +445,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getPriceForecasting)
   public getPriceForecasting(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getPriceForecasting, async ({ query }) => {
       try {
@@ -437,6 +467,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getRiskAssessment)
   public getRiskAssessment(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getRiskAssessment, async ({ query }) => {
       try {
@@ -462,6 +493,7 @@ export class AnalyticsController {
   // Sustainability & Impact Analytics
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getSustainabilityMetrics)
   public getSustainabilityMetrics(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getSustainabilityMetrics, async ({ query }) => {
       try {
@@ -483,6 +515,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getCertificationImpact)
   public getCertificationImpact(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getCertificationImpact, async ({ query }) => {
       try {
@@ -504,6 +537,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getWasteReduction)
   public getWasteReduction(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getWasteReduction, async ({ query }) => {
       try {
@@ -529,6 +563,7 @@ export class AnalyticsController {
   // Comparative & Benchmarking Analytics
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getPeerBenchmarking)
   public getPeerBenchmarking(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getPeerBenchmarking, async ({ query }) => {
       try {
@@ -550,6 +585,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getIndustryBenchmarks)
   public getIndustryBenchmarks(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getIndustryBenchmarks, async ({ query }) => {
       try {
@@ -571,6 +607,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getHistoricalComparison)
   public getHistoricalComparison(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getHistoricalComparison, async ({ query }) => {
       try {
@@ -596,6 +633,7 @@ export class AnalyticsController {
   // Custom Analytics & Data Science
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.executeCustomQuery)
   public executeCustomQuery(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.executeCustomQuery, async () => {
       try {
@@ -617,6 +655,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getDataExports)
   public getDataExports(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getDataExports, async () => {
       try {
@@ -638,6 +677,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.createDataExport)
   public createDataExport(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.createDataExport, async () => {
       try {
@@ -659,6 +699,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getInsights)
   public getInsights(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getInsights, async () => {
       try {
@@ -684,6 +725,7 @@ export class AnalyticsController {
   // Report Generation & Scheduling
   // =============================================================================
 
+  @TsRestHandler(analyticsContract.getReportTemplates)
   public getReportTemplates(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getReportTemplates, async () => {
       try {
@@ -705,6 +747,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.generateReport)
   public generateReport(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.generateReport, async () => {
       try {
@@ -726,6 +769,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getReports)
   public getReports(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getReports, async () => {
       try {
@@ -747,6 +791,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getReport)
   public getReport(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getReport, async ({ params }) => {
       try {
@@ -770,6 +815,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.scheduleReport)
   public scheduleReport(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.scheduleReport, async () => {
       try {
@@ -791,6 +837,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.getScheduledReports)
   public getScheduledReports(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.getScheduledReports, async () => {
       try {
@@ -812,6 +859,7 @@ export class AnalyticsController {
     });
   }
 
+  @TsRestHandler(analyticsContract.cancelScheduledReport)
   public cancelScheduledReport(req: AuthenticatedRequest) {
     return tsRestHandler(analyticsContract.cancelScheduledReport, async ({ params }) => {
       try {

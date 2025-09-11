@@ -11,6 +11,7 @@ import { MarketModule } from '@/market/market.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
 import { OrdersModule } from '@/orders/orders.module';
 import { IntelligenceModule } from '@/intelligence/intelligence.module';
+import { ActivitiesModule } from '@/activities/activities.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { IntelligenceModule } from '@/intelligence/intelligence.module';
     AnalyticsModule,
     OrdersModule,
     IntelligenceModule,
+    ActivitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
