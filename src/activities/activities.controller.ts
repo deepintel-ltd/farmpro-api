@@ -436,4 +436,71 @@ export class ActivitiesController {
       return { status: 201 as const, body: { data: result } };
     });
   }
+
+  // Bulk Operations
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.bulkCreate)
+  public bulkCreate(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.bulkCreate, async ({ body }) => {
+      const result = await this.activitiesService.bulkCreateActivities(
+        body.activities as any,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { status: 201 as const, body: { data: result as any } };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.bulkUpdate)
+  public bulkUpdate(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.bulkUpdate, async ({ body }) => {
+      const result = await this.activitiesService.bulkUpdateActivities(
+        body.activities as any,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { status: 200 as const, body: { data: result as any } };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.bulkDelete)
+  public bulkDelete(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.bulkDelete, async ({ body }) => {
+      const result = await this.activitiesService.bulkDeleteActivities(
+        body.activityIds as any,
+        body.reason || 'Bulk deletion',
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { status: 200 as const, body: { data: result as any } };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.bulkAssign)
+  public bulkAssign(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.bulkAssign, async ({ body }) => {
+      const result = await this.activitiesService.bulkAssignActivities(
+        body.assignments as any,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { status: 200 as const, body: { data: result as any } };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.bulkStatusUpdate)
+  public bulkStatusUpdate(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.bulkStatusUpdate, async ({ body }) => {
+      const result = await this.activitiesService.bulkUpdateActivityStatus(
+        body.updates as any,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { status: 200 as const, body: { data: result as any } };
+    });
+  }
 }

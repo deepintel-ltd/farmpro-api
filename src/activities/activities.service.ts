@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { MarketService } from '../market/market.service';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
+import { PermissionsService } from './permissions.service';
+import { CacheService } from '../common/services/cache.service';
+import { MonitoringService } from '../common/services/monitoring.service';
+import { QueryOptimizationService } from '../common/services/query-optimization.service';
+import { JobQueueService } from '../common/services/job-queue.service';
+import { TrackPerformance, TrackBusinessMetric } from '../common/decorators/performance.decorator';
+import { CostType } from '@prisma/client';
 import {
   CreateActivityDto,
   UpdateActivityDto,
@@ -18,6 +25,17 @@ import {
   ActivityAnalytics,
 } from './dto/activities.dto';
 
+// Cost management interfaces
+export interface CostEntryData {
+  type?: CostType;
+  description: string;
+  amount: number;
+  quantity?: number;
+  unit?: string;
+  receipt?: string;
+  vendor?: string;
+}
+
 @Injectable()
 export class ActivitiesService {
   private readonly logger = new Logger(ActivitiesService.name);
@@ -31,13 +49,25 @@ export class ActivitiesService {
     'CANCELLED': [], // Terminal state
   };
 
+  // File validation constants for cost receipts
+  private readonly ALLOWED_FILE_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.txt', '.csv'
+  ];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly assignmentService: ActivityAssignmentService,
     private readonly marketService: MarketService,
     private readonly activityUpdatesGateway: ActivityUpdatesGateway,
+    private readonly permissionsService: PermissionsService,
+    private readonly cacheService: CacheService,
+    private readonly monitoringService: MonitoringService,
+    private readonly queryOptimization: QueryOptimizationService,
+    private readonly jobQueue: JobQueueService,
   ) {}
 
+  @TrackPerformance('getActivities')
+  @TrackBusinessMetric('activities_queried', (result) => result.data.length)
   async getActivities(organizationId: string, query: ActivityQueryOptions) {
     const where: any = {
       farm: { organizationId },
@@ -66,34 +96,28 @@ export class ActivitiesService {
       if (query.endDate) where.scheduledAt.lte = new Date(query.endDate);
     }
 
+    const startTime = Date.now();
+    
+    // Build optimized query
+    const activityQuery = {
+      where,
+      ...this.queryOptimization.getActivityListProjection(),
+      orderBy: query.sort === 'priority' 
+        ? [{ priority: 'desc' as const }, { scheduledAt: 'asc' as const }]
+        : { scheduledAt: 'asc' as const },
+    };
+    
+    // Apply pagination
+    this.queryOptimization.applyPagination(activityQuery, query.page, query.pageSize || 25);
+
     const [activities, totalCount] = await Promise.all([
-      this.prisma.farmActivity.findMany({
-        where,
-        include: {
-          farm: { select: { id: true, name: true } },
-          area: { select: { id: true, name: true } },
-          createdBy: { select: { id: true, name: true, email: true } },
-          assignments: {
-            where: { isActive: true },
-            include: {
-              user: { select: { id: true, name: true, email: true } }
-            }
-          },
-          _count: {
-            select: {
-              costs: true,
-              progressLogs: true,
-            }
-          }
-        },
-        orderBy: query.sort === 'priority' 
-          ? [{ priority: 'desc' }, { scheduledAt: 'asc' }]
-          : { scheduledAt: 'asc' },
-        skip: query.page ? (query.page - 1) * (query.pageSize || 25) : 0,
-        take: query.pageSize || 25,
-      }),
+      this.prisma.farmActivity.findMany(activityQuery),
       this.prisma.farmActivity.count({ where }),
     ]);
+
+    // Log query performance
+    const duration = Date.now() - startTime;
+    this.queryOptimization.logQueryPerformance('getActivities', duration, activities.length);
 
     return {
       data: activities.map(activity => ({
@@ -109,26 +133,34 @@ export class ActivitiesService {
     };
   }
 
+  @TrackPerformance('getActivity')
   async getActivity(activityId: string, organizationId: string) {
+
+    const startTime = Date.now();
+    
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
         farm: { organizationId },
       },
-      include: {
-        farm: { select: { id: true, name: true } },
-        area: { select: { id: true, name: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
-      },
+      ...this.queryOptimization.getActivityDetailProjection(),
     });
+
+    // Log query performance
+    const duration = Date.now() - startTime;
+    this.queryOptimization.logQueryPerformance('getActivity', duration, activity ? 1 : 0);
 
     if (!activity) {
       throw new NotFoundException('Activity not found');
     }
 
-    return this.formatActivityResponse(activity);
+    const result = this.formatActivityResponse(activity);
+
+    return result;
   }
 
+  @TrackPerformance('createActivity')
+  @TrackBusinessMetric('activities_created', () => 1)
   async createActivity(data: CreateActivityDto, userId: string, organizationId: string) {
     this.logger.log('Creating new activity', {
       userId,
@@ -137,7 +169,12 @@ export class ActivitiesService {
       type: data.type,
       name: data.name,
       priority: data.priority,
-      assignedCount: data.assignedTo?.length || 0
+      assignedCount: data.assignedTo?.length || 0,
+      scheduledAt: data.scheduledAt,
+      estimatedDuration: data.estimatedDuration,
+      hasInstructions: !!data.instructions,
+      hasSafetyNotes: !!data.safetyNotes,
+      resourcesCount: data.resources?.length || 0
     });
 
     this.validateActivityData(data);
@@ -145,6 +182,7 @@ export class ActivitiesService {
     // Verify farm belongs to organization
     const farm = await this.prisma.farm.findFirst({
       where: { id: data.farmId, organizationId },
+      ...this.queryOptimization.getFarmProjection(),
     });
     if (!farm) {
       throw new BadRequestException('Invalid farm ID');
@@ -209,20 +247,38 @@ export class ActivitiesService {
       organizationId,
       farmId: data.farmId,
       type: data.type,
-      assignedUsers: assignedUserIds
+      assignedUsers: assignedUserIds,
+      status: result.status,
+      priority: result.priority,
+      scheduledAt: result.scheduledAt,
+      estimatedDuration: result.estimatedDuration,
+      hasMetadata: !!result.metadata
     });
+
 
     return this.formatActivityResponse(result);
   }
 
+  @TrackPerformance('updateActivity')
+  @TrackBusinessMetric('activities_updated', () => 1)
   async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, organizationId: string) {
     const activity = await this.prisma.farmActivity.findFirstOrThrow({
       where: {
         id: activityId,
         farm: { organizationId },
       },
-      include: {
-        assignments: { where: { userId, isActive: true } }
+      select: {
+        id: true,
+        createdById: true,
+        farmId: true,
+        assignments: {
+          where: { userId, isActive: true },
+          select: {
+            id: true,
+            userId: true,
+            role: true
+          }
+        }
       }
     });
 
@@ -260,26 +316,47 @@ export class ActivitiesService {
       changes: data,
     });
 
+
     return this.formatActivityResponse(updated);
   }
 
+  @TrackPerformance('deleteActivity')
+  @TrackBusinessMetric('activities_deleted', () => 1)
   async deleteActivity(activityId: string, userId: string, organizationId: string) {
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
         farm: { organizationId },
       },
+      ...this.queryOptimization.getActivityExistenceProjection(),
     });
 
     if (!activity) {
+      this.logger.warn('Activity not found for deletion', { activityId, userId, organizationId });
       throw new NotFoundException('Activity not found');
     }
+
+    this.logger.log('Deleting activity', {
+      activityId,
+      userId,
+      organizationId,
+      farmId: activity.farmId,
+      activityType: activity.type,
+      currentStatus: activity.status,
+      createdBy: activity.createdById
+    });
 
     // Validate state transition - only allow cancellation from certain states
     this.validateStateTransition(activity.status, 'CANCELLED', 'cancel activity');
 
     // Check if user can delete (creator only for simplicity)
     if (activity.createdById !== userId) {
+      this.logger.warn('Unauthorized activity deletion attempt', {
+        activityId,
+        userId,
+        organizationId,
+        createdBy: activity.createdById
+      });
       throw new ForbiddenException('Not authorized to delete this activity');
     }
 
@@ -287,6 +364,18 @@ export class ActivitiesService {
       where: { id: activityId },
       data: { status: 'CANCELLED' },
     });
+
+    this.logger.log('Activity deleted successfully', {
+      activityId,
+      userId,
+      organizationId,
+      farmId: activity.farmId,
+      activityType: activity.type,
+      previousStatus: activity.status
+    });
+
+    // Invalidate related caches
+    await this.invalidateActivityCaches(organizationId, activity.farmId);
   }
 
   async startActivity(activityId: string, data: StartActivityDto, userId: string, organizationId?: string) {
@@ -594,14 +683,8 @@ export class ActivitiesService {
       qualityGrade: harvestData.qualityGrade
     });
 
-    // Trigger market opportunity analysis asynchronously
-    this.triggerMarketAnalysis(activity.cropCycle!.commodityId, harvestData, organizationId).catch(error => {
-      this.logger.error('Failed to trigger market analysis after harvest completion', {
-        activityId,
-        commodityId: activity.cropCycle!.commodityId,
-        error: error.message
-      });
-    });
+    // Trigger market opportunity analysis asynchronously via job queue
+    this.triggerMarketAnalysisJob(activity.cropCycle!.commodityId, harvestData, organizationId, activityId, userId);
 
     // Broadcast harvest completion via WebSocket
     this.activityUpdatesGateway.broadcastActivityUpdate(activityId, {
@@ -665,12 +748,12 @@ export class ActivitiesService {
     }
 
     // Validate state transition
-    this.validateStateTransition(activity.status, 'CANCELLED', 'pause activity');
+    this.validateStateTransition(activity.status, 'PAUSED', 'pause activity');
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
       data: {
-        status: 'CANCELLED', // Using CANCELLED as closest equivalent to PAUSED
+        status: 'PAUSED',
         metadata: {
           ...(activity.metadata as object || {}),
           pauseReason: data.reason,
@@ -1114,84 +1197,557 @@ export class ActivitiesService {
     }
   }
 
-  private async triggerMarketAnalysis(commodityId: string, harvestData: any, organizationId: string) {
+  /**
+   * Trigger market analysis job asynchronously
+   */
+  private async triggerMarketAnalysisJob(
+    commodityId: string, 
+    harvestData: any, 
+    organizationId: string, 
+    activityId: string, 
+    userId: string
+  ): Promise<void> {
     try {
-      this.logger.log('Triggering market opportunity analysis', {
+      this.logger.log('Queuing market analysis job', {
         commodityId,
         quantityHarvested: harvestData.quantityHarvested,
         qualityGrade: harvestData.qualityGrade,
-        organizationId
+        organizationId,
+        activityId
       });
 
-      // Get commodity information
-      const commodity = await this.prisma.commodity.findUnique({
-        where: { id: commodityId },
-        select: { id: true, name: true, category: true }
-      });
-
-      if (!commodity) {
-        this.logger.warn('Commodity not found for market analysis', { commodityId });
-        return;
-      }
-
-      // Get current market analysis for this commodity
-      const marketAnalysis = await this.marketService.getMarketAnalysis(
-        { userId: 'system' } as any, // System user for automated analysis
+      const jobId = await this.jobQueue.addJob(
+        'market_analysis',
         {
-          commodityId: commodityId,
-          region: 'North America', // Default region - could be made configurable
-          period: '30d'
-        }
-      );
-
-      // Get price trends for the commodity
-      const priceTrends = await this.marketService.getPriceTrends(
-        { userId: 'system' } as any,
-        {
-          commodityId: commodityId,
-          region: 'North America',
-          period: '30d',
-          grade: harvestData.qualityGrade
-        }
-      );
-
-      // Log market analysis results
-      await this.prisma.activity.create({
-        data: {
-          action: 'MARKET_ANALYSIS_TRIGGERED',
-          organizationId: organizationId,
-          entity: 'Commodity',
-          entityId: commodityId,
-          metadata: {
-            description: `Market analysis triggered for harvest: ${harvestData.quantityHarvested} ${harvestData.unit || 'kg'} of ${commodity.name}`,
-            commodityId: commodityId,
-            commodityName: commodity.name,
-            quantityHarvested: harvestData.quantityHarvested,
-            qualityGrade: harvestData.qualityGrade,
-            marketAnalysis: {
-              currentPrice: priceTrends.currentPrice,
-              priceChange: priceTrends.priceChange,
-              marketInsights: marketAnalysis.marketInsights,
-              recommendations: marketAnalysis.recommendations
-            },
-            analysisTimestamp: new Date().toISOString()
-          },
+          commodityId,
+          organizationId,
+          harvestData,
+          activityId,
+          userId
         },
-      });
+        1, // High priority for market analysis
+        3  // Max 3 attempts
+      );
 
-      this.logger.log('Market analysis completed successfully', {
+      this.logger.log('Market analysis job queued successfully', {
+        jobId,
         commodityId,
-        currentPrice: priceTrends.currentPrice,
-        priceChange: priceTrends.priceChange.percentage
+        activityId
       });
 
     } catch (error) {
-      this.logger.error('Market analysis failed', {
+      this.logger.error('Failed to queue market analysis job', {
         commodityId,
-        error: error.message,
-        stack: error.stack
+        activityId,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Trigger activity analytics job asynchronously
+   */
+  async triggerActivityAnalyticsJob(
+    organizationId: string,
+    farmId: string | undefined,
+    userId: string,
+    period: 'week' | 'month' | 'quarter' | 'year' = 'month'
+  ): Promise<string> {
+    try {
+      const now = new Date();
+      const startDate = this.getStartDate(period);
+      const endDate = now;
+
+      this.logger.log('Queuing activity analytics job', {
+        organizationId,
+        farmId,
+        period,
+        startDate,
+        endDate
+      });
+
+      const jobId = await this.jobQueue.addJob(
+        'activity_analytics',
+        {
+          organizationId,
+          farmId,
+          userId,
+          period,
+          startDate,
+          endDate
+        },
+        0, // Normal priority
+        2  // Max 2 attempts
+      );
+
+      this.logger.log('Activity analytics job queued successfully', {
+        jobId,
+        organizationId,
+        farmId,
+        period
+      });
+
+      return jobId;
+
+    } catch (error) {
+      this.logger.error('Failed to queue activity analytics job', {
+        organizationId,
+        farmId,
+        period,
+        error: error.message
       });
       throw error;
     }
   }
+
+  // =============================================================================
+  // Bulk Operations
+  // =============================================================================
+
+  async bulkCreateActivities(
+    activities: Array<{
+      name: string;
+      description?: string;
+      type: string;
+      priority: string;
+      scheduledAt: string;
+      estimatedDuration?: number;
+      farmId: string;
+      areaId?: string;
+      assignedTo?: string;
+      metadata?: any;
+    }>,
+    organizationId: string,
+    userId: string
+  ) {
+    this.logger.log(`Bulk creating ${activities.length} activities for organization: ${organizationId}`);
+
+    const results = {
+      created: 0,
+      failed: 0,
+      activities: [],
+      errors: []
+    };
+
+    for (let i = 0; i < activities.length; i++) {
+      try {
+        const activityData = activities[i];
+        
+        // Check permissions
+        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, activityData.farmId);
+
+        const activity = await this.prisma.farmActivity.create({
+          data: {
+            name: activityData.name,
+            description: activityData.description,
+            type: activityData.type as any,
+            priority: activityData.priority as any,
+            status: 'PLANNED',
+            scheduledAt: new Date(activityData.scheduledAt),
+            estimatedDuration: activityData.estimatedDuration,
+            farm: {
+              connect: { id: activityData.farmId }
+            },
+            area: activityData.areaId ? {
+              connect: { id: activityData.areaId }
+            } : undefined,
+            createdBy: {
+              connect: { id: userId }
+            },
+            metadata: activityData.metadata || {},
+          },
+          include: {
+            farm: true,
+            area: true,
+            assignments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Assign to user if specified
+        if (activityData.assignedTo) {
+          await this.assignmentService.assignUsers(
+            activity.id,
+            [{ userId: activityData.assignedTo, role: 'ASSIGNED' }],
+            organizationId,
+            userId
+          );
+        }
+
+        results.activities.push(activity);
+        results.created++;
+
+        // Emit real-time update
+        this.activityUpdatesGateway.broadcastToOrganization(organizationId, 'activity-created', activity);
+
+      } catch (error) {
+        this.logger.error(`Failed to create activity ${i + 1}:`, error);
+        results.failed++;
+        results.errors.push({
+          index: i,
+          error: error.message,
+        });
+      }
+    }
+
+    this.logger.log(`Bulk create completed: ${results.created} created, ${results.failed} failed`);
+    return results;
+  }
+
+  async bulkUpdateActivities(
+    updates: Array<{
+      id: string;
+      updates: {
+        name?: string;
+        description?: string;
+        priority?: string;
+        scheduledAt?: string;
+        estimatedDuration?: number;
+        status?: string;
+        metadata?: any;
+      };
+    }>,
+    organizationId: string,
+    userId: string
+  ) {
+    this.logger.log(`Bulk updating ${updates.length} activities for organization: ${organizationId}`);
+
+    const results = {
+      updated: 0,
+      failed: 0,
+      activities: [],
+      errors: []
+    };
+
+    for (const update of updates) {
+      try {
+        // Check if activity exists and user has permission
+        const existingActivity = await this.prisma.farmActivity.findFirst({
+          where: {
+            id: update.id,
+            farm: { organizationId },
+          },
+        });
+
+        if (!existingActivity) {
+          results.failed++;
+          results.errors.push({
+            activityId: update.id,
+            error: 'Activity not found',
+          });
+          continue;
+        }
+
+        // Check farm access
+        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, existingActivity.farmId);
+
+        // Prepare update data
+        const updateData: any = {};
+        if (update.updates.name) updateData.name = update.updates.name;
+        if (update.updates.description) updateData.description = update.updates.description;
+        if (update.updates.priority) updateData.priority = update.updates.priority;
+        if (update.updates.scheduledAt) updateData.scheduledAt = new Date(update.updates.scheduledAt);
+        if (update.updates.estimatedDuration) updateData.estimatedDuration = update.updates.estimatedDuration;
+        if (update.updates.status) updateData.status = update.updates.status;
+        if (update.updates.metadata) updateData.metadata = update.updates.metadata;
+
+        const activity = await this.prisma.farmActivity.update({
+          where: { id: update.id },
+          data: updateData,
+          include: {
+            farm: true,
+            area: true,
+            assignments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        results.activities.push(activity);
+        results.updated++;
+
+        // Emit real-time update
+        this.activityUpdatesGateway.broadcastToOrganization(organizationId, 'activity-updated', activity);
+
+      } catch (error) {
+        this.logger.error(`Failed to update activity ${update.id}:`, error);
+        results.failed++;
+        results.errors.push({
+          activityId: update.id,
+          error: error.message,
+        });
+      }
+    }
+
+    this.logger.log(`Bulk update completed: ${results.updated} updated, ${results.failed} failed`);
+    return results;
+  }
+
+  async bulkDeleteActivities(
+    activityIds: string[],
+    reason: string,
+    organizationId: string,
+    userId: string
+  ) {
+    this.logger.log(`Bulk deleting ${activityIds.length} activities for organization: ${organizationId}`);
+
+    const results = {
+      deleted: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const activityId of activityIds) {
+      try {
+        // Check if activity exists and user has permission
+        const existingActivity = await this.prisma.farmActivity.findFirst({
+          where: {
+            id: activityId,
+            farm: { organizationId },
+          },
+        });
+
+        if (!existingActivity) {
+          results.failed++;
+          results.errors.push({
+            activityId,
+            error: 'Activity not found',
+          });
+          continue;
+        }
+
+        // Check farm access
+        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, existingActivity.farmId);
+
+        // Soft delete by updating status
+        await this.prisma.farmActivity.update({
+          where: { id: activityId },
+          data: {
+            status: 'CANCELLED',
+            metadata: {
+              ...(existingActivity.metadata as Record<string, any> || {}),
+              deletedAt: new Date().toISOString(),
+              deletedBy: userId,
+              deleteReason: reason,
+            },
+          },
+        });
+
+        results.deleted++;
+
+        // Emit real-time update
+        this.activityUpdatesGateway.broadcastToOrganization(organizationId, 'activity-deleted', { activityId });
+
+      } catch (error) {
+        this.logger.error(`Failed to delete activity ${activityId}:`, error);
+        results.failed++;
+        results.errors.push({
+          activityId,
+          error: error.message,
+        });
+      }
+    }
+
+    this.logger.log(`Bulk delete completed: ${results.deleted} deleted, ${results.failed} failed`);
+    return results;
+  }
+
+  async bulkAssignActivities(
+    assignments: Array<{
+      activityId: string;
+      userId: string;
+      role?: 'PRIMARY' | 'SUPPORT';
+    }>,
+    organizationId: string,
+    assignedBy: string
+  ) {
+    this.logger.log(`Bulk assigning ${assignments.length} activities for organization: ${organizationId}`);
+
+    const results = {
+      assigned: 0,
+      failed: 0,
+      assignments: []
+    };
+
+    for (const assignment of assignments) {
+      try {
+        // Check if activity exists and user has permission
+        const existingActivity = await this.prisma.farmActivity.findFirst({
+          where: {
+            id: assignment.activityId,
+            farm: { organizationId },
+          },
+        });
+
+        if (!existingActivity) {
+          results.failed++;
+          results.assignments.push({
+            activityId: assignment.activityId,
+            userId: assignment.userId,
+            success: false,
+            error: 'Activity not found',
+          });
+          continue;
+        }
+
+        // Check farm access
+        await this.permissionsService.checkFarmAccess({ userId: assignedBy, organizationId } as any, existingActivity.farmId);
+
+        // Create assignment
+        await this.assignmentService.assignUsers(
+          assignment.activityId,
+          [{ userId: assignment.userId, role: assignment.role === 'SUPPORT' ? 'OBSERVER' : 'ASSIGNED' }],
+          organizationId,
+          assignedBy
+        );
+
+        results.assigned++;
+        results.assignments.push({
+          activityId: assignment.activityId,
+          userId: assignment.userId,
+          success: true,
+        });
+
+      } catch (error) {
+        this.logger.error(`Failed to assign activity ${assignment.activityId}:`, error);
+        results.failed++;
+        results.assignments.push({
+          activityId: assignment.activityId,
+          userId: assignment.userId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    this.logger.log(`Bulk assign completed: ${results.assigned} assigned, ${results.failed} failed`);
+    return results;
+  }
+
+  async bulkUpdateActivityStatus(
+    updates: Array<{
+      activityId: string;
+      status: string;
+      reason?: string;
+      notes?: string;
+    }>,
+    organizationId: string,
+    userId: string
+  ) {
+    this.logger.log(`Bulk updating status for ${updates.length} activities for organization: ${organizationId}`);
+
+    const results = {
+      updated: 0,
+      failed: 0,
+      activities: [],
+      errors: []
+    };
+
+    for (const update of updates) {
+      try {
+        // Check if activity exists and user has permission
+        const existingActivity = await this.prisma.farmActivity.findFirst({
+          where: {
+            id: update.activityId,
+            farm: { organizationId },
+          },
+        });
+
+        if (!existingActivity) {
+          results.failed++;
+          results.errors.push({
+            activityId: update.activityId,
+            error: 'Activity not found',
+          });
+          continue;
+        }
+
+        // Check farm access
+        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, existingActivity.farmId);
+
+        // Update activity status
+        const activity = await this.prisma.farmActivity.update({
+          where: { id: update.activityId },
+          data: {
+            status: update.status as any,
+            metadata: {
+              ...(existingActivity.metadata as Record<string, any> || {}),
+              statusUpdatedAt: new Date().toISOString(),
+              statusUpdatedBy: userId,
+              statusUpdateReason: update.reason,
+              statusUpdateNotes: update.notes,
+            },
+          },
+          include: {
+            farm: true,
+            area: true,
+            assignments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        results.activities.push(activity);
+        results.updated++;
+
+        // Emit real-time update
+        this.activityUpdatesGateway.broadcastToOrganization(organizationId, 'activity-updated', activity);
+
+      } catch (error) {
+        this.logger.error(`Failed to update activity status ${update.activityId}:`, error);
+        results.failed++;
+        results.errors.push({
+          activityId: update.activityId,
+          error: error.message,
+        });
+      }
+    }
+
+    this.logger.log(`Bulk status update completed: ${results.updated} updated, ${results.failed} failed`);
+    return results;
+  }
+
+  /**
+   * Invalidate caches related to activities for an organization and farm
+   */
+  private async invalidateActivityCaches(organizationId: string, farmId?: string): Promise<void> {
+    try {
+      // Invalidate farm-specific activity caches
+      if (farmId) {
+        await this.cacheService.delPattern(`farm_activities:${organizationId}:${farmId}:*`);
+        await this.cacheService.delPattern(`activity:${organizationId}:*`);
+      }
+      
+      // Invalidate organization-wide activity caches
+      await this.cacheService.delPattern(`farm_activities:${organizationId}:all:*`);
+      await this.cacheService.delPattern(`activity_analytics:${organizationId}:*`);
+      
+      this.logger.debug(`Invalidated activity caches for organization ${organizationId}, farm ${farmId || 'all'}`);
+    } catch (error) {
+      this.logger.error('Error invalidating activity caches:', error);
+    }
+  }
+
 }

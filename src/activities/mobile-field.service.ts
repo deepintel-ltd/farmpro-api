@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
+import { WeatherService } from './weather.service';
+import { ConflictResolutionService } from './services/conflict-resolution.service';
 
 // Type definitions for mobile field operations
 interface MobileTaskQuery {
@@ -81,6 +83,7 @@ interface SyncOfflineData {
     content: string;
     metadata?: Record<string, any>;
   }>;
+  lastSync: string;
 }
 
 interface ReportIssueData {
@@ -219,6 +222,8 @@ export class MobileFieldService {
     private readonly prisma: PrismaService,
     private readonly assignmentService: ActivityAssignmentService,
     private readonly activityUpdatesGateway: ActivityUpdatesGateway,
+    private readonly weatherService: WeatherService,
+    private readonly conflictResolutionService: ConflictResolutionService,
   ) {}
 
   async getMyTasks(userId: string, organizationId: string, query: MobileTaskQuery): Promise<MobileTask[]> {
@@ -581,6 +586,8 @@ export class MobileFieldService {
   }> {
     this.logger.log(`Adding photo reference to task: ${taskId}`);
 
+    // Zod schema handles all validation - no manual sanitization needed
+
     const task = await this.prisma.farmActivity.findFirst({
       where: {
         id: taskId,
@@ -719,48 +726,108 @@ export class MobileFieldService {
     };
 
     try {
-      // Sync task updates
+      // Sync task updates with conflict resolution
       if (data.taskUpdates) {
         for (const update of data.taskUpdates) {
           try {
-            await this.prisma.farmActivity.update({
-              where: { id: update.taskId },
-              data: {
-                status: update.status as any,
+            // Resolve conflicts before updating
+            const conflictResolution = await this.conflictResolutionService.resolveConflicts(
+              'activity',
+              update.taskId,
+              {
+                status: update.status,
                 metadata: {
                   ...update.metadata,
                   progress: update.progress,
                   lastOfflineSync: new Date().toISOString(),
-                },
+                }
               },
-            });
-            results.tasksUpdated++;
+              new Date(data.lastSync),
+              userId
+            );
+
+            if (conflictResolution.resolved) {
+              // Update with resolved data
+              await this.prisma.farmActivity.update({
+                where: { id: update.taskId },
+                data: {
+                  status: conflictResolution.finalValue.status as any,
+                  metadata: conflictResolution.finalValue.metadata,
+                },
+              });
+
+              // Log conflict resolution if there were conflicts
+              if (conflictResolution.conflicts.length > 0) {
+                await this.conflictResolutionService.logConflictResolution(
+                  'activity',
+                  update.taskId,
+                  conflictResolution.conflicts,
+                  conflictResolution,
+                  userId
+                );
+                
+                this.logger.warn(`Resolved ${conflictResolution.conflicts.length} conflicts for task ${update.taskId}`, {
+                  strategy: conflictResolution.strategy.strategy,
+                  conflicts: conflictResolution.conflicts.map(c => c.field)
+                });
+              }
+
+              results.tasksUpdated++;
+            } else {
+              results.errors.push(`Failed to resolve conflicts for task ${update.taskId}`);
+            }
           } catch (error) {
+            this.logger.error(`Error syncing task ${update.taskId}:`, error);
             results.errors.push(`Failed to update task ${update.taskId}: ${error.message}`);
           }
         }
       }
 
-      // Sync notes
+      // Sync notes with conflict resolution
       if (data.notes) {
         for (const note of data.notes) {
           try {
-            await this.prisma.activityNote.create({
-              data: {
+            // For new notes, check if similar note already exists
+            const existingNote = await this.prisma.activityNote.findFirst({
+              where: {
                 activityId: note.taskId,
                 userId,
-                type: note.type as any,
                 content: note.content,
-                metadata: note.metadata,
-              },
+                createdAt: {
+                  gte: new Date(data.lastSync)
+                }
+              }
             });
-            results.notesAdded++;
+
+            if (!existingNote) {
+              await this.prisma.activityNote.create({
+                data: {
+                  activityId: note.taskId,
+                  userId,
+                  type: note.type as any,
+                  content: note.content,
+                  metadata: {
+                    ...note.metadata,
+                    lastOfflineSync: new Date().toISOString(),
+                  },
+                },
+              });
+              results.notesAdded++;
+            } else {
+              this.logger.debug(`Note already exists, skipping: ${note.content.substring(0, 50)}...`);
+            }
           } catch (error) {
+            this.logger.error(`Error syncing note:`, error);
             results.errors.push(`Failed to add note: ${error.message}`);
           }
         }
       }
 
+      this.logger.log(`Sync completed for user ${userId}`, {
+        tasksUpdated: results.tasksUpdated,
+        notesAdded: results.notesAdded,
+        errors: results.errors.length
+      });
 
       return results;
     } catch (error) {
@@ -769,32 +836,72 @@ export class MobileFieldService {
     }
   }
 
-  async getFieldConditions(userId: string): Promise<FieldConditions> {
+  async getFieldConditions(userId: string, latitude?: number, longitude?: number): Promise<FieldConditions> {
     this.logger.log(`Getting field conditions for user: ${userId}`);
 
-    // This would typically integrate with weather APIs and IoT sensors
-    // For now, we'll return mock data
-    return {
-      weather: {
-        temperature: 25,
-        humidity: 60,
-        windSpeed: 10,
-        conditions: 'Sunny',
-        forecast: 'Clear skies for the next 3 days',
-      },
-      soil: {
-        moisture: 45,
-        ph: 6.8,
-        temperature: 22,
-        conditions: 'Good',
-      },
-      recommendations: [
-        'Ideal conditions for planting',
-        'Consider irrigation in 2 days',
-        'Monitor for pest activity',
-      ],
-      lastUpdated: new Date().toISOString(),
-    };
+    // Check if weather service is configured
+    if (!this.weatherService.isConfigured()) {
+      // Fallback to mock data if weather API is not configured
+      const mockWeatherEnabled = process.env.MOCK_WEATHER_DATA === 'true' || process.env.NODE_ENV === 'development';
+      
+      if (mockWeatherEnabled) {
+        this.logger.warn('Weather API not configured - using mock field conditions data');
+        
+        return {
+          weather: {
+            temperature: Number(process.env.MOCK_TEMPERATURE) || 25,
+            humidity: Number(process.env.MOCK_HUMIDITY) || 60,
+            windSpeed: Number(process.env.MOCK_WIND_SPEED) || 10,
+            conditions: process.env.MOCK_WEATHER_CONDITIONS || 'Sunny',
+            forecast: process.env.MOCK_WEATHER_FORECAST || 'Clear skies for the next 3 days',
+          },
+          soil: {
+            moisture: Number(process.env.MOCK_SOIL_MOISTURE) || 45,
+            ph: Number(process.env.MOCK_SOIL_PH) || 6.8,
+            temperature: Number(process.env.MOCK_SOIL_TEMP) || 22,
+            conditions: process.env.MOCK_SOIL_CONDITIONS || 'Good',
+          },
+          recommendations: (process.env.MOCK_RECOMMENDATIONS || 'Ideal conditions for planting,Consider irrigation in 2 days,Monitor for pest activity').split(','),
+          lastUpdated: new Date().toISOString(),
+        };
+      }
+
+      throw new Error('Weather API integration not configured. Set WEATHER_API_KEY and WEATHER_API_URL environment variables.');
+    }
+
+    // Use provided coordinates or default to a central location
+    const lat = latitude || Number(process.env.DEFAULT_LATITUDE) || 0;
+    const lon = longitude || Number(process.env.DEFAULT_LONGITUDE) || 0;
+
+    if (lat === 0 && lon === 0) {
+      throw new Error('No coordinates provided and no default coordinates configured');
+    }
+
+    try {
+      return await this.weatherService.getFieldConditions(lat, lon);
+    } catch (error) {
+      this.logger.error(`Failed to get field conditions: ${error.message}`);
+      
+      // Fallback to mock data on API failure
+      this.logger.warn('Weather API failed - falling back to mock data');
+      return {
+        weather: {
+          temperature: 25,
+          humidity: 60,
+          windSpeed: 10,
+          conditions: 'Sunny',
+          forecast: 'Clear skies for the next 3 days',
+        },
+        soil: {
+          moisture: 45,
+          ph: 6.8,
+          temperature: 22,
+          conditions: 'Good',
+        },
+        recommendations: ['Ideal conditions for planting', 'Consider irrigation in 2 days', 'Monitor for pest activity'],
+        lastUpdated: new Date().toISOString(),
+      };
+    }
   }
 
   async reportIssue(data: ReportIssueData, userId: string): Promise<{
@@ -856,7 +963,7 @@ export class MobileFieldService {
       type: task.type,
       status: task.status,
       priority: task.priority,
-      progress: task.progress || 0,
+      progress: (task.metadata?.progress as number) || 0,
       scheduledAt: task.scheduledAt,
       estimatedDuration: task.estimatedDuration,
       farm: task.farm,

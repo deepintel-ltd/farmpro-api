@@ -13,15 +13,26 @@ import { MarketModule } from '../market/market.module';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
 import { MobileFieldController } from './mobile-field.controller';
 import { MobileFieldService } from './mobile-field.service';
+import { WeatherService } from './weather.service';
 import { JwtModule } from '@nestjs/jwt';
+import { AppCacheModule } from '@/common/cache.module';
+import { MonitoringService } from '@/common/services/monitoring.service';
+import { QueryOptimizationService } from '@/common/services/query-optimization.service';
+import { JobQueueService } from '@/common/services/job-queue.service';
+import { ConflictResolutionService } from './services/conflict-resolution.service';
+import { MarketAnalysisJobProcessor } from './jobs/market-analysis.job';
+import { ActivityAnalyticsJobProcessor } from './jobs/activity-analytics.job';
 
 @Module({
   imports: [
     PrismaModule, 
     MarketModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '24h' },
+    AppCacheModule,
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET,
+        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '24h' },
+      }),
     }),
   ],
   controllers: [ActivitiesController, MobileFieldController],
@@ -36,6 +47,13 @@ import { JwtModule } from '@nestjs/jwt';
     ActivityNotesService,
     ActivityUpdatesGateway,
     MobileFieldService,
+    WeatherService,
+    MonitoringService,
+    QueryOptimizationService,
+    JobQueueService,
+    ConflictResolutionService,
+    MarketAnalysisJobProcessor,
+    ActivityAnalyticsJobProcessor,
   ],
   exports: [
     ActivitiesService,
@@ -48,6 +66,13 @@ import { JwtModule } from '@nestjs/jwt';
     ActivityNotesService,
     ActivityUpdatesGateway,
     MobileFieldService,
+    WeatherService,
+    MonitoringService,
+    QueryOptimizationService,
+    JobQueueService,
+    ConflictResolutionService,
+    MarketAnalysisJobProcessor,
+    ActivityAnalyticsJobProcessor,
   ],
 })
 export class ActivitiesModule {}

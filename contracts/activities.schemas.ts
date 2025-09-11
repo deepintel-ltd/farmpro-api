@@ -255,6 +255,58 @@ export const BulkScheduleRequestSchema = z.object({
   resolveConflicts: z.enum(['auto', 'manual']).default('manual'),
 });
 
+export const BulkCreateRequestSchema = z.object({
+  activities: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    type: ActivityTypeEnum,
+    priority: PriorityEnum,
+    scheduledAt: z.string().datetime(),
+    estimatedDuration: z.number().positive().optional(),
+    farmId: z.string(),
+    areaId: z.string().optional(),
+    assignedTo: z.string().optional(),
+    metadata: z.any().optional(),
+  })),
+});
+
+export const BulkUpdateRequestSchema = z.object({
+  activities: z.array(z.object({
+    id: z.string(),
+    updates: z.object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+      priority: PriorityEnum.optional(),
+      scheduledAt: z.string().datetime().optional(),
+      estimatedDuration: z.number().positive().optional(),
+      status: ActivityStatusEnum.optional(),
+      metadata: z.any().optional(),
+    }),
+  })),
+});
+
+export const BulkDeleteRequestSchema = z.object({
+  activityIds: z.array(z.string()),
+  reason: z.string().optional(),
+});
+
+export const BulkAssignRequestSchema = z.object({
+  assignments: z.array(z.object({
+    activityId: z.string(),
+    userId: z.string(),
+    role: z.enum(['PRIMARY', 'SUPPORT']).optional(),
+  })),
+});
+
+export const BulkStatusUpdateRequestSchema = z.object({
+  updates: z.array(z.object({
+    activityId: z.string(),
+    status: ActivityStatusEnum,
+    reason: z.string().optional(),
+    notes: z.string().optional(),
+  })),
+});
+
 // Cost Tracking
 export const AddCostEntryRequestSchema = z.object({
   type: CostTypeEnum,
@@ -443,6 +495,56 @@ export const BulkScheduleResultSchema = z.object({
   conflictDetails: z.array(ConflictSchema),
 });
 
+export const BulkCreateResultSchema = z.object({
+  created: z.number(),
+  failed: z.number(),
+  activities: z.array(ActivityResourceSchema),
+  errors: z.array(z.object({
+    index: z.number(),
+    error: z.string(),
+  })),
+});
+
+export const BulkUpdateResultSchema = z.object({
+  updated: z.number(),
+  failed: z.number(),
+  activities: z.array(ActivityResourceSchema),
+  errors: z.array(z.object({
+    activityId: z.string(),
+    error: z.string(),
+  })),
+});
+
+export const BulkDeleteResultSchema = z.object({
+  deleted: z.number(),
+  failed: z.number(),
+  errors: z.array(z.object({
+    activityId: z.string(),
+    error: z.string(),
+  })),
+});
+
+export const BulkAssignResultSchema = z.object({
+  assigned: z.number(),
+  failed: z.number(),
+  assignments: z.array(z.object({
+    activityId: z.string(),
+    userId: z.string(),
+    success: z.boolean(),
+    error: z.string().optional(),
+  })),
+});
+
+export const BulkStatusUpdateResultSchema = z.object({
+  updated: z.number(),
+  failed: z.number(),
+  activities: z.array(ActivityResourceSchema),
+  errors: z.array(z.object({
+    activityId: z.string(),
+    error: z.string(),
+  })),
+});
+
 // Collection response schemas for special endpoints
 export const CalendarCollectionSchema = z.object({
   data: z.array(z.object({
@@ -486,3 +588,8 @@ export const TeamPerformanceCollectionSchema = z.object({
 export const AnalyticsResourceSchema = JsonApiResourceSchema(ActivityAnalyticsSchema);
 
 export const BulkScheduleResourceSchema = JsonApiResourceSchema(BulkScheduleResultSchema);
+export const BulkCreateResourceSchema = JsonApiResourceSchema(BulkCreateResultSchema);
+export const BulkUpdateResourceSchema = JsonApiResourceSchema(BulkUpdateResultSchema);
+export const BulkDeleteResourceSchema = JsonApiResourceSchema(BulkDeleteResultSchema);
+export const BulkAssignResourceSchema = JsonApiResourceSchema(BulkAssignResultSchema);
+export const BulkStatusUpdateResourceSchema = JsonApiResourceSchema(BulkStatusUpdateResultSchema);

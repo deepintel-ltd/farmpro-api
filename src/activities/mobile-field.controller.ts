@@ -93,8 +93,12 @@ export class MobileFieldController {
 
   @TsRestHandler(mobileFieldContract.getFieldConditions)
   public getFieldConditions(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(mobileFieldContract.getFieldConditions, async () => {
-      const result = await this.mobileFieldService.getFieldConditions(req.user.userId);
+    return tsRestHandler(mobileFieldContract.getFieldConditions, async ({ query }) => {
+      const result = await this.mobileFieldService.getFieldConditions(
+        req.user.userId,
+        query.latitude,
+        query.longitude
+      );
       return { status: 200 as const, body: { data: result as any } };
     });
   }

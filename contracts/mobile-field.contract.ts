@@ -285,17 +285,17 @@ export const mobileFieldContract = c.router({
     method: 'POST',
     path: '/mobile/tasks/:taskId/notes',
     pathParams: z.object({
-      taskId: z.string(),
+      taskId: z.string().cuid('Invalid task ID format'),
     }),
     body: z.object({
       type: z.enum(['OBSERVATION', 'ISSUE', 'RECOMMENDATION', 'GENERAL']).optional().default('GENERAL'),
-      content: z.string(),
+      content: z.string().min(1, 'Content cannot be empty').max(2000, 'Content too long'),
       gpsCoordinates: z.object({
-        latitude: z.number(),
-        longitude: z.number(),
-        accuracy: z.number().optional(),
+        latitude: z.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
+        longitude: z.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
+        accuracy: z.number().positive('Accuracy must be positive').max(10000, 'Accuracy too high').optional(),
       }).optional(),
-      photos: z.array(z.string()).optional(),
+      photos: z.array(z.string().cuid('Invalid photo ID format')).max(10, 'Too many photos').optional(),
     }),
     responses: {
       201: z.object({
@@ -315,16 +315,16 @@ export const mobileFieldContract = c.router({
     method: 'POST',
     path: '/mobile/tasks/:taskId/photos',
     pathParams: z.object({
-      taskId: z.string(),
+      taskId: z.string().cuid('Invalid task ID format'),
     }),
     body: z.object({
-      mediaId: z.string(),
-      url: z.string(),
-      caption: z.string().optional(),
+      mediaId: z.string().cuid('Invalid media ID format'),
+      url: z.string().url('Invalid URL format'),
+      caption: z.string().max(500, 'Caption too long').optional(),
       gpsCoordinates: z.object({
-        latitude: z.number(),
-        longitude: z.number(),
-        accuracy: z.number().optional(),
+        latitude: z.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
+        longitude: z.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
+        accuracy: z.number().positive('Accuracy must be positive').max(10000, 'Accuracy too high').optional(),
       }).optional(),
     }),
     responses: {
@@ -407,6 +407,8 @@ export const mobileFieldContract = c.router({
     query: z.object({
       farmId: z.string().optional(),
       areaId: z.string().optional(),
+      latitude: z.string().transform(Number).optional(),
+      longitude: z.string().transform(Number).optional(),
     }),
     responses: {
       200: z.object({

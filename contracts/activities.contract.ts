@@ -13,6 +13,11 @@ import {
   AssignActivityRequestSchema,
   RequestHelpRequestSchema,
   BulkScheduleRequestSchema,
+  BulkCreateRequestSchema,
+  BulkUpdateRequestSchema,
+  BulkDeleteRequestSchema,
+  BulkAssignRequestSchema,
+  BulkStatusUpdateRequestSchema,
   AddCostEntryRequestSchema,
   UpdateCostEntryRequestSchema,
   AddNoteRequestSchema,
@@ -25,6 +30,11 @@ import {
   ActivityNoteResourceSchema,
   AnalyticsResourceSchema,
   BulkScheduleResourceSchema,
+  BulkCreateResourceSchema,
+  BulkUpdateResourceSchema,
+  BulkDeleteResourceSchema,
+  BulkAssignResourceSchema,
+  BulkStatusUpdateResourceSchema,
   
   // Collection Schemas
   ActivityCollectionSchema,
@@ -403,6 +413,81 @@ export const activitiesContract = c.router({
     summary: 'Schedule multiple activities',
   },
 
+  bulkCreate: {
+    method: 'POST',
+    path: '/activities/bulk-create',
+    body: BulkCreateRequestSchema,
+    responses: {
+      201: BulkCreateResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Create multiple activities',
+  },
+
+  bulkUpdate: {
+    method: 'PATCH',
+    path: '/activities/bulk-update',
+    body: BulkUpdateRequestSchema,
+    responses: {
+      200: BulkUpdateResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Update multiple activities',
+  },
+
+  bulkDelete: {
+    method: 'DELETE',
+    path: '/activities/bulk-delete',
+    body: BulkDeleteRequestSchema,
+    responses: {
+      200: BulkDeleteResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Delete multiple activities',
+  },
+
+  bulkAssign: {
+    method: 'POST',
+    path: '/activities/bulk-assign',
+    body: BulkAssignRequestSchema,
+    responses: {
+      200: BulkAssignResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Assign multiple activities',
+  },
+
+  bulkStatusUpdate: {
+    method: 'PATCH',
+    path: '/activities/bulk-status-update',
+    body: BulkStatusUpdateRequestSchema,
+    responses: {
+      200: BulkStatusUpdateResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Update status of multiple activities',
+  },
+
   getWorkload: {
     method: 'GET',
     path: '/activities/workload',
@@ -586,9 +671,18 @@ export const activitiesContract = c.router({
     method: 'POST',
     path: '/activities/:activityId/media',
     pathParams: z.object({
-      activityId: z.string(),
+      activityId: z.string().cuid('Invalid activity ID format'),
     }),
-    body: z.any(), // multipart/form-data
+    body: z.object({
+      file: z.any(), // File upload - validated by multer middleware
+      caption: z.string().max(500, 'Caption too long').optional(),
+      type: z.enum(['PHOTO', 'DOCUMENT', 'VIDEO']).optional().default('PHOTO'),
+      location: z.object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        accuracy: z.number().positive().optional(),
+      }).optional(),
+    }), // multipart/form-data
     responses: {
       201: z.object({
         data: z.object({
