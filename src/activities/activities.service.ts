@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
+import { MarketService } from '../market/market.service';
+import { ActivityUpdatesGateway } from './activity-updates.gateway';
 import {
   CreateActivityDto,
   UpdateActivityDto,
@@ -32,6 +34,8 @@ export class ActivitiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly assignmentService: ActivityAssignmentService,
+    private readonly marketService: MarketService,
+    private readonly activityUpdatesGateway: ActivityUpdatesGateway,
   ) {}
 
   async getActivities(organizationId: string, query: ActivityQueryOptions) {
@@ -248,6 +252,14 @@ export class ActivitiesService {
       },
     });
 
+    // Broadcast activity update via WebSocket
+    this.activityUpdatesGateway.broadcastActivityUpdate(activityId, {
+      type: 'activity_updated',
+      activity: this.formatActivityResponse(updated),
+      updatedBy: userId,
+      changes: data,
+    });
+
     return this.formatActivityResponse(updated);
   }
 
@@ -293,7 +305,7 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
+    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
@@ -327,6 +339,14 @@ export class ActivitiesService {
       },
     });
 
+    // Broadcast activity started via WebSocket
+    this.activityUpdatesGateway.broadcastActivityUpdate(activityId, {
+      type: 'activity_started',
+      activity: this.formatActivityResponse(updated),
+      startedBy: userId,
+      location: data.location,
+    });
+
     return this.formatActivityResponse(updated);
   }
 
@@ -346,7 +366,7 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
+    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
@@ -394,7 +414,7 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
+    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
@@ -435,6 +455,194 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
+  async completeHarvestActivity(activityId: string, harvestData: any, userId: string, organizationId: string) {
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: { 
+        id: activityId,
+        farm: { organizationId },
+        type: 'HARVESTING'
+      },
+      include: {
+        farm: { select: { organizationId: true } },
+        cropCycle: {
+          include: {
+            commodity: true
+          }
+        }
+      }
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Harvest activity not found');
+    }
+
+    // Check if user is assigned to this activity
+    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, organizationId);
+    if (!isAssigned) {
+      throw new ForbiddenException('Not assigned to this activity');
+    }
+
+    // Validate state transition
+    this.validateStateTransition(activity.status, 'COMPLETED', 'complete harvest activity');
+
+    this.logger.log('Completing harvest activity with inventory integration', {
+      activityId,
+      userId,
+      farmId: activity.farmId,
+      cropCycleId: activity.cropCycleId,
+      commodityId: activity.cropCycle?.commodityId,
+      harvestQuantity: harvestData.quantityHarvested,
+      qualityGrade: harvestData.qualityGrade
+    });
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Complete the activity
+      const updatedActivity = await tx.farmActivity.update({
+        where: { id: activityId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(harvestData.completedAt || new Date()),
+          cost: harvestData.actualCost || 0,
+          metadata: {
+            ...(activity.metadata as object || {}),
+            results: harvestData.results,
+            issues: harvestData.issues,
+            recommendations: harvestData.recommendations,
+            harvestData: {
+              quantityHarvested: harvestData.quantityHarvested,
+              qualityGrade: harvestData.qualityGrade,
+              harvestMethod: harvestData.harvestMethod,
+              storageLocation: harvestData.storageLocation,
+              batchNumber: harvestData.batchNumber,
+            }
+          },
+        },
+        include: {
+          farm: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // Create harvest record
+      const harvest = await tx.harvest.create({
+        data: {
+          cropCycleId: activity.cropCycleId!,
+          harvestDate: new Date(harvestData.completedAt || new Date()),
+          quantity: harvestData.quantityHarvested,
+          quality: harvestData.qualityGrade,
+          cost: harvestData.actualCost || 0,
+          metadata: {
+            activityId: activityId,
+            harvestMethod: harvestData.harvestMethod,
+            storageLocation: harvestData.storageLocation,
+            batchNumber: harvestData.batchNumber,
+            harvestedBy: userId,
+            notes: harvestData.notes,
+          }
+        }
+      });
+
+      // Create inventory entry
+      const inventory = await tx.inventory.create({
+        data: {
+          organizationId: organizationId,
+          farmId: activity.farmId,
+          commodityId: activity.cropCycle!.commodityId,
+          harvestId: harvest.id,
+          quantity: harvestData.quantityHarvested,
+          unit: harvestData.unit || 'kg',
+          quality: harvestData.qualityGrade,
+          location: harvestData.storageLocation,
+          status: 'AVAILABLE',
+          metadata: {
+            sourceActivityId: activityId,
+            harvestDate: harvest.harvestDate,
+            batchNumber: harvestData.batchNumber,
+            qualityGrade: harvestData.qualityGrade,
+            harvestMethod: harvestData.harvestMethod,
+            createdFromHarvest: true,
+          }
+        }
+      });
+
+      // Log the harvest completion activity
+      await tx.activity.create({
+        data: {
+          action: 'HARVEST_COMPLETED',
+          organizationId: organizationId,
+          entity: 'FarmActivity',
+          entityId: activityId,
+          metadata: {
+            description: `Harvest activity completed: ${harvestData.quantityHarvested} ${harvestData.unit || 'kg'} of ${activity.cropCycle?.commodity.name}`,
+            harvestId: harvest.id,
+            inventoryId: inventory.id,
+            quantityHarvested: harvestData.quantityHarvested,
+            qualityGrade: harvestData.qualityGrade,
+            batchNumber: harvestData.batchNumber,
+          },
+        },
+      });
+
+      return { updatedActivity, harvest, inventory };
+    });
+
+    this.logger.log('Harvest activity completed successfully with inventory integration', {
+      activityId,
+      harvestId: result.harvest.id,
+      inventoryId: result.inventory.id,
+      quantityHarvested: harvestData.quantityHarvested,
+      qualityGrade: harvestData.qualityGrade
+    });
+
+    // Trigger market opportunity analysis asynchronously
+    this.triggerMarketAnalysis(activity.cropCycle!.commodityId, harvestData, organizationId).catch(error => {
+      this.logger.error('Failed to trigger market analysis after harvest completion', {
+        activityId,
+        commodityId: activity.cropCycle!.commodityId,
+        error: error.message
+      });
+    });
+
+    // Broadcast harvest completion via WebSocket
+    this.activityUpdatesGateway.broadcastActivityUpdate(activityId, {
+      type: 'harvest_completed',
+      activity: this.formatActivityResponse(result.updatedActivity),
+      harvest: {
+        id: result.harvest.id,
+        quantity: result.harvest.quantity,
+        quality: result.harvest.quality,
+        harvestDate: result.harvest.harvestDate,
+      },
+      inventory: {
+        id: result.inventory.id,
+        quantity: result.inventory.quantity,
+        unit: result.inventory.unit,
+        quality: result.inventory.quality,
+        location: result.inventory.location,
+        status: result.inventory.status,
+      },
+      completedBy: userId,
+    });
+
+    return {
+      activity: this.formatActivityResponse(result.updatedActivity),
+      harvest: {
+        id: result.harvest.id,
+        quantity: result.harvest.quantity,
+        quality: result.harvest.quality,
+        harvestDate: result.harvest.harvestDate,
+      },
+      inventory: {
+        id: result.inventory.id,
+        quantity: result.inventory.quantity,
+        unit: result.inventory.unit,
+        quality: result.inventory.quality,
+        location: result.inventory.location,
+        status: result.inventory.status,
+      }
+    };
+  }
+
   async pauseActivity(activityId: string, data: PauseActivityDto, userId: string, organizationId?: string) {
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
@@ -451,7 +659,7 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
+    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
@@ -496,7 +704,7 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
+    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
@@ -903,6 +1111,87 @@ export class ActivitiesService {
         return new Date(now.getFullYear(), 0, 1);
       default:
         return new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+  }
+
+  private async triggerMarketAnalysis(commodityId: string, harvestData: any, organizationId: string) {
+    try {
+      this.logger.log('Triggering market opportunity analysis', {
+        commodityId,
+        quantityHarvested: harvestData.quantityHarvested,
+        qualityGrade: harvestData.qualityGrade,
+        organizationId
+      });
+
+      // Get commodity information
+      const commodity = await this.prisma.commodity.findUnique({
+        where: { id: commodityId },
+        select: { id: true, name: true, category: true }
+      });
+
+      if (!commodity) {
+        this.logger.warn('Commodity not found for market analysis', { commodityId });
+        return;
+      }
+
+      // Get current market analysis for this commodity
+      const marketAnalysis = await this.marketService.getMarketAnalysis(
+        { userId: 'system' } as any, // System user for automated analysis
+        {
+          commodityId: commodityId,
+          region: 'North America', // Default region - could be made configurable
+          period: '30d'
+        }
+      );
+
+      // Get price trends for the commodity
+      const priceTrends = await this.marketService.getPriceTrends(
+        { userId: 'system' } as any,
+        {
+          commodityId: commodityId,
+          region: 'North America',
+          period: '30d',
+          grade: harvestData.qualityGrade
+        }
+      );
+
+      // Log market analysis results
+      await this.prisma.activity.create({
+        data: {
+          action: 'MARKET_ANALYSIS_TRIGGERED',
+          organizationId: organizationId,
+          entity: 'Commodity',
+          entityId: commodityId,
+          metadata: {
+            description: `Market analysis triggered for harvest: ${harvestData.quantityHarvested} ${harvestData.unit || 'kg'} of ${commodity.name}`,
+            commodityId: commodityId,
+            commodityName: commodity.name,
+            quantityHarvested: harvestData.quantityHarvested,
+            qualityGrade: harvestData.qualityGrade,
+            marketAnalysis: {
+              currentPrice: priceTrends.currentPrice,
+              priceChange: priceTrends.priceChange,
+              marketInsights: marketAnalysis.marketInsights,
+              recommendations: marketAnalysis.recommendations
+            },
+            analysisTimestamp: new Date().toISOString()
+          },
+        },
+      });
+
+      this.logger.log('Market analysis completed successfully', {
+        commodityId,
+        currentPrice: priceTrends.currentPrice,
+        priceChange: priceTrends.priceChange.percentage
+      });
+
+    } catch (error) {
+      this.logger.error('Market analysis failed', {
+        commodityId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
     }
   }
 }

@@ -173,21 +173,17 @@ export class ActivityAssignmentService {
     };
   }
 
-  async checkAssignment(activityId: string, userId: string, organizationId?: string): Promise<boolean> {
+  async checkAssignment(activityId: string, userId: string, organizationId: string): Promise<boolean> {
     const where: any = {
       activityId,
       userId,
       isActive: true,
-    };
-
-    // Add organization boundary check for security
-    if (organizationId) {
-      where.activity = {
+      activity: {
         farm: {
           organizationId
         }
-      };
-    }
+      }
+    };
 
     const assignment = await this.prisma.activityAssignment.findFirst({
       where,

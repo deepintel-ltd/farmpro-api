@@ -32,6 +32,7 @@ import {
   AnalyticsExportsResponseDto,
   AnalyticsInsightsResponseDto,
   AnalyticsPeriod,
+  AnalyticsMetricDto,
 } from './dto/analytics.dto';
 
 @Injectable()
@@ -203,6 +204,22 @@ export class AnalyticsService {
       async () => {
         const farmToMarketData = await this.buildFarmToMarketData(user);
         return farmToMarketData;
+      }
+    );
+  }
+
+  async getComprehensiveAnalytics(user: CurrentUser, query: any): Promise<AnalyticsDashboardResponseDto> {
+    this.logger.log(`Getting comprehensive analytics for user: ${user.userId}`);
+
+    await this.permissionsService.validateDashboardAccess(user, query.farmId);
+
+    return this.executeAnalyticsQuery(
+      'getComprehensiveAnalytics',
+      user.userId,
+      query,
+      async () => {
+        const comprehensiveData = await this.buildComprehensiveAnalyticsData(user, query);
+        return comprehensiveData;
       }
     );
   }
@@ -1938,6 +1955,188 @@ export class AnalyticsService {
           }
         }
       ]
+    };
+  }
+
+  /**
+   * Builds comprehensive analytics data
+   */
+  private async buildComprehensiveAnalyticsData(user: CurrentUser, query: any): Promise<AnalyticsDashboardResponseDto> {
+    const dateFilter = this.buildDateRangeFilter(query);
+    
+    try {
+      const [activities, inventory, transactions, orders, harvests] = await Promise.all([
+        this.prisma.farmActivity.findMany({
+          where: {
+            farm: { organizationId: user.organizationId },
+            ...(query.farmId && { farmId: query.farmId }),
+            ...(dateFilter && { createdAt: dateFilter })
+          },
+          include: {
+            farm: { select: { id: true, name: true } },
+            cropCycle: { 
+              include: { 
+                commodity: { select: { id: true, name: true, category: true } }
+              }
+            }
+          }
+        }),
+        this.prisma.inventory.findMany({
+          where: {
+            organizationId: user.organizationId,
+            ...(query.farmId && { farmId: query.farmId }),
+            status: 'AVAILABLE'
+          },
+          include: {
+            commodity: { select: { id: true, name: true, category: true } }
+          }
+        }),
+        this.prisma.transaction.findMany({
+          where: {
+            organizationId: user.organizationId,
+            ...(query.farmId && { farmId: query.farmId }),
+            ...(dateFilter && { createdAt: dateFilter })
+          }
+        }),
+        this.prisma.order.findMany({
+          where: {
+            buyerOrgId: user.organizationId,
+            ...(query.farmId && { farmId: query.farmId }),
+            ...(dateFilter && { createdAt: dateFilter })
+          }
+        }),
+        this.prisma.harvest.findMany({
+          where: {
+            cropCycle: { farm: { organizationId: user.organizationId } },
+            ...(query.farmId && { cropCycle: { farmId: query.farmId } }),
+            ...(dateFilter && { harvestDate: dateFilter })
+          },
+          include: {
+            cropCycle: {
+              include: {
+                commodity: { select: { id: true, name: true, category: true } }
+              }
+            }
+          }
+        })
+      ]);
+
+      // Calculate comprehensive metrics
+      const metrics = this.calculateComprehensiveMetrics(activities, inventory, transactions, orders, harvests);
+
+      return {
+        data: {
+          type: 'analytics_dashboard',
+          id: 'comprehensive',
+          attributes: {
+            period: query.period || 'month',
+            farmId: query.farmId,
+            metrics: this.formatMetricsForResponse(metrics),
+            charts: [],
+            insights: [],
+            summary: {
+              totalRevenue: metrics.financial.revenue,
+              totalCosts: metrics.financial.expenses,
+              netProfit: metrics.financial.netProfit,
+              profitMargin: metrics.financial.profitMargin,
+              roi: metrics.financial.profitMargin
+            }
+          }
+        }
+      };
+    } catch (error) {
+      this.handleAnalyticsError(error, 'buildComprehensiveAnalyticsData');
+    }
+  }
+
+  private formatMetricsForResponse(metrics: any): AnalyticsMetricDto[] {
+    return [
+      {
+        name: 'Activities',
+        value: metrics.activities.total,
+        unit: 'count',
+        trend: 'stable',
+        changePercent: metrics.activities.completionRate,
+        metadata: { description: `Total activities with ${metrics.activities.completionRate}% completion rate` }
+      },
+      {
+        name: 'Inventory Value',
+        value: metrics.inventory.totalValue,
+        unit: 'currency',
+        trend: 'stable',
+        metadata: { description: `Total inventory value with ${metrics.inventory.lowStockItems} low stock items` }
+      },
+      {
+        name: 'Revenue',
+        value: metrics.financial.revenue,
+        unit: 'currency',
+        trend: metrics.financial.profitMargin > 0 ? 'up' : 'down',
+        changePercent: metrics.financial.profitMargin,
+        metadata: { description: `Total revenue with ${metrics.financial.profitMargin}% profit margin` }
+      },
+      {
+        name: 'Orders',
+        value: metrics.orders.total,
+        unit: 'count',
+        trend: 'stable',
+        metadata: { description: `Total orders worth ${metrics.orders.totalValue}` }
+      },
+      {
+        name: 'Harvests',
+        value: metrics.harvests.total,
+        unit: 'count',
+        trend: 'stable',
+        metadata: { description: `Total harvests with ${metrics.harvests.totalQuantity} units` }
+      }
+    ];
+  }
+
+  private calculateComprehensiveMetrics(activities: any[], inventory: any[], transactions: any[], orders: any[], harvests: any[]) {
+    const totalActivities = activities.length;
+    const completedActivities = activities.filter(a => a.status === 'COMPLETED').length;
+    const completionRate = totalActivities > 0 ? (completedActivities / totalActivities) * 100 : 0;
+
+    const totalInventoryValue = inventory.reduce((sum, item) => {
+      const costBasis = (item.metadata as any)?.costBasis || 0;
+      return sum + (item.quantity * costBasis);
+    }, 0);
+
+    const totalRevenue = transactions
+      .filter(t => t.type === 'FARM_REVENUE')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const totalExpenses = transactions
+      .filter(t => t.type === 'FARM_EXPENSE')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const netProfit = totalRevenue - totalExpenses;
+    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+    return {
+      activities: {
+        total: totalActivities,
+        completed: completedActivities,
+        completionRate: Math.round(completionRate * 100) / 100
+      },
+      inventory: {
+        totalItems: inventory.length,
+        totalValue: Math.round(totalInventoryValue * 100) / 100,
+        lowStockItems: inventory.filter(item => item.quantity < 10).length
+      },
+      financial: {
+        revenue: Math.round(totalRevenue * 100) / 100,
+        expenses: Math.round(totalExpenses * 100) / 100,
+        netProfit: Math.round(netProfit * 100) / 100,
+        profitMargin: Math.round(profitMargin * 100) / 100
+      },
+      orders: {
+        total: orders.length,
+        totalValue: Math.round(orders.reduce((sum, order) => sum + order.totalPrice, 0) * 100) / 100
+      },
+      harvests: {
+        total: harvests.length,
+        totalQuantity: harvests.reduce((sum, h) => sum + h.quantity, 0)
+      }
     };
   }
 }

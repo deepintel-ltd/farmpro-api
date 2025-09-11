@@ -204,6 +204,55 @@ export const activitiesContract = c.router({
     summary: 'Mark activity as completed',
   },
 
+  completeHarvestActivity: {
+    method: 'POST',
+    path: '/activities/:activityId/complete-harvest',
+    pathParams: z.object({
+      activityId: z.string(),
+    }),
+    body: z.object({
+      quantityHarvested: z.number().positive(),
+      qualityGrade: z.string(),
+      unit: z.string().optional().default('kg'),
+      harvestMethod: z.string().optional(),
+      storageLocation: z.string().optional(),
+      batchNumber: z.string().optional(),
+      completedAt: z.string().datetime().optional(),
+      actualCost: z.number().optional(),
+      results: z.string().optional(),
+      issues: z.string().optional(),
+      recommendations: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          activity: ActivityResourceSchema,
+          harvest: z.object({
+            id: z.string(),
+            quantity: z.number(),
+            quality: z.string(),
+            harvestDate: z.string().datetime(),
+          }),
+          inventory: z.object({
+            id: z.string(),
+            quantity: z.number(),
+            unit: z.string(),
+            quality: z.string(),
+            location: z.string().optional(),
+            status: z.string(),
+          }),
+        }),
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Complete harvest activity with inventory integration',
+  },
+
   pauseActivity: {
     method: 'POST',
     path: '/activities/:activityId/pause',

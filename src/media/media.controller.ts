@@ -1,7 +1,7 @@
 import { Controller, UseGuards, UseInterceptors, BadRequestException, Request } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';

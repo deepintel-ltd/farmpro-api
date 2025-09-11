@@ -115,6 +115,35 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.completeHarvestActivity)
+  public completeHarvestActivity(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.completeHarvestActivity, async ({ params, body }) => {
+      const result = await this.activitiesService.completeHarvestActivity(params.activityId, body, req.user.userId, req.user.organizationId);
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: {
+            activity: {
+              data: {
+                id: result.activity.id,
+                type: 'activities',
+                attributes: result.activity
+              }
+            },
+            harvest: {
+              ...result.harvest,
+              harvestDate: result.harvest.harvestDate instanceof Date 
+                ? result.harvest.harvestDate.toISOString() 
+                : result.harvest.harvestDate
+            },
+            inventory: result.inventory
+          }
+        } 
+      };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
   @TsRestHandler(activitiesContract.pauseActivity)
   public pauseActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.pauseActivity, async ({ params, body }) => {

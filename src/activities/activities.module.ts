@@ -9,10 +9,22 @@ import { ActivityTemplateService } from './activity-template.service';
 import { ActivitySchedulingService } from './activity-scheduling.service';
 import { ActivityNotesService } from './activity-notes.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { MarketModule } from '../market/market.module';
+import { ActivityUpdatesGateway } from './activity-updates.gateway';
+import { MobileFieldController } from './mobile-field.controller';
+import { MobileFieldService } from './mobile-field.service';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [ActivitiesController],
+  imports: [
+    PrismaModule, 
+    MarketModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'your-secret-key',
+      signOptions: { expiresIn: '24h' },
+    }),
+  ],
+  controllers: [ActivitiesController, MobileFieldController],
   providers: [
     ActivitiesService,
     PermissionsService,
@@ -22,6 +34,8 @@ import { PrismaModule } from '../prisma/prisma.module';
     ActivityTemplateService,
     ActivitySchedulingService,
     ActivityNotesService,
+    ActivityUpdatesGateway,
+    MobileFieldService,
   ],
   exports: [
     ActivitiesService,
@@ -32,6 +46,8 @@ import { PrismaModule } from '../prisma/prisma.module';
     ActivityTemplateService,
     ActivitySchedulingService,
     ActivityNotesService,
+    ActivityUpdatesGateway,
+    MobileFieldService,
   ],
 })
 export class ActivitiesModule {}
