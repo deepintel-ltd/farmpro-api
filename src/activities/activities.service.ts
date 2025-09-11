@@ -1409,7 +1409,42 @@ export class ActivitiesService {
           );
         }
 
-        results.activities.push(activity);
+        // Transform to JSON API resource format
+        const activityResource = {
+          id: activity.id,
+          type: 'activities',
+          attributes: {
+            id: activity.id,
+            name: activity.name,
+            description: activity.description,
+            type: activity.type,
+            priority: activity.priority,
+            status: activity.status,
+            scheduledAt: activity.scheduledAt?.toISOString(),
+            startedAt: activity.startedAt?.toISOString(),
+            completedAt: activity.completedAt?.toISOString(),
+            estimatedDuration: activity.estimatedDuration,
+            actualDuration: activity.actualDuration,
+            farmId: activity.farmId,
+            areaId: activity.areaId,
+            cropCycleId: activity.cropCycleId,
+            createdBy: activity.createdById,
+            assignedTo: activity.assignments?.map(a => ({
+              id: a.user.id,
+              email: a.user.email,
+              role: a.role
+            })) || [],
+            metadata: activity.metadata,
+            createdAt: activity.createdAt.toISOString(),
+            updatedAt: activity.updatedAt.toISOString(),
+          },
+          relationships: {
+            farm: { data: { id: activity.farm.id, type: 'farms' } },
+            area: activity.area ? { data: { id: activity.area.id, type: 'areas' } } : null,
+          }
+        };
+        
+        results.activities.push(activityResource);
         results.created++;
 
         // Emit real-time update
@@ -1505,7 +1540,42 @@ export class ActivitiesService {
           },
         });
 
-        results.activities.push(activity);
+        // Transform to JSON API resource format
+        const activityResource = {
+          id: activity.id,
+          type: 'activities',
+          attributes: {
+            id: activity.id,
+            name: activity.name,
+            description: activity.description,
+            type: activity.type,
+            priority: activity.priority,
+            status: activity.status,
+            scheduledAt: activity.scheduledAt?.toISOString(),
+            startedAt: activity.startedAt?.toISOString(),
+            completedAt: activity.completedAt?.toISOString(),
+            estimatedDuration: activity.estimatedDuration,
+            actualDuration: activity.actualDuration,
+            farmId: activity.farmId,
+            areaId: activity.areaId,
+            cropCycleId: activity.cropCycleId,
+            createdBy: activity.createdById,
+            assignedTo: activity.assignments?.map(a => ({
+              id: a.user.id,
+              email: a.user.email,
+              role: a.role
+            })) || [],
+            metadata: activity.metadata,
+            createdAt: activity.createdAt.toISOString(),
+            updatedAt: activity.updatedAt.toISOString(),
+          },
+          relationships: {
+            farm: { data: { id: activity.farm.id, type: 'farms' } },
+            area: activity.area ? { data: { id: activity.area.id, type: 'areas' } } : null,
+          }
+        };
+        
+        results.activities.push(activityResource);
         results.updated++;
 
         // Emit real-time update
@@ -1736,7 +1806,42 @@ export class ActivitiesService {
           },
         });
 
-        results.activities.push(activity);
+        // Transform to JSON API resource format
+        const activityResource = {
+          id: activity.id,
+          type: 'activities',
+          attributes: {
+            id: activity.id,
+            name: activity.name,
+            description: activity.description,
+            type: activity.type,
+            priority: activity.priority,
+            status: activity.status,
+            scheduledAt: activity.scheduledAt?.toISOString(),
+            startedAt: activity.startedAt?.toISOString(),
+            completedAt: activity.completedAt?.toISOString(),
+            estimatedDuration: activity.estimatedDuration,
+            actualDuration: activity.actualDuration,
+            farmId: activity.farmId,
+            areaId: activity.areaId,
+            cropCycleId: activity.cropCycleId,
+            createdBy: activity.createdById,
+            assignedTo: activity.assignments?.map(a => ({
+              id: a.user.id,
+              email: a.user.email,
+              role: a.role
+            })) || [],
+            metadata: activity.metadata,
+            createdAt: activity.createdAt.toISOString(),
+            updatedAt: activity.updatedAt.toISOString(),
+          },
+          relationships: {
+            farm: { data: { id: activity.farm.id, type: 'farms' } },
+            area: activity.area ? { data: { id: activity.area.id, type: 'areas' } } : null,
+          }
+        };
+        
+        results.activities.push(activityResource);
         results.updated++;
 
         // Emit real-time update

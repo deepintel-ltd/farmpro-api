@@ -13,7 +13,6 @@ import { MobileFieldController } from './mobile-field.controller';
 import { MobileFieldService } from './mobile-field.service';
 import { WeatherService } from './weather.service';
 import { JwtModule } from '@nestjs/jwt';
-import { ConflictResolutionService } from './services/conflict-resolution.service';
 
 @Module({
   imports: [
@@ -37,7 +36,6 @@ import { ConflictResolutionService } from './services/conflict-resolution.servic
     ActivityUpdatesGateway,
     MobileFieldService,
     WeatherService,
-    ConflictResolutionService,
   ],
   exports: [
     ActivitiesService,
@@ -49,7 +47,6 @@ import { ConflictResolutionService } from './services/conflict-resolution.servic
     ActivityUpdatesGateway,
     MobileFieldService,
     WeatherService,
-    ConflictResolutionService,
   ],
 })
 export class ActivitiesModule {}

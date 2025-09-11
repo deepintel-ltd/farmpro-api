@@ -98,5 +98,49 @@ export interface WorkloadQueryOptions {
   farmId: string;
   startDate: string;
   endDate: string;
-  userId?: string;
+}
+
+// Bulk operation DTOs
+export interface BulkCreateActivityDto {
+  activities: Array<{
+    name: string;
+    description?: string;
+    farmId: string;
+    type: string;
+    scheduledAt?: string;
+    assignedTo?: string[];
+  }>;
+}
+
+export interface BulkUpdateActivityDto {
+  activities: Array<{
+    id: string;
+    updates: {
+      name?: string;
+      description?: string;
+      status?: string;
+      priority?: string;
+    };
+  }>;
+}
+
+export interface BulkDeleteActivityDto {
+  activityIds: string[];
+  reason?: string;
+}
+
+export interface BulkStatusUpdateDto {
+  updates: Array<{
+    activityId: string;
+    status: string;
+    reason?: string;
+  }>;
+}
+
+export interface BulkAssignActivityDto {
+  assignments: Array<{
+    activityId: string;
+    assignedTo: string[];
+    reassignReason?: string;
+  }>;
 }
