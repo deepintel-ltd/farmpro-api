@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from '@/prisma/prisma.module';
@@ -12,12 +14,16 @@ import { AnalyticsModule } from '@/analytics/analytics.module';
 import { OrdersModule } from '@/orders/orders.module';
 import { IntelligenceModule } from '@/intelligence/intelligence.module';
 import { ActivitiesModule } from '@/activities/activities.module';
+import { HealthModule } from '@/health/health.module';
+import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
+import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot(getRateLimitConfig()),
     PrismaModule,
     AuthModule,
     FarmsModule,
@@ -28,8 +34,15 @@ import { ActivitiesModule } from '@/activities/activities.module';
     OrdersModule,
     IntelligenceModule,
     ActivitiesModule,
+    HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    },
+  ],
 })
 export class AppModule {}
