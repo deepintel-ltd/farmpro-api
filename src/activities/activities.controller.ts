@@ -6,9 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { activitiesContract } from '../../contracts/activities.contract';
 import { ActivitiesService } from './activities.service';
-import { ActivityCostService } from './activity-cost.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
-import { ActivityHelpService } from './activity-help.service';
 import { ActivityTemplateService, CreateFromTemplateDto } from './activity-template.service';
 import { ActivitySchedulingService } from './activity-scheduling.service';
 import { ActivityNotesService, CreateNoteDto } from './activity-notes.service';
@@ -24,9 +22,7 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class ActivitiesController {
   constructor(
     private readonly activitiesService: ActivitiesService,
-    private readonly costService: ActivityCostService,
     private readonly assignmentService: ActivityAssignmentService,
-    private readonly helpService: ActivityHelpService,
     private readonly templateService: ActivityTemplateService,
     private readonly schedulingService: ActivitySchedulingService,
     private readonly notesService: ActivityNotesService,
@@ -229,7 +225,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.getActivityCosts)
   public getActivityCosts(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.getActivityCosts, async ({ params }) => {
-      const result = await this.costService.getActivityCosts(params.activityId, req.user.organizationId);
+      const result = await this.activitiesService.getActivityCosts(params.activityId, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
   }
@@ -247,7 +243,7 @@ export class ActivitiesController {
         receipt: body.receipt,
         vendor: body.vendor,
       };
-      const result = await this.costService.addCost(params.activityId, costData, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.addCost(params.activityId, costData, req.user.userId, req.user.organizationId);
       return { status: 201 as const, body: result };
     });
   }
@@ -256,7 +252,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.updateCost)
   public updateCost(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.updateCost, async ({ params, body }) => {
-      const result = await this.costService.updateCost(params.activityId, params.costId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.updateCost(params.activityId, params.costId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
   }
@@ -286,7 +282,7 @@ export class ActivitiesController {
         skillsNeeded: body.skillsNeeded,
         urgency: body.urgency,
       };
-      await this.helpService.requestHelp(params.activityId!, helpData, req.user.userId, req.user.organizationId);
+      await this.assignmentService.requestHelp(params.activityId!, helpData, req.user.userId, req.user.organizationId);
       return { 
         status: 200 as const, 
         body: {

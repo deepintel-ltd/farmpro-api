@@ -1,15 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
-import { MarketService } from '../market/market.service';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
 import { PermissionsService } from './permissions.service';
-import { CacheService } from '../common/services/cache.service';
-import { MonitoringService } from '../common/services/monitoring.service';
-import { QueryOptimizationService } from '../common/services/query-optimization.service';
-import { JobQueueService } from '../common/services/job-queue.service';
-import { TrackPerformance, TrackBusinessMetric } from '../common/decorators/performance.decorator';
-import { CostType } from '@prisma/client';
+import { CostType, Prisma } from '@prisma/client';
 import {
   CreateActivityDto,
   UpdateActivityDto,
@@ -54,20 +48,16 @@ export class ActivitiesService {
     '.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.txt', '.csv'
   ];
 
+  // Max file size: 10MB
+  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly assignmentService: ActivityAssignmentService,
-    private readonly marketService: MarketService,
     private readonly activityUpdatesGateway: ActivityUpdatesGateway,
     private readonly permissionsService: PermissionsService,
-    private readonly cacheService: CacheService,
-    private readonly monitoringService: MonitoringService,
-    private readonly queryOptimization: QueryOptimizationService,
-    private readonly jobQueue: JobQueueService,
   ) {}
 
-  @TrackPerformance('getActivities')
-  @TrackBusinessMetric('activities_queried', (result) => result.data.length)
   async getActivities(organizationId: string, query: ActivityQueryOptions) {
     const where: any = {
       farm: { organizationId },
@@ -96,28 +86,32 @@ export class ActivitiesService {
       if (query.endDate) where.scheduledAt.lte = new Date(query.endDate);
     }
 
-    const startTime = Date.now();
-    
-    // Build optimized query
-    const activityQuery = {
-      where,
-      ...this.queryOptimization.getActivityListProjection(),
-      orderBy: query.sort === 'priority' 
-        ? [{ priority: 'desc' as const }, { scheduledAt: 'asc' as const }]
-        : { scheduledAt: 'asc' as const },
-    };
-    
-    // Apply pagination
-    this.queryOptimization.applyPagination(activityQuery, query.page, query.pageSize || 25);
+    // Simple pagination and ordering
+    const skip = query.page ? (query.page - 1) * (query.pageSize || 25) : 0;
+    const take = query.pageSize || 25;
 
     const [activities, totalCount] = await Promise.all([
-      this.prisma.farmActivity.findMany(activityQuery),
+      this.prisma.farmActivity.findMany({
+        where,
+        include: {
+          farm: { select: { id: true, name: true } },
+          area: { select: { id: true, name: true } },
+          assignments: {
+            where: { isActive: true },
+            include: { user: { select: { id: true, name: true, email: true } } }
+          },
+          cropCycle: {
+            include: { commodity: { select: { id: true, name: true } } }
+          }
+        },
+        orderBy: query.sort === 'priority' 
+          ? [{ priority: 'desc' }, { scheduledAt: 'asc' }]
+          : { scheduledAt: 'asc' },
+        skip,
+        take,
+      }),
       this.prisma.farmActivity.count({ where }),
     ]);
-
-    // Log query performance
-    const duration = Date.now() - startTime;
-    this.queryOptimization.logQueryPerformance('getActivities', duration, activities.length);
 
     return {
       data: activities.map(activity => ({
@@ -133,22 +127,29 @@ export class ActivitiesService {
     };
   }
 
-  @TrackPerformance('getActivity')
   async getActivity(activityId: string, organizationId: string) {
-
-    const startTime = Date.now();
-    
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
         farm: { organizationId },
       },
-      ...this.queryOptimization.getActivityDetailProjection(),
+      include: {
+        farm: { select: { id: true, name: true } },
+        area: { select: { id: true, name: true } },
+        assignments: {
+          where: { isActive: true },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        },
+        cropCycle: {
+          include: { commodity: { select: { id: true, name: true } } }
+        },
+        costs: true,
+        notes: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' }
+        }
+      },
     });
-
-    // Log query performance
-    const duration = Date.now() - startTime;
-    this.queryOptimization.logQueryPerformance('getActivity', duration, activity ? 1 : 0);
 
     if (!activity) {
       throw new NotFoundException('Activity not found');
@@ -159,8 +160,6 @@ export class ActivitiesService {
     return result;
   }
 
-  @TrackPerformance('createActivity')
-  @TrackBusinessMetric('activities_created', () => 1)
   async createActivity(data: CreateActivityDto, userId: string, organizationId: string) {
     this.logger.log('Creating new activity', {
       userId,
@@ -182,7 +181,7 @@ export class ActivitiesService {
     // Verify farm belongs to organization
     const farm = await this.prisma.farm.findFirst({
       where: { id: data.farmId, organizationId },
-      ...this.queryOptimization.getFarmProjection(),
+      select: { id: true, name: true }
     });
     if (!farm) {
       throw new BadRequestException('Invalid farm ID');
@@ -259,8 +258,6 @@ export class ActivitiesService {
     return this.formatActivityResponse(result);
   }
 
-  @TrackPerformance('updateActivity')
-  @TrackBusinessMetric('activities_updated', () => 1)
   async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, organizationId: string) {
     const activity = await this.prisma.farmActivity.findFirstOrThrow({
       where: {
@@ -320,15 +317,19 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  @TrackPerformance('deleteActivity')
-  @TrackBusinessMetric('activities_deleted', () => 1)
   async deleteActivity(activityId: string, userId: string, organizationId: string) {
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
         farm: { organizationId },
       },
-      ...this.queryOptimization.getActivityExistenceProjection(),
+      select: { 
+        id: true, 
+        farmId: true, 
+        type: true, 
+        status: true, 
+        createdById: true 
+      }
     });
 
     if (!activity) {
@@ -374,8 +375,7 @@ export class ActivitiesService {
       previousStatus: activity.status
     });
 
-    // Invalidate related caches
-    await this.invalidateActivityCaches(organizationId, activity.farmId);
+    // Activity deleted successfully
   }
 
   async startActivity(activityId: string, data: StartActivityDto, userId: string, organizationId?: string) {
@@ -683,8 +683,13 @@ export class ActivitiesService {
       qualityGrade: harvestData.qualityGrade
     });
 
-    // Trigger market opportunity analysis asynchronously via job queue
-    this.triggerMarketAnalysisJob(activity.cropCycle!.commodityId, harvestData, organizationId, activityId, userId);
+    // Log harvest completion for future market analysis
+    this.logger.log('Harvest completed - data available for market analysis', {
+      commodityId: activity.cropCycle!.commodityId,
+      quantityHarvested: harvestData.quantityHarvested,
+      qualityGrade: harvestData.qualityGrade,
+      activityId
+    });
 
     // Broadcast harvest completion via WebSocket
     this.activityUpdatesGateway.broadcastActivityUpdate(activityId, {
@@ -1197,108 +1202,6 @@ export class ActivitiesService {
     }
   }
 
-  /**
-   * Trigger market analysis job asynchronously
-   */
-  private async triggerMarketAnalysisJob(
-    commodityId: string, 
-    harvestData: any, 
-    organizationId: string, 
-    activityId: string, 
-    userId: string
-  ): Promise<void> {
-    try {
-      this.logger.log('Queuing market analysis job', {
-        commodityId,
-        quantityHarvested: harvestData.quantityHarvested,
-        qualityGrade: harvestData.qualityGrade,
-        organizationId,
-        activityId
-      });
-
-      const jobId = await this.jobQueue.addJob(
-        'market_analysis',
-        {
-          commodityId,
-          organizationId,
-          harvestData,
-          activityId,
-          userId
-        },
-        1, // High priority for market analysis
-        3  // Max 3 attempts
-      );
-
-      this.logger.log('Market analysis job queued successfully', {
-        jobId,
-        commodityId,
-        activityId
-      });
-
-    } catch (error) {
-      this.logger.error('Failed to queue market analysis job', {
-        commodityId,
-        activityId,
-        error: error.message
-      });
-    }
-  }
-
-  /**
-   * Trigger activity analytics job asynchronously
-   */
-  async triggerActivityAnalyticsJob(
-    organizationId: string,
-    farmId: string | undefined,
-    userId: string,
-    period: 'week' | 'month' | 'quarter' | 'year' = 'month'
-  ): Promise<string> {
-    try {
-      const now = new Date();
-      const startDate = this.getStartDate(period);
-      const endDate = now;
-
-      this.logger.log('Queuing activity analytics job', {
-        organizationId,
-        farmId,
-        period,
-        startDate,
-        endDate
-      });
-
-      const jobId = await this.jobQueue.addJob(
-        'activity_analytics',
-        {
-          organizationId,
-          farmId,
-          userId,
-          period,
-          startDate,
-          endDate
-        },
-        0, // Normal priority
-        2  // Max 2 attempts
-      );
-
-      this.logger.log('Activity analytics job queued successfully', {
-        jobId,
-        organizationId,
-        farmId,
-        period
-      });
-
-      return jobId;
-
-    } catch (error) {
-      this.logger.error('Failed to queue activity analytics job', {
-        organizationId,
-        farmId,
-        period,
-        error: error.message
-      });
-      throw error;
-    }
-  }
 
   // =============================================================================
   // Bulk Operations
@@ -1729,24 +1632,329 @@ export class ActivitiesService {
     return results;
   }
 
-  /**
-   * Invalidate caches related to activities for an organization and farm
-   */
-  private async invalidateActivityCaches(organizationId: string, farmId?: string): Promise<void> {
+  // =============================================================================
+  // Cost Management Methods (Consolidated from ActivityCostService)
+  // =============================================================================
+
+  async getActivityCosts(activityId: string, organizationId: string) {
+    // Verify activity exists and user has access
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: activityId,
+        farm: { organizationId },
+      },
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
+
+    const costs = await this.prisma.activityCost.findMany({
+      where: { activityId },
+      include: {
+        createdBy: { select: { id: true, name: true, email: true } },
+        updatedBy: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      data: costs.map(cost => ({
+        id: cost.id,
+        type: 'cost-entries' as const,
+        attributes: {
+          id: cost.id,
+          activityId: cost.activityId,
+          type: cost.type,
+          description: cost.description,
+          amount: parseFloat(cost.amount.toString()),
+          quantity: cost.quantity ? parseFloat(cost.quantity.toString()) : null,
+          unit: cost.unit,
+          receipt: cost.receipt,
+          vendor: cost.vendor,
+          createdAt: cost.createdAt.toISOString(),
+          updatedAt: cost.updatedAt.toISOString(),
+          createdBy: cost.createdBy,
+          updatedBy: cost.updatedBy,
+        },
+      })),
+      meta: {
+        totalCosts: costs.length,
+        totalAmount: costs.reduce((sum, cost) => sum + parseFloat(cost.amount.toString()), 0),
+      },
+    };
+  }
+
+  async addCost(activityId: string, data: CostEntryData, userId: string, organizationId: string) {
+    // Verify activity exists and user has access
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: activityId,
+        farm: { organizationId },
+      },
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
+
+    if (activity.status === 'CANCELLED') {
+      throw new BadRequestException('Cannot add costs to cancelled activity');
+    }
+
+    // Validate amount
+    if (data.amount <= 0) {
+      throw new BadRequestException('Cost amount must be greater than 0');
+    }
+
+    if (data.quantity !== undefined && data.quantity <= 0) {
+      throw new BadRequestException('Cost quantity must be greater than 0');
+    }
+
+    this.validateFileUpload(data.receipt || '');
+
+    this.logger.log('Adding cost entry to activity', {
+      activityId,
+      userId,
+      organizationId,
+      type: data.type,
+      amount: data.amount,
+      hasReceipt: !!data.receipt
+    });
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create cost entry
+      const costEntry = await tx.activityCost.create({
+        data: {
+          activityId,
+          type: data.type,
+          description: data.description,
+          amount: new Prisma.Decimal(data.amount),
+          quantity: data.quantity ? new Prisma.Decimal(data.quantity) : null,
+          unit: data.unit,
+          receipt: data.receipt,
+          vendor: data.vendor,
+          createdById: userId,
+        },
+        include: {
+          createdBy: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // Update activity total cost
+      const totalCosts = await tx.activityCost.aggregate({
+        where: { activityId },
+        _sum: { amount: true },
+      });
+
+      const totalCost = totalCosts._sum.amount ? parseFloat(totalCosts._sum.amount.toString()) : 0;
+
+      await tx.farmActivity.update({
+        where: { id: activityId },
+        data: { cost: totalCost },
+      });
+
+      return costEntry;
+    });
+
+    return {
+      data: {
+        id: result.id,
+        type: 'cost-entries' as const,
+        attributes: {
+          id: result.id,
+          activityId: result.activityId,
+          type: result.type,
+          description: result.description,
+          amount: parseFloat(result.amount.toString()),
+          quantity: result.quantity ? parseFloat(result.quantity.toString()) : null,
+          unit: result.unit,
+          receipt: result.receipt,
+          vendor: result.vendor,
+          createdAt: result.createdAt.toISOString(),
+          updatedAt: result.updatedAt.toISOString(),
+          createdBy: result.createdBy,
+        },
+      },
+    };
+  }
+
+  async updateCost(activityId: string, costId: string, data: {
+    amount?: number;
+    description?: string;
+    receipt?: string;
+    vendor?: string;
+    quantity?: number;
+    unit?: string;
+  }, userId: string, organizationId: string) {
+    // Verify activity exists and user has access
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: activityId,
+        farm: { organizationId },
+      },
+    });
+
+    if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
+
+    // Verify cost exists
+    const existingCost = await this.prisma.activityCost.findFirst({
+      where: {
+        id: costId,
+        activityId,
+      },
+    });
+
+    if (!existingCost) {
+      throw new NotFoundException('Cost entry not found');
+    }
+
+    // Validate amount if provided
+    if (data.amount !== undefined && data.amount <= 0) {
+      throw new BadRequestException('Cost amount must be greater than 0');
+    }
+
+    // Validate quantity if provided
+    if (data.quantity !== undefined && data.quantity <= 0) {
+      throw new BadRequestException('Cost quantity must be greater than 0');
+    }
+
+    // Validate file upload if receipt is being updated
+    if (data.receipt !== undefined) {
+      this.validateFileUpload(data.receipt);
+    }
+
+    this.logger.log('Updating cost entry', {
+      costId,
+      activityId,
+      userId,
+      organizationId,
+      hasReceiptUpdate: data.receipt !== undefined
+    });
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update cost entry
+      const updateData: any = {
+        updatedById: userId,
+      };
+
+      if (data.amount !== undefined) updateData.amount = new Prisma.Decimal(data.amount);
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.receipt !== undefined) updateData.receipt = data.receipt;
+      if (data.vendor !== undefined) updateData.vendor = data.vendor;
+      if (data.quantity !== undefined) updateData.quantity = data.quantity ? new Prisma.Decimal(data.quantity) : null;
+      if (data.unit !== undefined) updateData.unit = data.unit;
+
+      const costEntry = await tx.activityCost.update({
+        where: { id: costId },
+        data: updateData,
+        include: {
+          createdBy: { select: { id: true, name: true, email: true } },
+          updatedBy: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // Update activity total cost
+      const totalCosts = await tx.activityCost.aggregate({
+        where: { activityId },
+        _sum: { amount: true },
+      });
+
+      const totalCost = totalCosts._sum.amount ? parseFloat(totalCosts._sum.amount.toString()) : 0;
+
+      await tx.farmActivity.update({
+        where: { id: activityId },
+        data: { cost: totalCost },
+      });
+
+      return costEntry;
+    });
+
+    return {
+      data: {
+        id: result.id,
+        type: 'cost-entries' as const,
+        attributes: {
+          id: result.id,
+          activityId: result.activityId,
+          type: result.type,
+          description: result.description,
+          amount: parseFloat(result.amount.toString()),
+          quantity: result.quantity ? parseFloat(result.quantity.toString()) : null,
+          unit: result.unit,
+          receipt: result.receipt,
+          vendor: result.vendor,
+          createdAt: result.createdAt.toISOString(),
+          updatedAt: result.updatedAt.toISOString(),
+          createdBy: result.createdBy,
+          updatedBy: result.updatedBy,
+        },
+      },
+    };
+  }
+
+  private validateFileUpload(fileUrl: string): void {
+    if (!fileUrl || !fileUrl.trim()) {
+      return; // File is optional
+    }
+
     try {
-      // Invalidate farm-specific activity caches
-      if (farmId) {
-        await this.cacheService.delPattern(`farm_activities:${organizationId}:${farmId}:*`);
-        await this.cacheService.delPattern(`activity:${organizationId}:*`);
+      const url = new URL(fileUrl);
+      
+      // Validate URL scheme (only allow https for security)
+      if (!['https', 'http'].includes(url.protocol.slice(0, -1))) {
+        this.logger.warn('Invalid file URL protocol attempted', {
+          fileUrl: fileUrl.substring(0, 100), // Log only first 100 chars for security
+          protocol: url.protocol
+        });
+        throw new BadRequestException('Invalid file URL: only HTTP/HTTPS protocols are allowed');
+      }
+
+      // Extract file extension from URL path
+      const pathname = url.pathname.toLowerCase();
+      const extension = pathname.substring(pathname.lastIndexOf('.'));
+      
+      if (!this.ALLOWED_FILE_EXTENSIONS.includes(extension)) {
+        this.logger.warn('Invalid file extension attempted', {
+          fileUrl: fileUrl.substring(0, 100),
+          extension,
+          allowedExtensions: this.ALLOWED_FILE_EXTENSIONS
+        });
+        throw new BadRequestException(
+          `Invalid file type. Allowed extensions: ${this.ALLOWED_FILE_EXTENSIONS.join(', ')}`
+        );
+      }
+
+      // Additional validation: check for suspicious patterns
+      const suspiciousPatterns = [
+        /javascript:/i,
+        /data:/i,
+        /vbscript:/i,
+        /<script/i,
+        /\.exe$/i,
+        /\.bat$/i,
+        /\.cmd$/i
+      ];
+
+      if (suspiciousPatterns.some(pattern => pattern.test(fileUrl))) {
+        this.logger.error('Suspicious file URL detected', {
+          fileUrl: fileUrl.substring(0, 100)
+        });
+        throw new BadRequestException('Invalid file URL: suspicious content detected');
+      }
+
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
       }
       
-      // Invalidate organization-wide activity caches
-      await this.cacheService.delPattern(`farm_activities:${organizationId}:all:*`);
-      await this.cacheService.delPattern(`activity_analytics:${organizationId}:*`);
-      
-      this.logger.debug(`Invalidated activity caches for organization ${organizationId}, farm ${farmId || 'all'}`);
-    } catch (error) {
-      this.logger.error('Error invalidating activity caches:', error);
+      this.logger.error('Error validating file URL', {
+        error: error.message,
+        fileUrl: fileUrl.substring(0, 100)
+      });
+      throw new BadRequestException('Invalid file URL format');
     }
   }
 
