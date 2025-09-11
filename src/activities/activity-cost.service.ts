@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CostType, Prisma } from '@prisma/client';
 
@@ -14,6 +14,24 @@ export interface CostEntryData {
 
 @Injectable()
 export class ActivityCostService {
+  private readonly logger = new Logger(ActivityCostService.name);
+
+  // Allowed file types for receipts
+  private readonly ALLOWED_FILE_TYPES = [
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+    'application/pdf', 'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain', 'text/csv'
+  ];
+
+  // Allowed file extensions  
+  private readonly ALLOWED_FILE_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.txt', '.csv'
+  ];
+
+  // Max file size: 10MB
+  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getActivityCosts(activityId: string, organizationId: string) {
@@ -87,10 +105,20 @@ export class ActivityCostService {
       throw new BadRequestException('Cost amount must be greater than 0');
     }
 
-    // Validate quantity if provided
     if (data.quantity !== undefined && data.quantity <= 0) {
       throw new BadRequestException('Cost quantity must be greater than 0');
     }
+
+    this.validateFileUpload(data.receipt || '');
+
+    this.logger.log('Adding cost entry to activity', {
+      activityId,
+      userId,
+      organizationId,
+      type: data.type,
+      amount: data.amount,
+      hasReceipt: !!data.receipt
+    });
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Create cost entry
@@ -191,6 +219,19 @@ export class ActivityCostService {
       throw new BadRequestException('Cost quantity must be greater than 0');
     }
 
+    // Validate file upload if receipt is being updated
+    if (data.receipt !== undefined) {
+      this.validateFileUpload(data.receipt);
+    }
+
+    this.logger.log('Updating cost entry', {
+      costId,
+      activityId,
+      userId,
+      organizationId,
+      hasReceiptUpdate: data.receipt !== undefined
+    });
+
     const result = await this.prisma.$transaction(async (tx) => {
       // Update cost entry
       const updateData: any = {
@@ -288,6 +329,69 @@ export class ActivityCostService {
         data: { cost: totalCost },
       });
     });
+  }
+
+  private validateFileUpload(fileUrl: string): void {
+    if (!fileUrl || !fileUrl.trim()) {
+      return; // File is optional
+    }
+
+    try {
+      const url = new URL(fileUrl);
+      
+      // Validate URL scheme (only allow https for security)
+      if (!['https', 'http'].includes(url.protocol.slice(0, -1))) {
+        this.logger.warn('Invalid file URL protocol attempted', {
+          fileUrl: fileUrl.substring(0, 100), // Log only first 100 chars for security
+          protocol: url.protocol
+        });
+        throw new BadRequestException('Invalid file URL: only HTTP/HTTPS protocols are allowed');
+      }
+
+      // Extract file extension from URL path
+      const pathname = url.pathname.toLowerCase();
+      const extension = pathname.substring(pathname.lastIndexOf('.'));
+      
+      if (!this.ALLOWED_FILE_EXTENSIONS.includes(extension)) {
+        this.logger.warn('Invalid file extension attempted', {
+          fileUrl: fileUrl.substring(0, 100),
+          extension,
+          allowedExtensions: this.ALLOWED_FILE_EXTENSIONS
+        });
+        throw new BadRequestException(
+          `Invalid file type. Allowed extensions: ${this.ALLOWED_FILE_EXTENSIONS.join(', ')}`
+        );
+      }
+
+      // Additional validation: check for suspicious patterns
+      const suspiciousPatterns = [
+        /javascript:/i,
+        /data:/i,
+        /vbscript:/i,
+        /<script/i,
+        /\.exe$/i,
+        /\.bat$/i,
+        /\.cmd$/i
+      ];
+
+      if (suspiciousPatterns.some(pattern => pattern.test(fileUrl))) {
+        this.logger.error('Suspicious file URL detected', {
+          fileUrl: fileUrl.substring(0, 100)
+        });
+        throw new BadRequestException('Invalid file URL: suspicious content detected');
+      }
+
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      this.logger.error('Error validating file URL', {
+        error: error.message,
+        fileUrl: fileUrl.substring(0, 100)
+      });
+      throw new BadRequestException('Invalid file URL format');
+    }
   }
 
   async getCostSummary(activityId: string, organizationId: string) {

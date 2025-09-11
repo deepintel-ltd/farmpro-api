@@ -88,7 +88,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.startActivity)
   public startActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.startActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId);
+      const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: { data: result } };
     });
   }
@@ -97,7 +97,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.updateProgress)
   public updateProgress(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.updateProgress, async ({ params, body }) => {
-      const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId);
+      const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: { data: result } };
     });
   }
@@ -106,7 +106,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.completeActivity)
   public completeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.completeActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId);
+      const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: { data: result } };
     });
   }
@@ -115,7 +115,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.pauseActivity)
   public pauseActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.pauseActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId);
+      const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: { data: result } };
     });
   }
@@ -124,7 +124,7 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.resumeActivity)
   public resumeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.resumeActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body);
+      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body, req.user.organizationId);
       return { status: 200 as const, body: { data: result } };
     });
   }

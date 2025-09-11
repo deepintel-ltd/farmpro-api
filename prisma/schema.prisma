@@ -344,6 +344,8 @@ model FarmActivity {
   @@index([createdById])
   @@index([farmId, priority])
   @@index([status, scheduledAt])
+  @@index([farmId, scheduledAt])
+  @@index([createdById, status])
   @@map("farm_activities")
 }
 
@@ -364,6 +366,8 @@ model ActivityAssignment {
   @@unique([activityId, userId])
   @@index([activityId])
   @@index([userId])
+  @@index([userId, isActive])  // For getUserActivities queries
+  @@index([activityId, isActive])  // For activity assignment lookups
   @@map("activity_assignments")
 }
 

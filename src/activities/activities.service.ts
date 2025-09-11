@@ -20,6 +20,15 @@ import {
 export class ActivitiesService {
   private readonly logger = new Logger(ActivitiesService.name);
 
+  // State machine definition for activity lifecycle
+  private readonly ALLOWED_TRANSITIONS: Record<string, string[]> = {
+    'PLANNED': ['IN_PROGRESS', 'CANCELLED'],
+    'IN_PROGRESS': ['COMPLETED', 'PAUSED', 'CANCELLED'],
+    'PAUSED': ['IN_PROGRESS', 'CANCELLED'],
+    'COMPLETED': [], // Terminal state
+    'CANCELLED': [], // Terminal state
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly assignmentService: ActivityAssignmentService,
@@ -117,6 +126,16 @@ export class ActivitiesService {
   }
 
   async createActivity(data: CreateActivityDto, userId: string, organizationId: string) {
+    this.logger.log('Creating new activity', {
+      userId,
+      organizationId,
+      farmId: data.farmId,
+      type: data.type,
+      name: data.name,
+      priority: data.priority,
+      assignedCount: data.assignedTo?.length || 0
+    });
+
     this.validateActivityData(data);
 
     // Verify farm belongs to organization
@@ -180,6 +199,15 @@ export class ActivitiesService {
       return { ...activity, assignments };
     });
 
+    this.logger.log('Activity created successfully', {
+      activityId: result.id,
+      userId,
+      organizationId,
+      farmId: data.farmId,
+      type: data.type,
+      assignedUsers: assignedUserIds
+    });
+
     return this.formatActivityResponse(result);
   }
 
@@ -235,11 +263,9 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    if (activity.status === 'IN_PROGRESS') {
-      throw new BadRequestException('Cannot delete activity in progress');
-    }
+    // Validate state transition - only allow cancellation from certain states
+    this.validateStateTransition(activity.status, 'CANCELLED', 'cancel activity');
 
-    // Check if user can delete (assigned user)
     // Check if user can delete (creator only for simplicity)
     if (activity.createdById !== userId) {
       throw new ForbiddenException('Not authorized to delete this activity');
@@ -251,9 +277,15 @@ export class ActivitiesService {
     });
   }
 
-  async startActivity(activityId: string, data: StartActivityDto, userId: string) {
-    const activity = await this.prisma.farmActivity.findUnique({
-      where: { id: activityId },
+  async startActivity(activityId: string, data: StartActivityDto, userId: string, organizationId?: string) {
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: { 
+        id: activityId,
+        ...(organizationId && { farm: { organizationId } })
+      },
+      include: {
+        farm: { select: { organizationId: true } }
+      }
     });
 
     if (!activity) {
@@ -261,14 +293,23 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
-    if (activity.status !== 'PLANNED') {
-      throw new BadRequestException('Activity cannot be started - current status: ' + activity.status);
-    }
+    // Validate state transition
+    this.validateStateTransition(activity.status, 'IN_PROGRESS', 'start activity');
+
+    this.logger.log('Starting activity', {
+      activityId,
+      userId,
+      farmId: activity.farmId,
+      type: activity.type,
+      name: activity.name,
+      previousStatus: activity.status,
+      location: data.location
+    });
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
@@ -289,9 +330,15 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async updateProgress(activityId: string, data: UpdateProgressDto, userId: string) {
-    const activity = await this.prisma.farmActivity.findUnique({
-      where: { id: activityId },
+  async updateProgress(activityId: string, data: UpdateProgressDto, userId: string, organizationId?: string) {
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: { 
+        id: activityId,
+        ...(organizationId && { farm: { organizationId } })
+      },
+      include: {
+        farm: { select: { organizationId: true } }
+      }
     });
 
     if (!activity) {
@@ -299,7 +346,7 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
@@ -331,9 +378,15 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async completeActivity(activityId: string, data: CompleteActivityDto, userId: string) {
-    const activity = await this.prisma.farmActivity.findUnique({
-      where: { id: activityId },
+  async completeActivity(activityId: string, data: CompleteActivityDto, userId: string, organizationId?: string) {
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: { 
+        id: activityId,
+        ...(organizationId && { farm: { organizationId } })
+      },
+      include: {
+        farm: { select: { organizationId: true } }
+      }
     });
 
     if (!activity) {
@@ -341,14 +394,24 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
-    if (activity.status !== 'IN_PROGRESS') {
-      throw new BadRequestException('Activity is not in progress');
-    }
+    // Validate state transition
+    this.validateStateTransition(activity.status, 'COMPLETED', 'complete activity');
+
+    this.logger.log('Completing activity', {
+      activityId,
+      userId,
+      farmId: activity.farmId,
+      type: activity.type,
+      name: activity.name,
+      previousStatus: activity.status,
+      actualCost: data.actualCost,
+      results: data.results
+    });
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
@@ -372,9 +435,15 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async pauseActivity(activityId: string, data: PauseActivityDto, userId: string) {
-    const activity = await this.prisma.farmActivity.findUnique({
-      where: { id: activityId },
+  async pauseActivity(activityId: string, data: PauseActivityDto, userId: string, organizationId?: string) {
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: { 
+        id: activityId,
+        ...(organizationId && { farm: { organizationId } })
+      },
+      include: {
+        farm: { select: { organizationId: true } }
+      }
     });
 
     if (!activity) {
@@ -382,23 +451,24 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
-    if (activity.status !== 'IN_PROGRESS') {
-      throw new BadRequestException('Activity is not in progress');
-    }
+    // Validate state transition
+    this.validateStateTransition(activity.status, 'PAUSED', 'pause activity');
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
       data: {
+        status: 'PAUSED',
         metadata: {
           ...(activity.metadata as object || {}),
           pauseReason: data.reason,
           pauseNotes: data.notes,
           estimatedResumeTime: data.estimatedResumeTime,
+          pausedAt: new Date().toISOString(),
         },
       },
       include: {
@@ -410,9 +480,15 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async resumeActivity(activityId: string, userId: string, data?: { notes?: string }) {
-    const activity = await this.prisma.farmActivity.findUnique({
-      where: { id: activityId },
+  async resumeActivity(activityId: string, userId: string, data?: { notes?: string }, organizationId?: string) {
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: { 
+        id: activityId,
+        ...(organizationId && { farm: { organizationId } })
+      },
+      include: {
+        farm: { select: { organizationId: true } }
+      }
     });
 
     if (!activity) {
@@ -420,10 +496,13 @@ export class ActivitiesService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, activity.farm.organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not assigned to this activity');
     }
+
+    // Validate state transition
+    this.validateStateTransition(activity.status, 'IN_PROGRESS', 'resume activity');
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
@@ -766,6 +845,42 @@ export class ActivitiesService {
     if (data.estimatedDuration && data.estimatedDuration <= 0) {
       throw new BadRequestException('Estimated duration must be positive');
     }
+  }
+
+  private validateStateTransition(currentStatus: string, newStatus: string, context?: string): void {
+    const allowedTransitions = this.ALLOWED_TRANSITIONS[currentStatus];
+    
+    if (!allowedTransitions) {
+      this.logger.error('Invalid activity status detected', {
+        currentStatus,
+        newStatus,
+        context,
+        allowedStates: Object.keys(this.ALLOWED_TRANSITIONS)
+      });
+      throw new BadRequestException(`Invalid current status: ${currentStatus}`);
+    }
+
+    if (!allowedTransitions.includes(newStatus)) {
+      const contextMsg = context ? ` during ${context}` : '';
+      this.logger.warn('Invalid state transition attempted', {
+        currentStatus,
+        newStatus,
+        context,
+        allowedTransitions,
+        message: `${currentStatus} -> ${newStatus}${contextMsg}`
+      });
+      throw new BadRequestException(
+        `Invalid state transition: ${currentStatus} -> ${newStatus}${contextMsg}. ` +
+        `Allowed transitions from ${currentStatus}: ${allowedTransitions.join(', ')}`
+      );
+    }
+
+    this.logger.log('State transition validated successfully', {
+      currentStatus,
+      newStatus,
+      context,
+      transition: `${currentStatus} -> ${newStatus}`
+    });
   }
 
   private getStartDate(period: string): Date {

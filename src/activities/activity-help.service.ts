@@ -43,7 +43,7 @@ export class ActivityHelpService {
     }
 
     // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId);
+    const isAssigned = await this.assignmentService.checkAssignment(userId, activityId, organizationId);
     if (!isAssigned) {
       throw new ForbiddenException('Not authorized to request help for this activity');
     }

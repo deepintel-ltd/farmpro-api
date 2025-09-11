@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityRole } from '@prisma/client';
 
@@ -9,6 +9,8 @@ export interface AssignmentData {
 
 @Injectable()
 export class ActivityAssignmentService {
+  private readonly logger = new Logger(ActivityAssignmentService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async assignUsers(
@@ -21,6 +23,16 @@ export class ActivityAssignmentService {
       notifyUsers?: boolean;
     } = {}
   ) {
+    this.logger.log('Assigning users to activity', {
+      activityId,
+      assignedById,
+      organizationId,
+      userCount: assignments.length,
+      userIds: assignments.map(a => a.userId),
+      roles: assignments.map(a => a.role || 'ASSIGNED'),
+      reassignReason: options.reassignReason
+    });
+
     // Verify activity exists and belongs to organization
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
@@ -161,13 +173,35 @@ export class ActivityAssignmentService {
     };
   }
 
-  async checkAssignment(activityId: string, userId: string): Promise<boolean> {
+  async checkAssignment(activityId: string, userId: string, organizationId?: string): Promise<boolean> {
+    const where: any = {
+      activityId,
+      userId,
+      isActive: true,
+    };
+
+    // Add organization boundary check for security
+    if (organizationId) {
+      where.activity = {
+        farm: {
+          organizationId
+        }
+      };
+    }
+
     const assignment = await this.prisma.activityAssignment.findFirst({
-      where: {
-        activityId,
-        userId,
-        isActive: true,
-      },
+      where,
+      include: {
+        activity: {
+          select: {
+            farm: {
+              select: {
+                organizationId: true
+              }
+            }
+          }
+        }
+      }
     });
 
     return !!assignment;
