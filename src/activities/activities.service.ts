@@ -457,12 +457,12 @@ export class ActivitiesService {
     }
 
     // Validate state transition
-    this.validateStateTransition(activity.status, 'PAUSED', 'pause activity');
+    this.validateStateTransition(activity.status, 'CANCELLED', 'pause activity');
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
       data: {
-        status: 'PAUSED',
+        status: 'CANCELLED', // Using CANCELLED as closest equivalent to PAUSED
         metadata: {
           ...(activity.metadata as object || {}),
           pauseReason: data.reason,

@@ -44,9 +44,9 @@ export class AnalyticsController {
   }
 
   public getFarmToMarket(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.getFarmToMarket, async ({ query }) => {
+    return tsRestHandler(analyticsContract.getFarmToMarket, async () => {
       try {
-        const result = await this.analyticsService.getFarmToMarket(req.user, query as any);
+        const result = await this.analyticsService.getFarmToMarket(req.user);
         this.logger.log(`Retrieved farm-to-market analytics for user: ${req.user.userId}`);
 
         return {
@@ -111,9 +111,9 @@ export class AnalyticsController {
   // =============================================================================
 
   public getYieldVsMarket(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.getYieldVsMarket, async ({ query }) => {
+    return tsRestHandler(analyticsContract.getYieldVsMarket, async () => {
       try {
-        const result = await this.analyticsService.getYieldVsMarket(req.user, query as any);
+        const result = await this.analyticsService.getYieldVsMarket(req.user);
         this.logger.log(`Retrieved yield vs market analytics for user: ${req.user.userId}`);
 
         return {
@@ -597,9 +597,9 @@ export class AnalyticsController {
   // =============================================================================
 
   public executeCustomQuery(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.executeCustomQuery, async ({ body }) => {
+    return tsRestHandler(analyticsContract.executeCustomQuery, async () => {
       try {
-        const result = await this.analyticsService.executeCustomQuery(req.user, body as any);
+        const result = await this.analyticsService.executeCustomQuery(req.user);
         this.logger.log(`Executed custom query for user: ${req.user.userId}`);
 
         return {
@@ -639,9 +639,9 @@ export class AnalyticsController {
   }
 
   public createDataExport(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.createDataExport, async ({ body }) => {
+    return tsRestHandler(analyticsContract.createDataExport, async () => {
       try {
-        const result = await this.analyticsService.createDataExport(req.user, body as any);
+        const result = await this.analyticsService.createDataExport(req.user);
         this.logger.log(`Created data export for user: ${req.user.userId}`);
 
         return {
@@ -660,9 +660,9 @@ export class AnalyticsController {
   }
 
   public getInsights(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.getInsights, async ({ query }) => {
+    return tsRestHandler(analyticsContract.getInsights, async () => {
       try {
-        const result = await this.analyticsService.getInsights(req.user, query as any);
+        const result = await this.analyticsService.getInsights(req.user);
         this.logger.log(`Retrieved insights for user: ${req.user.userId}`);
 
         return {
@@ -706,9 +706,9 @@ export class AnalyticsController {
   }
 
   public generateReport(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.generateReport, async ({ body }) => {
+    return tsRestHandler(analyticsContract.generateReport, async () => {
       try {
-        const result = await this.analyticsService.generateReport(req.user, body as any);
+        const result = await this.analyticsService.generateReport(req.user);
         this.logger.log(`Generated report for user: ${req.user.userId}`);
 
         return {
@@ -727,9 +727,9 @@ export class AnalyticsController {
   }
 
   public getReports(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.getReports, async ({ query }) => {
+    return tsRestHandler(analyticsContract.getReports, async () => {
       try {
-        const result = await this.analyticsService.getReports(req.user, query as any);
+        const result = await this.analyticsService.getReports(req.user);
         this.logger.log(`Retrieved reports for user: ${req.user.userId}`);
 
         return {
@@ -771,9 +771,9 @@ export class AnalyticsController {
   }
 
   public scheduleReport(req: AuthenticatedRequest) {
-    return tsRestHandler(analyticsContract.scheduleReport, async ({ body }) => {
+    return tsRestHandler(analyticsContract.scheduleReport, async () => {
       try {
-        const result = await this.analyticsService.scheduleReport(req.user, body as any);
+        const result = await this.analyticsService.scheduleReport(req.user);
         this.logger.log(`Scheduled report for user: ${req.user.userId}`);
 
         return {

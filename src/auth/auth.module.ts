@@ -32,6 +32,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     LocalStrategy,
     JwtStrategy,
     LocalAuthGuard,
+    JwtAuthGuard,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

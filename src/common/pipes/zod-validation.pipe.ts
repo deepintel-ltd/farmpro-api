@@ -86,8 +86,8 @@ export function createZodValidationPipe(schema: ZodSchema) {
 /**
  * Decorator to apply Zod validation to a parameter
  */
-export function ZodValidate(schema: ZodSchema) {
-  return function (target: any, propertyKey: string, parameterIndex: number) {
+export function ZodValidate() {
+  return function () {
     // This would be used with a custom parameter decorator
     // For now, we'll use the pipe directly in controllers
   };

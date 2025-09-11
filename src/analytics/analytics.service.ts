@@ -4,10 +4,8 @@ import { AnalyticsPermissionsService } from './permissions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   DashboardAnalyticsQueryDto,
-  FarmToMarketQueryDto,
   ProfitabilityQueryDto,
   ROIAnalysisQueryDto,
-  YieldVsMarketQueryDto,
   QualityPremiumQueryDto,
   TimingAnalysisQueryDto,
   DirectVsIntermediaryQueryDto,
@@ -29,12 +27,6 @@ import {
   PeerBenchmarkingQueryDto,
   IndustryBenchmarksQueryDto,
   HistoricalComparisonQueryDto,
-  CustomQueryRequestDto,
-  DataExportRequestDto,
-  InsightsQueryDto,
-  ReportGenerationRequestDto,
-  ReportScheduleRequestDto,
-  ReportsQueryDto,
   AnalyticsDashboardResponseDto,
   AnalyticsReportsResponseDto,
   AnalyticsExportsResponseDto,
@@ -45,16 +37,16 @@ import {
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
-  private readonly CACHE_TTL = 300; // 5 minutes cache TTL
   private readonly MAX_QUERY_LIMIT = 1000;
   private readonly DEFAULT_PAGE_SIZE = 50;
+
+  // TODO: Add cache service injection when implementing caching
+  // private readonly cacheService?: CacheService;
+  // private readonly CACHE_TTL = 300; // 5 minutes cache TTL
 
   constructor(
     private readonly permissionsService: AnalyticsPermissionsService,
     private readonly prisma: PrismaService,
-    private readonly cacheService?: any,
-    private readonly performanceMonitor?: any,
-    private readonly auditService?: any,
   ) {}
 
   // =============================================================================
@@ -87,13 +79,6 @@ export class AnalyticsService {
     }
   }
 
-  /**
-   * Generates cache key for analytics queries
-   */
-  private generateCacheKey(method: string, userId: string, query: any): string {
-    const queryHash = Buffer.from(JSON.stringify(query)).toString('base64');
-    return `analytics:${method}:${userId}:${queryHash}`;
-  }
 
   /**
    * Handles analytics errors with proper logging and user-friendly messages
@@ -109,7 +94,8 @@ export class AnalyticsService {
   }
 
   /**
-   * Executes analytics query with caching and error handling
+   * Executes analytics query with error handling
+   * TODO: Add caching logic here when cache service is implemented
    */
   private async executeAnalyticsQuery<T>(
     method: string,
@@ -117,30 +103,31 @@ export class AnalyticsService {
     query: any,
     queryFn: () => Promise<T>
   ): Promise<T> {
-    const cacheKey = this.generateCacheKey(method, userId, query);
-    
     try {
-      // Check cache first
-      if (this.cacheService) {
-        const cached = await this.cacheService.get(cacheKey);
-        if (cached) {
-          return cached;
-        }
-      }
+      // TODO: Check cache first
+      // const cacheKey = this.generateCacheKey(method, userId, query);
+      // const cached = await this.cacheService?.get(cacheKey);
+      // if (cached) return cached;
 
-      // Execute query
       const result = await queryFn();
 
-      // Cache result
-      if (this.cacheService) {
-        await this.cacheService.set(cacheKey, result, this.CACHE_TTL);
-      }
+      // TODO: Cache result
+      // await this.cacheService?.set(cacheKey, result, this.CACHE_TTL);
 
       return result;
     } catch (error) {
       this.handleAnalyticsError(error, method);
     }
   }
+
+  /**
+   * Generates cache key for analytics queries
+   * TODO: Uncomment when cache service is implemented
+   */
+  // private generateCacheKey(method: string, userId: string, query: any): string {
+  //   const queryHash = Buffer.from(JSON.stringify(query)).toString('base64');
+  //   return `analytics:${method}:${userId}:${queryHash}`;
+  // }
 
   /**
    * Builds date range filter for queries
@@ -191,15 +178,6 @@ export class AnalyticsService {
     // Validate permissions
     await this.permissionsService.validateDashboardAccess(user, query.farmId);
 
-    // Log audit trail
-    if (this.auditService) {
-      await this.auditService.logAccess({
-        userId: user.userId,
-        action: 'getDashboard',
-        resource: 'analytics',
-        metadata: { farmId: query.farmId, period: query.period },
-      });
-    }
 
     return this.executeAnalyticsQuery(
       'getDashboard',
@@ -213,12 +191,12 @@ export class AnalyticsService {
     );
   }
 
-  async getFarmToMarket(user: CurrentUser, query: FarmToMarketQueryDto): Promise<AnalyticsDashboardResponseDto> {
+  async getFarmToMarket(user: CurrentUser): Promise<AnalyticsDashboardResponseDto> {
     this.logger.log(`Getting farm-to-market analytics for user: ${user.userId}`);
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockFarmToMarketData(query);
+    const mockData = this.generateMockFarmToMarketData();
     return mockData;
   }
 
@@ -248,12 +226,12 @@ export class AnalyticsService {
   // Production vs Market Performance
   // =============================================================================
 
-  async getYieldVsMarket(user: CurrentUser, query: YieldVsMarketQueryDto): Promise<AnalyticsDashboardResponseDto> {
+  async getYieldVsMarket(user: CurrentUser): Promise<AnalyticsDashboardResponseDto> {
     this.logger.log(`Getting yield vs market analytics for user: ${user.userId}`);
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockYieldVsMarketData(query);
+    const mockData = this.generateMockYieldVsMarketData();
     return mockData;
   }
 
@@ -470,12 +448,12 @@ export class AnalyticsService {
   // Advanced Analytics
   // =============================================================================
 
-  async executeCustomQuery(user: CurrentUser, request: CustomQueryRequestDto): Promise<AnalyticsDashboardResponseDto> {
+  async executeCustomQuery(user: CurrentUser): Promise<AnalyticsDashboardResponseDto> {
     this.logger.log(`Executing custom query for user: ${user.userId}`);
 
     await this.permissionsService.validateAdvancedAnalyticsPermission(user);
 
-    const mockData = this.generateMockCustomQueryData(request);
+    const mockData = this.generateMockCustomQueryData();
     return mockData;
   }
 
@@ -492,7 +470,7 @@ export class AnalyticsService {
     return mockData;
   }
 
-  async createDataExport(user: CurrentUser, _request: DataExportRequestDto): Promise<{ data: { type: 'analytics_export'; id: string; attributes: { status: 'pending'; message: string } } }> {
+  async createDataExport(user: CurrentUser): Promise<{ data: { type: 'analytics_export'; id: string; attributes: { status: 'pending'; message: string } } }> {
     this.logger.log(`Creating data export for user: ${user.userId}`);
 
     await this.permissionsService.validateDataExportPermission(user);
@@ -514,12 +492,12 @@ export class AnalyticsService {
   // Insights
   // =============================================================================
 
-  async getInsights(user: CurrentUser, query: InsightsQueryDto): Promise<AnalyticsInsightsResponseDto> {
+  async getInsights(user: CurrentUser): Promise<AnalyticsInsightsResponseDto> {
     this.logger.log(`Getting insights for user: ${user.userId}`);
 
     await this.permissionsService.validateDashboardAccess(user);
 
-    const mockData = this.generateMockInsightsData(query);
+    const mockData = this.generateMockInsightsData();
     return mockData;
   }
 
@@ -536,7 +514,7 @@ export class AnalyticsService {
     return mockData;
   }
 
-  async generateReport(user: CurrentUser, _request: ReportGenerationRequestDto): Promise<{ data: { type: 'analytics_report'; id: string; attributes: { status: 'pending'; message: string } } }> {
+  async generateReport(user: CurrentUser): Promise<{ data: { type: 'analytics_report'; id: string; attributes: { status: 'pending'; message: string } } }> {
     this.logger.log(`Generating report for user: ${user.userId}`);
 
     await this.permissionsService.checkReportsPermission(user, 'create');
@@ -554,12 +532,12 @@ export class AnalyticsService {
     };
   }
 
-  async getReports(user: CurrentUser, query: ReportsQueryDto): Promise<AnalyticsReportsResponseDto> {
+  async getReports(user: CurrentUser): Promise<AnalyticsReportsResponseDto> {
     this.logger.log(`Getting reports for user: ${user.userId}`);
 
     await this.permissionsService.checkReportsPermission(user, 'read');
 
-    const mockData = this.generateMockReportsData(query);
+    const mockData = this.generateMockReportsData();
     return mockData;
   }
 
@@ -572,7 +550,7 @@ export class AnalyticsService {
     return mockData;
   }
 
-  async scheduleReport(user: CurrentUser, _request: ReportScheduleRequestDto): Promise<{ data: { type: 'report_schedule'; id: string; attributes: { status: 'active'; message: string } } }> {
+  async scheduleReport(user: CurrentUser): Promise<{ data: { type: 'report_schedule'; id: string; attributes: { status: 'active'; message: string } } }> {
     this.logger.log(`Scheduling report for user: ${user.userId}`);
 
     await this.permissionsService.checkReportsPermission(user, 'create');
@@ -625,7 +603,7 @@ export class AnalyticsService {
    */
   private async buildDashboardData(user: CurrentUser, query: DashboardAnalyticsQueryDto): Promise<AnalyticsDashboardResponseDto> {
     const dateFilter = this.buildDateRangeFilter(query);
-    const { page: _page, limit: _limit, skip: _skip } = this.buildPaginationParams(query);
+    this.buildPaginationParams(query);
 
     try {
       // Parallel data fetching for better performance
@@ -636,7 +614,7 @@ export class AnalyticsService {
       ] = await Promise.all([
         this.getDashboardMetrics(user, query, dateFilter),
         this.getDashboardCharts(user, query, dateFilter),
-        this.getDashboardInsights(user, query, dateFilter)
+        this.getDashboardInsights()
       ]);
 
       return {
@@ -797,7 +775,7 @@ export class AnalyticsService {
   /**
    * Fetches dashboard insights from database
    */
-  private async getDashboardInsights(_user: CurrentUser, _query: any, _dateFilter: any) {
+  private async getDashboardInsights() {
     // This would typically involve more complex analysis
     // For now, we'll return basic insights based on data patterns
     return [
@@ -839,7 +817,7 @@ export class AnalyticsService {
   /**
    * Gets total count for pagination
    */
-  private async getTotalCount(_user: CurrentUser, _query: any, _dateFilter: any): Promise<number> {
+  private async getTotalCount(): Promise<number> {
     // For now, return 0 since we're not using pagination in the current implementation
     // This can be implemented when proper activity tracking is set up
     return 0;
@@ -946,7 +924,7 @@ export class AnalyticsService {
     };
   }
 
-  private generateMockFarmToMarketData(_query: FarmToMarketQueryDto): AnalyticsDashboardResponseDto {
+  private generateMockFarmToMarketData(): AnalyticsDashboardResponseDto {
     return this.generateMockDashboardData({});
   }
 
@@ -958,7 +936,7 @@ export class AnalyticsService {
     return this.generateMockDashboardData({ period: query.period, farmId: query.farmId });
   }
 
-  private generateMockYieldVsMarketData(_query: YieldVsMarketQueryDto): AnalyticsDashboardResponseDto {
+  private generateMockYieldVsMarketData(): AnalyticsDashboardResponseDto {
     return this.generateMockDashboardData({});
   }
 
@@ -1046,7 +1024,7 @@ export class AnalyticsService {
     return this.generateMockDashboardData({ period: _query.period });
   }
 
-  private generateMockCustomQueryData(_request: CustomQueryRequestDto): AnalyticsDashboardResponseDto {
+  private generateMockCustomQueryData(): AnalyticsDashboardResponseDto {
     return this.generateMockDashboardData({});
   }
 
@@ -1078,7 +1056,7 @@ export class AnalyticsService {
     };
   }
 
-  private generateMockInsightsData(_query: InsightsQueryDto): AnalyticsInsightsResponseDto {
+  private generateMockInsightsData(): AnalyticsInsightsResponseDto {
     return {
       data: [
         {
@@ -1127,7 +1105,7 @@ export class AnalyticsService {
     };
   }
 
-  private generateMockReportsData(_query: ReportsQueryDto): AnalyticsReportsResponseDto {
+  private generateMockReportsData(): AnalyticsReportsResponseDto {
     return {
       data: [
         {

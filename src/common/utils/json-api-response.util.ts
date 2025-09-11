@@ -267,7 +267,7 @@ export function createJsonApiErrorResponse(
 /**
  * Utility to extract resource type from class name or string
  */
-export function getResourceType(resource: string | Function): string {
+export function getResourceType(resource: string | (() => any)): string {
   if (typeof resource === 'string') {
     return resource.toLowerCase();
   }
