@@ -220,6 +220,48 @@ export class ActivitiesController {
     });
   }
 
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.getCompletionRates)
+  public getCompletionRates(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.getCompletionRates, async ({ query }) => {
+      const analyticsQuery: AnalyticsQueryOptions = {
+        farmId: query.farmId,
+        period: query.period,
+        type: query.type,
+      };
+      const result = await this.activitiesService.getCompletionRates(analyticsQuery, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.getCostAnalysis)
+  public getCostAnalysis(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.getCostAnalysis, async ({ query }) => {
+      const analyticsQuery: AnalyticsQueryOptions = {
+        farmId: query.farmId,
+        period: query.period,
+        type: query.type,
+      };
+      const result = await this.activitiesService.getCostAnalysis(analyticsQuery, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesContract.generateReport)
+  public generateReport(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesContract.generateReport, async ({ body }) => {
+      const result = await this.activitiesService.generateReport({
+        reportType: body.reportType,
+        filters: body.filters,
+        format: body.format,
+        includeCharts: body.includeCharts
+      }, req.user.organizationId);
+      return { status: 202 as const, body: result };
+    });
+  }
+
   // Cost Management
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(activitiesContract.getActivityCosts)
