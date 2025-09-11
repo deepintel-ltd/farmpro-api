@@ -70,7 +70,11 @@ export class CacheService {
    */
   async reset(): Promise<void> {
     try {
-      await this.cacheManager.reset();
+      for (const store of this.cacheManager.stores) {
+        if (store && typeof store.clear === 'function') {
+          await store.clear();
+        }
+      }
       this.logger.debug('Cache reset completed');
     } catch (error) {
       this.logger.error('Error resetting cache:', error);

@@ -260,7 +260,7 @@ export const BulkCreateRequestSchema = z.object({
     name: z.string(),
     description: z.string().optional(),
     type: ActivityTypeEnum,
-    priority: PriorityEnum,
+    priority: ActivityPriorityEnum,
     scheduledAt: z.string().datetime(),
     estimatedDuration: z.number().positive().optional(),
     farmId: z.string(),
@@ -276,7 +276,7 @@ export const BulkUpdateRequestSchema = z.object({
     updates: z.object({
       name: z.string().optional(),
       description: z.string().optional(),
-      priority: PriorityEnum.optional(),
+      priority: ActivityPriorityEnum.optional(),
       scheduledAt: z.string().datetime().optional(),
       estimatedDuration: z.number().positive().optional(),
       status: ActivityStatusEnum.optional(),

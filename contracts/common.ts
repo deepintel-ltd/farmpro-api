@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { JsonApiErrorResponseSchema } from './schemas';
 
+export { JsonApiErrorResponseSchema };
+
 // Initialize ts-rest contract - used internally in each domain contract
 
 // =============================================================================

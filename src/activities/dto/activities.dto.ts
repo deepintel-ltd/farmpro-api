@@ -98,6 +98,7 @@ export interface WorkloadQueryOptions {
   farmId: string;
   startDate: string;
   endDate: string;
+  userId?: string;
 }
 
 // Bulk operation DTOs

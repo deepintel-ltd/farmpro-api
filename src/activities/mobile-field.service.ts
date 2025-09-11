@@ -226,7 +226,7 @@ export class MobileFieldService {
         userId,
         content,
         type: 'GENERAL',
-        metadata: gpsCoordinates ? { gpsCoordinates } : undefined,
+        metadata: gpsCoordinates ? { gpsCoordinates: gpsCoordinates as any } : undefined,
       },
     });
   }
@@ -248,5 +248,254 @@ export class MobileFieldService {
         lastUpdated: new Date().toISOString(),
       };
     }
+  }
+
+  async startTask(taskId: string, data: TaskActionData, userId: string, organizationId: string) {
+    this.logger.log(`Starting task ${taskId} for user ${userId}`);
+    
+    // Check if task exists and user has access
+    const task = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: taskId,
+        farm: { organizationId },
+        assignments: {
+          some: { userId, isActive: true }
+        }
+      }
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found or access denied');
+    }
+
+    // Update task status to IN_PROGRESS
+    const updatedTask = await this.prisma.farmActivity.update({
+      where: { id: taskId },
+      data: {
+        status: 'IN_PROGRESS',
+        startedAt: new Date(),
+        metadata: {
+          ...(task.metadata as Record<string, any> || {}),
+          gpsCoordinates: data.gpsCoordinates as any,
+          startedBy: userId,
+          startedAt: new Date().toISOString(),
+        }
+      },
+      include: {
+        farm: { select: { id: true, name: true } },
+        assignments: {
+          include: { user: { select: { id: true, name: true } } }
+        }
+      }
+    });
+
+    return {
+      id: updatedTask.id,
+      name: updatedTask.name,
+      status: updatedTask.status,
+      startedAt: updatedTask.startedAt,
+      message: 'Task started successfully'
+    };
+  }
+
+  async completeTask(taskId: string, data: TaskActionData, userId: string, organizationId: string) {
+    this.logger.log(`Completing task ${taskId} for user ${userId}`);
+    
+    // Check if task exists and user has access
+    const task = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: taskId,
+        farm: { organizationId },
+        assignments: {
+          some: { userId, isActive: true }
+        }
+      }
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found or access denied');
+    }
+
+    // Update task status to COMPLETED
+    const updatedTask = await this.prisma.farmActivity.update({
+      where: { id: taskId },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        actualDuration: data.progress ? Math.round(data.progress * (task.estimatedDuration || 0)) : undefined,
+        metadata: {
+          ...(task.metadata as Record<string, any> || {}),
+          gpsCoordinates: data.gpsCoordinates as any,
+          completedBy: userId,
+          completedAt: new Date().toISOString(),
+          actualCost: data.actualCost,
+        }
+      },
+      include: {
+        farm: { select: { id: true, name: true } },
+        assignments: {
+          include: { user: { select: { id: true, name: true } } }
+        }
+      }
+    });
+
+    return {
+      id: updatedTask.id,
+      name: updatedTask.name,
+      status: updatedTask.status,
+      completedAt: updatedTask.completedAt,
+      message: 'Task completed successfully'
+    };
+  }
+
+  async addTaskPhoto(taskId: string, data: any, userId: string, organizationId: string) {
+    this.logger.log(`Adding photo to task ${taskId} for user ${userId}`);
+    
+    // Check if task exists and user has access
+    const task = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: taskId,
+        farm: { organizationId },
+        assignments: {
+          some: { userId, isActive: true }
+        }
+      }
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found or access denied');
+    }
+
+    // Add photo to task notes
+    const note = await this.prisma.activityNote.create({
+      data: {
+        activityId: taskId,
+        userId,
+        type: 'GENERAL',
+        content: data.photoUrl || 'Photo uploaded',
+        metadata: {
+          photoUrl: data.photoUrl,
+          gpsCoordinates: data.gpsCoordinates,
+          uploadedAt: new Date().toISOString(),
+        }
+      }
+    });
+
+    return {
+      id: note.id,
+      type: 'PHOTO',
+      content: note.content,
+      createdAt: note.createdAt,
+      message: 'Photo added successfully'
+    };
+  }
+
+  async getOfflineData(userId: string, organizationId: string) {
+    this.logger.log(`Getting offline data for user ${userId}`);
+    
+    // Get user's assigned tasks
+    const tasks = await this.prisma.farmActivity.findMany({
+      where: {
+        farm: { organizationId },
+        assignments: {
+          some: { userId, isActive: true }
+        },
+        status: { in: ['PLANNED', 'IN_PROGRESS'] }
+      },
+      include: {
+        farm: { select: { id: true, name: true } },
+        assignments: {
+          include: { user: { select: { id: true, name: true } } }
+        }
+      }
+    });
+
+    return {
+      tasks: tasks.map(task => ({
+        id: task.id,
+        name: task.name,
+        description: task.description,
+        type: task.type,
+        status: task.status,
+        priority: task.priority,
+        scheduledAt: task.scheduledAt,
+        farm: task.farm,
+        assignments: task.assignments
+      })),
+      lastSync: new Date().toISOString(),
+      totalTasks: tasks.length
+    };
+  }
+
+  async syncOfflineData(data: any, userId: string) {
+    this.logger.log(`Syncing offline data for user ${userId}`);
+    
+    // Process offline task updates
+    const results = {
+      synced: 0,
+      failed: 0,
+      errors: []
+    };
+
+    if (data.taskUpdates) {
+      for (const update of data.taskUpdates) {
+        try {
+          await this.prisma.farmActivity.update({
+            where: { id: update.taskId },
+            data: {
+              status: update.status,
+              metadata: {
+                ...update.metadata,
+                syncedAt: new Date().toISOString(),
+                syncedBy: userId
+              }
+            }
+          });
+          results.synced++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            taskId: update.taskId,
+            error: error.message
+          });
+        }
+      }
+    }
+
+    return {
+      synced: results.synced,
+      failed: results.failed,
+      errors: results.errors,
+      syncedAt: new Date().toISOString()
+    };
+  }
+
+  async reportIssue(data: any, userId: string) {
+    this.logger.log(`Reporting issue for user ${userId}`);
+    
+    // Create issue report
+    const issue = await this.prisma.activityNote.create({
+      data: {
+        activityId: data.taskId,
+        userId,
+        type: 'ISSUE',
+        content: data.description,
+        metadata: {
+          issueType: data.type,
+          severity: data.severity || 'MEDIUM',
+          gpsCoordinates: data.gpsCoordinates,
+          reportedAt: new Date().toISOString(),
+          attachments: data.attachments || []
+        }
+      }
+    });
+
+    return {
+      id: issue.id,
+      type: 'ISSUE',
+      content: issue.content,
+      createdAt: issue.createdAt,
+      message: 'Issue reported successfully'
+    };
   }
 }
