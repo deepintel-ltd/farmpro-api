@@ -10,6 +10,7 @@ import { OrganizationsModule } from '@/organizations/organizations.module';
 import { MarketModule } from '@/market/market.module';
 import { AnalyticsModule } from '@/analytics/analytics.module';
 import { OrdersModule } from '@/orders/orders.module';
+import { IntelligenceModule } from '@/intelligence/intelligence.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { OrdersModule } from '@/orders/orders.module';
     MarketModule,
     AnalyticsModule,
     OrdersModule,
+    IntelligenceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

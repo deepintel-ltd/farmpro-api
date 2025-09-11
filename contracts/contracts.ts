@@ -12,6 +12,7 @@ import { inventoryContract, type InventoryContract } from './inventory.contract'
 import { organizationContract, type OrganizationContract } from './organizations.contract';
 import { analyticsContract, type AnalyticsContract } from './analytics.contract';
 import { marketContract, type MarketContract } from './market.contract';
+import { intelligenceContract, type IntelligenceContract } from './intelligence.contract';
 
 // Import common utilities
 import { initContract } from '@ts-rest/core';
@@ -39,6 +40,7 @@ export const apiContract: any = c.router({
   organizations: organizationContract,
   analytics: analyticsContract,
   market: marketContract,
+  intelligence: intelligenceContract,
   ...healthContract,
 });
 
@@ -63,6 +65,7 @@ export type InventoryEndpoints = ApiContractType['inventory'];
 export type OrganizationEndpoints = ApiContractType['organizations'];
 export type AnalyticsEndpoints = ApiContractType['analytics'];
 export type MarketEndpoints = ApiContractType['market'];
+export type IntelligenceEndpoints = ApiContractType['intelligence'];
 
 // Export contract type for use in NestJS controllers
 export type { ApiContractType as ApiContract };
@@ -101,6 +104,7 @@ export function getContractMetadata() {
       organizations: Object.keys(organizationContract),
       analytics: Object.keys(analyticsContract),
       market: Object.keys(marketContract),
+      intelligence: Object.keys(intelligenceContract),
     },
   };
 }
@@ -120,6 +124,7 @@ export {
   organizationContract,
   analyticsContract,
   marketContract,
+  intelligenceContract,
 };
 export type {
   FarmContract,
@@ -132,4 +137,5 @@ export type {
   OrganizationContract,
   AnalyticsContract,
   MarketContract,
+  IntelligenceContract,
 };

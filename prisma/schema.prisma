@@ -44,6 +44,10 @@ model User {
   createdOrders        Order[]             @relation("OrderCreatedBy")
   messages             Message[]
   activities           Activity[]
+  intelligenceResponses IntelligenceResponse[]
+  farmAnalyses         FarmAnalysis[]
+  marketAnalyses       MarketAnalysis[]
+  activityOptimizations ActivityOptimization[]
 
   @@index([organizationId])
   @@index([email])
@@ -203,6 +207,9 @@ model Farm {
   sensors      Sensor[]
   commodities  Commodity[]     @relation("FarmCommodities")
   orders       Order[]         @relation("FarmOrders")
+  intelligenceResponses IntelligenceResponse[]
+  farmAnalyses         FarmAnalysis[]
+  activityOptimizations ActivityOptimization[]
 
   @@index([organizationId])
   @@index([organizationId, isActive])
@@ -833,6 +840,90 @@ model Setting {
 
   @@index([scope, scopeId])
   @@map("settings")
+}
+
+model IntelligenceResponse {
+  id             String   @id @default(cuid())
+  content        String
+  model          String
+  usage          Json     // { promptTokens, completionTokens, totalTokens }
+  userId         String
+  farmId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farm Farm? @relation(fields: [farmId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([farmId])
+  @@index([createdAt])
+  @@map("intelligence_responses")
+}
+
+model FarmAnalysis {
+  id             String   @id @default(cuid())
+  farmId         String
+  analysisType   String
+  insights       String[] // Array of insights
+  recommendations String[] // Array of recommendations
+  confidence     Float    // 0-1 confidence score
+  data           Json     // Analysis results data
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([farmId])
+  @@index([userId])
+  @@index([analysisType])
+  @@index([createdAt])
+  @@map("farm_analyses")
+}
+
+model MarketAnalysis {
+  id             String   @id @default(cuid())
+  commodity      String
+  region         String?
+  analysisType   String
+  predictions    Json     // Array of predictions with dates and values
+  insights       String[] // Array of insights
+  recommendations String[] // Array of recommendations
+  riskFactors    String[] // Array of risk factors
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([commodity])
+  @@index([region])
+  @@index([analysisType])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("market_analyses")
+}
+
+model ActivityOptimization {
+  id             String   @id @default(cuid())
+  farmId         String
+  activityType   String
+  optimizedPlan  Json     // Optimized plan with schedule, costs, etc.
+  alternatives   Json     // Alternative approaches
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([farmId])
+  @@index([userId])
+  @@index([activityType])
+  @@index([createdAt])
+  @@map("activity_optimizations")
 }
 
 enum CropStatus {
