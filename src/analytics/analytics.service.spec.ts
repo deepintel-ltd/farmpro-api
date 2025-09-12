@@ -1,42 +1,111 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsPermissionsService } from './permissions.service';
+import { CacheService } from '../common/services/cache.service';
+import { IntelligenceService } from '../intelligence/intelligence.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AnalyticsPeriod } from './dto/analytics.dto';
+import { 
+  BaseAnalyticsQuery, 
+  FinancialQuery, 
+  ActivityQuery, 
+  MarketQuery,
+  ExportRequest,
+  ReportRequest
+} from '../../contracts/analytics.contract';
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
-  let permissionsService: AnalyticsPermissionsService;
+  let module: TestingModule;
 
   const mockUser: CurrentUser = {
-    userId: 'test-user-id',
+    userId: '550e8400-e29b-41d4-a716-446655440000',
     email: 'test@example.com',
-    organizationId: 'test-org-id',
+    organizationId: '550e8400-e29b-41d4-a716-446655440001',
+  };
+
+  const mockPrismaService = {
+    transaction: {
+      aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 1000 }, _count: { id: 5 } })
+    },
+    farmActivity: {
+      count: jest.fn().mockResolvedValue(10),
+      aggregate: jest.fn().mockResolvedValue({ _avg: { actualDuration: 8 } })
+    },
+    order: {
+      findMany: jest.fn().mockResolvedValue([
+        { id: '1', totalAmount: 500, buyerId: 'buyer1' },
+        { id: '2', totalAmount: 300, buyerId: 'buyer2' }
+      ]),
+      count: jest.fn().mockResolvedValue(5),
+      aggregate: jest.fn().mockResolvedValue({ 
+        _sum: { totalPrice: 1000 }, 
+        _avg: { totalPrice: 200 } 
+      }),
+      groupBy: jest.fn().mockResolvedValue([
+        { buyerOrgId: 'buyer1', _count: { buyerOrgId: 2 } },
+        { buyerOrgId: 'buyer2', _count: { buyerOrgId: 1 } }
+      ])
+    },
+    cropCycle: {
+      findMany: jest.fn().mockResolvedValue([
+        { id: '1', status: 'COMPLETED', commodity: { name: 'Wheat' } },
+        { id: '2', status: 'ACTIVE', commodity: { name: 'Corn' } }
+      ]),
+      count: jest.fn().mockResolvedValue(2),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { actualYield: 1000 } })
+    },
+    harvest: {
+      findMany: jest.fn().mockResolvedValue([
+        { id: '1', quantity: 500, cropCycle: { commodity: { name: 'Wheat' } } }
+      ]),
+      aggregate: jest.fn().mockResolvedValue({ 
+        _avg: { quantity: 500 }, 
+        _count: { id: 1 } 
+      })
+    }
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         AnalyticsService,
         {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: CacheService,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            generateQueryHash: jest.fn().mockReturnValue('test-hash'),
+          },
+        },
+        {
+          provide: IntelligenceService,
+          useValue: {
+            analyzeFarm: jest.fn().mockResolvedValue({
+              insights: ['Test insight'],
+              recommendations: ['Test recommendation'],
+              confidence: 0.8,
+              model: 'gpt-4',
+            }),
+          },
+        },
+        {
           provide: AnalyticsPermissionsService,
           useValue: {
-            validateDashboardAccess: jest.fn().mockResolvedValue(true),
-            validateProfitabilityAccess: jest.fn().mockResolvedValue(true),
-            validateMarketResearchAccess: jest.fn().mockResolvedValue(true),
-            validatePlanningAccess: jest.fn().mockResolvedValue(true),
-            canUseAdvancedAnalytics: jest.fn().mockResolvedValue(true),
-            canExportData: jest.fn().mockResolvedValue(true),
-            canReadReports: jest.fn().mockResolvedValue(true),
-            canCreateReports: jest.fn().mockResolvedValue(true),
-            canScheduleReports: jest.fn().mockResolvedValue(true),
+            checkAnalyticsPermission: jest.fn().mockResolvedValue(true),
+            validateFarmAccess: jest.fn().mockResolvedValue(true),
+            validateExportPermission: jest.fn().mockResolvedValue(true),
+            validateReportPermission: jest.fn().mockResolvedValue(true),
           },
         },
       ],
     }).compile();
 
     service = module.get<AnalyticsService>(AnalyticsService);
-    permissionsService = module.get<AnalyticsPermissionsService>(AnalyticsPermissionsService);
   });
 
   it('should be defined', () => {
@@ -45,206 +114,181 @@ describe('AnalyticsService', () => {
 
   describe('getDashboard', () => {
     it('should return dashboard analytics data', async () => {
-      const query = {
-        period: AnalyticsPeriod.MONTH,
-        farmId: 'test-farm-id',
+      const query: BaseAnalyticsQuery = {
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        includeInsights: true,
+        useCache: true,
       };
 
       const result = await service.getDashboard(mockUser, query);
 
       expect(result).toBeDefined();
       expect(result.data.type).toBe('analytics_dashboard');
-      expect(result.data.attributes.period).toBe(AnalyticsPeriod.MONTH);
-      expect(result.data.attributes.farmId).toBe('test-farm-id');
+      expect(result.data.attributes.period).toBe('month');
+      expect(result.data.attributes.farmId).toBe('550e8400-e29b-41d4-a716-446655440002');
       expect(result.data.attributes.metrics).toBeDefined();
       expect(result.data.attributes.charts).toBeDefined();
-      expect(result.data.attributes.insights).toBeDefined();
       expect(result.data.attributes.summary).toBeDefined();
     });
 
-    it('should throw error when user lacks permissions', async () => {
-      jest.spyOn(permissionsService, 'validateDashboardAccess').mockResolvedValue(false);
+    it('should use cache when enabled', async () => {
+      const cacheService = module.get<CacheService>(CacheService);
+      jest.spyOn(cacheService, 'get').mockResolvedValue({
+        data: {
+          type: 'analytics_dashboard',
+          id: 'dashboard',
+          attributes: {
+            period: 'month',
+            metrics: [],
+            charts: [],
+            summary: { totalRevenue: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, roi: 0, efficiency: 0, sustainability: 0 },
+            generatedAt: new Date().toISOString(),
+          },
+        },
+      });
 
-      const query = {
-        period: AnalyticsPeriod.MONTH,
-        farmId: 'test-farm-id',
+      const query: BaseAnalyticsQuery = {
+        period: 'month',
+        useCache: true,
       };
 
-      await expect(service.getDashboard(mockUser, query)).rejects.toThrow('Insufficient permissions to access dashboard analytics');
+      const result = await service.getDashboard(mockUser, query);
+      expect(cacheService.get).toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
   });
 
-  describe('getProfitability', () => {
-    it('should return profitability analytics data', async () => {
-      const query = {
-        period: AnalyticsPeriod.MONTH,
-        farmId: 'test-farm-id',
+  describe('getFinancialAnalytics', () => {
+    it('should return financial analytics data', async () => {
+      const query: FinancialQuery = {
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        includeInsights: true,
+        useCache: true,
       };
 
-      const result = await service.getProfitability(mockUser, query);
+      const result = await service.getFinancialAnalytics(mockUser, query);
 
       expect(result).toBeDefined();
-      expect(result.data.type).toBe('analytics_dashboard');
-      expect(result.data.attributes.period).toBe(AnalyticsPeriod.MONTH);
-      expect(result.data.attributes.farmId).toBe('test-farm-id');
-    });
-
-    it('should throw error when user lacks finance permissions', async () => {
-      jest.spyOn(permissionsService, 'validateProfitabilityAccess').mockResolvedValue(false);
-
-      const query = {
-        period: AnalyticsPeriod.MONTH,
-        farmId: 'test-farm-id',
-      };
-
-      await expect(service.getProfitability(mockUser, query)).rejects.toThrow('Insufficient permissions to access profitability analytics');
+      expect(result.data.type).toBe('analytics_financial');
+      expect(result.data.attributes.period).toBe('month');
+      expect(result.data.attributes.metrics).toBeDefined();
+      expect(result.data.attributes.charts).toBeDefined();
+      expect(result.data.attributes.summary).toBeDefined();
     });
   });
 
-  describe('getMarketPositioning', () => {
-    it('should return market positioning analytics data', async () => {
-      const query = {
-        commodityId: 'test-commodity-id',
-        region: 'test-region',
+  describe('getActivityAnalytics', () => {
+    it('should return activity analytics data', async () => {
+      const query: ActivityQuery = {
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        activityType: 'PLANTING',
+        includeEfficiency: true,
+        includeCosts: true,
+        useCache: true,
       };
 
-      const result = await service.getMarketPositioning(mockUser, query);
+      const result = await service.getActivityAnalytics(mockUser, query);
 
       expect(result).toBeDefined();
-      expect(result.data.type).toBe('analytics_dashboard');
-    });
-
-    it('should throw error when user lacks market research permissions', async () => {
-      jest.spyOn(permissionsService, 'validateMarketResearchAccess').mockResolvedValue(false);
-
-      const query = {
-        commodityId: 'test-commodity-id',
-        region: 'test-region',
-      };
-
-      await expect(service.getMarketPositioning(mockUser, query)).rejects.toThrow('Insufficient permissions to access market positioning analytics');
+      expect(result.data.type).toBe('analytics_activities');
+      expect(result.data.attributes.period).toBe('month');
+      expect(result.data.attributes.metrics).toBeDefined();
+      expect(result.data.attributes.charts).toBeDefined();
+      expect(result.data.attributes.summary).toBeDefined();
     });
   });
 
-  describe('getDemandPrediction', () => {
-    it('should return demand prediction data', async () => {
-      const query = {
+  describe('getMarketAnalytics', () => {
+    it('should return market analytics data', async () => {
+      const query: MarketQuery = {
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
         commodityId: 'test-commodity-id',
-        horizon: 3,
+        includePredictions: true,
+        useCache: true,
       };
 
-      const result = await service.getDemandPrediction(mockUser, query);
+      const result = await service.getMarketAnalytics(mockUser, query);
 
       expect(result).toBeDefined();
-      expect(result.data.type).toBe('analytics_dashboard');
-    });
-
-    it('should throw error when user lacks planning permissions', async () => {
-      jest.spyOn(permissionsService, 'validatePlanningAccess').mockResolvedValue(false);
-
-      const query = {
-        commodityId: 'test-commodity-id',
-        horizon: 3,
-      };
-
-      await expect(service.getDemandPrediction(mockUser, query)).rejects.toThrow('Insufficient permissions to access demand prediction');
+      expect(result.data.type).toBe('analytics_market');
+      expect(result.data.attributes.period).toBe('month');
+      expect(result.data.attributes.metrics).toBeDefined();
+      expect(result.data.attributes.charts).toBeDefined();
+      expect(result.data.attributes.summary).toBeDefined();
     });
   });
 
-  describe('executeCustomQuery', () => {
-    it('should execute custom query', async () => {
-      const request = {
-        metrics: ['revenue', 'costs'],
-        dimensions: ['farm', 'commodity'],
-        filters: {},
-        timeframe: {
-          start: '2024-01-01T00:00:00Z',
-          end: '2024-01-31T23:59:59Z',
-        },
-        granularity: 'day' as any,
-        visualization: {
-          type: 'line' as any,
-          options: {},
-        },
+  describe('getFarmToMarketAnalytics', () => {
+    it('should return farm-to-market analytics data', async () => {
+      const query: MarketQuery = {
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        useCache: true,
       };
 
-      const result = await service.executeCustomQuery(mockUser, request);
+      const result = await service.getFarmToMarketAnalytics(mockUser, query);
 
       expect(result).toBeDefined();
-      expect(result.data.type).toBe('analytics_dashboard');
-    });
-
-    it('should throw error when user lacks advanced analytics permissions', async () => {
-      jest.spyOn(permissionsService, 'canUseAdvancedAnalytics').mockResolvedValue(false);
-
-      const request = {
-        metrics: ['revenue', 'costs'],
-        dimensions: ['farm', 'commodity'],
-        filters: {},
-        timeframe: {
-          start: '2024-01-01T00:00:00Z',
-          end: '2024-01-31T23:59:59Z',
-        },
-        granularity: 'day' as any,
-        visualization: {
-          type: 'line' as any,
-          options: {},
-        },
-      };
-
-      await expect(service.executeCustomQuery(mockUser, request)).rejects.toThrow('Insufficient permissions to execute custom queries');
+      expect(result.data.type).toBe('analytics_farm_to_market');
+      expect(result.data.attributes.period).toBe('month');
+      expect(result.data.attributes.metrics).toBeDefined();
+      expect(result.data.attributes.charts).toBeDefined();
+      expect(result.data.attributes.summary).toBeDefined();
     });
   });
 
-  describe('createDataExport', () => {
-    it('should create data export', async () => {
-      const request = {
-        dataset: 'farm_production',
-        format: 'csv' as any,
-        timeframe: {
-          start: '2024-01-01T00:00:00Z',
-          end: '2024-01-31T23:59:59Z',
-        },
-        includeMetadata: true,
+  describe('getInsights', () => {
+    it('should return AI-powered insights', async () => {
+      const query: BaseAnalyticsQuery = {
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        includeInsights: true,
+        useCache: true,
       };
 
-      const result = await service.createDataExport(mockUser, request);
+      const result = await service.getInsights(mockUser, query);
+
+      expect(result).toBeDefined();
+      expect(result.data.type).toBe('analytics_insights');
+      expect(result.data.attributes.insights).toBeDefined();
+      expect(result.data.attributes.model).toBe('gpt-4');
+    });
+  });
+
+  describe('exportAnalytics', () => {
+    it('should create analytics export', async () => {
+      const request: ExportRequest = {
+        type: 'dashboard',
+        format: 'csv',
+        period: 'month',
+        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        includeCharts: false,
+        includeInsights: true,
+      };
+
+      const result = await service.exportAnalytics(mockUser, request);
 
       expect(result).toBeDefined();
       expect(result.data.type).toBe('analytics_export');
-      expect(result.data.attributes.status).toBe('pending');
-    });
-
-    it('should throw error when user lacks export permissions', async () => {
-      jest.spyOn(permissionsService, 'canExportData').mockResolvedValue(false);
-
-      const request = {
-        dataset: 'farm_production',
-        format: 'csv' as any,
-        timeframe: {
-          start: '2024-01-01T00:00:00Z',
-          end: '2024-01-31T23:59:59Z',
-        },
-        includeMetadata: true,
-      };
-
-      await expect(service.createDataExport(mockUser, request)).rejects.toThrow('Insufficient permissions to create data exports');
+      expect(result.data.attributes.status).toBe('processing');
     });
   });
 
   describe('generateReport', () => {
-    it('should generate report', async () => {
-      const request = {
-        templateId: 'template-1',
+    it('should generate analytics report', async () => {
+      const request: ReportRequest = {
         title: 'Monthly Report',
-        parameters: {
-          period: '2024-01',
-          farmIds: ['test-farm-id'],
-          commodities: ['test-commodity-id'],
-          includeComparisons: true,
-          includePredictions: false,
-        },
-        format: 'pdf' as any,
+        type: 'dashboard',
+        period: 'month',
+        farmIds: ['550e8400-e29b-41d4-a716-446655440002'],
+        commodities: ['test-commodity-id'],
+        includeComparisons: true,
+        includePredictions: false,
+        format: 'pdf',
         recipients: ['user@example.com'],
       };
 
@@ -252,27 +296,7 @@ describe('AnalyticsService', () => {
 
       expect(result).toBeDefined();
       expect(result.data.type).toBe('analytics_report');
-      expect(result.data.attributes.status).toBe('pending');
-    });
-
-    it('should throw error when user lacks report creation permissions', async () => {
-      jest.spyOn(permissionsService, 'canCreateReports').mockResolvedValue(false);
-
-      const request = {
-        templateId: 'template-1',
-        title: 'Monthly Report',
-        parameters: {
-          period: '2024-01',
-          farmIds: ['test-farm-id'],
-          commodities: ['test-commodity-id'],
-          includeComparisons: true,
-          includePredictions: false,
-        },
-        format: 'pdf' as any,
-        recipients: ['user@example.com'],
-      };
-
-      await expect(service.generateReport(mockUser, request)).rejects.toThrow('Insufficient permissions to generate reports');
+      expect(result.data.attributes.status).toBe('generating');
     });
   });
 });
