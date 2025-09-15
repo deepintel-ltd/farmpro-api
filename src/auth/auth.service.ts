@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/prisma/prisma.service';
+import { EmailVerificationService } from '@/auth/email-verification.service';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
 import {
@@ -61,12 +62,12 @@ export class AuthService {
   private readonly JWT_EXPIRES_IN: number;
   private readonly REFRESH_TOKEN_EXPIRES_IN_MS: number;
   private readonly PASSWORD_RESET_EXPIRES_IN_MS: number;
-  private readonly EMAIL_VERIFICATION_EXPIRES_IN_MS: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailVerificationService: EmailVerificationService,
   ) {
     this.JWT_EXPIRES_IN = this.configService.get<number>(
       'JWT_EXPIRES_IN_SECONDS',
@@ -74,7 +75,6 @@ export class AuthService {
     );
     this.REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
     this.PASSWORD_RESET_EXPIRES_IN_MS = 60 * 60 * 1000; // 1 hour
-    this.EMAIL_VERIFICATION_EXPIRES_IN_MS = 24 * 60 * 60 * 1000; // 24 hours
   }
 
   async register(registerDto: RegisterDto): Promise<RegisterResponse> {
@@ -156,6 +156,21 @@ export class AuthService {
       throw new BadRequestException('Failed to retrieve user after registration');
     }
     const userResponse = this.formatUserResponse(userWithRoles);
+
+    // Send email verification using EmailVerificationService
+    await this.emailVerificationService.sendEmailVerification(
+      result.id,
+      result.email,
+      result.name
+    );
+
+    // Send welcome email
+    await this.emailVerificationService.sendWelcomeEmail(
+      result.email,
+      result.name,
+      '', // lastName not available in this context
+      organizationName
+    );
 
     return {
       tokens,
@@ -303,7 +318,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
     if (!user) {
@@ -327,6 +342,12 @@ export class AuthService {
         },
       },
     });
+
+    await this.emailVerificationService.sendPasswordResetEmail(
+      email,
+      resetToken,
+      user.name
+    );
 
     return {
       message:
@@ -408,7 +429,7 @@ export class AuthService {
   async sendVerification(userId: string): Promise<SuccessMessageResponse> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, emailVerified: true },
+      select: { id: true, email: true, name: true, emailVerified: true },
     });
 
     if (!user) {
@@ -418,22 +439,11 @@ export class AuthService {
     if (user.emailVerified) {
       throw new ConflictException('Email is already verified');
     }
-
-    const verificationToken = this.generateSecureToken();
-    const verificationTokenHash = this.hashToken(verificationToken);
-    const expiresAt = new Date(
-      Date.now() + this.EMAIL_VERIFICATION_EXPIRES_IN_MS,
+    await this.emailVerificationService.sendEmailVerification(
+      userId,
+      user.email,
+      user.name
     );
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        metadata: {
-          verificationTokenHash,
-          verificationTokenExpiresAt: expiresAt.toISOString(),
-        },
-      },
-    });
 
     return {
       message: 'Verification email sent',
@@ -446,27 +456,10 @@ export class AuthService {
   ): Promise<SuccessMessageResponse> {
     const { token } = verifyEmailDto;
 
-    const tokenHash = this.hashToken(token);
-    const user = await this.findUserByToken(tokenHash, 'verificationTokenHash');
-
-    if (!user) {
-      throw new BadRequestException('Invalid or expired verification token');
-    }
-
-    if (user.emailVerified) {
-      throw new ConflictException('Email is already verified');
-    }
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerified: true,
-        metadata: null,
-      },
-    });
+    const result = await this.emailVerificationService.verifyEmailWithToken(token);
 
     return {
-      message: 'Email verified successfully',
+      message: result.message,
       success: true,
     };
   }

@@ -29,6 +29,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@getbrevo/brevo": "^3.0.1",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",

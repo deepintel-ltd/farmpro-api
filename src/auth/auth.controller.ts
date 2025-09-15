@@ -3,9 +3,11 @@ import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { EmailVerificationService } from './email-verification.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
 import { authContract } from '../../contracts/auth.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import {
@@ -28,7 +30,10 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly emailVerificationService: EmailVerificationService,
+  ) {}
 
   // =============================================================================
   // Auth Flow & JWT Management
@@ -70,6 +75,7 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
   @ApiResponse({ status: 409, description: 'Conflict - user already exists' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Public()
   @TsRestHandler(authContract.register)
   public register(@Body() body: RegisterDto): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(authContract.register, async () => {
@@ -136,6 +142,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized - invalid credentials' })
   @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Public()
   @UseGuards(LocalAuthGuard)
   @TsRestHandler(authContract.login)
   public login(@Body() body: LoginDto): ReturnType<typeof tsRestHandler> {
@@ -167,6 +174,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @TsRestHandler(authContract.refresh)
   public refresh(
     @Body() body: RefreshTokenDto,
@@ -266,6 +274,7 @@ export class AuthController {
   // Password Management
   // =============================================================================
 
+  @Public()
   @TsRestHandler(authContract.forgotPassword)
   public forgotPassword(
     @Body() body: ForgotPasswordDto,
@@ -296,6 +305,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @TsRestHandler(authContract.resetPassword)
   public resetPassword(
     @Body() body: ResetPasswordDto,
@@ -406,6 +416,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @TsRestHandler(authContract.verifyEmail)
   public verifyEmail(
     @Body() body: VerifyEmailDto,
@@ -433,6 +444,37 @@ export class AuthController {
           conflictCode: 'EMAIL_ALREADY_VERIFIED',
           badRequestMessage: 'Invalid or expired verification token',
           badRequestCode: 'VERIFY_EMAIL_FAILED',
+        });
+      }
+    });
+  }
+
+  @Public()
+  @TsRestHandler(authContract.resendVerification)
+  public resendVerification(
+    @Body() body: { email: string },
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.resendVerification, async () => {
+      try {
+        const result = await this.emailVerificationService.resendEmailVerification(body.email);
+        this.logger.log(`Resend verification requested for email: ${body.email}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'resend-verification',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(`Resend verification failed for ${body.email}:`, error);
+
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Failed to resend verification email',
+          badRequestCode: 'RESEND_VERIFICATION_FAILED',
         });
       }
     });
@@ -475,6 +517,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @TsRestHandler(authContract.validateToken)
   public validateToken(
     @Body() body: ValidateTokenDto,

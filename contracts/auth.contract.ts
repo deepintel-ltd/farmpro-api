@@ -17,6 +17,7 @@ import {
 } from './auth.schemas';
 import { JsonApiErrorResponseSchema } from './schemas';
 import { UuidPathParam } from './common';
+import { z } from 'zod';
 
 const c = initContract();
 
@@ -159,6 +160,21 @@ export const authContract = c.router({
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Verify email with token',
+  },
+
+  resendVerification: {
+    method: 'POST',
+    path: '/auth/resend-verification',
+    body: z.object({
+      email: z.string().email(),
+    }),
+    responses: {
+      200: MessageResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Resend email verification',
   },
 
   // OAuth Integration

@@ -9,12 +9,15 @@ import { JwtStrategy } from '@/auth/strategies/jwt.strategy';
 import { LocalStrategy } from '@/auth/strategies/local.strategy';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { LocalAuthGuard } from '@/auth/guards/local-auth.guard';
+import { EmailVerificationService } from '@/auth/email-verification.service';
 import { PrismaModule } from '@/prisma/prisma.module';
+import { BrevoModule } from '@/external-service/brevo/brevo.module';
 
 @Module({
   imports: [
     PassportModule,
     PrismaModule,
+    BrevoModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -29,6 +32,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    EmailVerificationService,
     LocalStrategy,
     JwtStrategy,
     LocalAuthGuard,
@@ -38,6 +42,6 @@ import { PrismaModule } from '@/prisma/prisma.module';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, JwtAuthGuard],
+  exports: [AuthService, EmailVerificationService, JwtAuthGuard],
 })
 export class AuthModule {}

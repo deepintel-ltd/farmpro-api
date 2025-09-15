@@ -16,6 +16,7 @@ import { IntelligenceModule } from '@/intelligence/intelligence.module';
 import { ActivitiesModule } from '@/activities/activities.module';
 import { HealthModule } from '@/health/health.module';
 import { AppCacheModule } from '@/common/cache.module';
+import { BrevoModule } from '@/external-service/brevo/brevo.module';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 
@@ -37,6 +38,7 @@ import { getRateLimitConfig } from '@/common/config/rate-limit.config';
     ActivitiesModule,
     HealthModule,
     AppCacheModule,
+    BrevoModule,
   ],
   controllers: [AppController],
   providers: [
