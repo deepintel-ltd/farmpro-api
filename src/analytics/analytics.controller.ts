@@ -9,6 +9,7 @@ import {
   FinancialQuery,
   ActivityQuery,
   MarketQuery,
+  FarmToMarketQuery,
   ExportRequest,
   ReportRequest
 } from '../../contracts/analytics.contract';
@@ -55,7 +56,7 @@ export class AnalyticsController {
 
   @TsRestHandler(analyticsContract.getFarmToMarketAnalytics)
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
-  async getFarmToMarketAnalytics(@Query() query: MarketQuery, @GetCurrentUser() user: CurrentUser) {
+  async getFarmToMarketAnalytics(@Query() query: FarmToMarketQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getFarmToMarketAnalytics, async () => {
       // Check permissions
       await this.permissionsService.checkAnalyticsPermission(user, 'read');

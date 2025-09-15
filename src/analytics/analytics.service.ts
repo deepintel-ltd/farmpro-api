@@ -2,12 +2,14 @@ import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
+import { JobQueueService } from '../common/services/job-queue.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { 
   BaseAnalyticsQuery,
   FinancialQuery,
   ActivityQuery,
   MarketQuery,
+  FarmToMarketQuery,
   ExportRequest,
   ReportRequest,
   AnalyticsResponse,
@@ -20,6 +22,7 @@ import {
   DateFilter, 
   WhereClause
 } from './types/analytics.types';
+import { TransactionType, ActivityType, CropStatus, ActivityStatus } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
@@ -29,6 +32,7 @@ export class AnalyticsService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
     private readonly intelligenceService: IntelligenceService,
+    private readonly jobQueueService: JobQueueService,
   ) {}
 
   /**
@@ -203,86 +207,39 @@ export class AnalyticsService {
   /**
    * Get farm-to-market journey analytics
    */
-  async getFarmToMarketAnalytics(user: CurrentUser, query: MarketQuery): Promise<AnalyticsResponse> {
+  async getFarmToMarketAnalytics(user: CurrentUser, query: FarmToMarketQuery): Promise<AnalyticsResponse> {
     this.logger.log(`Getting farm-to-market analytics for user: ${user.userId}`);
 
     try {
-      const dateFilter = this.buildDateFilter(query.period);
-      const whereClause = {
-        organizationId: user.organizationId,
-        ...(query.farmId && { farmId: query.farmId }),
-        ...(dateFilter && { createdAt: dateFilter })
-      };
+      const cacheKey = this.generateCacheKey('farm-to-market', user.organizationId, query);
+      if (query.useCache) {
+        const cached = await this.cacheService.get<AnalyticsResponse>(cacheKey);
+        if (cached) return cached;
+      }
 
-      // Get actual farm-to-market data
-      const [cropCycles, harvests, orders] = await Promise.all([
+      const dateFilter = this.buildDateFilter(query.period);
+      const whereClause = this.buildWhereClause(user, query, dateFilter);
+
+      // Get comprehensive farm-to-market data using our helper methods
+      const [productionData, marketData, qualityData, cropCycles, harvests] = await Promise.all([
+        this.getProductionData(whereClause, query.commodityId),
+        this.getMarketData(whereClause, query.commodityId),
+        query.includeQuality ? this.getQualityData(whereClause, query.commodityId) : null,
         this.getCropCycleData(whereClause),
-        this.getHarvestData(whereClause),
-        this.getOrderData(user.organizationId, dateFilter)
+        this.getHarvestData(whereClause)
       ]);
 
-      // Calculate production efficiency based on completed vs planned crop cycles
-      const totalCropCycles = cropCycles.length;
-      const completedCropCycles = cropCycles.filter(cycle => cycle.status === 'COMPLETED').length;
-      const productionEfficiency = totalCropCycles > 0 ? (completedCropCycles / totalCropCycles) * 100 : 0;
+      const response = this.buildAnalyticsResponse('farm-to-market', query, {
+        metrics: this.buildFarmToMarketMetrics(productionData, marketData, qualityData, cropCycles, harvests),
+        charts: this.buildFarmToMarketCharts(productionData, marketData, cropCycles, harvests),
+        summary: this.buildFarmToMarketSummary(productionData, marketData, cropCycles, harvests)
+      });
 
-      // Calculate harvest to order conversion
-      const totalHarvests = harvests.length;
-      const ordersFromHarvests = orders.length;
-      const marketConversion = totalHarvests > 0 ? (ordersFromHarvests / totalHarvests) * 100 : 0;
+      if (query.useCache) {
+        await this.cacheService.set(cacheKey, response, 300);
+      }
 
-      // Get revenue from orders
-      const totalRevenue = orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
-
-      return {
-        data: {
-          type: 'analytics_farm_to_market',
-          id: 'farm-to-market',
-          attributes: {
-            period: query.period || 'month',
-            farmId: query.farmId,
-            metrics: [
-              {
-                name: 'Production Efficiency',
-                value: Math.round(productionEfficiency),
-                unit: '%',
-                trend: productionEfficiency >= 75 ? 'up' : productionEfficiency >= 50 ? 'stable' : 'down'
-              },
-              {
-                name: 'Market Conversion Rate',
-                value: Math.round(marketConversion),
-                unit: '%',
-                trend: marketConversion >= 80 ? 'up' : marketConversion >= 60 ? 'stable' : 'down'
-              },
-              {
-                name: 'Completed Crop Cycles',
-                value: completedCropCycles,
-                unit: 'cycles',
-                trend: 'stable'
-              }
-            ],
-            charts: [
-              {
-                type: 'bar' as const,
-                title: 'Crop Cycle Status Distribution',
-                data: [
-                  { label: 'Completed', value: completedCropCycles },
-                  { label: 'Active', value: totalCropCycles - completedCropCycles }
-                ],
-                xAxis: 'Status',
-                yAxis: 'Count'
-              }
-            ],
-            summary: {
-              totalRevenue,
-              totalCosts: 0, // Will be calculated from activities
-              netProfit: totalRevenue,
-              profitMargin: totalRevenue > 0 ? 100 : 0
-            },
-            generatedAt: new Date().toISOString()
-          }
-        }
-      };
+      return response;
     } catch (error) {
       this.logger.error(`Farm-to-market analytics failed for user ${user.userId}:`, error);
       throw new InternalServerErrorException('Failed to retrieve farm-to-market analytics');
@@ -419,31 +376,28 @@ export class AnalyticsService {
     this.logger.log(`Exporting ${request.type} analytics for user: ${user.userId}`);
 
     try {
-      const exportId = this.generateUUID();
-      
-      // Trigger background job for export
-      const exportJob = {
-        id: exportId,
-        type: request.type,
-        format: request.format,
+      // Create job data
+      const jobData = {
         userId: user.userId,
         organizationId: user.organizationId,
+        type: request.type,
+        format: request.format,
         period: request.period,
         farmId: request.farmId,
         includeCharts: request.includeCharts,
         includeInsights: request.includeInsights
       };
 
-      // Store export job (in production, use job queue)
-      await this.storeExportJob(exportJob);
+      // Add export job to queue
+      const jobId = await this.jobQueueService.addJob('analytics_export', jobData, 5); // High priority
 
       return {
         data: {
           type: 'analytics_export',
-          id: exportId,
+          id: jobId,
           attributes: {
             status: 'processing',
-            downloadUrl: `/api/analytics/exports/${exportId}/download`,
+            downloadUrl: `/api/analytics/exports/${jobId}/download`,
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             estimatedCompletion: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutes
           }
@@ -462,16 +416,13 @@ export class AnalyticsService {
     this.logger.log(`Generating ${request.type} report for user: ${user.userId}`);
 
     try {
-      const reportId = this.generateUUID();
-      
-      // Trigger background job for report generation
-      const reportJob = {
-        id: reportId,
+      // Create job data
+      const jobData = {
+        userId: user.userId,
+        organizationId: user.organizationId,
         title: request.title,
         type: request.type,
         format: request.format,
-        userId: user.userId,
-        organizationId: user.organizationId,
         period: request.period,
         farmIds: request.farmIds,
         commodities: request.commodities,
@@ -480,19 +431,19 @@ export class AnalyticsService {
         recipients: request.recipients
       };
 
-      // Store report job (in production, use job queue)
-      await this.storeReportJob(reportJob);
+      // Add report generation job to queue
+      const jobId = await this.jobQueueService.addJob('analytics_report', jobData, 3); // Medium priority
 
       return {
         data: {
           type: 'analytics_report',
-          id: reportId,
+          id: jobId,
           attributes: {
             status: 'generating',
             title: request.title,
             type: request.type,
             format: request.format,
-            downloadUrl: `/api/analytics/reports/${reportId}/download`,
+            downloadUrl: `/api/analytics/reports/${jobId}/download`,
             estimatedCompletion: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
             recipients: request.recipients
           }
@@ -539,7 +490,7 @@ export class AnalyticsService {
 
   private async getRevenueData(whereClause: WhereClause) {
     return this.prisma.transaction.aggregate({
-      where: { ...whereClause, type: 'FARM_REVENUE' },
+      where: { ...whereClause, type: TransactionType.FARM_REVENUE },
       _sum: { amount: true },
       _count: { id: true }
     });
@@ -547,7 +498,7 @@ export class AnalyticsService {
 
   private async getExpenseData(whereClause: WhereClause) {
     return this.prisma.transaction.aggregate({
-      where: { ...whereClause, type: 'FARM_EXPENSE' },
+      where: { ...whereClause, type: TransactionType.FARM_EXPENSE },
       _sum: { amount: true },
       _count: { id: true }
     });
@@ -561,53 +512,68 @@ export class AnalyticsService {
   }
 
   private async getOrderData(organizationId: string, dateFilter?: DateFilter) {
-    return this.prisma.order.findMany({
-      where: {
-        buyerOrgId: organizationId,
-        ...(dateFilter && { createdAt: dateFilter })
-      },
-      take: 100
-    });
+    try {
+      return await this.prisma.order.findMany({
+        where: {
+          buyerOrgId: organizationId,
+          ...(dateFilter && { createdAt: dateFilter })
+        },
+        take: 100
+      });
+    } catch (error) {
+      this.logger.warn('Failed to fetch order data:', error);
+      return [];
+    }
   }
 
   private async getCropCycleData(whereClause: any) {
-    return this.prisma.cropCycle.findMany({
-      where: {
-        ...(whereClause.farmId && { farmId: whereClause.farmId }),
-        ...(whereClause.createdAt && { createdAt: whereClause.createdAt })
-      },
-      select: {
-        id: true,
-        status: true,
-        plantingDate: true,
-        harvestDate: true,
-        commodity: {
-          select: { name: true }
-        }
-      },
-      take: 100
-    });
+    try {
+      return await this.prisma.cropCycle.findMany({
+        where: {
+          ...(whereClause.farmId && { farmId: whereClause.farmId }),
+          ...(whereClause.createdAt && { createdAt: whereClause.createdAt })
+        },
+        select: {
+          id: true,
+          status: true,
+          plantingDate: true,
+          harvestDate: true,
+          commodity: {
+            select: { name: true }
+          }
+        },
+        take: 100
+      });
+    } catch (error) {
+      this.logger.warn('Failed to fetch crop cycle data:', error);
+      return [];
+    }
   }
 
   private async getHarvestData(whereClause: any) {
-    return this.prisma.harvest.findMany({
-      where: {
-        cropCycle: {
-          ...(whereClause.farmId && { farmId: whereClause.farmId })
-        }
-      },
-      select: {
-        id: true,
-        quantity: true,
-        harvestDate: true,
-        cropCycle: {
-          select: {
-            commodity: { select: { name: true } }
+    try {
+      return await this.prisma.harvest.findMany({
+        where: {
+          cropCycle: {
+            ...(whereClause.farmId && { farmId: whereClause.farmId })
           }
-        }
-      },
-      take: 100
-    });
+        },
+        select: {
+          id: true,
+          quantity: true,
+          harvestDate: true,
+          cropCycle: {
+            select: {
+              commodity: { select: { name: true } }
+            }
+          }
+        },
+        take: 100
+      });
+    } catch (error) {
+      this.logger.warn('Failed to fetch harvest data:', error);
+      return [];
+    }
   }
 
   private generateUUID(): string {
@@ -661,7 +627,8 @@ export class AnalyticsService {
   }
 
   private calculateROI(revenue: number, costs: number): number {
-    return costs > 0 ? ((revenue - costs) / costs) * 100 : 0;
+    if (costs <= 0) return revenue > 0 ? 100 : 0; // If no costs but revenue, 100% ROI
+    return ((revenue - costs) / costs) * 100;
   }
 
   private calculateEfficiency(activities: number, revenue: number): number {
@@ -679,15 +646,16 @@ export class AnalyticsService {
 
       // Weighted sustainability score (0-100)
       const sustainabilityScore = (
-        resourceEfficiency * 0.4 +  // 40% weight
-        wasteReduction * 0.3 +      // 30% weight
-        environmentalImpact * 0.3   // 30% weight
+        resourceEfficiency * 0.4 +  // 40% weight - input/output efficiency
+        wasteReduction * 0.3 +      // 30% weight - activity completion and cost efficiency  
+        environmentalImpact * 0.3   // 30% weight - sustainable farming practices
       );
 
       return Math.round(Math.max(0, Math.min(100, sustainabilityScore)));
     } catch (error) {
       this.logger.warn('Failed to calculate sustainability score:', error);
-      return 50; // Default neutral score on error
+      // Return a reasonable default based on limited data
+      return 65; // Slightly positive default assuming basic sustainable practices
     }
   }
 
@@ -754,7 +722,7 @@ export class AnalyticsService {
         0
       ),
       this.safeDatabaseOperation(
-        () => this.prisma.cropCycle.count({ where: { ...whereCondition, status: 'COMPLETED' } }),
+        () => this.prisma.cropCycle.count({ where: { ...whereCondition, status: CropStatus.COMPLETED } }),
         'getProductionData - completedCycles',
         0
       ),
@@ -849,7 +817,7 @@ export class AnalyticsService {
 
       const [totalActivities, completedActivities, avgDuration] = await Promise.all([
         this.prisma.farmActivity.count({ where: activityWhere }),
-        this.prisma.farmActivity.count({ where: { ...activityWhere, status: 'COMPLETED' } }),
+        this.prisma.farmActivity.count({ where: { ...activityWhere, status: ActivityStatus.COMPLETED } }),
         this.prisma.farmActivity.aggregate({
           where: activityWhere,
           _avg: { actualDuration: true }
@@ -872,7 +840,7 @@ export class AnalyticsService {
       const [activities, revenue] = await Promise.all([
         this.prisma.farmActivity.count({ where: whereClause }),
         this.prisma.transaction.aggregate({
-          where: { ...whereClause, type: 'FARM_REVENUE' },
+          where: { ...whereClause, type: TransactionType.FARM_REVENUE },
           _sum: { amount: true }
         })
       ]);
@@ -895,7 +863,7 @@ export class AnalyticsService {
     try {
       const [totalCosts, activityCount] = await Promise.all([
         this.prisma.transaction.aggregate({
-          where: { ...whereClause, type: 'FARM_EXPENSE' },
+          where: { ...whereClause, type: TransactionType.FARM_EXPENSE },
           _sum: { amount: true }
         }),
         this.prisma.farmActivity.count({ where: whereClause })
@@ -1252,13 +1220,32 @@ export class AnalyticsService {
     };
   }
 
-  private buildFarmToMarketMetrics(productionData: any, marketData: any, qualityData: any): AnalyticsMetric[] {
+  private buildFarmToMarketMetrics(productionData: any, marketData: any, qualityData: any, cropCycles?: any[], harvests?: any[]): AnalyticsMetric[] {
     const totalCycles = productionData.totalCycles || 0;
     const completedCycles = productionData.completedCycles || 0;
     const totalYield = productionData.totalYield || 0;
     const totalOrders = marketData.totalOrders || 0;
     const totalSales = marketData.totalSales || 0;
-    const avgQuality = qualityData.avgQuality || 0;
+
+    // Enhanced metrics using detailed crop cycle and harvest data
+    const cropCyclesList = cropCycles || [];
+    const harvestsList = harvests || [];
+    
+    // Calculate average cycle duration from detailed data
+    const completedCropCycles = cropCyclesList.filter(cycle => cycle.status === 'COMPLETED');
+    const avgCycleDuration = completedCropCycles.length > 0 
+      ? completedCropCycles.reduce((sum, cycle) => {
+          if (cycle.plantingDate && cycle.harvestDate) {
+            const duration = (new Date(cycle.harvestDate).getTime() - new Date(cycle.plantingDate).getTime()) / (1000 * 60 * 60 * 24);
+            return sum + duration;
+          }
+          return sum;
+        }, 0) / completedCropCycles.length
+      : 0;
+
+    // Calculate harvest-to-sales traceability
+    const harvestCount = harvestsList.length;
+    const traceabilityRate = harvestCount > 0 && totalOrders > 0 ? Math.min(100, (totalOrders / harvestCount) * 100) : 0;
 
     const productionEfficiency = totalCycles > 0 ? (completedCycles / totalCycles) * 100 : 0;
     const marketConversion = totalYield > 0 ? (totalOrders / totalYield) * 100 : 0;
@@ -1272,7 +1259,19 @@ export class AnalyticsService {
         trend: productionEfficiency >= 80 ? 'up' : productionEfficiency >= 60 ? 'stable' : 'down'
       },
       {
-        name: 'Market Conversion',
+        name: 'Farm-to-Market Traceability',
+        value: Math.round(traceabilityRate * 100) / 100,
+        unit: '%',
+        trend: traceabilityRate >= 80 ? 'up' : traceabilityRate >= 60 ? 'stable' : 'down'
+      },
+      {
+        name: 'Average Cycle Duration',
+        value: Math.round(avgCycleDuration),
+        unit: 'days',
+        trend: avgCycleDuration <= 120 ? 'up' : avgCycleDuration <= 150 ? 'stable' : 'down'
+      },
+      {
+        name: 'Market Conversion Rate',
         value: Math.round(marketConversion * 100) / 100,
         unit: '%',
         trend: marketConversion >= 50 ? 'up' : marketConversion >= 25 ? 'stable' : 'down'
@@ -1282,74 +1281,92 @@ export class AnalyticsService {
         value: Math.round(revenuePerYield * 100) / 100,
         unit: 'USD/unit',
         trend: revenuePerYield >= 100 ? 'up' : revenuePerYield >= 50 ? 'stable' : 'down'
-      },
-      {
-        name: 'Average Quality',
-        value: Math.round(avgQuality * 100) / 100,
-        unit: 'score',
-        trend: avgQuality >= 8 ? 'up' : avgQuality >= 6 ? 'stable' : 'down'
-      },
-      {
-        name: 'Total Yield',
-        value: Math.round(totalYield * 100) / 100,
-        unit: 'units',
-        trend: totalYield > 0 ? 'up' : 'stable'
       }
     ];
   }
 
-  private buildFarmToMarketCharts(productionData: any, marketData: any): AnalyticsChart[] {
+  private buildFarmToMarketCharts(productionData: any, marketData: any, cropCycles?: any[], harvests?: any[]): AnalyticsChart[] {
+    const cropCyclesList = cropCycles || [];
+    const harvestsList = harvests || [];
+
+    // Create harvest timeline chart using detailed harvest data
+    const harvestTimelineData = harvestsList.slice(0, 10).map(harvest => ({
+      label: harvest.cropCycle?.commodity?.name || 'Unknown',
+      value: harvest.quantity || 0,
+      timestamp: harvest.harvestDate || new Date().toISOString()
+    }));
+
+    // Create crop cycle status distribution
+    const statusCounts = cropCyclesList.reduce((acc, cycle) => {
+      acc[cycle.status] = (acc[cycle.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
+      label: status.replace('_', ' ').toLowerCase(),
+      value: count,
+      timestamp: new Date().toISOString()
+    }));
+
     return [
       {
         type: 'bar',
-        title: 'Production vs Market Performance',
-        data: [
-          { label: 'Completed Cycles', value: productionData.completedCycles || 0, timestamp: new Date().toISOString() },
-          { label: 'Total Orders', value: marketData.totalOrders || 0, timestamp: new Date().toISOString() }
+        title: 'Crop Cycle Status Distribution',
+        data: statusData.length > 0 ? statusData : [
+          { label: 'Completed', value: productionData.completedCycles || 0, timestamp: new Date().toISOString() },
+          { label: 'Active', value: (productionData.totalCycles || 0) - (productionData.completedCycles || 0), timestamp: new Date().toISOString() }
         ],
-        xAxis: 'Metric',
+        xAxis: 'Status',
         yAxis: 'Count'
       },
       {
         type: 'line',
-        title: 'Yield to Sales Conversion',
-        data: [
+        title: 'Recent Harvest Timeline',
+        data: harvestTimelineData.length > 0 ? harvestTimelineData : [
           { label: 'Total Yield', value: productionData.totalYield || 0, timestamp: new Date().toISOString() },
           { label: 'Total Sales', value: marketData.totalSales || 0, timestamp: new Date().toISOString() }
         ],
-        xAxis: 'Metric',
-        yAxis: 'Value'
+        xAxis: 'Time',
+        yAxis: 'Quantity'
       }
     ];
   }
 
-  private buildFarmToMarketSummary(productionData: any, marketData: any): AnalyticsSummary {
+  private buildFarmToMarketSummary(productionData: any, marketData: any, cropCycles?: any[], harvests?: any[]): AnalyticsSummary {
     const totalYield = productionData.totalYield || 0;
     const totalSales = marketData.totalSales || 0;
     const completedCycles = productionData.completedCycles || 0;
     const totalCycles = productionData.totalCycles || 0;
+    const cropCyclesList = cropCycles || [];
+    const harvestsList = harvests || [];
     
     const productionEfficiency = totalCycles > 0 ? (completedCycles / totalCycles) * 100 : 0;
     const marketConversion = totalYield > 0 ? (marketData.totalOrders || 0) / totalYield * 100 : 0;
+    
+    // Calculate sustainability based on diverse crop cycles and harvest frequency
+    const uniqueCommodities = new Set(cropCyclesList.map(cycle => cycle.commodity?.name).filter(Boolean)).size;
+    const diversityScore = Math.min(100, uniqueCommodities * 20); // Max 5 commodities = 100%
+    
+    const recentHarvests = harvestsList.filter(harvest => {
+      const harvestDate = new Date(harvest.harvestDate);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      return harvestDate >= thirtyDaysAgo;
+    }).length;
+    
+    const activityScore = Math.min(100, recentHarvests * 25); // Max 4 recent harvests = 100%
+    const sustainabilityScore = (diversityScore + activityScore + marketConversion) / 3;
     
     return {
       totalRevenue: totalSales,
       totalCosts: 0, // Would need cost data for accurate calculation
       netProfit: totalSales,
-      profitMargin: 100, // Assuming 100% margin for farm-to-market
+      profitMargin: totalSales > 0 ? 100 : 0, // Assuming 100% margin for farm-to-market
       roi: 0,
       efficiency: productionEfficiency,
-      sustainability: marketConversion
+      sustainability: Math.round(sustainabilityScore)
     };
   }
 
-  private async storeExportJob(job: any): Promise<void> {
-    this.logger.log(`Storing export job: ${job.id}`);
-  }
-
-  private async storeReportJob(job: any): Promise<void> {
-    this.logger.log(`Storing report job: ${job.id}`);
-  }
 
   // =============================================================================
   // Validation and Error Handling Methods
@@ -1397,19 +1414,6 @@ export class AnalyticsService {
     return uuidRegex.test(uuid);
   }
 
-  private handleDatabaseError(error: any, operation: string): never {
-    this.logger.error(`Database error in ${operation}:`, error);
-    
-    if (error.code === 'P2002') {
-      throw new InternalServerErrorException('Data integrity constraint violation');
-    } else if (error.code === 'P2025') {
-      throw new InternalServerErrorException('Record not found');
-    } else if (error.code === 'P2003') {
-      throw new InternalServerErrorException('Foreign key constraint violation');
-    } else {
-      throw new InternalServerErrorException(`Database operation failed: ${operation}`);
-    }
-  }
 
   private async safeDatabaseOperation<T>(
     operation: () => Promise<T>,
@@ -1430,25 +1434,40 @@ export class AnalyticsService {
 
   private async calculateResourceEfficiency(whereClause: WhereClause): Promise<number> {
     try {
-      // Calculate resource efficiency based on input/output ratio
-      const [inputs, outputs] = await Promise.all([
+      // Calculate resource efficiency based on input/output ratio and activity efficiency
+      const [inputs, outputs, activities] = await Promise.all([
         this.prisma.transaction.aggregate({
-          where: { ...whereClause, type: 'FARM_EXPENSE' },
+          where: { ...whereClause, type: TransactionType.FARM_EXPENSE },
           _sum: { amount: true }
         }),
         this.prisma.transaction.aggregate({
-          where: { ...whereClause, type: 'FARM_REVENUE' },
+          where: { ...whereClause, type: TransactionType.FARM_REVENUE },
           _sum: { amount: true }
+        }),
+        this.prisma.farmActivity.count({
+          where: { ...whereClause, status: ActivityStatus.COMPLETED }
         })
       ]);
 
       const inputAmount = Number(inputs._sum.amount) || 0;
       const outputAmount = Number(outputs._sum.amount) || 0;
 
-      if (inputAmount === 0) return 0;
+      if (inputAmount === 0) {
+        // If no expenses but have revenue or completed activities, assume high efficiency
+        return outputAmount > 0 || activities > 0 ? 85 : 50;
+      }
       
-      const efficiency = (outputAmount / inputAmount) * 100;
-      return Math.min(100, Math.max(0, efficiency));
+      // Calculate basic ROI efficiency (0-100 scale)
+      const roiEfficiency = Math.min(100, Math.max(0, (outputAmount / inputAmount) * 25)); // Scale to 0-100
+      
+      // Factor in activity completion rate as operational efficiency
+      const totalPlannedActivities = await this.prisma.farmActivity.count({ where: whereClause });
+      const operationalEfficiency = totalPlannedActivities > 0 ? (activities / totalPlannedActivities) * 100 : 50;
+      
+      // Weighted combination of financial and operational efficiency
+      const overallEfficiency = (roiEfficiency * 0.7) + (operationalEfficiency * 0.3);
+      
+      return Math.min(100, Math.max(0, overallEfficiency));
     } catch (error) {
       this.logger.warn('Failed to calculate resource efficiency:', error);
       return 50;
@@ -1460,10 +1479,10 @@ export class AnalyticsService {
       // Calculate waste reduction based on activity completion and resource utilization
       const [activities, costs] = await Promise.all([
         this.prisma.farmActivity.count({
-          where: { ...whereClause, status: 'COMPLETED' }
+          where: { ...whereClause, status: ActivityStatus.COMPLETED }
         }),
         this.prisma.transaction.aggregate({
-          where: { ...whereClause, type: 'FARM_EXPENSE' },
+          where: { ...whereClause, type: TransactionType.FARM_EXPENSE },
           _sum: { amount: true }
         })
       ]);
@@ -1491,7 +1510,7 @@ export class AnalyticsService {
         where: {
           ...whereClause,
           type: {
-            in: ['FERTILIZATION', 'IRRIGATION', 'SOIL_TREATMENT', 'PEST_CONTROL'] as any
+            in: [ActivityType.FERTILIZING, ActivityType.IRRIGATION, ActivityType.PEST_CONTROL]
           }
         }
       });
