@@ -4,22 +4,18 @@
   "description": "Type-safe API contracts for FarmPro agricultural platform",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./schemas": {
       "import": "./dist/schemas.mjs",
-      "require": "./dist/schemas.js",
-      "types": "./dist/schemas.d.ts"
+      "require": "./dist/schemas.js"
     },
     "./contracts": {
       "import": "./dist/contracts.mjs",
-      "require": "./dist/contracts.js",
-      "types": "./dist/contracts.d.ts"
+      "require": "./dist/contracts.js"
     }
   },
   "files": [

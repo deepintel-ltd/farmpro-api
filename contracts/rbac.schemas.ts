@@ -180,7 +180,7 @@ export const RoleTemplateSchema = z.object({
   level: z.number(),
 });
 
-export const RoleHierarchyNodeSchema = z.object({
+export const RoleHierarchyNodeSchema: z.ZodType<any> = z.object({
   role: RoleSchema,
   children: z.array(z.lazy(() => RoleHierarchyNodeSchema)).optional(),
   parent: z.string().nullable(),

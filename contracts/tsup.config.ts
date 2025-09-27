@@ -7,16 +7,16 @@ export default defineConfig({
     contracts: './contracts.ts',
   },
   format: ['cjs', 'esm'],
-  dts: true,
+  dts: false,
   sourcemap: true,
   clean: true,
   splitting: false,
   treeshake: true,
   minify: false,
   external: ['@ts-rest/core', 'zod'],
-  esbuildOptions(options: any) {
-    options.banner = {
-      js: '"use client";',
-    };
-  },
+  // esbuildOptions(options: any) {
+  //   options.banner = {
+  //     js: '"use client";',
+  //   };
+  // },
 });

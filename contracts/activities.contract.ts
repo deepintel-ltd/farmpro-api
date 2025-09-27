@@ -63,7 +63,7 @@ const c = initContract();
 // Activities Contract
 // =============================================================================
 
-export const activitiesContract = c.router({
+export const activitiesContract: any = c.router({
   // =============================================================================
   // Activity CRUD Operations
   // =============================================================================
