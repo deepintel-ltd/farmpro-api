@@ -4,13 +4,21 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { activitiesContract } from '../../contracts/activities.contract';
+import { activitiesCrudContract } from '../../contracts/activities-crud.contract';
+import { activitiesExecutionContract } from '../../contracts/activities-execution.contract';
+import { activitiesTemplatesContract } from '../../contracts/activities-templates.contract';
+import { activitiesSchedulingContract } from '../../contracts/activities-scheduling.contract';
+import { activitiesTeamContract } from '../../contracts/activities-team.contract';
+import { activitiesCostsContract } from '../../contracts/activities-costs.contract';
+import { activitiesMediaContract } from '../../contracts/activities-media.contract';
+import { activitiesAnalyticsContract } from '../../contracts/activities-analytics.contract';
 import { ActivitiesService } from './activities.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityTemplateService, CreateFromTemplateDto } from './activity-template.service';
 import { ActivitySchedulingService } from './activity-scheduling.service';
 import { ActivityNotesService } from './activity-notes.service';
 import { CalendarQueryOptions, AnalyticsQueryOptions, ConflictCheckQueryOptions, WorkloadQueryOptions } from './dto/activities.dto';
+
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -22,11 +30,11 @@ interface Activity {
   farmId: string;
   areaId: string | null;
   cropCycleId: string | null;
-  type: string;
+  type: 'LAND_PREP' | 'PLANTING' | 'FERTILIZING' | 'IRRIGATION' | 'PEST_CONTROL' | 'HARVESTING' | 'MAINTENANCE' | 'MONITORING' | 'OTHER';
   name: string;
   description: string;
-  status: string;
-  priority: string;
+  status: 'PLANNED' | 'SCHEDULED' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   scheduledAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -34,14 +42,31 @@ interface Activity {
   actualDuration: number | null;
   percentComplete: number;
   assignedTo: string[];
-  resources: any[];
-  actualResources?: any[];
+  resources: Array<{
+    type: 'equipment' | 'labor' | 'material';
+    resourceId: string;
+    quantity: number;
+    unit: string;
+  }>;
+  actualResources?: Array<{
+    type: 'equipment' | 'labor' | 'material';
+    resourceId: string;
+    quantity: number;
+    unit: string;
+  }>;
   instructions: string;
   safetyNotes: string;
   estimatedCost: number;
   actualCost: number | null;
-  location: any | null;
-  results: any | null;
+  location: {
+    lat: number;
+    lng: number;
+  } | null;
+  results: {
+    quality: 'excellent' | 'good' | 'fair' | 'poor';
+    quantityAchieved: number;
+    notes: string;
+  } | null;
   issues: string | null;
   recommendations: string | null;
   metadata: any | null;
@@ -74,18 +99,18 @@ export class ActivitiesController {
   ) {}
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getActivities)
+  @TsRestHandler(activitiesCrudContract.getActivities)
   public getActivities(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getActivities, async ({ query }) => {
+    return tsRestHandler(activitiesCrudContract.getActivities, async ({ query }) => {
       const result = await this.activitiesService.getActivities(req.user.organizationId, query);
       return { status: 200 as const, body: result };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getActivity)
+  @TsRestHandler(activitiesCrudContract.getActivity)
   public getActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getActivity, async ({ params }) => {
+    return tsRestHandler(activitiesCrudContract.getActivity, async ({ params }) => {
       const activity = await this.activitiesService.getActivity(params.activityId, req.user.organizationId);
       return { 
         status: 200 as const, 
@@ -95,9 +120,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.createActivity)
+  @TsRestHandler(activitiesCrudContract.createActivity)
   public createActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.createActivity, async ({ body }) => {
+    return tsRestHandler(activitiesCrudContract.createActivity, async ({ body }) => {
       const result = await this.activitiesService.createActivity(body, req.user.userId, req.user.organizationId);
       return { 
         status: 201 as const, 
@@ -107,9 +132,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.updateActivity)
+  @TsRestHandler(activitiesCrudContract.updateActivity)
   public updateActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.updateActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesCrudContract.updateActivity, async ({ params, body }) => {
       const result = await this.activitiesService.updateActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { 
         status: 200 as const, 
@@ -119,9 +144,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.deleteActivity)
+  @TsRestHandler(activitiesCrudContract.deleteActivity)
   public deleteActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.deleteActivity, async ({ params }) => {
+    return tsRestHandler(activitiesCrudContract.deleteActivity, async ({ params }) => {
       await this.activitiesService.deleteActivity(params.activityId, req.user.userId, req.user.organizationId);
       return {
         status: 200 as const,
@@ -138,9 +163,9 @@ export class ActivitiesController {
 
   // Activity Execution
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.startActivity)
+  @TsRestHandler(activitiesExecutionContract.startActivity)
   public startActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.startActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesExecutionContract.startActivity, async ({ params, body }) => {
       const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { 
         status: 200 as const, 
@@ -150,27 +175,27 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.updateProgress)
+  @TsRestHandler(activitiesExecutionContract.updateProgress)
   public updateProgress(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.updateProgress, async ({ params, body }) => {
+    return tsRestHandler(activitiesExecutionContract.updateProgress, async ({ params, body }) => {
       const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.completeActivity)
+  @TsRestHandler(activitiesExecutionContract.completeActivity)
   public completeActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.completeActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesExecutionContract.completeActivity, async ({ params, body }) => {
       const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.completeHarvestActivity)
+  @TsRestHandler(activitiesExecutionContract.completeHarvestActivity)
   public completeHarvestActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.completeHarvestActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesExecutionContract.completeHarvestActivity, async ({ params, body }) => {
       const result = await this.activitiesService.completeHarvestActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { 
         status: 200 as const, 
@@ -197,18 +222,18 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.pauseActivity)
+  @TsRestHandler(activitiesExecutionContract.pauseActivity)
   public pauseActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.pauseActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesExecutionContract.pauseActivity, async ({ params, body }) => {
       const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.resumeActivity)
+  @TsRestHandler(activitiesExecutionContract.resumeActivity)
   public resumeActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.resumeActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesExecutionContract.resumeActivity, async ({ params, body }) => {
       const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body, req.user.organizationId);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
@@ -216,9 +241,9 @@ export class ActivitiesController {
 
   // Calendar & Tasks
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getCalendar)
+  @TsRestHandler(activitiesSchedulingContract.getCalendar)
   public getCalendar(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getCalendar, async ({ query }) => {
+    return tsRestHandler(activitiesSchedulingContract.getCalendar, async ({ query }) => {
       const calendarQuery: CalendarQueryOptions = {
         farmId: query.farmId!,
         startDate: query.startDate!,
@@ -245,9 +270,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getMyTasks)
+  @TsRestHandler(activitiesTeamContract.getMyTasks)
   public getMyTasks(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getMyTasks, async ({ query }) => {
+    return tsRestHandler(activitiesTeamContract.getMyTasks, async ({ query }) => {
       const result = await this.activitiesService.getMyTasks(req.user.userId, query, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
@@ -255,9 +280,9 @@ export class ActivitiesController {
 
   // Analytics
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getAnalytics)
+  @TsRestHandler(activitiesAnalyticsContract.getAnalytics)
   public getAnalytics() {
-    return tsRestHandler(activitiesContract.getAnalytics, async ({ query }) => {
+    return tsRestHandler(activitiesAnalyticsContract.getAnalytics, async ({ query }) => {
       const analyticsQuery: AnalyticsQueryOptions = {
         farmId: query.farmId,
         period: query.period,
@@ -278,9 +303,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getCompletionRates)
+  @TsRestHandler(activitiesAnalyticsContract.getCompletionRates)
   public getCompletionRates(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getCompletionRates, async ({ query }) => {
+    return tsRestHandler(activitiesAnalyticsContract.getCompletionRates, async ({ query }) => {
       const analyticsQuery: AnalyticsQueryOptions = {
         farmId: query.farmId,
         period: query.period,
@@ -292,9 +317,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getCostAnalysis)
+  @TsRestHandler(activitiesAnalyticsContract.getCostAnalysis)
   public getCostAnalysis(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getCostAnalysis, async ({ query }) => {
+    return tsRestHandler(activitiesAnalyticsContract.getCostAnalysis, async ({ query }) => {
       const analyticsQuery: AnalyticsQueryOptions = {
         farmId: query.farmId,
         period: query.period,
@@ -306,9 +331,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.generateReport)
+  @TsRestHandler(activitiesAnalyticsContract.generateReport)
   public generateReport(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.generateReport, async ({ body }) => {
+    return tsRestHandler(activitiesAnalyticsContract.generateReport, async ({ body }) => {
       const result = await this.activitiesService.generateReport({
         reportType: body.reportType,
         filters: body.filters,
@@ -321,18 +346,18 @@ export class ActivitiesController {
 
   // Cost Management
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getActivityCosts)
+  @TsRestHandler(activitiesCostsContract.getActivityCosts)
   public getActivityCosts(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getActivityCosts, async ({ params }) => {
+    return tsRestHandler(activitiesCostsContract.getActivityCosts, async ({ params }) => {
       const result = await this.activitiesService.getActivityCosts(params.activityId, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.addCost)
+  @TsRestHandler(activitiesCostsContract.addCost)
   public addCost(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.addCost, async ({ params, body }) => {
+    return tsRestHandler(activitiesCostsContract.addCost, async ({ params, body }) => {
       const costData = {
         type: body.type,
         description: body.description!,
@@ -348,9 +373,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.updateCost)
+  @TsRestHandler(activitiesCostsContract.updateCost)
   public updateCost(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.updateCost, async ({ params, body }) => {
+    return tsRestHandler(activitiesCostsContract.updateCost, async ({ params, body }) => {
       const result = await this.activitiesService.updateCost(params.activityId, params.costId, body, req.user.userId, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
@@ -358,9 +383,9 @@ export class ActivitiesController {
 
   // Assignment Management
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.assignActivity)
+  @TsRestHandler(activitiesTeamContract.assignActivity)
   public assignActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.assignActivity, async ({ params, body }) => {
+    return tsRestHandler(activitiesTeamContract.assignActivity, async ({ params, body }) => {
       const assignments = body.assignedTo.map(userId => ({ userId, role: 'ASSIGNED' as const }));
       await this.assignmentService.assignUsers(params.activityId!, assignments, req.user.userId, req.user.organizationId, {
         reassignReason: body.reassignReason,
@@ -368,14 +393,14 @@ export class ActivitiesController {
       });
       // Return the updated activity instead of assignment results
       const activity = await this.activitiesService.getActivity(params.activityId!, req.user.organizationId);
-      return { status: 200 as const, body: formatActivityResponse(activity) };
+      return { status: 200 as const, body: formatActivityResponse(activity as Activity) };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.requestHelp)
+  @TsRestHandler(activitiesTeamContract.requestHelp)
   public requestHelp(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.requestHelp, async ({ params, body }) => {
+    return tsRestHandler(activitiesTeamContract.requestHelp, async ({ params, body }) => {
       const helpData = {
         message: body.message!,
         skillsNeeded: body.skillsNeeded,
@@ -400,9 +425,9 @@ export class ActivitiesController {
 
   // Team Performance Analytics
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getTeamPerformance)
+  @TsRestHandler(activitiesTeamContract.getTeamPerformance)
   public getTeamPerformance(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getTeamPerformance, async ({ query }) => {
+    return tsRestHandler(activitiesTeamContract.getTeamPerformance, async ({ query }) => {
       const analyticsQuery = {
         farmId: query.farmId!,
         period: query.period,
@@ -434,27 +459,27 @@ export class ActivitiesController {
 
   // Template Management
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getActivityTemplates)
+  @TsRestHandler(activitiesTemplatesContract.getActivityTemplates)
   public getActivityTemplates(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getActivityTemplates, async ({ query }) => {
+    return tsRestHandler(activitiesTemplatesContract.getActivityTemplates, async ({ query }) => {
       const result = await this.templateService.getTemplates(req.user.organizationId, query);
       return { status: 200 as const, body: result };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getActivityTemplate)
+  @TsRestHandler(activitiesTemplatesContract.getActivityTemplate)
   public getActivityTemplate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getActivityTemplate, async ({ params }) => {
+    return tsRestHandler(activitiesTemplatesContract.getActivityTemplate, async ({ params }) => {
       const result = await this.templateService.getTemplate(params.templateId!, req.user.organizationId);
       return { status: 200 as const, body: {data: result} };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.createActivityTemplate)
+  @TsRestHandler(activitiesTemplatesContract.createActivityTemplate)
   public createActivityTemplate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.createActivityTemplate, async ({ body }) => {
+    return tsRestHandler(activitiesTemplatesContract.createActivityTemplate, async ({ body }) => {
       const templateData = {
         name: body.name!,
         type: body.type!,
@@ -472,34 +497,34 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.createFromTemplate)
+  @TsRestHandler(activitiesTemplatesContract.createFromTemplate)
   public createFromTemplate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.createFromTemplate, async ({ params, body }) => {
+    return tsRestHandler(activitiesTemplatesContract.createFromTemplate, async ({ params, body }) => {
       const result = await this.templateService.createFromTemplate(
         params.templateId,
         body as CreateFromTemplateDto,
         req.user.userId,
         req.user.organizationId
       );
-      return { status: 201 as const, body: formatActivityResponse(result) };
+      return { status: 201 as const, body: { data: result } };
     });
   }
 
   // Scheduling & Planning
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.checkConflicts)
+  @TsRestHandler(activitiesSchedulingContract.checkConflicts)
   public checkConflicts(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.checkConflicts, async ({ query }) => {
+    return tsRestHandler(activitiesSchedulingContract.checkConflicts, async ({ query }) => {
       const result = await this.schedulingService.checkConflicts(query as ConflictCheckQueryOptions, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.bulkSchedule)
+  @TsRestHandler(activitiesSchedulingContract.bulkSchedule)
   public bulkSchedule(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.bulkSchedule, async ({ body }) => {
-      const result = await this.schedulingService.bulkSchedule(body, req.user.userId, req.user.organizationId);
+    return tsRestHandler(activitiesSchedulingContract.bulkSchedule, async ({ body }) => {
+      const result = await this.schedulingService.bulkSchedule(body as any, req.user.userId, req.user.organizationId);
       return {
         status: 201 as const,
         body: {
@@ -507,11 +532,11 @@ export class ActivitiesController {
             id: 'bulk-schedule-results',
             type: 'bulk-schedule-results',
             attributes: {
-              scheduled: result.scheduled,
-              conflicts: result.conflicts,
-              failed: result.failed,
-              activities: result.activities,
-              conflictDetails: result.conflictDetails
+              scheduled: result.attributes.scheduled,
+              conflicts: result.attributes.conflicts,
+              failed: result.attributes.failed,
+              activities: result.attributes.activities,
+              conflictDetails: result.attributes.conflictDetails
             }
           }
         }
@@ -520,9 +545,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getWorkload)
+  @TsRestHandler(activitiesSchedulingContract.getWorkload)
   public getWorkload(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getWorkload, async ({ query }) => {
+    return tsRestHandler(activitiesSchedulingContract.getWorkload, async ({ query }) => {
       const result = await this.schedulingService.getWorkloadAnalysis(query as WorkloadQueryOptions, req.user.organizationId);
       return { status: 200 as const, body: result };
     });
@@ -530,9 +555,9 @@ export class ActivitiesController {
 
   // Activity Notes
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.getActivityNotes)
+  @TsRestHandler(activitiesMediaContract.getActivityNotes)
   public getActivityNotes(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.getActivityNotes, async ({ params }) => {
+    return tsRestHandler(activitiesMediaContract.getActivityNotes, async ({ params }) => {
       const result = await this.notesService.getActivityNotes(params.activityId, req.user.userId, req.user.organizationId, {});
       return { 
         status: 200 as const, 
@@ -542,12 +567,12 @@ export class ActivitiesController {
             type: 'activity-notes' as const,
             attributes: {
               id: note.id,
-              content: note.content,
-              type: note.type as 'OBSERVATION' | 'ISSUE' | 'RECOMMENDATION' | 'GENERAL',
-              isPrivate: note.isPrivate,
-              attachments: note.attachments || [],
-              createdAt: note.createdAt,
-              createdBy: note.author.id,
+              content: note.attributes.content,
+              type: note.attributes.type as 'OBSERVATION' | 'ISSUE' | 'RECOMMENDATION' | 'GENERAL',
+              isPrivate: note.attributes.isPrivate,
+              attachments: note.attributes.attachments || [],
+              createdAt: note.attributes.createdAt,
+              createdBy: note.attributes.author.id,
             },
           })),
           meta: result.meta
@@ -557,10 +582,10 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.addNote)
+  @TsRestHandler(activitiesMediaContract.addNote)
   public addNote(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.addNote, async ({ params, body }) => {
-      const result = await this.notesService.createNote(params.activityId, body, req.user.userId, req.user.organizationId);
+    return tsRestHandler(activitiesMediaContract.addNote, async ({ params, body }) => {
+      const result = await this.notesService.createNote(params.activityId, body as any, req.user.userId, req.user.organizationId);
       return {
         status: 201 as const,
         body: {
@@ -569,12 +594,12 @@ export class ActivitiesController {
             type: 'activity-notes' as const,
             attributes: {
               id: result.id,
-              content: result.content,
-              type: result.type as 'OBSERVATION' | 'ISSUE' | 'RECOMMENDATION' | 'GENERAL',
-              isPrivate: result.isPrivate,
-              attachments: result.attachments || [],
-              createdAt: result.createdAt,
-              createdBy: result.author.id,
+              content: result.attributes.content,
+              type: result.attributes.type as 'OBSERVATION' | 'ISSUE' | 'RECOMMENDATION' | 'GENERAL',
+              isPrivate: result.attributes.isPrivate,
+              attachments: result.attributes.attachments || [],
+              createdAt: result.attributes.createdAt,
+              createdBy: result.attributes.author.id,
             }
           }
         }
@@ -584,9 +609,9 @@ export class ActivitiesController {
 
   // Bulk Operations
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.bulkCreate)
+  @TsRestHandler(activitiesSchedulingContract.bulkCreate)
   public bulkCreate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.bulkCreate, async ({ body }) => {
+    return tsRestHandler(activitiesSchedulingContract.bulkCreate, async ({ body }) => {
       const result = await this.activitiesService.bulkCreateActivities(
         body.activities as Array<{
           name: string;
@@ -617,9 +642,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.bulkUpdate)
+  @TsRestHandler(activitiesSchedulingContract.bulkUpdate)
   public bulkUpdate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.bulkUpdate, async ({ body }) => {
+    return tsRestHandler(activitiesSchedulingContract.bulkUpdate, async ({ body }) => {
       const result = await this.activitiesService.bulkUpdateActivities(
         body.activities as Array<{
           id: string;
@@ -650,9 +675,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.bulkDelete)
+  @TsRestHandler(activitiesSchedulingContract.bulkDelete)
   public bulkDelete(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.bulkDelete, async ({ body }) => {
+    return tsRestHandler(activitiesSchedulingContract.bulkDelete, async ({ body }) => {
       const result = await this.activitiesService.bulkDeleteActivities(
         body.activityIds as string[],
         body.reason || 'Bulk deletion',
@@ -673,9 +698,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.bulkAssign)
+  @TsRestHandler(activitiesSchedulingContract.bulkAssign)
   public bulkAssign(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.bulkAssign, async ({ body }) => {
+    return tsRestHandler(activitiesSchedulingContract.bulkAssign, async ({ body }) => {
       const result = await this.activitiesService.bulkAssignActivities(
         body.assignments as Array<{
           activityId: string;
@@ -699,9 +724,9 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesContract.bulkStatusUpdate)
+  @TsRestHandler(activitiesSchedulingContract.bulkStatusUpdate)
   public bulkStatusUpdate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesContract.bulkStatusUpdate, async ({ body }) => {
+    return tsRestHandler(activitiesSchedulingContract.bulkStatusUpdate, async ({ body }) => {
       const result = await this.activitiesService.bulkUpdateActivityStatus(
         body.updates as Array<{
           activityId: string;
