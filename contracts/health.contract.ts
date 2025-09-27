@@ -16,7 +16,7 @@ export const healthContract = c.router({
     responses: {
       200: z.object({
         status: z.literal('ok'),
-        timestamp: z.string().datetime(),
+        timestamp: z.iso.datetime(),
         service: z.literal('farmpro-api'),
         version: z.string(),
         database: z.object({

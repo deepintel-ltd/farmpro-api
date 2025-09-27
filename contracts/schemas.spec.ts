@@ -1,7 +1,6 @@
 import {
   FarmSchema,
   CommoditySchema,
-  OrderSchema,
   UserSchema,
   JsonApiResourceSchema,
   JsonApiErrorResponseSchema,
@@ -9,6 +8,7 @@ import {
   UpdateFarmRequestSchema,
   JsonApiQuerySchema
 } from './schemas';
+import { OrderSchema } from './orders.schemas';
 
 describe('Core Resource Schemas', () => {
   describe('FarmSchema', () => {

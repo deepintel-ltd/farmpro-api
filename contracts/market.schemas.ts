@@ -20,16 +20,16 @@ export const MarketplaceCommoditySchema = z.object({
     region: z.string(),
   }),
   supplier: z.object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     name: z.string(),
     rating: z.number().min(1).max(5),
     verificationStatus: z.enum(['verified', 'pending', 'rejected']),
   }),
   certifications: z.array(z.string()).optional(),
-  organic: z.boolean().default(false),
-  availableFrom: z.string().datetime(),
-  availableUntil: z.string().datetime(),
-  images: z.array(z.string().url()).optional(),
+  organic: z.boolean().prefault(false),
+  availableFrom: z.iso.datetime(),
+  availableUntil: z.iso.datetime(),
+  images: z.array(z.url()).optional(),
   description: z.string().optional(),
 });
 
@@ -52,24 +52,24 @@ export const MarketplaceSupplierSchema = z.object({
     region: z.string(),
   }),
   rating: z.number().min(1).max(5),
-  totalRatings: z.number().int().min(0),
+  totalRatings: z.int().min(0),
   verificationStatus: z.enum(['verified', 'pending', 'rejected']),
   certifications: z.array(z.string()).optional(),
   deliveryRadius: z.number().positive().optional(),
   deliveryOptions: z.array(z.enum(['pickup', 'delivery', 'shipping'])),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
   commodities: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     name: z.string(),
     category: z.string(),
   })),
   contactInfo: z.object({
-    email: z.string().email().optional(),
+    email: z.email().optional(),
     phone: z.string().optional(),
-    website: z.string().url().optional(),
+    website: z.url().optional(),
   }),
-  establishedDate: z.string().datetime().optional(),
-  totalTransactions: z.number().int().min(0).optional(),
+  establishedDate: z.iso.datetime().optional(),
+  totalTransactions: z.int().min(0).optional(),
   responseTime: z.string().optional(), // e.g., "2-4 hours"
 });
 
@@ -92,21 +92,21 @@ export const MarketplaceBuyerSchema = z.object({
     region: z.string(),
   }),
   rating: z.number().min(1).max(5),
-  totalRatings: z.number().int().min(0),
+  totalRatings: z.int().min(0),
   verificationStatus: z.enum(['verified', 'pending', 'rejected']),
   orderVolume: z.number().positive().optional(),
   preferredCommodities: z.array(z.object({
-    id: z.string().uuid(),
+    id: z.uuid(),
     name: z.string(),
     category: z.string(),
   })),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
   contactInfo: z.object({
-    email: z.string().email().optional(),
+    email: z.email().optional(),
     phone: z.string().optional(),
   }),
-  establishedDate: z.string().datetime().optional(),
-  totalTransactions: z.number().int().min(0).optional(),
+  establishedDate: z.iso.datetime().optional(),
+  totalTransactions: z.int().min(0).optional(),
 });
 
 export const MarketplaceBuyerCollectionSchema = JsonApiCollectionSchema(MarketplaceBuyerSchema);
@@ -116,8 +116,8 @@ export const MarketplaceBuyerCollectionSchema = JsonApiCollectionSchema(Marketpl
 // =============================================================================
 
 export const MarketplaceSearchFiltersSchema = z.object({
-  commodities: z.array(z.string().uuid()).optional(),
-  suppliers: z.array(z.string().uuid()).optional(),
+  commodities: z.array(z.uuid()).optional(),
+  suppliers: z.array(z.uuid()).optional(),
   location: z.object({
     center: z.object({
       lat: z.number(),
@@ -139,8 +139,8 @@ export const MarketplaceSearchFiltersSchema = z.object({
   deliveryOptions: z.array(z.enum(['pickup', 'delivery', 'shipping'])).optional(),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])).optional(),
   availability: z.object({
-    from: z.string().datetime(),
-    to: z.string().datetime(),
+    from: z.iso.datetime(),
+    to: z.iso.datetime(),
   }).optional(),
 });
 
@@ -153,26 +153,26 @@ export const MarketplaceSearchRequestSchema = z.object({
   query: z.string().optional(),
   filters: MarketplaceSearchFiltersSchema.optional(),
   sort: MarketplaceSearchSortSchema.optional(),
-  limit: z.number().int().positive().max(100).default(20),
+  limit: z.int().positive().max(100).prefault(20),
 });
 
 export const MarketplaceSearchResultSchema = z.object({
   commodities: z.array(MarketplaceCommoditySchema),
   suppliers: z.array(MarketplaceSupplierSchema),
   buyers: z.array(MarketplaceBuyerSchema),
-  totalResults: z.number().int().min(0),
+  totalResults: z.int().min(0),
   facets: z.object({
     categories: z.array(z.object({
       name: z.string(),
-      count: z.number().int().min(0),
+      count: z.int().min(0),
     })),
     priceRanges: z.array(z.object({
       range: z.string(),
-      count: z.number().int().min(0),
+      count: z.int().min(0),
     })),
     locations: z.array(z.object({
       region: z.string(),
-      count: z.number().int().min(0),
+      count: z.int().min(0),
     })),
   }).optional(),
 });
@@ -184,14 +184,14 @@ export const MarketplaceSearchResponseSchema = JsonApiResourceSchema(Marketplace
 // =============================================================================
 
 export const PriceDataPointSchema = z.object({
-  date: z.string().datetime(),
+  date: z.iso.datetime(),
   price: z.number().positive(),
   volume: z.number().nonnegative().optional(),
   grade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
 });
 
 export const PriceTrendsResponseSchema = z.object({
-  commodityId: z.string().uuid(),
+  commodityId: z.uuid(),
   commodityName: z.string(),
   region: z.string(),
   period: z.string(),
@@ -211,16 +211,16 @@ export const PriceTrendsResponseSchema = z.object({
 // =============================================================================
 
 export const PriceAlertSchema = z.object({
-  commodityId: z.string().uuid(),
+  commodityId: z.uuid(),
   commodityName: z.string(),
   region: z.string().optional(),
   alertType: z.enum(['above', 'below', 'change']),
   threshold: z.number().positive(),
   percentageChange: z.number().optional(),
   notifications: z.array(z.enum(['email', 'sms', 'push'])),
-  isActive: z.boolean().default(true),
-  createdAt: z.string().datetime(),
-  triggeredAt: z.string().datetime().optional(),
+  isActive: z.boolean().prefault(true),
+  createdAt: z.iso.datetime(),
+  triggeredAt: z.iso.datetime().optional(),
 });
 
 export const PriceAlertResourceSchema = JsonApiResourceSchema(PriceAlertSchema);
@@ -231,7 +231,7 @@ export const PriceAlertRequestSchema = z.object({
   data: z.object({
     type: z.literal('price-alerts'),
     attributes: z.object({
-      commodityId: z.string().uuid(),
+      commodityId: z.uuid(),
       region: z.string().optional(),
       alertType: z.enum(['above', 'below', 'change']),
       threshold: z.number().positive(),
@@ -246,7 +246,7 @@ export const PriceAlertRequestSchema = z.object({
 // =============================================================================
 
 export const MarketAnalysisResponseSchema = z.object({
-  commodityId: z.string().uuid(),
+  commodityId: z.uuid(),
   commodityName: z.string(),
   region: z.string(),
   period: z.string(),
@@ -286,7 +286,7 @@ export const DemandForecastDataPointSchema = z.object({
 });
 
 export const DemandForecastResponseSchema = z.object({
-  commodityId: z.string().uuid(),
+  commodityId: z.uuid(),
   commodityName: z.string(),
   region: z.string(),
   timeframe: z.string(),
@@ -305,14 +305,14 @@ export const DemandForecastResponseSchema = z.object({
 // =============================================================================
 
 export const SupplyOpportunitySchema = z.object({
-  commodityId: z.string().uuid(),
+  commodityId: z.uuid(),
   commodityName: z.string(),
-  buyerId: z.string().uuid(),
+  buyerId: z.uuid(),
   buyerName: z.string(),
   requiredQuantity: z.number().positive(),
   unit: z.string(),
   maxPrice: z.number().positive(),
-  deliveryDate: z.string().datetime(),
+  deliveryDate: z.iso.datetime(),
   location: z.object({
     latitude: z.number(),
     longitude: z.number(),
@@ -324,19 +324,19 @@ export const SupplyOpportunitySchema = z.object({
   }).optional(),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
   contactInfo: z.object({
-    email: z.string().email().optional(),
+    email: z.email().optional(),
     phone: z.string().optional(),
   }),
-  postedAt: z.string().datetime(),
-  expiresAt: z.string().datetime().optional(),
+  postedAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime().optional(),
 });
 
 export const SupplyOpportunityCollectionSchema = JsonApiCollectionSchema(SupplyOpportunitySchema);
 
 export const BuyingOpportunitySchema = z.object({
-  commodityId: z.string().uuid(),
+  commodityId: z.uuid(),
   commodityName: z.string(),
-  supplierId: z.string().uuid(),
+  supplierId: z.uuid(),
   supplierName: z.string(),
   availableQuantity: z.number().positive(),
   unit: z.string(),
@@ -350,9 +350,9 @@ export const BuyingOpportunitySchema = z.object({
   certifications: z.array(z.string()).optional(),
   deliveryOptions: z.array(z.enum(['pickup', 'delivery', 'shipping'])),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
-  availableFrom: z.string().datetime(),
-  availableUntil: z.string().datetime().optional(),
-  images: z.array(z.string().url()).optional(),
+  availableFrom: z.iso.datetime(),
+  availableUntil: z.iso.datetime().optional(),
+  images: z.array(z.url()).optional(),
   description: z.string().optional(),
 });
 
@@ -367,7 +367,7 @@ export const MatchRequestSchema = z.object({
     type: z.literal('match-requests'),
     attributes: z.object({
       type: z.enum(['supply', 'demand']),
-      commodityId: z.string().uuid(),
+      commodityId: z.uuid(),
       quantity: z.number().positive(),
       qualityRequirements: z.record(z.string(), z.any()).optional(),
       location: z.object({
@@ -375,7 +375,7 @@ export const MatchRequestSchema = z.object({
         lng: z.number(),
       }),
       maxDistance: z.number().positive(),
-      deliveryDate: z.string().datetime(),
+      deliveryDate: z.iso.datetime(),
       priceRange: z.object({
         min: z.number().nonnegative(),
         max: z.number().positive(),
@@ -390,23 +390,23 @@ export const MatchRequestSchema = z.object({
 });
 
 export const MatchResultSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   type: z.string(),
   compatibilityScore: z.number().min(0).max(1),
   distance: z.number().positive(),
   estimatedPrice: z.number().positive().optional(),
   matchReason: z.string(),
   contactInfo: z.object({
-    email: z.string().email().optional(),
+    email: z.email().optional(),
     phone: z.string().optional(),
   }).optional(),
 });
 
 export const MatchResponseSchema = z.object({
   matches: z.array(MatchResultSchema),
-  totalMatches: z.number().int().min(0),
+  totalMatches: z.int().min(0),
   searchCriteria: z.object({
-    commodityId: z.string().uuid(),
+    commodityId: z.uuid(),
     quantity: z.number().positive(),
     maxDistance: z.number().positive(),
   }),
@@ -420,7 +420,7 @@ export const ContractTemplateSchema = z.object({
   name: z.string(),
   description: z.string(),
   type: z.enum(['purchase', 'sale', 'supply', 'distribution']),
-  commodityId: z.string().uuid().optional(),
+  commodityId: z.uuid().optional(),
   region: z.string().optional(),
   templateContent: z.string(),
   customizableFields: z.array(z.string()),
@@ -431,9 +431,9 @@ export const ContractTemplateSchema = z.object({
     penaltyClauses: z.record(z.string(), z.any()),
   }),
   version: z.string(),
-  isActive: z.boolean().default(true),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  isActive: z.boolean().prefault(true),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 export const ContractTemplateResourceSchema = JsonApiResourceSchema(ContractTemplateSchema);
@@ -448,8 +448,8 @@ export const ContractGenerationRequestSchema = z.object({
   data: z.object({
     type: z.literal('contract-generation'),
     attributes: z.object({
-      templateId: z.string().uuid(),
-      orderId: z.string().uuid(),
+      templateId: z.uuid(),
+      orderId: z.uuid(),
       customizations: z.object({
         paymentTerms: z.string().optional(),
         deliveryTerms: z.string().optional(),
@@ -462,14 +462,14 @@ export const ContractGenerationRequestSchema = z.object({
 });
 
 export const ContractGenerationResponseSchema = z.object({
-  contractId: z.string().uuid(),
-  templateId: z.string().uuid(),
-  orderId: z.string().uuid(),
+  contractId: z.uuid(),
+  templateId: z.uuid(),
+  orderId: z.uuid(),
   generatedContract: z.string(),
   customizations: z.record(z.string(), z.any()).optional(),
   status: z.enum(['draft', 'ready_for_review', 'approved']),
-  createdAt: z.string().datetime(),
-  expiresAt: z.string().datetime().optional(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime().optional(),
 });
 
 // =============================================================================
@@ -477,7 +477,7 @@ export const ContractGenerationResponseSchema = z.object({
 // =============================================================================
 
 export const MarketplaceListingSchema = z.object({
-  inventoryId: z.string().uuid(),
+  inventoryId: z.uuid(),
   title: z.string(),
   description: z.string(),
   quantity: z.number().positive(),
@@ -486,18 +486,18 @@ export const MarketplaceListingSchema = z.object({
   minQuantity: z.number().positive().optional(),
   qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
   certifications: z.array(z.string()).optional(),
-  availableFrom: z.string().datetime(),
-  availableUntil: z.string().datetime().optional(),
+  availableFrom: z.iso.datetime(),
+  availableUntil: z.iso.datetime().optional(),
   deliveryOptions: z.array(z.enum(['pickup', 'delivery'])),
   deliveryRadius: z.number().positive().optional(),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
-  isPublic: z.boolean().default(true),
-  images: z.array(z.string().url()).optional(),
+  isPublic: z.boolean().prefault(true),
+  images: z.array(z.url()).optional(),
   status: z.enum(['active', 'inactive', 'expired', 'sold']),
-  views: z.number().int().min(0).default(0),
-  inquiries: z.number().int().min(0).default(0),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  views: z.int().min(0).prefault(0),
+  inquiries: z.int().min(0).prefault(0),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 export const MarketplaceListingResourceSchema = JsonApiResourceSchema(MarketplaceListingSchema);
@@ -508,7 +508,7 @@ export const CreateListingRequestSchema = z.object({
   data: z.object({
     type: z.literal('marketplace-listings'),
     attributes: z.object({
-      inventoryId: z.string().uuid(),
+      inventoryId: z.uuid(),
       title: z.string().min(1).max(255),
       description: z.string().optional(),
       quantity: z.number().positive(),
@@ -517,13 +517,13 @@ export const CreateListingRequestSchema = z.object({
       minQuantity: z.number().positive().optional(),
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
       certifications: z.array(z.string()).optional(),
-      availableFrom: z.string().datetime(),
-      availableUntil: z.string().datetime().optional(),
+      availableFrom: z.iso.datetime(),
+      availableUntil: z.iso.datetime().optional(),
       deliveryOptions: z.array(z.enum(['pickup', 'delivery'])),
       deliveryRadius: z.number().positive().optional(),
       paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
-      isPublic: z.boolean().default(true),
-      images: z.array(z.string().url()).optional(),
+      isPublic: z.boolean().prefault(true),
+      images: z.array(z.url()).optional(),
     }),
   }),
 });
@@ -540,13 +540,13 @@ export const UpdateListingRequestSchema = z.object({
       minQuantity: z.number().positive().optional(),
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
       certifications: z.array(z.string()).optional(),
-      availableFrom: z.string().datetime().optional(),
-      availableUntil: z.string().datetime().optional(),
+      availableFrom: z.iso.datetime().optional(),
+      availableUntil: z.iso.datetime().optional(),
       deliveryOptions: z.array(z.enum(['pickup', 'delivery'])).optional(),
       deliveryRadius: z.number().positive().optional(),
       paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])).optional(),
       isPublic: z.boolean().optional(),
-      images: z.array(z.string().url()).optional(),
+      images: z.array(z.url()).optional(),
     }),
   }),
 });

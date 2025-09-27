@@ -13,7 +13,7 @@ const MobileTaskSchema = z.object({
   status: z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
   progress: z.number().min(0).max(100),
-  scheduledAt: z.string().datetime().optional(),
+  scheduledAt: z.iso.datetime().optional(),
   estimatedDuration: z.number().optional(),
   farm: z.object({
     id: z.string(),
@@ -44,7 +44,7 @@ const MobileTaskSchema = z.object({
     id: z.string(),
     type: z.string(),
     content: z.string(),
-    createdAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
     user: z.object({
       id: z.string(),
       name: z.string(),
@@ -59,7 +59,7 @@ const MobileTaskDetailsSchema = MobileTaskSchema.extend({
     type: z.string(),
     amount: z.number(),
     description: z.string(),
-    createdAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
     user: z.object({
       id: z.string(),
       name: z.string(),
@@ -69,7 +69,7 @@ const MobileTaskDetailsSchema = MobileTaskSchema.extend({
     id: z.string(),
     type: z.string(),
     content: z.string(),
-    createdAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
     user: z.object({
       id: z.string(),
       name: z.string(),
@@ -98,7 +98,7 @@ const MobileNoteSchema = z.object({
   id: z.string(),
   type: z.string(),
   content: z.string(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   user: z.object({
     id: z.string(),
     name: z.string(),
@@ -110,7 +110,7 @@ const MobilePhotoSchema = z.object({
   url: z.string(),
   caption: z.string().optional(),
   gpsCoordinates: z.any().optional(),
-  addedAt: z.string().datetime(),
+  addedAt: z.iso.datetime(),
 });
 
 const OfflineDataSchema = z.object({
@@ -127,7 +127,7 @@ const OfflineDataSchema = z.object({
     coordinates: z.any().optional(),
     farmId: z.string(),
   })),
-  lastSync: z.string().datetime(),
+  lastSync: z.iso.datetime(),
 });
 
 const FieldConditionsSchema = z.object({
@@ -145,7 +145,7 @@ const FieldConditionsSchema = z.object({
     conditions: z.string(),
   }),
   recommendations: z.array(z.string()),
-  lastUpdated: z.string().datetime(),
+  lastUpdated: z.iso.datetime(),
 });
 
 const IssueSchema = z.object({
@@ -153,7 +153,7 @@ const IssueSchema = z.object({
   description: z.string(),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
   category: z.string(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 
 export const mobileFieldContract = c.router({
@@ -165,7 +165,7 @@ export const mobileFieldContract = c.router({
       status: z.enum(['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
       priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
       farmId: z.string().optional(),
-      limit: z.number().min(1).max(100).optional().default(50),
+      limit: z.number().min(1).max(100).optional().prefault(50),
     }),
     responses: {
       200: MobileTaskListSchema,
@@ -257,7 +257,7 @@ export const mobileFieldContract = c.router({
       taskId: z.string(),
     }),
     body: z.object({
-      completedAt: z.string().datetime().optional(),
+      completedAt: z.iso.datetime().optional(),
       actualCost: z.number().optional(),
       notes: z.string().optional(),
       results: z.string().optional(),
@@ -285,17 +285,17 @@ export const mobileFieldContract = c.router({
     method: 'POST',
     path: '/mobile/tasks/:taskId/notes',
     pathParams: z.object({
-      taskId: z.string().cuid('Invalid task ID format'),
+      taskId: z.cuid('Invalid task ID format'),
     }),
     body: z.object({
-      type: z.enum(['OBSERVATION', 'ISSUE', 'RECOMMENDATION', 'GENERAL']).optional().default('GENERAL'),
+      type: z.enum(['OBSERVATION', 'ISSUE', 'RECOMMENDATION', 'GENERAL']).optional().prefault('GENERAL'),
       content: z.string().min(1, 'Content cannot be empty').max(2000, 'Content too long'),
       gpsCoordinates: z.object({
         latitude: z.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
         longitude: z.number().min(-180, 'Invalid longitude').max(180, 'Invalid longitude'),
         accuracy: z.number().positive('Accuracy must be positive').max(10000, 'Accuracy too high').optional(),
       }).optional(),
-      photos: z.array(z.string().cuid('Invalid photo ID format')).max(10, 'Too many photos').optional(),
+      photos: z.array(z.cuid('Invalid photo ID format')).max(10, 'Too many photos').optional(),
     }),
     responses: {
       201: z.object({
@@ -315,11 +315,11 @@ export const mobileFieldContract = c.router({
     method: 'POST',
     path: '/mobile/tasks/:taskId/photos',
     pathParams: z.object({
-      taskId: z.string().cuid('Invalid task ID format'),
+      taskId: z.cuid('Invalid task ID format'),
     }),
     body: z.object({
-      mediaId: z.string().cuid('Invalid media ID format'),
-      url: z.string().url('Invalid URL format'),
+      mediaId: z.cuid('Invalid media ID format'),
+      url: z.url('Invalid URL format'),
       caption: z.string().max(500, 'Caption too long').optional(),
       gpsCoordinates: z.object({
         latitude: z.number().min(-90, 'Invalid latitude').max(90, 'Invalid latitude'),
@@ -345,7 +345,7 @@ export const mobileFieldContract = c.router({
     method: 'GET',
     path: '/mobile/offline-data',
     query: z.object({
-      lastSync: z.string().datetime().optional(),
+      lastSync: z.iso.datetime().optional(),
     }),
     responses: {
       200: z.object({
@@ -429,8 +429,8 @@ export const mobileFieldContract = c.router({
     body: z.object({
       taskId: z.string(),
       description: z.string(),
-      priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional().default('NORMAL'),
-      category: z.string().optional().default('GENERAL'),
+      priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional().prefault('NORMAL'),
+      category: z.string().optional().prefault('GENERAL'),
       gpsCoordinates: z.object({
         latitude: z.number(),
         longitude: z.number(),

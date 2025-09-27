@@ -126,13 +126,13 @@ export const farmContract = c.router({
         data: z.array(
           z.object({
             type: z.literal('commodities'),
-            id: z.string().uuid(),
+            id: z.uuid(),
           }),
         ),
         links: z
           .object({
-            self: z.string().url(),
-            related: z.string().url(),
+            self: z.url(),
+            related: z.url(),
           })
           .optional(),
       }),
@@ -152,13 +152,13 @@ export const farmContract = c.router({
         data: z.array(
           z.object({
             type: z.literal('orders'),
-            id: z.string().uuid(),
+            id: z.uuid(),
           }),
         ),
         links: z
           .object({
-            self: z.string().url(),
-            related: z.string().url(),
+            self: z.url(),
+            related: z.url(),
           })
           .optional(),
       }),

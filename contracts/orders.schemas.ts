@@ -103,9 +103,9 @@ export const QualityRequirementsSchema = z.object({
  * Order item schema
  */
 export const OrderItemSchema = z.object({
-  id: z.string().uuid().optional(),
-  commodityId: z.string().uuid('Invalid commodity ID'),
-  inventoryId: z.string().uuid().optional(), // For SELL orders
+  id: z.uuid().optional(),
+  commodityId: z.uuid('Invalid commodity ID'),
+  inventoryId: z.uuid().optional(), // For SELL orders
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
   qualityRequirements: QualityRequirementsSchema.optional(),
@@ -118,32 +118,32 @@ export const OrderItemSchema = z.object({
  * Order schema with comprehensive validation
  */
 export const OrderSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   type: OrderTypeSchema,
   title: z.string().min(1, 'Title is required').max(255, 'Title too long'),
   description: z.string().optional(),
   status: OrderStatusSchema,
-  deliveryDate: z.string().datetime('Invalid delivery date format'),
+  deliveryDate: z.iso.datetime('Invalid delivery date format'),
   deliveryAddress: DeliveryAddressSchema,
   items: z.array(OrderItemSchema).min(1, 'At least one item is required'),
   paymentTerms: z.string().optional(),
   specialInstructions: z.string().optional(),
-  isPublic: z.boolean().default(false),
+  isPublic: z.boolean().prefault(false),
   metadata: z.record(z.string(), z.any()).optional(),
   
   // Relationships
-  buyerId: z.string().uuid().optional(),
-  sellerId: z.string().uuid().optional(),
-  buyerOrgId: z.string().uuid().optional(),
-  supplierOrgId: z.string().uuid().optional(),
+  buyerId: z.uuid().optional(),
+  sellerId: z.uuid().optional(),
+  buyerOrgId: z.uuid().optional(),
+  supplierOrgId: z.uuid().optional(),
   
   // Timestamps
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional(),
-  publishedAt: z.string().datetime().optional(),
-  acceptedAt: z.string().datetime().optional(),
-  confirmedAt: z.string().datetime().optional(),
-  completedAt: z.string().datetime().optional()
+  createdAt: z.iso.datetime().optional(),
+  updatedAt: z.iso.datetime().optional(),
+  publishedAt: z.iso.datetime().optional(),
+  acceptedAt: z.iso.datetime().optional(),
+  confirmedAt: z.iso.datetime().optional(),
+  completedAt: z.iso.datetime().optional()
 });
 
 // =============================================================================
@@ -164,13 +164,13 @@ export const AcceptOrderRequestSchema = z.object({
   message: z.string().optional(),
   proposedChanges: z.object({
     items: z.array(z.object({
-      itemId: z.string().uuid(),
+      itemId: z.uuid(),
       unitPrice: z.number().positive().optional(),
       quantity: z.number().positive().optional(),
-      deliveryDate: z.string().datetime().optional()
+      deliveryDate: z.iso.datetime().optional()
     })).optional()
   }).optional(),
-  requiresNegotiation: z.boolean().default(false)
+  requiresNegotiation: z.boolean().prefault(false)
 });
 
 /**
@@ -188,21 +188,21 @@ export const CounterOfferRequestSchema = z.object({
   message: z.string().min(1, 'Counter offer message is required'),
   changes: z.object({
     totalAmount: z.number().positive().optional(),
-    deliveryDate: z.string().datetime().optional(),
+    deliveryDate: z.iso.datetime().optional(),
     items: z.array(z.object({
-      itemId: z.string().uuid(),
+      itemId: z.uuid(),
       unitPrice: z.number().positive().optional(),
       quantity: z.number().positive().optional()
     })).optional()
   }),
-  expiresAt: z.string().datetime('Invalid expiration date format')
+  expiresAt: z.iso.datetime('Invalid expiration date format')
 });
 
 /**
  * Start fulfillment request schema
  */
 export const StartFulfillmentRequestSchema = z.object({
-  estimatedCompletionDate: z.string().datetime('Invalid completion date format'),
+  estimatedCompletionDate: z.iso.datetime('Invalid completion date format'),
   notes: z.string().optional(),
   trackingInfo: z.object({
     batchNumbers: z.array(z.string()).optional(),
@@ -216,7 +216,7 @@ export const StartFulfillmentRequestSchema = z.object({
  */
 export const CompleteOrderRequestSchema = z.object({
   deliveryConfirmation: z.object({
-    deliveredAt: z.string().datetime('Invalid delivery date format'),
+    deliveredAt: z.iso.datetime('Invalid delivery date format'),
     receivedBy: z.string().min(1, 'Received by is required'),
     condition: DeliveryConditionSchema,
     notes: z.string().optional()
@@ -236,8 +236,8 @@ export const CompleteOrderRequestSchema = z.object({
  * Create order item request schema
  */
 export const CreateOrderItemRequestSchema = z.object({
-  commodityId: z.string().uuid('Invalid commodity ID'),
-  inventoryId: z.string().uuid().optional(),
+  commodityId: z.uuid('Invalid commodity ID'),
+  inventoryId: z.uuid().optional(),
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
   qualityRequirements: QualityRequirementsSchema.optional(),
@@ -263,7 +263,7 @@ export const UpdateOrderItemRequestSchema = z.object({
  * Order search filters schema
  */
 export const OrderSearchFiltersSchema = z.object({
-  commodities: z.array(z.string().uuid()).optional(),
+  commodities: z.array(z.uuid()).optional(),
   location: z.object({
     center: CoordinatesSchema,
     radius: z.number().positive('Radius must be positive')
@@ -277,8 +277,8 @@ export const OrderSearchFiltersSchema = z.object({
     max: z.number().min(0, 'Max quantity must be non-negative')
   }).optional(),
   deliveryWindow: z.object({
-    start: z.string().datetime('Invalid start date format'),
-    end: z.string().datetime('Invalid end date format')
+    start: z.iso.datetime('Invalid start date format'),
+    end: z.iso.datetime('Invalid end date format')
   }).optional(),
   qualityGrades: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
@@ -311,15 +311,15 @@ export const OrderSearchRequestSchema = z.object({
  * Order message schema
  */
 export const OrderMessageSchema = z.object({
-  id: z.string().uuid().optional(),
-  orderId: z.string().uuid(),
+  id: z.uuid().optional(),
+  orderId: z.uuid(),
   content: z.string().min(1, 'Message content is required'),
   type: MessageTypeSchema,
-  attachments: z.array(z.string().url()).optional(),
-  isUrgent: z.boolean().default(false),
-  senderId: z.string().uuid(),
-  readAt: z.string().datetime().optional(),
-  createdAt: z.string().datetime().optional()
+  attachments: z.array(z.url()).optional(),
+  isUrgent: z.boolean().prefault(false),
+  senderId: z.uuid(),
+  readAt: z.iso.datetime().optional(),
+  createdAt: z.iso.datetime().optional()
 });
 
 /**
@@ -328,8 +328,8 @@ export const OrderMessageSchema = z.object({
 export const CreateOrderMessageRequestSchema = z.object({
   content: z.string().min(1, 'Message content is required'),
   type: MessageTypeSchema,
-  attachments: z.array(z.string().url()).optional(),
-  isUrgent: z.boolean().default(false)
+  attachments: z.array(z.url()).optional(),
+  isUrgent: z.boolean().prefault(false)
 });
 
 // =============================================================================
@@ -340,15 +340,15 @@ export const CreateOrderMessageRequestSchema = z.object({
  * Order document schema
  */
 export const OrderDocumentSchema = z.object({
-  id: z.string().uuid().optional(),
-  orderId: z.string().uuid(),
+  id: z.uuid().optional(),
+  orderId: z.uuid(),
   type: DocumentTypeSchema,
   name: z.string().min(1, 'Document name is required'),
   description: z.string().optional(),
-  url: z.string().url('Invalid document URL'),
-  isRequired: z.boolean().default(false),
-  uploadedBy: z.string().uuid(),
-  uploadedAt: z.string().datetime().optional()
+  url: z.url('Invalid document URL'),
+  isRequired: z.boolean().prefault(false),
+  uploadedBy: z.uuid(),
+  uploadedAt: z.iso.datetime().optional()
 });
 
 /**
@@ -358,7 +358,7 @@ export const CreateOrderDocumentRequestSchema = z.object({
   type: DocumentTypeSchema,
   name: z.string().min(1, 'Document name is required'),
   description: z.string().optional(),
-  isRequired: z.boolean().default(false)
+  isRequired: z.boolean().prefault(false)
 });
 
 /**
@@ -366,7 +366,7 @@ export const CreateOrderDocumentRequestSchema = z.object({
  */
 export const ContractSignatureRequestSchema = z.object({
   signature: z.string().min(1, 'Digital signature is required'),
-  signedAt: z.string().datetime('Invalid signature date format'),
+  signedAt: z.iso.datetime('Invalid signature date format'),
   ipAddress: z.string().regex(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, 'Invalid IP address format')
 });
 
@@ -378,14 +378,14 @@ export const ContractSignatureRequestSchema = z.object({
  * Order timeline event schema
  */
 export const OrderTimelineEventSchema = z.object({
-  id: z.string().uuid().optional(),
-  orderId: z.string().uuid(),
+  id: z.uuid().optional(),
+  orderId: z.uuid(),
   status: z.string(),
   message: z.string(),
   location: CoordinatesSchema.optional(),
-  estimatedCompletion: z.string().datetime().optional(),
-  attachments: z.array(z.string().url()).optional(),
-  createdAt: z.string().datetime().optional()
+  estimatedCompletion: z.iso.datetime().optional(),
+  attachments: z.array(z.url()).optional(),
+  createdAt: z.iso.datetime().optional()
 });
 
 /**
@@ -395,21 +395,21 @@ export const OrderStatusUpdateRequestSchema = z.object({
   status: z.string().min(1, 'Status is required'),
   message: z.string().min(1, 'Status message is required'),
   location: CoordinatesSchema.optional(),
-  estimatedCompletion: z.string().datetime().optional(),
-  attachments: z.array(z.string().url()).optional()
+  estimatedCompletion: z.iso.datetime().optional(),
+  attachments: z.array(z.url()).optional()
 });
 
 /**
  * Order tracking info schema
  */
 export const OrderTrackingInfoSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.uuid(),
   currentStatus: z.string(),
   location: CoordinatesSchema.optional(),
-  estimatedDelivery: z.string().datetime().optional(),
+  estimatedDelivery: z.iso.datetime().optional(),
   trackingNumber: z.string().optional(),
   carrier: z.string().optional(),
-  lastUpdated: z.string().datetime().optional()
+  lastUpdated: z.iso.datetime().optional()
 });
 
 // =============================================================================
@@ -423,7 +423,7 @@ export const OrderAnalyticsQuerySchema = z.object({
   period: z.enum(['day', 'week', 'month', 'quarter', 'year']).optional(),
   type: OrderTypeSchema.optional(),
   status: OrderStatusSchema.optional(),
-  commodityId: z.string().uuid().optional()
+  commodityId: z.uuid().optional()
 });
 
 /**
@@ -450,15 +450,15 @@ export const OrderReportRequestSchema = z.object({
   reportType: z.enum(['financial', 'performance', 'compliance', 'custom']),
   filters: z.object({
     dateRange: z.object({
-      start: z.string().datetime('Invalid start date format'),
-      end: z.string().datetime('Invalid end date format')
+      start: z.iso.datetime('Invalid start date format'),
+      end: z.iso.datetime('Invalid end date format')
     }).optional(),
     status: z.array(z.string()).optional(),
-    commodities: z.array(z.string().uuid()).optional(),
-    partners: z.array(z.string().uuid()).optional()
+    commodities: z.array(z.uuid()).optional(),
+    partners: z.array(z.uuid()).optional()
   }),
   format: z.enum(['pdf', 'excel', 'csv']),
-  includeCharts: z.boolean().default(true)
+  includeCharts: z.boolean().prefault(true)
 });
 
 // =============================================================================
@@ -469,17 +469,17 @@ export const OrderReportRequestSchema = z.object({
  * Order dispute schema
  */
 export const OrderDisputeSchema = z.object({
-  id: z.string().uuid().optional(),
-  orderId: z.string().uuid(),
+  id: z.uuid().optional(),
+  orderId: z.uuid(),
   type: DisputeTypeSchema,
   description: z.string().min(1, 'Dispute description is required'),
-  evidence: z.array(z.string().url()).optional(),
+  evidence: z.array(z.url()).optional(),
   requestedResolution: z.enum(['refund', 'replacement', 'discount', 'other']),
   severity: DisputeSeveritySchema,
   status: z.enum(['open', 'in_review', 'resolved', 'closed']).optional(),
-  createdBy: z.string().uuid(),
-  createdAt: z.string().datetime().optional(),
-  resolvedAt: z.string().datetime().optional()
+  createdBy: z.uuid(),
+  createdAt: z.iso.datetime().optional(),
+  resolvedAt: z.iso.datetime().optional()
 });
 
 /**
@@ -488,7 +488,7 @@ export const OrderDisputeSchema = z.object({
 export const CreateOrderDisputeRequestSchema = z.object({
   type: DisputeTypeSchema,
   description: z.string().min(1, 'Dispute description is required'),
-  evidence: z.array(z.string().url()).optional(),
+  evidence: z.array(z.url()).optional(),
   requestedResolution: z.enum(['refund', 'replacement', 'discount', 'other']),
   severity: DisputeSeveritySchema
 });
@@ -498,7 +498,7 @@ export const CreateOrderDisputeRequestSchema = z.object({
  */
 export const DisputeResponseRequestSchema = z.object({
   response: z.string().min(1, 'Response is required'),
-  evidence: z.array(z.string().url()).optional(),
+  evidence: z.array(z.url()).optional(),
   proposedResolution: z.string().optional()
 });
 

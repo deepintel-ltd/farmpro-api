@@ -6,6 +6,7 @@ import {
   InventoryReservationRequestSchema,
   InventoryTransferRequestSchema,
   InventoryQualityTestRequestSchema,
+  InventorySchema,
 } from '../../../contracts/schemas';
 
 // Extract the data.attributes part from the JSON API schemas
@@ -37,19 +38,19 @@ export const FacilityConditionsDtoSchema = z.object({
   condition: z.enum(['excellent', 'good', 'fair', 'poor', 'critical']),
   issues: z.string().optional(),
   recordedBy: z.string(),
-  recordedAt: z.string().datetime(),
+  recordedAt: z.iso.datetime(),
 });
 
 export const CostBasisUpdateDtoSchema = z.object({
   newCostBasis: z.number().positive(),
   reason: z.enum(['market_adjustment', 'revaluation', 'error_correction']),
   notes: z.string(),
-  effectiveDate: z.string().datetime(),
+  effectiveDate: z.iso.datetime(),
 });
 
 export const ReplenishmentPlanDtoSchema = z.object({
-  commodityId: z.string().uuid().optional(),
-  farmId: z.string().uuid().optional(),
+  commodityId: z.uuid().optional(),
+  farmId: z.uuid().optional(),
   timeHorizon: z.enum(['30', '60', '90', '180']),
   considerSeasonality: z.boolean().optional(),
   includeGrowthPlanning: z.boolean().optional(),
@@ -71,8 +72,8 @@ export const ReportGenerationDtoSchema = z.object({
   reportType: z.enum(['stock_levels', 'movements', 'valuation', 'waste', 'custom']),
   filters: z.object({
     dateRange: z.object({
-      start: z.string().datetime(),
-      end: z.string().datetime(),
+      start: z.iso.datetime(),
+      end: z.iso.datetime(),
     }).optional(),
     commodities: z.array(z.string()).optional(),
     locations: z.array(z.string()).optional(),
@@ -82,7 +83,7 @@ export const ReportGenerationDtoSchema = z.object({
   includeCharts: z.boolean().optional(),
 });
 
-export type CreateInventoryDto = z.infer<typeof CreateInventoryDtoSchema>;
+export type CreateInventoryDto = z.infer<typeof InventorySchema>;
 export type UpdateInventoryDto = z.infer<typeof UpdateInventoryDtoSchema>;
 export type InventoryAdjustmentDto = z.infer<typeof InventoryAdjustmentRequestSchema>;
 export type InventoryReservationDto = z.infer<typeof InventoryReservationRequestSchema>;

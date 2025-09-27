@@ -25,17 +25,11 @@ export const FarmSchema = z.object({
  */
 export const CommoditySchema = z.object({
   name: z.string().min(1, 'Commodity name is required').max(255, 'Commodity name too long'),
-  category: z.enum(['grain', 'vegetable', 'fruit', 'livestock'], {
-    errorMap: () => ({ message: 'Invalid commodity category' })
-  }),
+  category: z.enum(['grain', 'vegetable', 'fruit', 'livestock'], 'Invalid commodity category'),
   variety: z.string().optional(),
-  qualityGrade: z.enum(['premium', 'standard', 'utility'], {
-    errorMap: () => ({ message: 'Invalid quality grade' })
-  }),
+  qualityGrade: z.enum(['premium', 'standard', 'utility'], 'Invalid quality grade'),
   quantity: z.number().positive('Quantity must be positive'),
-  unit: z.enum(['bushel', 'pound', 'ton', 'head'], {
-    errorMap: () => ({ message: 'Invalid unit type' })
-  }),
+  unit: z.enum(['bushel', 'pound', 'ton', 'head'], 'Invalid unit type'),
   harvestDate: z.string().datetime('Invalid harvest date format'),
   storageLocation: z.string().min(1, 'Storage location is required')
 });
@@ -48,9 +42,7 @@ export const UserSchema = z.object({
   email: z.string().email('Invalid email format'),
   firstName: z.string().min(1, 'First name is required').max(100, 'First name too long'),
   lastName: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
-  role: z.enum(['farmer', 'buyer', 'admin'], {
-    errorMap: () => ({ message: 'Invalid user role' })
-  }),
+  role: z.enum(['farmer', 'buyer', 'admin'], 'Invalid user role'),
   phone: z.string().regex(/^\+?[\d\s\-()]+$/, 'Invalid phone number format').optional(),
   address: z.object({
     street: z.string().min(1, 'Street address is required'),
@@ -379,13 +371,13 @@ export const JsonApiResourceSchema = <T extends z.ZodType>(attributesSchema: T) 
       id: z.string(),
       type: z.string(),
       attributes: attributesSchema,
-      relationships: z.record(JsonApiRelationshipSchema).optional()
+      relationships: z.record(z.string(), JsonApiRelationshipSchema).optional()
     }),
     included: z.array(z.object({
       id: z.string(),
       type: z.string(),
       attributes: z.record(z.string(), z.any()),
-      relationships: z.record(JsonApiRelationshipSchema).optional()
+      relationships: z.record(z.string(), JsonApiRelationshipSchema).optional()
     })).optional(),
     meta: JsonApiMetaSchema.optional(),
     links: JsonApiLinksSchema.optional()
@@ -400,13 +392,13 @@ export const JsonApiCollectionSchema = <T extends z.ZodType>(attributesSchema: T
       id: z.string(),
       type: z.string(),
       attributes: attributesSchema,
-      relationships: z.record(JsonApiRelationshipSchema).optional()
+      relationships: z.record(z.string(), JsonApiRelationshipSchema).optional()
     })),
     included: z.array(z.object({
       id: z.string(),
       type: z.string(),
       attributes: z.record(z.string(), z.any()),
-      relationships: z.record(JsonApiRelationshipSchema).optional()
+      relationships: z.record(z.string(), JsonApiRelationshipSchema).optional()
     })).optional(),
     meta: JsonApiMetaSchema.optional(),
     links: JsonApiLinksSchema.optional()
@@ -505,7 +497,7 @@ export const JsonApiCreateRequestSchema = <T extends z.ZodType>(attributesSchema
     data: z.object({
       type: z.string(),
       attributes: attributesSchema,
-      relationships: z.record(z.object({
+      relationships: z.record(z.string(), z.object({
         data: z.union([
           z.object({
             type: z.string(),
@@ -529,7 +521,7 @@ export const JsonApiUpdateRequestSchema = <T extends z.ZodObject<any>>(attribute
       id: z.string(),
       type: z.string(),
       attributes: attributesSchema.partial(),
-      relationships: z.record(z.object({
+      relationships: z.record(z.string(), z.object({
         data: z.union([
           z.object({
             type: z.string(),
@@ -621,7 +613,7 @@ export const JsonApiQuerySchema = z.object({
   sort: z.string().optional(),
   'page[number]': z.coerce.number().int().positive().optional(),
   'page[size]': z.coerce.number().int().positive().max(100).optional(),
-  filter: z.record(z.string()).optional()
+  filter: z.record(z.string(), z.any()).optional()
 });
 
 // =============================================================================
@@ -736,9 +728,7 @@ export const OrganizationSchema = z.object({
   taxId: z.string().optional(),
   website: z.string().url('Invalid website URL').optional(),
   description: z.string().max(1000, 'Description too long').optional(),
-  type: z.enum(['individual', 'cooperative', 'corporation', 'nonprofit'], {
-    errorMap: () => ({ message: 'Invalid organization type' })
-  }),
+  type: z.enum(['individual', 'cooperative', 'corporation', 'nonprofit'], 'Invalid organization type'),
   isActive: z.boolean().default(true),
   isVerified: z.boolean().default(false),
   plan: z.string().optional(),
@@ -824,9 +814,7 @@ export const IntegrationConfigSchema = z.object({
  */
 export const OrganizationExportRequestSchema = z.object({
   dataTypes: z.array(z.string()).min(1, 'At least one data type is required'),
-  format: z.enum(['json', 'csv', 'excel'], {
-    errorMap: () => ({ message: 'Invalid export format' })
-  }),
+  format: z.enum(['json', 'csv', 'excel'], 'Invalid export format'),
   dateRange: z.object({
     start: z.string().datetime(),
     end: z.string().datetime()
@@ -838,9 +826,7 @@ export const OrganizationExportRequestSchema = z.object({
  */
 export const OrganizationBackupRequestSchema = z.object({
   includeMedia: z.boolean().default(false),
-  retention: z.enum(['30d', '90d', '1y'], {
-    errorMap: () => ({ message: 'Invalid retention period' })
-  })
+  retention: z.enum(['30d', '90d', '1y'], 'Invalid retention period')
 });
 
 /**
@@ -848,9 +834,7 @@ export const OrganizationBackupRequestSchema = z.object({
  */
 export const OrganizationBillingSchema = z.object({
   planId: z.string(),
-  billingCycle: z.enum(['monthly', 'yearly'], {
-    errorMap: () => ({ message: 'Invalid billing cycle' })
-  }),
+  billingCycle: z.enum(['monthly', 'yearly'], 'Invalid billing cycle'),
   paymentMethod: z.string().optional(),
   status: z.enum(['active', 'past_due', 'cancelled', 'incomplete']),
   currentPeriodStart: z.string().datetime(),

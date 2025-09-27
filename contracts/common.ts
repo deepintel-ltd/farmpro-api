@@ -56,7 +56,7 @@ export const CollectionErrorResponses = {
 
 export const UuidPathParam = (resourceName: string) =>
   z.object({
-    id: z.string().uuid(`${resourceName} ID must be a valid UUID`),
+    id: z.uuid(`${resourceName} ID must be a valid UUID`),
   });
 
 // =============================================================================

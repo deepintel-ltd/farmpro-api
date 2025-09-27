@@ -67,9 +67,9 @@ export const orderContract: any = c.router({
     query: AllQueryParams.extend({
       type: z.enum(['BUY', 'SELL']).optional(),
       status: z.string().optional(),
-      buyerOrgId: z.string().uuid().optional(),
-      supplierOrgId: z.string().uuid().optional(),
-      commodityId: z.string().uuid().optional(),
+      buyerOrgId: z.uuid().optional(),
+      supplierOrgId: z.uuid().optional(),
+      commodityId: z.uuid().optional(),
       dateRange: z.string().optional(),
     }),
     responses: {
@@ -262,7 +262,7 @@ export const orderContract: any = c.router({
     method: 'PATCH',
     path: '/orders/:id/items/:itemId',
     pathParams: UuidPathParam('Order').extend({
-      itemId: z.string().uuid('Invalid item ID'),
+      itemId: z.uuid('Invalid item ID'),
     }),
     body: UpdateOrderItemRequestSchema,
     responses: {
@@ -277,7 +277,7 @@ export const orderContract: any = c.router({
     method: 'DELETE',
     path: '/orders/:id/items/:itemId',
     pathParams: UuidPathParam('Order').extend({
-      itemId: z.string().uuid('Invalid item ID'),
+      itemId: z.uuid('Invalid item ID'),
     }),
     body: c.noBody(),
     responses: {
@@ -297,7 +297,7 @@ export const orderContract: any = c.router({
     path: '/orders/marketplace',
     query: AllQueryParams.extend({
       type: z.enum(['BUY', 'SELL']).optional(),
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.uuid().optional(),
       location: z.string().optional(),
       priceRange: z.string().optional(),
       deliveryDate: z.string().optional(),
@@ -342,7 +342,7 @@ export const orderContract: any = c.router({
     path: '/orders/recommendations',
     query: CommonQueryParams.extend({
       type: z.enum(['BUY', 'SELL']).optional(),
-      limit: z.number().int().positive().optional(),
+      limit: z.int().positive().optional(),
     }),
     responses: {
       200: OrderCollectionSchema,
@@ -386,7 +386,7 @@ export const orderContract: any = c.router({
     method: 'PATCH',
     path: '/orders/:id/messages/:messageId/read',
     pathParams: UuidPathParam('Order').extend({
-      messageId: z.string().uuid('Invalid message ID'),
+      messageId: z.uuid('Invalid message ID'),
     }),
     body: c.noBody(),
     responses: {
@@ -435,16 +435,16 @@ export const orderContract: any = c.router({
       200: z.object({
         data: z.object({
           type: z.literal('contracts'),
-          id: z.string().uuid(),
+          id: z.uuid(),
           attributes: z.object({
-            url: z.string().url(),
+            url: z.url(),
             terms: z.string(),
-            generatedAt: z.string().datetime(),
+            generatedAt: z.iso.datetime(),
           }),
         }),
         links: z.object({
-          self: z.string().url(),
-          download: z.string().url(),
+          self: z.url(),
+          download: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -479,7 +479,7 @@ export const orderContract: any = c.router({
       200: z.object({
         data: z.array(OrderTimelineEventSchema),
         links: z.object({
-          self: z.string().url(),
+          self: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -496,7 +496,7 @@ export const orderContract: any = c.router({
       200: z.object({
         data: OrderTrackingInfoSchema,
         links: z.object({
-          self: z.string().url(),
+          self: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -536,7 +536,7 @@ export const orderContract: any = c.router({
             successRate: z.number(),
             averageValue: z.number(),
             topCommodities: z.array(z.object({
-              commodityId: z.string().uuid(),
+              commodityId: z.uuid(),
               name: z.string(),
               count: z.number(),
             })),
@@ -544,7 +544,7 @@ export const orderContract: any = c.router({
           }),
         }),
         links: z.object({
-          self: z.string().url(),
+          self: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -571,7 +571,7 @@ export const orderContract: any = c.router({
           }),
         }),
         links: z.object({
-          self: z.string().url(),
+          self: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -598,7 +598,7 @@ export const orderContract: any = c.router({
           }),
         }),
         links: z.object({
-          self: z.string().url(),
+          self: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -615,16 +615,16 @@ export const orderContract: any = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('report-jobs'),
-          id: z.string().uuid(),
+          id: z.uuid(),
           attributes: z.object({
             status: z.enum(['pending', 'processing', 'completed', 'failed']),
-            estimatedCompletion: z.string().datetime().optional(),
-            downloadUrl: z.string().url().optional(),
+            estimatedCompletion: z.iso.datetime().optional(),
+            downloadUrl: z.url().optional(),
           }),
         }),
         links: z.object({
-          self: z.string().url(),
-          status: z.string().url(),
+          self: z.url(),
+          status: z.url(),
         }).optional(),
       }),
       ...CommonErrorResponses,
@@ -667,7 +667,7 @@ export const orderContract: any = c.router({
     method: 'POST',
     path: '/orders/:id/disputes/:disputeId/respond',
     pathParams: UuidPathParam('Order').extend({
-      disputeId: z.string().uuid('Invalid dispute ID'),
+      disputeId: z.uuid('Invalid dispute ID'),
     }),
     body: DisputeResponseRequestSchema,
     responses: {
@@ -682,7 +682,7 @@ export const orderContract: any = c.router({
     method: 'POST',
     path: '/orders/:id/disputes/:disputeId/resolve',
     pathParams: UuidPathParam('Order').extend({
-      disputeId: z.string().uuid('Invalid dispute ID'),
+      disputeId: z.uuid('Invalid dispute ID'),
     }),
     body: DisputeResolutionRequestSchema,
     responses: {
@@ -732,13 +732,13 @@ export const orderContract: any = c.router({
         data: z
           .object({
             type: z.literal('users'),
-            id: z.string().uuid(),
+            id: z.uuid(),
           })
           .nullable(),
         links: z
           .object({
-            self: z.string().url(),
-            related: z.string().url(),
+            self: z.url(),
+            related: z.url(),
           })
           .optional(),
       }),
@@ -757,13 +757,13 @@ export const orderContract: any = c.router({
         data: z
           .object({
             type: z.literal('users'),
-            id: z.string().uuid(),
+            id: z.uuid(),
           })
           .nullable(),
         links: z
           .object({
-            self: z.string().url(),
-            related: z.string().url(),
+            self: z.url(),
+            related: z.url(),
           })
           .optional(),
       }),
