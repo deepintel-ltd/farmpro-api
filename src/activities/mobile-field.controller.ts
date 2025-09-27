@@ -18,7 +18,17 @@ export class MobileFieldController {
   public getMyTasks(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mobileFieldContract.getMyTasks, async ({ query }) => {
       const result = await this.mobileFieldService.getMyTasks(req.user.userId, req.user.organizationId, query);
-      return { status: 200 as const, body: { data: result as any } };
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: result,
+          meta: { 
+            total: result?.length ?? 0,
+            page: 1,
+            limit: query.limit ?? 50
+          }
+        } 
+      };
     });
   }
 

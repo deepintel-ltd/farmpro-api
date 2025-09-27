@@ -27,30 +27,42 @@ interface MobileTask {
   name: string;
   description?: string;
   type: string;
-  status: string;
-  priority: string;
-  scheduledAt?: Date;
+  status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  progress: number;
+  scheduledAt?: string;
+  estimatedDuration?: number;
   farm: {
     id: string;
     name: string;
+    location?: string;
   };
-  assignments: Array<{
+  area?: {
+    id: string;
+    name: string;
+    boundaries?: any;
+  };
+  notes: Array<{
+    id: string;
+    type: string;
+    content: string;
+    createdAt: string;
     user: {
       id: string;
       name: string;
     };
   }>;
+  assignments: Array<{
+    id: string;
+    user: {
+      id: string;
+      name: string;
+    };
+  }>;
+  metadata?: any;
 }
 
-interface MobileTaskDetails extends MobileTask {
-  notes: Array<{
-    id: string;
-    type: string;
-    content: string;
-    createdAt: Date;
-    user: { name: string };
-  }>;
-}
+type MobileTaskDetails = MobileTask;
 
 @Injectable()
 export class MobileFieldService {
@@ -78,11 +90,16 @@ export class MobileFieldService {
     const tasks = await this.prisma.farmActivity.findMany({
       where,
       include: {
-        farm: { select: { id: true, name: true } },
+        farm: { select: { id: true, name: true, location: true } },
+        area: { select: { id: true, name: true, boundaries: true } },
         assignments: {
           where: { userId, isActive: true },
           include: { user: { select: { id: true, name: true } } }
         },
+        notes: {
+          include: { user: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' }
+        }
       },
       orderBy: [
         { priority: 'desc' },
@@ -96,11 +113,31 @@ export class MobileFieldService {
       name: task.name,
       description: task.description,
       type: task.type,
-      status: task.status,
+      status: task.status === 'PAUSED' ? 'IN_PROGRESS' : task.status as 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
       priority: task.priority,
-      scheduledAt: task.scheduledAt,
-      farm: task.farm,
-      assignments: task.assignments,
+      progress: 0, // TODO: Calculate from progress logs
+      scheduledAt: task.scheduledAt?.toISOString(),
+      estimatedDuration: task.estimatedDuration,
+      farm: {
+        ...task.farm,
+        location: typeof task.farm.location === 'string' ? task.farm.location : undefined
+      },
+      area: task.area,
+      notes: task.notes.map(note => ({
+        id: note.id,
+        type: note.type,
+        content: note.content,
+        createdAt: note.createdAt.toISOString(),
+        user: {
+          id: note.user.id,
+          name: note.user.name
+        }
+      })),
+      assignments: task.assignments.map(assignment => ({
+        id: assignment.id,
+        user: assignment.user
+      })),
+      metadata: task.metadata,
     }));
   }
 
@@ -116,7 +153,8 @@ export class MobileFieldService {
         },
       },
       include: {
-        farm: { select: { id: true, name: true } },
+        farm: { select: { id: true, name: true, location: true } },
+        area: { select: { id: true, name: true, boundaries: true } },
         assignments: {
           where: { isActive: true },
           include: { user: { select: { id: true, name: true } } }
@@ -124,7 +162,7 @@ export class MobileFieldService {
         notes: {
           orderBy: { createdAt: 'desc' },
           take: 10,
-          include: { user: { select: { name: true } } }
+          include: { user: { select: { id: true, name: true } } }
         },
       },
     });
@@ -138,12 +176,31 @@ export class MobileFieldService {
       name: task.name,
       description: task.description,
       type: task.type,
-      status: task.status,
+      status: task.status === 'PAUSED' ? 'IN_PROGRESS' : task.status as 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
       priority: task.priority,
-      scheduledAt: task.scheduledAt,
-      farm: task.farm,
-      assignments: task.assignments,
-      notes: task.notes,
+      progress: 0, // TODO: Calculate from progress logs
+      scheduledAt: task.scheduledAt?.toISOString(),
+      estimatedDuration: task.estimatedDuration,
+      farm: {
+        ...task.farm,
+        location: typeof task.farm.location === 'string' ? task.farm.location : undefined
+      },
+      area: task.area,
+      notes: task.notes.map(note => ({
+        id: note.id,
+        type: note.type,
+        content: note.content,
+        createdAt: note.createdAt.toISOString(),
+        user: {
+          id: note.user.id,
+          name: note.user.name
+        }
+      })),
+      assignments: task.assignments.map(assignment => ({
+        id: assignment.id,
+        user: assignment.user
+      })),
+      metadata: task.metadata,
     };
   }
 
@@ -418,7 +475,7 @@ export class MobileFieldService {
         type: task.type,
         status: task.status,
         priority: task.priority,
-        scheduledAt: task.scheduledAt,
+        scheduledAt: task.scheduledAt?.toISOString(),
         farm: task.farm,
         assignments: task.assignments
       })),
