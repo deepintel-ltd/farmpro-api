@@ -13,7 +13,14 @@ import { organizationContract, type OrganizationContract } from './organizations
 import { analyticsContract, type AnalyticsContract } from './analytics.contract';
 import { marketContract, type MarketContract } from './market.contract';
 import { intelligenceContract, type IntelligenceContract } from './intelligence.contract';
-import { activitiesContract } from './activities.contract';
+import { activitiesCrudContract } from './activities-crud.contract';
+import { activitiesExecutionContract } from './activities-execution.contract';
+import { activitiesTemplatesContract } from './activities-templates.contract';
+import { activitiesSchedulingContract } from './activities-scheduling.contract';
+import { activitiesTeamContract } from './activities-team.contract';
+import { activitiesCostsContract } from './activities-costs.contract';
+import { activitiesMediaContract } from './activities-media.contract';
+import { activitiesAnalyticsContract } from './activities-analytics.contract';
 import { mobileFieldContract } from './mobile-field.contract';
 
 // Import common utilities
@@ -43,7 +50,14 @@ export interface ApiContractDefinition {
   analytics: typeof analyticsContract;
   market: typeof marketContract;
   intelligence: typeof intelligenceContract;
-  activities: typeof activitiesContract;
+  activitiesCrud: typeof activitiesCrudContract;
+  activitiesExecution: typeof activitiesExecutionContract;
+  activitiesTemplates: typeof activitiesTemplatesContract;
+  activitiesScheduling: typeof activitiesSchedulingContract;
+  activitiesTeam: typeof activitiesTeamContract;
+  activitiesCosts: typeof activitiesCostsContract;
+  activitiesMedia: typeof activitiesMediaContract;
+  activitiesAnalytics: typeof activitiesAnalyticsContract;
   mobile: typeof mobileFieldContract;
   health: typeof healthContract.health;
 }
@@ -60,7 +74,14 @@ export const apiContract: ApiContractDefinition = c.router({
   analytics: analyticsContract,
   market: marketContract,
   intelligence: intelligenceContract,
-  activities: activitiesContract,
+  activitiesCrud: activitiesCrudContract,
+  activitiesExecution: activitiesExecutionContract,
+  activitiesTemplates: activitiesTemplatesContract,
+  activitiesScheduling: activitiesSchedulingContract,
+  activitiesTeam: activitiesTeamContract,
+  activitiesCosts: activitiesCostsContract,
+  activitiesMedia: activitiesMediaContract,
+  activitiesAnalytics: activitiesAnalyticsContract,
   mobile: mobileFieldContract,
   ...healthContract,
 });
