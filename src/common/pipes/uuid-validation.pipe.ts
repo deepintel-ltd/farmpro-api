@@ -13,7 +13,7 @@ import { createJsonApiError, createJsonApiErrorResponse } from '../utils/json-ap
  */
 @Injectable()
 export class UuidValidationPipe implements PipeTransform {
-  private readonly uuidSchema = z.uuid();
+  private readonly uuidSchema = z.string().uuid();
 
   transform(value: any, metadata: ArgumentMetadata) {
     if (metadata.type !== 'param') {
@@ -47,7 +47,7 @@ export class UuidValidationPipe implements PipeTransform {
 @Injectable()
 export class ParameterValidationPipe implements PipeTransform {
   constructor(
-    private readonly schema: z.ZodJSONSchema,
+    private readonly schema: z.ZodSchema,
     private readonly parameterName?: string,
   ) {}
 
@@ -88,6 +88,6 @@ export class ParameterValidationPipe implements PipeTransform {
 /**
  * Factory function to create a parameter validation pipe with a specific schema
  */
-export function createParameterValidationPipe(schema: z.ZodJSONSchema, parameterName?: string) {
+export function createParameterValidationPipe(schema: z.ZodSchema, parameterName?: string) {
   return new ParameterValidationPipe(schema, parameterName);
 }

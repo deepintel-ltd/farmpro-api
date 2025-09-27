@@ -38,19 +38,19 @@ export const FacilityConditionsDtoSchema = z.object({
   condition: z.enum(['excellent', 'good', 'fair', 'poor', 'critical']),
   issues: z.string().optional(),
   recordedBy: z.string(),
-  recordedAt: z.iso.datetime(),
+  recordedAt: z.string().datetime(),
 });
 
 export const CostBasisUpdateDtoSchema = z.object({
   newCostBasis: z.number().positive(),
   reason: z.enum(['market_adjustment', 'revaluation', 'error_correction']),
   notes: z.string(),
-  effectiveDate: z.iso.datetime(),
+  effectiveDate: z.string().datetime(),
 });
 
 export const ReplenishmentPlanDtoSchema = z.object({
-  commodityId: z.uuid().optional(),
-  farmId: z.uuid().optional(),
+  commodityId: z.string().uuid().optional(),
+  farmId: z.string().uuid().optional(),
   timeHorizon: z.enum(['30', '60', '90', '180']),
   considerSeasonality: z.boolean().optional(),
   includeGrowthPlanning: z.boolean().optional(),
@@ -72,8 +72,8 @@ export const ReportGenerationDtoSchema = z.object({
   reportType: z.enum(['stock_levels', 'movements', 'valuation', 'waste', 'custom']),
   filters: z.object({
     dateRange: z.object({
-      start: z.iso.datetime(),
-      end: z.iso.datetime(),
+      start: z.string().datetime(),
+      end: z.string().datetime(),
     }).optional(),
     commodities: z.array(z.string()).optional(),
     locations: z.array(z.string()).optional(),

@@ -17,7 +17,12 @@ describe('API Contracts', () => {
     it('should have all required resource contracts', () => {
       expect(apiContract.farms).toBeDefined();
       expect(apiContract.commodities).toBeDefined();
-      expect(apiContract.orders).toBeDefined();
+      expect(apiContract.ordersCrud).toBeDefined();
+      expect(apiContract.ordersMarketplace).toBeDefined();
+      expect(apiContract.ordersMessaging).toBeDefined();
+      expect(apiContract.ordersAnalytics).toBeDefined();
+      expect(apiContract.ordersDisputes).toBeDefined();
+      expect(apiContract.ordersRelationships).toBeDefined();
       expect(apiContract.users).toBeDefined();
       expect(apiContract.health).toBeDefined();
     });
@@ -45,11 +50,11 @@ describe('API Contracts', () => {
     });
 
     it('should have correct paths', () => {
-      expect(apiContract.farms.getFarms.path).toBe('/farms');
-      expect(apiContract.farms.getFarm.path).toBe('/farms/:id');
-      expect(apiContract.farms.createFarm.path).toBe('/farms');
-      expect(apiContract.farms.updateFarm.path).toBe('/farms/:id');
-      expect(apiContract.farms.deleteFarm.path).toBe('/farms/:id');
+      expect(apiContract.farms.getFarms.path).toBe('/api/farms');
+      expect(apiContract.farms.getFarm.path).toBe('/api/farms/:id');
+      expect(apiContract.farms.createFarm.path).toBe('/api/farms');
+      expect(apiContract.farms.updateFarm.path).toBe('/api/farms/:id');
+      expect(apiContract.farms.deleteFarm.path).toBe('/api/farms/:id');
     });
   });
 
@@ -214,7 +219,12 @@ describe('API Contracts', () => {
       expect(metadata.description).toBe('JSON API compliant agricultural platform API');
       expect(metadata.endpoints.farms).toBeDefined();
       expect(metadata.endpoints.commodities).toBeDefined();
-      expect(metadata.endpoints.orders).toBeDefined();
+      expect(metadata.endpoints.ordersCrud).toBeDefined();
+      expect(metadata.endpoints.ordersMarketplace).toBeDefined();
+      expect(metadata.endpoints.ordersMessaging).toBeDefined();
+      expect(metadata.endpoints.ordersAnalytics).toBeDefined();
+      expect(metadata.endpoints.ordersDisputes).toBeDefined();
+      expect(metadata.endpoints.ordersRelationships).toBeDefined();
       expect(metadata.endpoints.users).toBeDefined();
     });
   });
@@ -244,10 +254,10 @@ describe('API Contracts', () => {
   describe('Relationship Endpoints', () => {
     it('should have relationship endpoints for all resources', () => {
       // Farm relationships
-      expect(apiContract.farms.getFarmCommodities.path).toBe('/farms/:id/commodities');
-      expect(apiContract.farms.getFarmOrders.path).toBe('/farms/:id/orders');
-      expect(apiContract.farms.getFarmCommodityRelationships.path).toBe('/farms/:id/relationships/commodities');
-      expect(apiContract.farms.getFarmOrderRelationships.path).toBe('/farms/:id/relationships/orders');
+      expect(apiContract.farms.getFarmCommodities.path).toBe('/api/farms/:id/commodities');
+      expect(apiContract.farms.getFarmOrders.path).toBe('/api/farms/:id/orders');
+      expect(apiContract.farms.getFarmCommodityRelationships.path).toBe('/api/farms/:id/relationships/commodities');
+      expect(apiContract.farms.getFarmOrderRelationships.path).toBe('/api/farms/:id/relationships/orders');
       
       // User relationships
       expect(apiContract.users.getUserFarms.path).toBe('/users/:id/farms');
@@ -256,10 +266,10 @@ describe('API Contracts', () => {
       expect(apiContract.users.getUserOrderRelationships.path).toBe('/users/:id/relationships/orders');
       
       // Order relationships
-      expect(apiContract.orders.getOrderBuyer.path).toBe('/orders/:id/buyer');
-      expect(apiContract.orders.getOrderSeller.path).toBe('/orders/:id/seller');
-      expect(apiContract.orders.getOrderBuyerRelationship.path).toBe('/orders/:id/relationships/buyer');
-      expect(apiContract.orders.getOrderSellerRelationship.path).toBe('/orders/:id/relationships/seller');
+      expect(apiContract.ordersRelationships.getOrderBuyer.path).toBe('/orders/:id/buyer');
+      expect(apiContract.ordersRelationships.getOrderSeller.path).toBe('/orders/:id/seller');
+      expect(apiContract.ordersRelationships.getOrderBuyerRelationship.path).toBe('/orders/:id/relationships/buyer');
+      expect(apiContract.ordersRelationships.getOrderSellerRelationship.path).toBe('/orders/:id/relationships/seller');
       
       // Commodity relationships
       expect(apiContract.commodities.getCommodityOrders.path).toBe('/commodities/:id/orders');
@@ -272,7 +282,7 @@ describe('API Contracts', () => {
       expect(apiContract.farms.getFarms.query).toBeDefined();
       expect(apiContract.farms.getFarm.query).toBeDefined();
       expect(apiContract.commodities.getCommodities.query).toBeDefined();
-      expect(apiContract.orders.getOrders.query).toBeDefined();
+      expect(apiContract.ordersCrud.getOrders.query).toBeDefined();
       expect(apiContract.users.getUsers.query).toBeDefined();
     });
 

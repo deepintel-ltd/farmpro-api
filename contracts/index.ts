@@ -19,7 +19,6 @@ export type {
   ApiContractType,
   FarmEndpoints,
   CommodityEndpoints,
-  OrderEndpoints,
   UserEndpoints,
   AuthEndpoints,
   InventoryEndpoints,
@@ -39,9 +38,6 @@ export type { FarmContract } from './farms.contract';
 
 export { commodityContract } from './commodities.contract';
 export type { CommodityContract } from './commodities.contract';
-
-export { orderContract } from './orders.contract';
-export type { OrderContract } from './orders.contract';
 
 export { userContract } from './users.contract';
 export type { UserContract } from './users.contract';

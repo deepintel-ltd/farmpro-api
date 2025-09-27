@@ -4,7 +4,12 @@ import {
   commodityContract,
   type CommodityContract,
 } from './commodities.contract';
-import { orderContract, type OrderContract } from './orders.contract';
+import { ordersCrudContract, type OrdersCrudContract } from './orders-crud.contract';
+import { ordersMarketplaceContract, type OrdersMarketplaceContract } from './orders-marketplace.contract';
+import { ordersMessagingContract, type OrdersMessagingContract } from './orders-messaging.contract';
+import { ordersAnalyticsContract, type OrdersAnalyticsContract } from './orders-analytics.contract';
+import { ordersDisputesContract, type OrdersDisputesContract } from './orders-disputes.contract';
+import { ordersRelationshipsContract, type OrdersRelationshipsContract } from './orders-relationships.contract';
 import { userContract, type UserContract } from './users.contract';
 import { authContract, type AuthContract } from './auth.contract';
 import { healthContract, type HealthContract } from './health.contract';
@@ -42,7 +47,12 @@ const c = initContract();
 export interface ApiContractDefinition {
   farms: typeof farmContract;
   commodities: typeof commodityContract;
-  orders: typeof orderContract;
+  ordersCrud: typeof ordersCrudContract;
+  ordersMarketplace: typeof ordersMarketplaceContract;
+  ordersMessaging: typeof ordersMessagingContract;
+  ordersAnalytics: typeof ordersAnalyticsContract;
+  ordersDisputes: typeof ordersDisputesContract;
+  ordersRelationships: typeof ordersRelationshipsContract;
   users: typeof userContract;
   auth: typeof authContract;
   inventory: typeof inventoryContract;
@@ -66,7 +76,12 @@ export interface ApiContractDefinition {
 export const apiContract: ApiContractDefinition = c.router({
   farms: farmContract,
   commodities: commodityContract,
-  orders: orderContract,
+  ordersCrud: ordersCrudContract,
+  ordersMarketplace: ordersMarketplaceContract,
+  ordersMessaging: ordersMessagingContract,
+  ordersAnalytics: ordersAnalyticsContract,
+  ordersDisputes: ordersDisputesContract,
+  ordersRelationships: ordersRelationshipsContract,
   users: userContract,
   auth: authContract,
   inventory: inventoryContract,
@@ -100,7 +115,12 @@ export type ApiContractType = typeof apiContract;
  */
 export type FarmEndpoints = ApiContractType['farms'];
 export type CommodityEndpoints = ApiContractType['commodities'];
-export type OrderEndpoints = ApiContractType['orders'];
+export type OrdersCrudEndpoints = ApiContractType['ordersCrud'];
+export type OrdersMarketplaceEndpoints = ApiContractType['ordersMarketplace'];
+export type OrdersMessagingEndpoints = ApiContractType['ordersMessaging'];
+export type OrdersAnalyticsEndpoints = ApiContractType['ordersAnalytics'];
+export type OrdersDisputesEndpoints = ApiContractType['ordersDisputes'];
+export type OrdersRelationshipsEndpoints = ApiContractType['ordersRelationships'];
 export type UserEndpoints = ApiContractType['users'];
 export type AuthEndpoints = ApiContractType['auth'];
 export type InventoryEndpoints = ApiContractType['inventory'];
@@ -140,7 +160,12 @@ export function getContractMetadata() {
     endpoints: {
       farms: Object.keys(farmContract),
       commodities: Object.keys(commodityContract),
-      orders: Object.keys(orderContract),
+      ordersCrud: Object.keys(ordersCrudContract),
+      ordersMarketplace: Object.keys(ordersMarketplaceContract),
+      ordersMessaging: Object.keys(ordersMessagingContract),
+      ordersAnalytics: Object.keys(ordersAnalyticsContract),
+      ordersDisputes: Object.keys(ordersDisputesContract),
+      ordersRelationships: Object.keys(ordersRelationshipsContract),
       users: Object.keys(userContract),
       auth: Object.keys(authContract),
       inventory: Object.keys(inventoryContract),
@@ -160,7 +185,12 @@ export function getContractMetadata() {
 export {
   farmContract,
   commodityContract,
-  orderContract,
+  ordersCrudContract,
+  ordersMarketplaceContract,
+  ordersMessagingContract,
+  ordersAnalyticsContract,
+  ordersDisputesContract,
+  ordersRelationshipsContract,
   userContract,
   authContract,
   healthContract,
@@ -174,7 +204,12 @@ export {
 export type {
   FarmContract,
   CommodityContract,
-  OrderContract,
+  OrdersCrudContract,
+  OrdersMarketplaceContract,
+  OrdersMessagingContract,
+  OrdersAnalyticsContract,
+  OrdersDisputesContract,
+  OrdersRelationshipsContract,
   UserContract,
   AuthContract,
   HealthContract,

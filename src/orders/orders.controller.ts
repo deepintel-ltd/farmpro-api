@@ -4,12 +4,31 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { orderContract } from '../../contracts/orders.contract';
+import { ordersCrudContract } from '../../contracts/orders-crud.contract';
+import { ordersMarketplaceContract } from '../../contracts/orders-marketplace.contract';
+import { ordersMessagingContract } from '../../contracts/orders-messaging.contract';
+import { ordersAnalyticsContract } from '../../contracts/orders-analytics.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { Request as ExpressRequest } from 'express';
+import { OrderType, OrderStatus } from '@prisma/client';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
+}
+
+// Path parameter types based on contract schemas
+interface OrderPathParams {
+  id: string;
+}
+
+interface OrderItemPathParams {
+  id: string;
+  itemId: string;
+}
+
+interface OrderMessagePathParams {
+  id: string;
+  messageId: string;
 }
 
 @ApiTags('orders')
@@ -25,17 +44,17 @@ export class OrdersController {
   // Order CRUD Operations
   // =============================================================================
 
-  @TsRestHandler(orderContract.getOrders)
+  @TsRestHandler(ordersCrudContract.getOrders)
   public getOrders(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrders, async ({ query }) => {
+    return tsRestHandler(ordersCrudContract.getOrders, async ({ query }) => {
       try {
         const result = await this.ordersService.getOrders(req.user, {
           page: query['page[number]'] ? parseInt(query['page[number]'].toString()) : undefined,
           limit: query['page[size]'] ? parseInt(query['page[size]'].toString()) : undefined,
-          type: query.type as any,
-          status: query.status as any,
+          type: query.type as OrderType | undefined,
+          status: query.status as OrderStatus | undefined,
           buyerOrgId: query.buyerOrgId,
           supplierOrgId: query.supplierOrgId,
           commodityId: query.commodityId,
@@ -58,18 +77,18 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.getOrder)
+  @TsRestHandler(ordersCrudContract.getOrder)
   public getOrder(@Request() req: AuthenticatedRequest): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrder, async ({ params }) => {
+    return tsRestHandler(ordersCrudContract.getOrder, async ({ params }) => {
       try {
-        const result = await this.ordersService.getOrder(req.user, params.id);
+        const result = await this.ordersService.getOrder(req.user, (params as OrderPathParams).id);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Get order ${params.id} failed:`, error);
+        this.logger.error(`Get order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -81,11 +100,11 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.createOrder)
+  @TsRestHandler(ordersCrudContract.createOrder)
   public createOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.createOrder, async ({ body }) => {
+    return tsRestHandler(ordersCrudContract.createOrder, async ({ body }) => {
       try {
         const result = await this.ordersService.createOrder(req.user, body);
 
@@ -108,22 +127,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.updateOrder)
+  @TsRestHandler(ordersCrudContract.updateOrder)
   public updateOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.updateOrder, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.updateOrder, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.updateOrder(req.user, params.id, body);
+        const result = await this.ordersService.updateOrder(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Order ${params.id} updated by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} updated by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Update order ${params.id} failed:`, error);
+        this.logger.error(`Update order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -137,22 +156,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.deleteOrder)
+  @TsRestHandler(ordersCrudContract.deleteOrder)
   public deleteOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.deleteOrder, async ({ params }) => {
+    return tsRestHandler(ordersCrudContract.deleteOrder, async ({ params }) => {
       try {
-        await this.ordersService.deleteOrder(req.user, params.id);
+        await this.ordersService.deleteOrder(req.user, (params as OrderPathParams).id);
 
-        this.logger.log(`Order ${params.id} deleted by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} deleted by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: { message: 'Order deleted successfully' },
         };
       } catch (error: unknown) {
-        this.logger.error(`Delete order ${params.id} failed:`, error);
+        this.logger.error(`Delete order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -168,22 +187,22 @@ export class OrdersController {
   // Order Lifecycle Management
   // =============================================================================
 
-  @TsRestHandler(orderContract.publishOrder)
+  @TsRestHandler(ordersCrudContract.publishOrder)
   public publishOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.publishOrder, async ({ params }) => {
+    return tsRestHandler(ordersCrudContract.publishOrder, async ({ params }) => {
       try {
-        const result = await this.ordersService.publishOrder(req.user, params.id);
+        const result = await this.ordersService.publishOrder(req.user, (params as OrderPathParams).id);
 
-        this.logger.log(`Order ${params.id} published by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} published by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Publish order ${params.id} failed:`, error);
+        this.logger.error(`Publish order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -197,22 +216,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.acceptOrder)
+  @TsRestHandler(ordersCrudContract.acceptOrder)
   public acceptOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.acceptOrder, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.acceptOrder, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.acceptOrder(req.user, params.id, body);
+        const result = await this.ordersService.acceptOrder(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Order ${params.id} accepted by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} accepted by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Accept order ${params.id} failed:`, error);
+        this.logger.error(`Accept order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -226,22 +245,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.rejectOrder)
+  @TsRestHandler(ordersCrudContract.rejectOrder)
   public rejectOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.rejectOrder, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.rejectOrder, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.rejectOrder(req.user, params.id, body);
+        const result = await this.ordersService.rejectOrder(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Order ${params.id} rejected by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} rejected by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Reject order ${params.id} failed:`, error);
+        this.logger.error(`Reject order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -253,22 +272,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.counterOffer)
+  @TsRestHandler(ordersCrudContract.counterOffer)
   public counterOffer(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.counterOffer, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.counterOffer, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.counterOffer(req.user, params.id, body);
+        const result = await this.ordersService.counterOffer(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Counter offer made for order ${params.id} by user ${req.user.userId}`);
+        this.logger.log(`Counter offer made for order ${(params as OrderPathParams).id} by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Counter offer for order ${params.id} failed:`, error);
+        this.logger.error(`Counter offer for order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -280,22 +299,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.confirmOrder)
+  @TsRestHandler(ordersCrudContract.confirmOrder)
   public confirmOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.confirmOrder, async ({ params }) => {
+    return tsRestHandler(ordersCrudContract.confirmOrder, async ({ params }) => {
       try {
-        const result = await this.ordersService.confirmOrder(req.user, params.id);
+        const result = await this.ordersService.confirmOrder(req.user, (params as OrderPathParams).id);
 
-        this.logger.log(`Order ${params.id} confirmed by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} confirmed by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Confirm order ${params.id} failed:`, error);
+        this.logger.error(`Confirm order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -309,22 +328,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.startFulfillment)
+  @TsRestHandler(ordersCrudContract.startFulfillment)
   public startFulfillment(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.startFulfillment, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.startFulfillment, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.startFulfillment(req.user, params.id, body);
+        const result = await this.ordersService.startFulfillment(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Fulfillment started for order ${params.id} by user ${req.user.userId}`);
+        this.logger.log(`Fulfillment started for order ${(params as OrderPathParams).id} by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Start fulfillment for order ${params.id} failed:`, error);
+        this.logger.error(`Start fulfillment for order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -338,22 +357,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.completeOrder)
+  @TsRestHandler(ordersCrudContract.completeOrder)
   public completeOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.completeOrder, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.completeOrder, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.completeOrder(req.user, params.id, body);
+        const result = await this.ordersService.completeOrder(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Order ${params.id} completed by user ${req.user.userId}`);
+        this.logger.log(`Order ${(params as OrderPathParams).id} completed by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Complete order ${params.id} failed:`, error);
+        this.logger.error(`Complete order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -371,20 +390,20 @@ export class OrdersController {
   // Order Item Management
   // =============================================================================
 
-  @TsRestHandler(orderContract.getOrderItems)
+  @TsRestHandler(ordersCrudContract.getOrderItems)
   public getOrderItems(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrderItems, async ({ params }) => {
+    return tsRestHandler(ordersCrudContract.getOrderItems, async ({ params }) => {
       try {
-        const result = await this.ordersService.getOrderItems(req.user, params.id);
+        const result = await this.ordersService.getOrderItems(req.user, (params as OrderPathParams).id);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Get order items for order ${params.id} failed:`, error);
+        this.logger.error(`Get order items for order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -396,22 +415,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.addOrderItem)
+  @TsRestHandler(ordersCrudContract.addOrderItem)
   public addOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.addOrderItem, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.addOrderItem, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.addOrderItem(req.user, params.id, body);
+        const result = await this.ordersService.addOrderItem(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Item added to order ${params.id} by user ${req.user.userId}`);
+        this.logger.log(`Item added to order ${(params as OrderPathParams).id} by user ${req.user.userId}`);
 
         return {
           status: 201 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Add item to order ${params.id} failed:`, error);
+        this.logger.error(`Add item to order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -425,27 +444,27 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.updateOrderItem)
+  @TsRestHandler(ordersCrudContract.updateOrderItem)
   public updateOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.updateOrderItem, async ({ params, body }) => {
+    return tsRestHandler(ordersCrudContract.updateOrderItem, async ({ params, body }) => {
       try {
         const result = await this.ordersService.updateOrderItem(
           req.user, 
-          params.id, 
-          params.itemId, 
+          (params as OrderItemPathParams).id, 
+          (params as OrderItemPathParams).itemId, 
           body
         );
 
-        this.logger.log(`Item ${params.itemId} updated in order ${params.id} by user ${req.user.userId}`);
+        this.logger.log(`Item ${(params as OrderItemPathParams).itemId} updated in order ${(params as OrderItemPathParams).id} by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Update item ${params.itemId} in order ${params.id} failed:`, error);
+        this.logger.error(`Update item ${(params as OrderItemPathParams).itemId} in order ${(params as OrderItemPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order or item not found',
@@ -459,22 +478,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.deleteOrderItem)
+  @TsRestHandler(ordersCrudContract.deleteOrderItem)
   public deleteOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.deleteOrderItem, async ({ params }) => {
+    return tsRestHandler(ordersCrudContract.deleteOrderItem, async ({ params }) => {
       try {
-        await this.ordersService.deleteOrderItem(req.user, params.id, params.itemId);
+        await this.ordersService.deleteOrderItem(req.user, (params as OrderItemPathParams).id, (params as OrderItemPathParams).itemId);
 
-        this.logger.log(`Item ${params.itemId} deleted from order ${params.id} by user ${req.user.userId}`);
+        this.logger.log(`Item ${(params as OrderItemPathParams).itemId} deleted from order ${(params as OrderItemPathParams).id} by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: { message: 'Item deleted successfully' },
         };
       } catch (error: unknown) {
-        this.logger.error(`Delete item ${params.itemId} from order ${params.id} failed:`, error);
+        this.logger.error(`Delete item ${(params as OrderItemPathParams).itemId} from order ${(params as OrderItemPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order or item not found',
@@ -490,11 +509,11 @@ export class OrdersController {
   // Order Search & Discovery
   // =============================================================================
 
-  @TsRestHandler(orderContract.getMarketplaceOrders)
+  @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrders)
   public getMarketplaceOrders(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getMarketplaceOrders, async ({ query }) => {
+    return tsRestHandler(ordersMarketplaceContract.getMarketplaceOrders, async ({ query }) => {
       try {
         const result = await this.ordersService.getMarketplaceOrders(req.user, query);
 
@@ -514,20 +533,20 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.getMarketplaceOrder)
+  @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrder)
   public getMarketplaceOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getMarketplaceOrder, async ({ params }) => {
+    return tsRestHandler(ordersMarketplaceContract.getMarketplaceOrder, async ({ params }) => {
       try {
-        const result = await this.ordersService.getMarketplaceOrder(req.user, params.id);
+        const result = await this.ordersService.getMarketplaceOrder(req.user, (params as OrderPathParams).id);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Get marketplace order ${params.id} failed:`, error);
+        this.logger.error(`Get marketplace order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Marketplace order not found',
@@ -539,11 +558,11 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.searchOrders)
+  @TsRestHandler(ordersMarketplaceContract.searchOrders)
   public searchOrders(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.searchOrders, async ({ body }) => {
+    return tsRestHandler(ordersMarketplaceContract.searchOrders, async ({ body }) => {
       try {
         const result = await this.ordersService.searchOrders(req.user, body);
 
@@ -563,11 +582,11 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.getOrderRecommendations)
+  @TsRestHandler(ordersMarketplaceContract.getOrderRecommendations)
   public getOrderRecommendations(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrderRecommendations, async ({ query }) => {
+    return tsRestHandler(ordersMarketplaceContract.getOrderRecommendations, async ({ query }) => {
       try {
         const result = await this.ordersService.getOrderRecommendations(req.user, query);
 
@@ -591,13 +610,13 @@ export class OrdersController {
   // Order Communication
   // =============================================================================
 
-  @TsRestHandler(orderContract.getOrderMessages)
+  @TsRestHandler(ordersMessagingContract.getOrderMessages)
   public getOrderMessages(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrderMessages, async ({ params, query }) => {
+    return tsRestHandler(ordersMessagingContract.getOrderMessages, async ({ params, query }) => {
       try {
-        const result = await this.ordersService.getOrderMessages(req.user, params.id, {
+        const result = await this.ordersService.getOrderMessages(req.user, (params as OrderPathParams).id, {
           page: query['page[number]'] ? parseInt(query['page[number]'].toString()) : undefined,
           limit: query['page[size]'] ? parseInt(query['page[size]'].toString()) : undefined,
         });
@@ -607,7 +626,7 @@ export class OrdersController {
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Get messages for order ${params.id} failed:`, error);
+        this.logger.error(`Get messages for order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -619,22 +638,22 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.sendOrderMessage)
+  @TsRestHandler(ordersMessagingContract.sendOrderMessage)
   public sendOrderMessage(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.sendOrderMessage, async ({ params, body }) => {
+    return tsRestHandler(ordersMessagingContract.sendOrderMessage, async ({ params, body }) => {
       try {
-        const result = await this.ordersService.sendOrderMessage(req.user, params.id, body);
+        const result = await this.ordersService.sendOrderMessage(req.user, (params as OrderPathParams).id, body);
 
-        this.logger.log(`Message sent for order ${params.id} by user ${req.user.userId}`);
+        this.logger.log(`Message sent for order ${(params as OrderPathParams).id} by user ${req.user.userId}`);
 
         return {
           status: 201 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Send message for order ${params.id} failed:`, error);
+        this.logger.error(`Send message for order ${(params as OrderPathParams).id} failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order not found',
@@ -648,26 +667,26 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.markMessageAsRead)
+  @TsRestHandler(ordersMessagingContract.markMessageAsRead)
   public markMessageAsRead(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.markMessageAsRead, async ({ params }) => {
+    return tsRestHandler(ordersMessagingContract.markMessageAsRead, async ({ params }) => {
       try {
         const result = await this.ordersService.markMessageAsRead(
           req.user, 
-          params.id, 
-          params.messageId
+          (params as OrderMessagePathParams).id, 
+          (params as OrderMessagePathParams).messageId
         );
 
-        this.logger.log(`Message ${params.messageId} marked as read by user ${req.user.userId}`);
+        this.logger.log(`Message ${(params as OrderMessagePathParams).messageId} marked as read by user ${req.user.userId}`);
 
         return {
           status: 200 as const,
           body: result,
         };
       } catch (error: unknown) {
-        this.logger.error(`Mark message ${params.messageId} as read failed:`, error);
+        this.logger.error(`Mark message ${(params as OrderMessagePathParams).messageId} as read failed:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order or message not found',
@@ -683,11 +702,11 @@ export class OrdersController {
   // Order Analytics & Reporting
   // =============================================================================
 
-  @TsRestHandler(orderContract.getOrderAnalytics)
+  @TsRestHandler(ordersAnalyticsContract.getOrderAnalytics)
   public getOrderAnalytics(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrderAnalytics, async ({ query }) => {
+    return tsRestHandler(ordersAnalyticsContract.getOrderAnalytics, async ({ query }) => {
       try {
         const result = await this.ordersService.getOrderAnalytics(req.user, query);
 
@@ -707,11 +726,11 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.getOrderFinancialSummary)
+  @TsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary)
   public getOrderFinancialSummary(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrderFinancialSummary, async ({ query }) => {
+    return tsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary, async ({ query }) => {
       try {
         const result = await this.ordersService.getOrderFinancialSummary(req.user, query);
 
@@ -731,11 +750,11 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.getOrderPerformanceMetrics)
+  @TsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics)
   public getOrderPerformanceMetrics(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.getOrderPerformanceMetrics, async ({ query }) => {
+    return tsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics, async ({ query }) => {
       try {
         const result = await this.ordersService.getOrderPerformanceMetrics(req.user, query);
 
@@ -755,11 +774,11 @@ export class OrdersController {
     });
   }
 
-  @TsRestHandler(orderContract.generateOrderReport)
+  @TsRestHandler(ordersAnalyticsContract.generateOrderReport)
   public generateOrderReport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(orderContract.generateOrderReport, async ({ body }) => {
+    return tsRestHandler(ordersAnalyticsContract.generateOrderReport, async ({ body }) => {
       try {
         const result = await this.ordersService.generateOrderReport(req.user, body);
 
