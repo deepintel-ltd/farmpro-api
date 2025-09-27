@@ -7,7 +7,7 @@ export default defineConfig({
     contracts: './contracts.ts',
   },
   format: ['cjs', 'esm'],
-  dts: false,
+  dts: true,
   sourcemap: true,
   clean: true,
   splitting: false,
