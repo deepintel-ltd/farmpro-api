@@ -69,6 +69,7 @@ export { mobileFieldContract } from './mobile-field.contract';
 // Schema Exports
 // =============================================================================
 
+
 // Core schemas
 export {
   // Resource schemas
@@ -115,13 +116,14 @@ export {
   ChangePasswordRequestSchema,
   VerifyEmailRequestSchema,
   ValidateTokenRequestSchema,
-  AuthResourceSchema,
-  AuthUserProfileResourceSchema,
-  TokenResourceSchema,
-  MessageResourceSchema,
-  SessionCollectionSchema,
-  OAuthCallbackSchema
+  TokenResponseSchema,
+  UserProfileSchema,
+  AuthResponseSchema,
+  SessionSchema,
+  MessageResponseSchema,
+  OAuthCallbackSchema,
 } from './auth.schemas';
+
 
 // Orders schemas
 export {
@@ -145,6 +147,24 @@ export {
 // =============================================================================
 // Type Exports
 // =============================================================================
+
+// Auth types
+export type {
+  RegisterRequest,
+  LoginRequest,
+  RefreshTokenRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
+  VerifyEmailRequest,
+  ValidateTokenRequest,
+  TokenResponse,
+  UserProfile,
+  AuthResponse,
+  Session,
+  MessageResponse,
+  OAuthCallback,
+} from './auth.schemas';
 
 // Core types
 export type {
@@ -180,19 +200,6 @@ export type {
   JsonApiQuery
 } from './schemas';
 
-// Auth types
-export type {
-  RegisterRequest,
-  LoginRequest,
-  RefreshTokenRequest,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
-  ChangePasswordRequest,
-  VerifyEmailRequest,
-  ValidateTokenRequest,
-  MessageResponse,
-  OAuthCallback
-} from './auth.schemas';
 
 // Orders types
 export type {
