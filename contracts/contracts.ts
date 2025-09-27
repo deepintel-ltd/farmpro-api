@@ -31,7 +31,23 @@ const c = initContract();
 // Main API Contract
 // =============================================================================
 
-export const apiContract = c.router({
+export interface ApiContractDefinition {
+  farms: typeof farmContract;
+  commodities: typeof commodityContract;
+  orders: typeof orderContract;
+  users: typeof userContract;
+  auth: typeof authContract;
+  inventory: typeof inventoryContract;
+  organizations: typeof organizationContract;
+  analytics: typeof analyticsContract;
+  market: typeof marketContract;
+  intelligence: typeof intelligenceContract;
+  mobile: typeof mobileFieldContract;
+  health: typeof healthContract.health;
+}
+
+// Create the contract with explicit typing
+export const apiContract: ApiContractDefinition = c.router({
   farms: farmContract,
   commodities: commodityContract,
   orders: orderContract,
