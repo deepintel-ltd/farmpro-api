@@ -64,7 +64,7 @@ export class ParameterValidationPipe implements PipeTransform {
     const result = this.schema.safeParse(value);
     
     if (!result.success) {
-      const errors = result.error.errors.map((error) => 
+      const errors = result.error.issues.map((error) => 
         createJsonApiError('400', 'Invalid Parameter', {
           code: 'INVALID_PARAMETER',
           detail: error.message,

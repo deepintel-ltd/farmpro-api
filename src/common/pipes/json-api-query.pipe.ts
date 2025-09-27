@@ -37,7 +37,7 @@ export class JsonApiQueryPipe implements PipeTransform {
     // Parse and validate basic query structure
     const parseResult = JsonApiQuerySchema.safeParse(value);
     if (!parseResult.success) {
-      const errors = parseResult.error.errors.map((error) => 
+      const errors = parseResult.error.issues.map((error) => 
         createJsonApiError('400', 'Invalid Query Parameter', {
           code: 'INVALID_QUERY_PARAMETER',
           detail: error.message,

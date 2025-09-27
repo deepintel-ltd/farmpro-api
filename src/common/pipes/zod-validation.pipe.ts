@@ -30,8 +30,8 @@ export class ZodValidationPipe implements PipeTransform {
   }
 
   private transformZodErrorToJsonApi(zodError: ZodError, metadata: ArgumentMetadata) {
-    return zodError.errors.map((error) => {
-      const pointer = this.buildJsonPointer(error.path, metadata);
+    return zodError.issues.map((error) => {
+      const pointer = this.buildJsonPointer(error.path.map(p => p.toString()), metadata);
       
       return createJsonApiError('400', 'Validation Failed', {
         code: 'VALIDATION_ERROR',

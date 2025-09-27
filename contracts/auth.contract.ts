@@ -71,7 +71,7 @@ export const authContract = c.router({
   logout: {
     method: 'POST',
     path: '/auth/logout',
-    body: c.noBody(),
+    body: z.object({}),
     responses: {
       200: MessageResourceSchema,
       401: JsonApiErrorResponseSchema,
@@ -83,7 +83,7 @@ export const authContract = c.router({
   logoutAll: {
     method: 'POST',
     path: '/auth/logout-all',
-    body: c.noBody(),
+    body: z.object({}),
     responses: {
       200: MessageResourceSchema,
       401: JsonApiErrorResponseSchema,
@@ -138,11 +138,10 @@ export const authContract = c.router({
   sendVerification: {
     method: 'POST',
     path: '/auth/send-verification',
-    body: c.noBody(),
+    body: z.object({}),
     responses: {
       200: MessageResourceSchema,
       401: JsonApiErrorResponseSchema,
-      429: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Send email verification',

@@ -219,7 +219,19 @@ export class IntelligenceService {
       throw new NotFoundException('Intelligence response not found');
     }
 
-    return response as IntelligenceResponse;
+    return {
+      id: response.id,
+      content: response.content,
+      model: response.model,
+      usage: typeof response.usage === 'object' && response.usage ? {
+        promptTokens: Number((response.usage as any).prompt_tokens || 0),
+        completionTokens: Number((response.usage as any).completion_tokens || 0),
+        totalTokens: Number((response.usage as any).total_tokens || 0)
+      } : { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      createdAt: response.createdAt,
+      userId: response.userId,
+      farmId: response.farmId
+    };
   }
 
   /**
@@ -249,7 +261,22 @@ export class IntelligenceService {
       throw new NotFoundException('Market analysis not found');
     }
 
-    return analysis as MarketIntelligenceResponse;
+    return {
+      id: analysis.id,
+      commodity: analysis.commodity,
+      analysisType: analysis.analysisType,
+      predictions: Array.isArray(analysis.predictions) ? analysis.predictions.map((p: any) => ({
+        date: new Date(p.date),
+        value: Number(p.value),
+        confidence: Number(p.confidence)
+      })) : [],
+      insights: analysis.insights,
+      recommendations: analysis.recommendations,
+      riskFactors: analysis.riskFactors,
+      createdAt: analysis.createdAt,
+      userId: analysis.userId,
+      region: analysis.region
+    };
   }
 
   /**
@@ -264,7 +291,38 @@ export class IntelligenceService {
       throw new NotFoundException('Activity optimization not found');
     }
 
-    return optimization as ActivityOptimizationResponse;
+    return {
+      id: optimization.id,
+      farmId: optimization.farmId,
+      activityType: optimization.activityType,
+      optimizedPlan: typeof optimization.optimizedPlan === 'object' && optimization.optimizedPlan ? {
+        schedule: Array.isArray((optimization.optimizedPlan as any).schedule) ? 
+          (optimization.optimizedPlan as any).schedule.map((s: any) => ({
+            date: new Date(s.date),
+            activity: String(s.activity),
+            resources: Array.isArray(s.resources) ? s.resources.map(String) : [],
+            cost: Number(s.cost)
+          })) : [],
+        totalCost: Number((optimization.optimizedPlan as any).totalCost || 0),
+        totalDuration: Number((optimization.optimizedPlan as any).totalDuration || 0),
+        riskScore: Number((optimization.optimizedPlan as any).riskScore || 0),
+        expectedYield: (optimization.optimizedPlan as any).expectedYield ? 
+          Number((optimization.optimizedPlan as any).expectedYield) : undefined
+      } : {
+        schedule: [],
+        totalCost: 0,
+        totalDuration: 0,
+        riskScore: 0
+      },
+      alternatives: Array.isArray(optimization.alternatives) ? optimization.alternatives.map((alt: any) => ({
+        description: String(alt.description || ''),
+        pros: Array.isArray(alt.pros) ? alt.pros.map(String) : [],
+        cons: Array.isArray(alt.cons) ? alt.cons.map(String) : [],
+        cost: Number(alt.cost || 0)
+      })) : [],
+      createdAt: optimization.createdAt,
+      userId: optimization.userId
+    };
   }
 
   /**
@@ -294,7 +352,19 @@ export class IntelligenceService {
     ]);
 
     return {
-      data: responses as IntelligenceResponse[],
+      data: responses.map(response => ({
+        id: response.id,
+        content: response.content,
+        model: response.model,
+        usage: typeof response.usage === 'object' && response.usage ? {
+          promptTokens: Number((response.usage as any).prompt_tokens || 0),
+          completionTokens: Number((response.usage as any).completion_tokens || 0),
+          totalTokens: Number((response.usage as any).total_tokens || 0)
+        } : { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        createdAt: response.createdAt,
+        userId: response.userId,
+        farmId: response.farmId
+      })),
       pagination: {
         page,
         limit,

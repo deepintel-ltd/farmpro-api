@@ -91,8 +91,8 @@ export class JsonApiExceptionFilter implements ExceptionFilter {
   }
 
   private handleZodError(exception: ZodError, response: Response) {
-    const errors = exception.errors.map((error) => {
-      const pointer = this.buildJsonPointer(error.path);
+    const errors = exception.issues.map((error) => {
+      const pointer = this.buildJsonPointer(error.path.map(p => p.toString()));
       
       return createJsonApiError('400', 'Validation Failed', {
         code: 'VALIDATION_ERROR',
@@ -268,8 +268,8 @@ export class ZodValidationExceptionFilter implements ExceptionFilter {
 
     response.setHeader('Content-Type', 'application/vnd.api+json');
 
-    const errors = exception.errors.map((error) => {
-      const pointer = this.buildJsonPointer(error.path);
+    const errors = exception.issues.map((error) => {
+      const pointer = this.buildJsonPointer(error.path.map(p => p.toString()));
       
       return createJsonApiError('400', 'Validation Failed', {
         code: 'VALIDATION_ERROR',
