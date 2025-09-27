@@ -31,7 +31,7 @@ const c = initContract();
 // Main API Contract
 // =============================================================================
 
-export const apiContract: any = c.router({
+export const apiContract = c.router({
   farms: farmContract,
   commodities: commodityContract,
   orders: orderContract,

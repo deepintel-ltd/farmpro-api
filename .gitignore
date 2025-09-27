@@ -34,8 +34,5 @@ logs/
 coverage/
 *.lcov
 
-# Prisma
-prisma/migrations/
-
 # Testing
 .nyc_output/

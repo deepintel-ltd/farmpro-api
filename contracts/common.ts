@@ -131,29 +131,35 @@ export function validateResponse<T extends z.ZodType>(
  * Contract compliance checker utility
  */
 export class ContractValidator {
-  static validateJsonApiStructure(data: any): boolean {
+  static validateJsonApiStructure(data: unknown): boolean {
     // Check if response follows JSON API structure
     if (!data || typeof data !== 'object') return false;
 
+    const jsonApiData = data as Record<string, unknown>;
+
     // Must have data property
-    if (!('data' in data)) return false;
+    if (!('data' in jsonApiData)) return false;
+
+    const dataValue = jsonApiData['data'];
 
     // If data is an object, it should have id, type, and attributes
-    if (typeof data.data === 'object' && !Array.isArray(data.data)) {
+    if (typeof dataValue === 'object' && dataValue !== null && !Array.isArray(dataValue)) {
+      const dataObj = dataValue as Record<string, unknown>;
       return (
-        'id' in data.data && 'type' in data.data && 'attributes' in data.data
+        'id' in dataObj && 'type' in dataObj && 'attributes' in dataObj
       );
     }
 
     // If data is an array, each item should have id, type, and attributes
-    if (Array.isArray(data.data)) {
-      return data.data.every(
-        (item: any) =>
+    if (Array.isArray(dataValue)) {
+      return dataValue.every(
+        (item: unknown) =>
           item &&
           typeof item === 'object' &&
-          'id' in item &&
-          'type' in item &&
-          'attributes' in item,
+          item !== null &&
+          'id' in (item as Record<string, unknown>) &&
+          'type' in (item as Record<string, unknown>) &&
+          'attributes' in (item as Record<string, unknown>),
       );
     }
 
