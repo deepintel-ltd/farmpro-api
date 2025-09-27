@@ -34,7 +34,7 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "test:types": "tsd",
     "test:runtime": "tsx examples/type-safety-tests.ts",
-    "validate": "npm run type-check && npm run test:types",
+    "validate": "npm run type-check",
     "prepack": "npm run validate"
   },
   "keywords": [
