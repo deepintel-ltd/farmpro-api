@@ -298,28 +298,28 @@ export type ExtractErrorResponse<T> = T extends {
  * Strict UUID validation schema
  */
 export const StrictUuidSchema = z.string().refine(isUuid, {
-    error: 'Must be a valid UUID'
+    message: 'Must be a valid UUID'
 });
 
 /**
  * Strict ISO datetime validation schema
  */
 export const StrictIsoDateTimeSchema = z.string().refine(isIsoDateTime, {
-    error: 'Must be a valid ISO datetime string'
+    message: 'Must be a valid ISO datetime string'
 });
 
 /**
  * Strict URL validation schema
  */
 export const StrictUrlSchema = z.string().refine(isUrl, {
-    error: 'Must be a valid URL'
+    message: 'Must be a valid URL'
 });
 
 /**
  * Strict email validation schema
  */
 export const StrictEmailSchema = z.string().refine(isEmail, {
-    error: 'Must be a valid email address'
+    message: 'Must be a valid email address'
 });
 
 // =============================================================================

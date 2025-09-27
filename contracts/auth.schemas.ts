@@ -6,7 +6,7 @@ import { JsonApiResourceSchema } from './schemas';
 // =============================================================================
 
 export const RegisterRequestSchema = z.object({
-  email: z.email('Invalid email format'),
+  email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   phone: z.string().optional(),
@@ -23,7 +23,7 @@ export const RegisterRequestSchema = z.object({
 });
 
 export const LoginRequestSchema = z.object({
-  email: z.email('Invalid email format'),
+  email: z.string().email('Invalid email format'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -32,7 +32,7 @@ export const RefreshTokenRequestSchema = z.object({
 });
 
 export const ForgotPasswordRequestSchema = z.object({
-  email: z.email('Invalid email format'),
+  email: z.string().email('Invalid email format'),
 });
 
 export const ResetPasswordRequestSchema = z.object({
@@ -72,7 +72,7 @@ export const UserProfileSchema = z.object({
   avatar: z.string().nullable(),
   isActive: z.boolean(),
   emailVerified: z.boolean(),
-  lastLoginAt: z.iso.datetime().nullable(),
+  lastLoginAt: z.string().datetime().nullable(),
   organizationId: z.string(),
   organization: z.object({
     id: z.string(),
@@ -93,8 +93,8 @@ export const UserProfileSchema = z.object({
     description: z.string().nullable(),
     level: z.number(),
   })),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 export const AuthResponseSchema = z.object({
@@ -107,8 +107,8 @@ export const SessionSchema = z.object({
   deviceInfo: z.string().nullable(),
   ipAddress: z.string().nullable(),
   userAgent: z.string().nullable(),
-  lastActivity: z.iso.datetime(),
-  createdAt: z.iso.datetime(),
+  lastActivity: z.string().datetime(),
+  createdAt: z.string().datetime(),
   isActive: z.boolean(),
 });
 

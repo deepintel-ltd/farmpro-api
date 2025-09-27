@@ -165,7 +165,7 @@ export const authContract = c.router({
     method: 'POST',
     path: '/auth/resend-verification',
     body: z.object({
-      email: z.email(),
+      email: z.string().email(),
     }),
     responses: {
       200: MessageResourceSchema,

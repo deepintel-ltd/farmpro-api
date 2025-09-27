@@ -102,9 +102,9 @@ export const ActivitySchema = z.object({
   description: z.string(),
   status: ActivityStatusEnum,
   priority: ActivityPriorityEnum,
-  scheduledAt: z.iso.datetime(),
-  startedAt: z.iso.datetime().nullable(),
-  completedAt: z.iso.datetime().nullable(),
+  scheduledAt: z.string().datetime(),
+  startedAt: z.string().datetime().nullable(),
+  completedAt: z.string().datetime().nullable(),
   estimatedDuration: z.number(), // hours
   actualDuration: z.number().nullable(),
   percentComplete: z.number(),
@@ -153,21 +153,21 @@ export const CreateActivityRequestSchema = z.object({
   type: ActivityTypeEnum,
   name: z.string().min(1).max(255),
   description: z.string(),
-  scheduledAt: z.iso.datetime(),
+  scheduledAt: z.string().datetime(),
   estimatedDuration: z.number().positive(),
-  priority: ActivityPriorityEnum.prefault('NORMAL'),
-  assignedTo: z.array(z.string()).prefault([]),
-  resources: z.array(ResourceSchema).prefault([]),
-  instructions: z.string().prefault(''),
-  safetyNotes: z.string().prefault(''),
-  estimatedCost: z.number().nonnegative().prefault(0),
+  priority: ActivityPriorityEnum.default('NORMAL'),
+  assignedTo: z.array(z.string()).default([]),
+  resources: z.array(ResourceSchema).default([]),
+  instructions: z.string().default(''),
+  safetyNotes: z.string().default(''),
+  estimatedCost: z.number().nonnegative().default(0),
   metadata: z.any().nullable().optional(),
 });
 
 export const UpdateActivityRequestSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
-  scheduledAt: z.iso.datetime().optional(),
+  scheduledAt: z.string().datetime().optional(),
   priority: ActivityPriorityEnum.optional(),
   estimatedDuration: z.number().positive().optional(),
   assignedTo: z.array(z.string()).optional(),
@@ -180,21 +180,21 @@ export const UpdateActivityRequestSchema = z.object({
 export const StartActivityRequestSchema = z.object({
   location: LocationSchema.optional(),
   notes: z.string().optional(),
-  actualResources: z.array(ResourceSchema).prefault([]),
+  actualResources: z.array(ResourceSchema).default([]),
 });
 
 export const UpdateProgressRequestSchema = z.object({
   percentComplete: z.number().min(0).max(100),
   notes: z.string().optional(),
   issues: z.string().optional(),
-  resourceUsage: z.array(ResourceUsageSchema).prefault([]),
+  resourceUsage: z.array(ResourceUsageSchema).default([]),
 });
 
 export const CompleteActivityRequestSchema = z.object({
-  completedAt: z.iso.datetime(),
+  completedAt: z.string().datetime(),
   results: ActivityResultsSchema,
   actualCost: z.number().nonnegative(),
-  resourcesUsed: z.array(ResourceUsageSchema).prefault([]),
+  resourcesUsed: z.array(ResourceUsageSchema).default([]),
   issues: z.string().optional(),
   recommendations: z.string().optional(),
 });
@@ -202,7 +202,7 @@ export const CompleteActivityRequestSchema = z.object({
 export const PauseActivityRequestSchema = z.object({
   reason: PauseReasonEnum,
   notes: z.string().optional(),
-  estimatedResumeTime: z.iso.datetime().optional(),
+  estimatedResumeTime: z.string().datetime().optional(),
 });
 
 // Activity Templates
@@ -211,10 +211,10 @@ export const CreateActivityTemplateRequestSchema = z.object({
   type: ActivityTypeEnum,
   description: z.string(),
   defaultDuration: z.number().positive(),
-  defaultResources: z.array(ResourceSchema).prefault([]),
-  instructions: z.string().prefault(''),
-  safetyNotes: z.string().prefault(''),
-  applicableCrops: z.array(z.string()).prefault([]),
+  defaultResources: z.array(ResourceSchema).default([]),
+  instructions: z.string().default(''),
+  safetyNotes: z.string().default(''),
+  applicableCrops: z.array(z.string()).default([]),
   metadata: z.any().nullable().optional(),
 });
 
@@ -222,7 +222,7 @@ export const CreateFromTemplateRequestSchema = z.object({
   farmId: z.string(),
   areaId: z.string().optional(),
   cropCycleId: z.string().optional(),
-  scheduledAt: z.iso.datetime(),
+  scheduledAt: z.string().datetime(),
   customizations: z.object({
     name: z.string().optional(),
     assignedTo: z.array(z.string()).optional(),
@@ -234,25 +234,25 @@ export const CreateFromTemplateRequestSchema = z.object({
 export const AssignActivityRequestSchema = z.object({
   assignedTo: z.array(z.string()),
   reassignReason: z.string().optional(),
-  notifyUsers: z.boolean().prefault(true),
+  notifyUsers: z.boolean().default(true),
 });
 
 export const RequestHelpRequestSchema = z.object({
   message: z.string(),
-  skillsNeeded: z.array(z.string()).prefault([]),
-  urgency: z.enum(['low', 'normal', 'high']).prefault('normal'),
+  skillsNeeded: z.array(z.string()).default([]),
+  urgency: z.enum(['low', 'normal', 'high']).default('normal'),
 });
 
 // Bulk Operations
 export const BulkScheduleRequestSchema = z.object({
   activities: z.array(z.object({
     templateId: z.string(),
-    scheduledAt: z.iso.datetime(),
+    scheduledAt: z.string().datetime(),
     farmId: z.string(),
     areaId: z.string().optional(),
     customizations: z.any().optional(),
   })),
-  resolveConflicts: z.enum(['auto', 'manual']).prefault('manual'),
+  resolveConflicts: z.enum(['auto', 'manual']).default('manual'),
 });
 
 export const BulkCreateRequestSchema = z.object({
@@ -261,7 +261,7 @@ export const BulkCreateRequestSchema = z.object({
     description: z.string().optional(),
     type: ActivityTypeEnum,
     priority: ActivityPriorityEnum,
-    scheduledAt: z.iso.datetime(),
+    scheduledAt: z.string().datetime(),
     estimatedDuration: z.number().positive().optional(),
     farmId: z.string(),
     areaId: z.string().optional(),
@@ -277,7 +277,7 @@ export const BulkUpdateRequestSchema = z.object({
       name: z.string().optional(),
       description: z.string().optional(),
       priority: ActivityPriorityEnum.optional(),
-      scheduledAt: z.iso.datetime().optional(),
+      scheduledAt: z.string().datetime().optional(),
       estimatedDuration: z.number().positive().optional(),
       status: ActivityStatusEnum.optional(),
       metadata: z.any().optional(),
@@ -327,9 +327,9 @@ export const UpdateCostEntryRequestSchema = z.object({
 // Notes & Documentation
 export const AddNoteRequestSchema = z.object({
   content: z.string().min(1),
-  type: NoteTypeEnum.prefault('GENERAL'),
-  isPrivate: z.boolean().prefault(false),
-  attachments: z.array(z.string()).prefault([]),
+  type: NoteTypeEnum.default('GENERAL'),
+  isPrivate: z.boolean().default(false),
+  attachments: z.array(z.string()).default([]),
 });
 
 // Reports
@@ -338,14 +338,14 @@ export const GenerateReportRequestSchema = z.object({
   filters: z.object({
     farmId: z.string(),
     dateRange: z.object({
-      start: z.iso.datetime(),
-      end: z.iso.datetime(),
+      start: z.string().datetime(),
+      end: z.string().datetime(),
     }),
     activityTypes: z.array(ActivityTypeEnum).optional(),
     userId: z.string().optional(),
   }),
-  format: z.enum(['pdf', 'excel', 'csv']).prefault('pdf'),
-  includeCharts: z.boolean().prefault(true),
+  format: z.enum(['pdf', 'excel', 'csv']).default('pdf'),
+  includeCharts: z.boolean().default(true),
 });
 
 // =============================================================================
@@ -360,8 +360,8 @@ export const ActivityQueryParams = z.object({
   status: ActivityStatusEnum.optional(),
   assignedTo: z.string().optional(),
   priority: ActivityPriorityEnum.optional(),
-  startDate: z.iso.datetime().optional(),
-  endDate: z.iso.datetime().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   include: z.string().optional(),
   sort: z.string().optional(),
   'page[number]': z.coerce.number().int().positive().optional(),
@@ -370,23 +370,23 @@ export const ActivityQueryParams = z.object({
 
 export const CalendarQueryParams = z.object({
   farmId: z.string(),
-  startDate: z.iso.datetime(),
-  endDate: z.iso.datetime(),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
   userId: z.string().optional(),
-  view: z.enum(['day', 'week', 'month']).prefault('week'),
+  view: z.enum(['day', 'week', 'month']).default('week'),
 });
 
 export const ConflictCheckQueryParams = z.object({
   farmId: z.string(),
   resourceId: z.string().optional(),
-  startTime: z.iso.datetime(),
-  endTime: z.iso.datetime(),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
 });
 
 export const WorkloadQueryParams = z.object({
   farmId: z.string(),
-  startDate: z.iso.datetime(),
-  endDate: z.iso.datetime(),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
   userId: z.string().optional(),
 });
 
@@ -394,7 +394,7 @@ export const MyTasksQueryParams = z.object({
   status: ActivityStatusEnum.optional(),
   farmId: z.string().optional(),
   priority: ActivityPriorityEnum.optional(),
-  dueDate: z.iso.datetime().optional(),
+  dueDate: z.string().datetime().optional(),
 });
 
 export const TemplateQueryParams = z.object({
@@ -405,7 +405,7 @@ export const TemplateQueryParams = z.object({
 
 export const AnalyticsQueryParams = z.object({
   farmId: z.string(),
-  period: z.enum(['day', 'week', 'month', 'quarter', 'year']).prefault('month'),
+  period: z.enum(['day', 'week', 'month', 'quarter', 'year']).default('month'),
   type: ActivityTypeEnum.optional(),
   metric: z.enum(['efficiency', 'completion', 'cost', 'duration']).optional(),
 });
@@ -438,8 +438,8 @@ export const ActivityNoteCollectionSchema = JsonApiCollectionSchema(ActivityNote
 export const CalendarEventSchema = z.object({
   id: z.string(),
   title: z.string(),
-  start: z.iso.datetime(),
-  end: z.iso.datetime(),
+  start: z.string().datetime(),
+  end: z.string().datetime(),
   allDay: z.boolean(),
   color: z.string(),
   activity: ActivitySchema,
@@ -451,7 +451,7 @@ export const ConflictSchema = z.object({
   suggestions: z.array(z.object({
     action: z.enum(['reschedule', 'reassign', 'split']),
     description: z.string(),
-    newTime: z.iso.datetime().optional(),
+    newTime: z.string().datetime().optional(),
   })),
 });
 
@@ -554,8 +554,8 @@ export const CalendarCollectionSchema = z.object({
   })),
   meta: z.object({
     period: z.object({
-      start: z.iso.datetime(),
-      end: z.iso.datetime(),
+      start: z.string().datetime(),
+      end: z.string().datetime(),
     }),
     totalCount: z.number(),
   }).optional(),

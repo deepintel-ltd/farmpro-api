@@ -223,11 +223,11 @@ export const activitiesContract = c.router({
     body: z.object({
       quantityHarvested: z.number().positive(),
       qualityGrade: z.string(),
-      unit: z.string().optional().prefault('kg'),
+      unit: z.string().optional().default('kg'),
       harvestMethod: z.string().optional(),
       storageLocation: z.string().optional(),
       batchNumber: z.string().optional(),
-      completedAt: z.iso.datetime().optional(),
+      completedAt: z.string().datetime().optional(),
       actualCost: z.number().optional(),
       results: z.string().optional(),
       issues: z.string().optional(),
@@ -242,7 +242,7 @@ export const activitiesContract = c.router({
             id: z.string(),
             quantity: z.number(),
             quality: z.string(),
-            harvestDate: z.iso.datetime(),
+            harvestDate: z.string().datetime(),
           }),
           inventory: z.object({
             id: z.string(),
@@ -671,12 +671,12 @@ export const activitiesContract = c.router({
     method: 'POST',
     path: '/activities/:activityId/media',
     pathParams: z.object({
-      activityId: z.cuid('Invalid activity ID format'),
+      activityId: z.string().cuid('Invalid activity ID format'),
     }),
     body: z.object({
       file: z.any(), // File upload - validated by multer middleware
       caption: z.string().max(500, 'Caption too long').optional(),
-      type: z.enum(['PHOTO', 'DOCUMENT', 'VIDEO']).optional().prefault('PHOTO'),
+      type: z.enum(['PHOTO', 'DOCUMENT', 'VIDEO']).optional().default('PHOTO'),
       location: z.object({
         latitude: z.number().min(-90).max(90),
         longitude: z.number().min(-180).max(180),

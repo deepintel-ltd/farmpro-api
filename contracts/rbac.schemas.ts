@@ -99,13 +99,13 @@ export const UpdateRolePermissionRequestSchema = z.object({
 // User Role Assignment
 export const AssignUserRoleRequestSchema = z.object({
   farmId: z.string().optional(),
-  expiresAt: z.iso.datetime().optional(),
+  expiresAt: z.string().datetime().optional(),
   metadata: z.any().nullable().optional(),
 });
 
 export const UpdateUserRoleRequestSchema = z.object({
   farmId: z.string().optional(),
-  expiresAt: z.iso.datetime().optional(),
+  expiresAt: z.string().datetime().optional(),
   isActive: z.boolean().optional(),
   metadata: z.any().nullable().optional(),
 });
@@ -140,7 +140,7 @@ export const BulkAssignRolesRequestSchema = z.object({
   userIds: z.array(z.string()).min(1),
   roleId: z.string(),
   farmId: z.string().optional(),
-  expiresAt: z.iso.datetime().optional(),
+  expiresAt: z.string().datetime().optional(),
 });
 
 export const BulkRemoveRolesRequestSchema = z.object({

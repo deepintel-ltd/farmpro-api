@@ -1,12 +1,12 @@
 import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { Request as ExpressRequest } from 'express';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { orderContract } from '../../contracts/orders.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
+import { Request as ExpressRequest } from 'express';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -59,9 +59,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(orderContract.getOrder)
-  public getOrder(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
+  public getOrder(@Request() req: AuthenticatedRequest): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(orderContract.getOrder, async ({ params }) => {
       try {
         const result = await this.ordersService.getOrder(req.user, params.id);

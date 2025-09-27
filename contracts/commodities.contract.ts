@@ -113,13 +113,13 @@ export const commodityContract = c.router({
         data: z.array(
           z.object({
             type: z.literal('orders'),
-            id: z.uuid(),
+            id: z.string().uuid(),
           }),
         ),
         links: z
           .object({
-            self: z.url(),
-            related: z.url(),
+            self: z.string().url(),
+            related: z.string().url(),
           })
           .optional(),
       }),

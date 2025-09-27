@@ -9,11 +9,56 @@ import { ActivitiesService } from './activities.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityTemplateService, CreateFromTemplateDto } from './activity-template.service';
 import { ActivitySchedulingService } from './activity-scheduling.service';
-import { ActivityNotesService, CreateNoteDto } from './activity-notes.service';
-import { CalendarQueryOptions, AnalyticsQueryOptions, ConflictCheckQueryOptions, BulkScheduleRequestOptions, WorkloadQueryOptions } from './dto/activities.dto';
+import { ActivityNotesService } from './activity-notes.service';
+import { CalendarQueryOptions, AnalyticsQueryOptions, ConflictCheckQueryOptions, WorkloadQueryOptions } from './dto/activities.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
+}
+
+// Activity type based on the schema
+interface Activity {
+  id: string;
+  farmId: string;
+  areaId: string | null;
+  cropCycleId: string | null;
+  type: string;
+  name: string;
+  description: string;
+  status: string;
+  priority: string;
+  scheduledAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  estimatedDuration: number;
+  actualDuration: number | null;
+  percentComplete: number;
+  assignedTo: string[];
+  resources: any[];
+  actualResources?: any[];
+  instructions: string;
+  safetyNotes: string;
+  estimatedCost: number;
+  actualCost: number | null;
+  location: any | null;
+  results: any | null;
+  issues: string | null;
+  recommendations: string | null;
+  metadata: any | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+// Helper function to format activity responses in JSON API format
+function formatActivityResponse(activity: Activity) {
+  return {
+    data: {
+      id: activity.id,
+      type: 'activities',
+      attributes: activity
+    }
+  };
 }
 
 @ApiTags('activities')
@@ -42,7 +87,10 @@ export class ActivitiesController {
   public getActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.getActivity, async ({ params }) => {
       const activity = await this.activitiesService.getActivity(params.activityId, req.user.organizationId);
-      return { status: 200 as const, body: { data: activity } };
+      return { 
+        status: 200 as const, 
+        body: formatActivityResponse(activity as Activity)
+      };
     });
   }
 
@@ -51,7 +99,10 @@ export class ActivitiesController {
   public createActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.createActivity, async ({ body }) => {
       const result = await this.activitiesService.createActivity(body, req.user.userId, req.user.organizationId);
-      return { status: 201 as const, body: { data: result } };
+      return { 
+        status: 201 as const, 
+        body: formatActivityResponse(result as Activity)
+      };
     });
   }
 
@@ -60,7 +111,10 @@ export class ActivitiesController {
   public updateActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.updateActivity, async ({ params, body }) => {
       const result = await this.activitiesService.updateActivity(params.activityId, body, req.user.userId, req.user.organizationId);
-      return { status: 200 as const, body: { data: result } };
+      return { 
+        status: 200 as const, 
+        body: formatActivityResponse(result as Activity)
+      };
     });
   }
 
@@ -88,7 +142,10 @@ export class ActivitiesController {
   public startActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.startActivity, async ({ params, body }) => {
       const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId, req.user.organizationId);
-      return { status: 200 as const, body: { data: result } };
+      return { 
+        status: 200 as const, 
+        body: formatActivityResponse(result as Activity)
+      };
     });
   }
 
@@ -97,7 +154,7 @@ export class ActivitiesController {
   public updateProgress(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.updateProgress, async ({ params, body }) => {
       const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId, req.user.organizationId);
-      return { status: 200 as const, body: { data: result } };
+      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
@@ -106,7 +163,7 @@ export class ActivitiesController {
   public completeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.completeActivity, async ({ params, body }) => {
       const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId, req.user.organizationId);
-      return { status: 200 as const, body: { data: result } };
+      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
@@ -144,7 +201,7 @@ export class ActivitiesController {
   public pauseActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.pauseActivity, async ({ params, body }) => {
       const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId, req.user.organizationId);
-      return { status: 200 as const, body: { data: result } };
+      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
@@ -153,7 +210,7 @@ export class ActivitiesController {
   public resumeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.resumeActivity, async ({ params, body }) => {
       const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body, req.user.organizationId);
-      return { status: 200 as const, body: { data: result } };
+      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
 
@@ -311,7 +368,7 @@ export class ActivitiesController {
       });
       // Return the updated activity instead of assignment results
       const activity = await this.activitiesService.getActivity(params.activityId!, req.user.organizationId);
-      return { status: 200 as const, body: { data: activity } };
+      return { status: 200 as const, body: formatActivityResponse(activity) };
     });
   }
 
@@ -424,7 +481,7 @@ export class ActivitiesController {
         req.user.userId,
         req.user.organizationId
       );
-      return { status: 201 as const, body: { data: result } };
+      return { status: 201 as const, body: formatActivityResponse(result) };
     });
   }
 
@@ -442,8 +499,23 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.bulkSchedule)
   public bulkSchedule(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.bulkSchedule, async ({ body }) => {
-      const result = await this.schedulingService.bulkSchedule(body as BulkScheduleRequestOptions, req.user.userId, req.user.organizationId);
-      return { status: 201 as const, body: { data: result } };
+      const result = await this.schedulingService.bulkSchedule(body, req.user.userId, req.user.organizationId);
+      return {
+        status: 201 as const,
+        body: {
+          data: {
+            id: 'bulk-schedule-results',
+            type: 'bulk-schedule-results',
+            attributes: {
+              scheduled: result.scheduled,
+              conflicts: result.conflicts,
+              failed: result.failed,
+              activities: result.activities,
+              conflictDetails: result.conflictDetails
+            }
+          }
+        }
+      };
     });
   }
 
@@ -462,7 +534,25 @@ export class ActivitiesController {
   public getActivityNotes(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.getActivityNotes, async ({ params }) => {
       const result = await this.notesService.getActivityNotes(params.activityId, req.user.userId, req.user.organizationId, {});
-      return { status: 200 as const, body: result };
+      return { 
+        status: 200 as const, 
+        body: {
+          data: result.data.map((note) => ({
+            id: note.id,
+            type: 'activity-notes' as const,
+            attributes: {
+              id: note.id,
+              content: note.content,
+              type: note.type as 'OBSERVATION' | 'ISSUE' | 'RECOMMENDATION' | 'GENERAL',
+              isPrivate: note.isPrivate,
+              attachments: note.attachments || [],
+              createdAt: note.createdAt,
+              createdBy: note.author.id,
+            },
+          })),
+          meta: result.meta
+        }
+      };
     });
   }
 
@@ -470,8 +560,25 @@ export class ActivitiesController {
   @TsRestHandler(activitiesContract.addNote)
   public addNote(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesContract.addNote, async ({ params, body }) => {
-      const result = await this.notesService.createNote(params.activityId, body as CreateNoteDto, req.user.userId, req.user.organizationId);
-      return { status: 201 as const, body: { data: result } };
+      const result = await this.notesService.createNote(params.activityId, body, req.user.userId, req.user.organizationId);
+      return {
+        status: 201 as const,
+        body: {
+          data: {
+            id: result.id,
+            type: 'activity-notes' as const,
+            attributes: {
+              id: result.id,
+              content: result.content,
+              type: result.type as 'OBSERVATION' | 'ISSUE' | 'RECOMMENDATION' | 'GENERAL',
+              isPrivate: result.isPrivate,
+              attachments: result.attachments || [],
+              createdAt: result.createdAt,
+              createdBy: result.author.id,
+            }
+          }
+        }
+      };
     });
   }
 

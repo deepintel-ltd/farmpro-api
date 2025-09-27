@@ -38,8 +38,8 @@ export const inventoryContract = c.router({
     method: 'GET',
     path: '/api/inventory',
     query: AllQueryParams.extend({
-      farmId: z.uuid().optional(),
-      commodityId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
+      commodityId: z.string().uuid().optional(),
       status: z.enum(['AVAILABLE', 'RESERVED', 'SOLD', 'CONSUMED', 'EXPIRED']).optional(),
       location: z.string().optional(),
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
@@ -154,7 +154,7 @@ export const inventoryContract = c.router({
     pathParams: UuidPathParam('Inventory'),
     body: z.object({
       quantity: z.number().positive(),
-      orderId: z.uuid(),
+      orderId: z.string().uuid(),
       reason: z.enum(['order_cancelled', 'order_changed', 'expired']),
     }),
     responses: {
@@ -235,8 +235,8 @@ export const inventoryContract = c.router({
     query: z.object({
       period: z.string().optional(),
       metric: z.string().optional(),
-      farmId: z.uuid().optional(),
-      commodityId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
+      commodityId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -258,7 +258,7 @@ export const inventoryContract = c.router({
     query: z.object({
       severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
       type: z.enum(['low_stock', 'expiry', 'quality']).optional(),
-      farmId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -362,7 +362,7 @@ export const inventoryContract = c.router({
     method: 'GET',
     path: '/api/inventory/facilities',
     query: z.object({
-      farmId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -410,7 +410,7 @@ export const inventoryContract = c.router({
       condition: z.enum(['excellent', 'good', 'fair', 'poor', 'critical']),
       issues: z.string().optional(),
       recordedBy: z.string(),
-      recordedAt: z.iso.datetime(),
+      recordedAt: z.string().datetime(),
     }),
     responses: {
       201: z.object({ message: z.string() }),
@@ -424,8 +424,8 @@ export const inventoryContract = c.router({
     method: 'GET',
     path: '/api/inventory/storage-optimization',
     query: z.object({
-      farmId: z.uuid().optional(),
-      commodityId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
+      commodityId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -450,7 +450,7 @@ export const inventoryContract = c.router({
     path: '/api/inventory/valuation',
     query: z.object({
       method: z.enum(['fifo', 'lifo', 'average', 'current_market']).optional(),
-      asOfDate: z.iso.datetime().optional(),
+      asOfDate: z.string().datetime().optional(),
     }),
     responses: {
       200: z.object({
@@ -492,7 +492,7 @@ export const inventoryContract = c.router({
       newCostBasis: z.number().positive(),
       reason: z.enum(['market_adjustment', 'revaluation', 'error_correction']),
       notes: z.string(),
-      effectiveDate: z.iso.datetime(),
+      effectiveDate: z.string().datetime(),
     }),
     responses: {
       200: InventoryResourceSchema,
@@ -506,8 +506,8 @@ export const inventoryContract = c.router({
     method: 'GET',
     path: '/api/inventory/aging-report',
     query: z.object({
-      farmId: z.uuid().optional(),
-      commodityId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
+      commodityId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -531,9 +531,9 @@ export const inventoryContract = c.router({
     method: 'GET',
     path: '/api/inventory/demand-forecast',
     query: z.object({
-      commodityId: z.uuid().optional(),
+      commodityId: z.string().uuid().optional(),
       period: z.string().optional(),
-      farmId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -553,8 +553,8 @@ export const inventoryContract = c.router({
     method: 'GET',
     path: '/api/inventory/reorder-points',
     query: z.object({
-      commodityId: z.uuid().optional(),
-      farmId: z.uuid().optional(),
+      commodityId: z.string().uuid().optional(),
+      farmId: z.string().uuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -574,8 +574,8 @@ export const inventoryContract = c.router({
     method: 'POST',
     path: '/api/inventory/replenishment-plan',
     body: z.object({
-      commodityId: z.uuid().optional(),
-      farmId: z.uuid().optional(),
+      commodityId: z.string().uuid().optional(),
+      farmId: z.string().uuid().optional(),
       timeHorizon: z.enum(['30', '60', '90', '180']),
       considerSeasonality: z.boolean().optional(),
       includeGrowthPlanning: z.boolean().optional(),
@@ -625,7 +625,7 @@ export const inventoryContract = c.router({
     path: '/api/inventory/waste-analysis',
     query: z.object({
       period: z.string().optional(),
-      farmId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
       reason: z.string().optional(),
     }),
     responses: {
@@ -649,8 +649,8 @@ export const inventoryContract = c.router({
       reportType: z.enum(['stock_levels', 'movements', 'valuation', 'waste', 'custom']),
       filters: z.object({
         dateRange: z.object({
-          start: z.iso.datetime(),
-          end: z.iso.datetime(),
+          start: z.string().datetime(),
+          end: z.string().datetime(),
         }).optional(),
         commodities: z.array(z.string()).optional(),
         locations: z.array(z.string()).optional(),

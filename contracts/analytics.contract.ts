@@ -36,7 +36,7 @@ export const AnalyticsChartSchema = z.object({
 });
 
 export const AnalyticsInsightSchema = z.object({
-  id: z.uuid(),
+  id: z.string().uuid(),
   title: z.string(),
   description: z.string(),
   category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']),
@@ -63,12 +63,12 @@ export const AnalyticsResponseSchema = z.object({
     id: z.string(),
     attributes: z.object({
       period: AnalyticsPeriodSchema,
-      farmId: z.uuid().optional(),
+      farmId: z.string().uuid().optional(),
       metrics: z.array(AnalyticsMetricSchema),
       charts: z.array(AnalyticsChartSchema),
       insights: z.array(AnalyticsInsightSchema).optional(),
       summary: AnalyticsSummarySchema,
-      generatedAt: z.iso.datetime(),
+      generatedAt: z.string().datetime(),
       cacheKey: z.string().optional(),
     }),
   }),
@@ -79,44 +79,44 @@ export const AnalyticsResponseSchema = z.object({
 // =============================================================================
 
 export const BaseAnalyticsQuerySchema = z.object({
-  period: AnalyticsPeriodSchema.optional().prefault('month'),
-  farmId: z.uuid().optional(),
-  includeInsights: z.boolean().optional().prefault(true),
-  useCache: z.boolean().optional().prefault(true),
+  period: AnalyticsPeriodSchema.optional().default('month'),
+  farmId: z.string().uuid().optional(),
+  includeInsights: z.boolean().optional().default(true),
+  useCache: z.boolean().optional().default(true),
 });
 
 export const FinancialQuerySchema = BaseAnalyticsQuerySchema.extend({
-  commodityId: z.uuid().optional(),
-  includeBreakdown: z.boolean().optional().prefault(false),
-  compareWithPrevious: z.boolean().optional().prefault(true),
+  commodityId: z.string().uuid().optional(),
+  includeBreakdown: z.boolean().optional().default(false),
+  compareWithPrevious: z.boolean().optional().default(true),
 });
 
 export const ActivityQuerySchema = BaseAnalyticsQuerySchema.extend({
   activityType: z.string().optional(),
-  includeEfficiency: z.boolean().optional().prefault(true),
-  includeCosts: z.boolean().optional().prefault(true),
+  includeEfficiency: z.boolean().optional().default(true),
+  includeCosts: z.boolean().optional().default(true),
 });
 
 export const MarketQuerySchema = BaseAnalyticsQuerySchema.extend({
-  commodityId: z.uuid().optional(),
+  commodityId: z.string().uuid().optional(),
   region: z.string().optional(),
-  includePredictions: z.boolean().optional().prefault(false),
+  includePredictions: z.boolean().optional().default(false),
 });
 
 export const FarmToMarketQuerySchema = BaseAnalyticsQuerySchema.extend({
-  cropCycleId: z.uuid().optional(),
-  commodityId: z.uuid().optional(),
-  includeQuality: z.boolean().optional().prefault(true),
-  includePricing: z.boolean().optional().prefault(true),
+  cropCycleId: z.string().uuid().optional(),
+  commodityId: z.string().uuid().optional(),
+  includeQuality: z.boolean().optional().default(true),
+  includePricing: z.boolean().optional().default(true),
 });
 
 export const ExportRequestSchema = z.object({
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   format: z.enum(['csv', 'excel', 'json']),
   period: AnalyticsPeriodSchema,
-  farmId: z.uuid().optional(),
-  includeCharts: z.boolean().optional().prefault(false),
-  includeInsights: z.boolean().optional().prefault(true),
+  farmId: z.string().uuid().optional(),
+  includeCharts: z.boolean().optional().default(false),
+  includeInsights: z.boolean().optional().default(true),
 });
 
 export const ReportRequestSchema = z.object({
@@ -124,12 +124,12 @@ export const ReportRequestSchema = z.object({
   title: z.string(),
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   period: AnalyticsPeriodSchema,
-  farmIds: z.array(z.uuid()).optional(),
-  commodities: z.array(z.uuid()).optional(),
-  includeComparisons: z.boolean().optional().prefault(false),
-  includePredictions: z.boolean().optional().prefault(false),
+  farmIds: z.array(z.string().uuid()).optional(),
+  commodities: z.array(z.string().uuid()).optional(),
+  includeComparisons: z.boolean().optional().default(false),
+  includePredictions: z.boolean().optional().default(false),
   format: z.enum(['pdf', 'html', 'excel']),
-  recipients: z.array(z.email()).optional(),
+  recipients: z.array(z.string().email()).optional(),
 });
 
 // =============================================================================
@@ -233,7 +233,7 @@ export const analyticsContract = c.router({
           id: z.string(),
           attributes: z.object({
             insights: z.array(AnalyticsInsightSchema),
-            generatedAt: z.iso.datetime(),
+            generatedAt: z.string().datetime(),
             model: z.string().optional(),
             confidence: z.number().min(0).max(1),
           }),
@@ -257,12 +257,12 @@ export const analyticsContract = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('analytics_export'),
-          id: z.uuid(),
+          id: z.string().uuid(),
           attributes: z.object({
             status: z.literal('processing'),
-            downloadUrl: z.url(),
-            expiresAt: z.iso.datetime(),
-            estimatedCompletion: z.iso.datetime().optional(),
+            downloadUrl: z.string().url(),
+            expiresAt: z.string().datetime(),
+            estimatedCompletion: z.string().datetime().optional(),
           }),
         }),
       }),
@@ -284,15 +284,15 @@ export const analyticsContract = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('analytics_report'),
-          id: z.uuid(),
+          id: z.string().uuid(),
           attributes: z.object({
             status: z.literal('generating'),
             title: z.string(),
             type: z.string(),
             format: z.string(),
-            downloadUrl: z.url().optional(),
-            estimatedCompletion: z.iso.datetime().optional(),
-            recipients: z.array(z.email()).optional(),
+            downloadUrl: z.string().url().optional(),
+            estimatedCompletion: z.string().datetime().optional(),
+            recipients: z.array(z.string().email()).optional(),
           }),
         }),
       }),
