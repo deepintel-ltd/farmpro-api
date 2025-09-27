@@ -76,7 +76,7 @@ export const InventorySchema = z.object({
   quality: z.object({
     grade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
     moisture: z.number().optional(),
-    specifications: z.record(z.any()).optional(),
+    specifications: z.record(z.string(), z.any()).optional(),
     certifications: z.array(z.string()).optional()
   }),
   location: z.object({
@@ -97,7 +97,7 @@ export const InventorySchema = z.object({
     requirements: z.string().optional()
   }).optional(),
   status: z.enum(['AVAILABLE', 'RESERVED', 'SOLD', 'CONSUMED', 'EXPIRED']).default('AVAILABLE'),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()
 });
@@ -113,7 +113,7 @@ export const InventoryMovementSchema = z.object({
   notes: z.string().optional(),
   performedBy: z.string().uuid(),
   performedAt: z.string().datetime(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 /**
@@ -126,7 +126,7 @@ export const InventoryQualityTestSchema = z.object({
   testedBy: z.string(),
   results: z.object({
     passed: z.boolean(),
-    values: z.record(z.any()),
+    values: z.record(z.string(), z.any()),
     grade: z.string().optional(),
     notes: z.string().optional()
   }),
@@ -156,7 +156,7 @@ export const StorageFacilitySchema = z.object({
     condition: z.enum(['excellent', 'good', 'fair', 'poor', 'critical']),
     lastChecked: z.string().datetime().optional()
   }).optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()
 });
@@ -180,7 +180,7 @@ export const InventoryValuationSchema = z.object({
     percentage: z.number().min(0).max(100)
   })),
   asOfDate: z.string().datetime(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 /**
@@ -198,7 +198,7 @@ export const CostBasisSchema = z.object({
   })),
   totalCostBasis: z.number().positive(),
   effectiveDate: z.string().datetime(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 /**
@@ -232,7 +232,7 @@ export const DemandForecastSchema = z.object({
     date: z.string().datetime(),
     predictedDemand: z.number().min(0),
     confidence: z.number().min(0).max(100),
-    factors: z.record(z.any()).optional()
+    factors: z.record(z.string(), z.any()).optional()
   })),
   recommendations: z.object({
     suggestedInventoryLevel: z.number().min(0),
@@ -311,7 +311,7 @@ export const TraceabilitySchema = z.object({
     location: z.string(),
     timestamp: z.string().datetime(),
     actor: z.string(),
-    details: z.record(z.any()).optional()
+    details: z.record(z.string(), z.any()).optional()
   })),
   certifications: z.array(z.string()),
   qualityChecks: z.array(z.object({
@@ -345,7 +345,7 @@ export const JsonApiRelationshipSchema = z.object({
     self: z.string().url().optional(),
     related: z.string().url().optional()
   }).optional(),
-  meta: z.record(z.any()).optional()
+  meta: z.record(z.string(), z.any()).optional()
 });
 
 /**
@@ -384,7 +384,7 @@ export const JsonApiResourceSchema = <T extends z.ZodType>(attributesSchema: T) 
     included: z.array(z.object({
       id: z.string(),
       type: z.string(),
-      attributes: z.record(z.any()),
+      attributes: z.record(z.string(), z.any()),
       relationships: z.record(JsonApiRelationshipSchema).optional()
     })).optional(),
     meta: JsonApiMetaSchema.optional(),
@@ -405,7 +405,7 @@ export const JsonApiCollectionSchema = <T extends z.ZodType>(attributesSchema: T
     included: z.array(z.object({
       id: z.string(),
       type: z.string(),
-      attributes: z.record(z.any()),
+      attributes: z.record(z.string(), z.any()),
       relationships: z.record(JsonApiRelationshipSchema).optional()
     })).optional(),
     meta: JsonApiMetaSchema.optional(),
@@ -466,7 +466,7 @@ export const JsonApiErrorSchema = z.object({
     parameter: z.string().optional(),
     header: z.string().optional()
   }).optional(),
-  meta: z.record(z.any()).optional()
+  meta: z.record(z.string(), z.any()).optional()
 });
 
 /**
@@ -597,7 +597,7 @@ export const InventoryQualityTestRequestSchema = z.object({
   testedBy: z.string(),
   results: z.object({
     passed: z.boolean(),
-    values: z.record(z.any()),
+    values: z.record(z.string(), z.any()),
     grade: z.string().optional(),
     notes: z.string().optional()
   }),
@@ -766,7 +766,7 @@ export const OrganizationSettingsSchema = z.object({
   defaultTimezone: z.string().default('UTC'),
   defaultCurrency: z.string().length(3).default('USD'),
   features: z.array(z.string()).optional(),
-  integrations: z.record(z.any()).optional(),
+  integrations: z.record(z.string(), z.any()).optional(),
   notifications: z.object({
     emailFromName: z.string().optional(),
     emailFromAddress: z.string().email().optional()
@@ -814,8 +814,8 @@ export const OrganizationComplianceQuerySchema = z.object({
  * Integration configuration schema
  */
 export const IntegrationConfigSchema = z.object({
-  config: z.record(z.any()),
-  credentials: z.record(z.any()).optional(),
+  config: z.record(z.string(), z.any()),
+  credentials: z.record(z.string(), z.any()).optional(),
   isActive: z.boolean().default(true)
 });
 
@@ -929,7 +929,7 @@ export const UpdateProfileRequestSchema = z.object({
   phone: z.string().optional(),
   avatar: z.string().url().optional(),
   metadata: z.object({
-    preferences: z.record(z.any()).optional(),
+    preferences: z.record(z.string(), z.any()).optional(),
     certifications: z.array(z.string()).optional(),
     specialties: z.array(z.string()).optional(),
   }).optional(),
@@ -1020,7 +1020,7 @@ export const UserProfileResponseSchema = z.object({
     name: z.string(),
     permissions: z.array(z.string()),
   })),
-  metadata: z.record(z.any()),
+  metadata: z.record(z.string(), z.any()),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -1031,7 +1031,7 @@ export const ActivityLogItemSchema = z.object({
   action: z.string(),
   entity: z.string(),
   entityId: z.string().nullable(),
-  details: z.record(z.any()),
+  details: z.record(z.string(), z.any()),
   timestamp: z.string().datetime(),
   ipAddress: z.string().nullable(),
   userAgent: z.string().nullable(),

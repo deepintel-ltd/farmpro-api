@@ -38,7 +38,7 @@ export const FarmAnalysisRequestSchema = z.object({
     'resource_efficiency',
     'sustainability_score'
   ]).describe('Type of analysis to perform'),
-  data: z.record(z.any()).describe('Farm data for analysis'),
+  data: z.record(z.string(), z.any()).describe('Farm data for analysis'),
   userId: z.string().uuid().describe('User requesting analysis'),
 });
 
@@ -49,7 +49,7 @@ export const FarmAnalysisResponseSchema = z.object({
   insights: z.array(z.string()).describe('Key insights from analysis'),
   recommendations: z.array(z.string()).describe('Actionable recommendations'),
   confidence: z.number().min(0).max(1).describe('Confidence score (0-1)'),
-  data: z.record(z.any()).describe('Analysis results data'),
+  data: z.record(z.string(), z.any()).describe('Analysis results data'),
   createdAt: z.date().describe('Analysis timestamp'),
   userId: z.string().uuid().describe('User who requested analysis'),
 });
@@ -147,7 +147,7 @@ export const IntelligenceErrorSchema = z.object({
     'ANALYSIS_FAILED'
   ]).describe('Error code'),
   message: z.string().describe('Human-readable error message'),
-  details: z.record(z.any()).optional().describe('Additional error details'),
+  details: z.record(z.string(), z.any()).optional().describe('Additional error details'),
 });
 
 // Query schemas

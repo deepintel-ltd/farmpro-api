@@ -245,7 +245,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('analytics'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -267,7 +267,7 @@ export const inventoryContract = c.router({
         data: z.array(z.object({
           id: z.string(),
           type: z.literal('alerts'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         })),
       }),
       ...CommonErrorResponses,
@@ -347,7 +347,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('traceability'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -371,7 +371,7 @@ export const inventoryContract = c.router({
         data: z.array(z.object({
           id: z.string(),
           type: z.literal('facilities'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         })),
       }),
       ...CommonErrorResponses,
@@ -391,7 +391,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('facility'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -434,7 +434,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('optimization'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -459,7 +459,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('valuation'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -477,7 +477,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('cost-basis'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -516,7 +516,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('aging-report'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -542,7 +542,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('demand-forecast'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -563,7 +563,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('reorder-points'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -587,7 +587,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('replenishment-plan'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,
@@ -635,7 +635,7 @@ export const inventoryContract = c.router({
         data: z.object({
           id: z.string(),
           type: z.literal('waste-analysis'),
-          attributes: z.record(z.any()),
+          attributes: z.record(z.string(), z.any()),
         }),
       }),
       ...CommonErrorResponses,

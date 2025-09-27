@@ -28,7 +28,7 @@ export const AnalyticsChartSchema = z.object({
     label: z.string(),
     value: z.number(),
     timestamp: z.string().optional(),
-    metadata: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   })),
   xAxis: z.string(),
   yAxis: z.string(),

@@ -13,9 +13,7 @@ import {
 /**
  * Order type enum
  */
-export const OrderTypeSchema = z.enum(['BUY', 'SELL'], {
-  errorMap: () => ({ message: 'Order type must be BUY or SELL' })
-});
+export const OrderTypeSchema = z.enum(['BUY', 'SELL']);
 
 /**
  * Order status enum
@@ -31,65 +29,47 @@ export const OrderStatusSchema = z.enum([
   'COMPLETED',
   'CANCELLED',
   'DISPUTED'
-], {
-  errorMap: () => ({ message: 'Invalid order status' })
-});
+]);
 
 /**
  * Price type enum
  */
-export const PriceTypeSchema = z.enum(['fixed', 'negotiable', 'market'], {
-  errorMap: () => ({ message: 'Invalid price type' })
-});
+export const PriceTypeSchema = z.enum(['fixed', 'negotiable', 'market']);
 
 /**
  * Payment method enum
  */
-export const PaymentMethodSchema = z.enum(['cash', 'credit', 'escrow', 'bank_transfer'], {
-  errorMap: () => ({ message: 'Invalid payment method' })
-});
+export const PaymentMethodSchema = z.enum(['cash', 'credit', 'escrow', 'bank_transfer']);
 
 /**
  * Quality grade enum
  */
-export const QualityGradeSchema = z.enum(['premium', 'standard', 'utility', 'organic'], {
-  errorMap: () => ({ message: 'Invalid quality grade' })
-});
+export const QualityGradeSchema = z.enum(['premium', 'standard', 'utility', 'organic']);
 
 /**
  * Delivery condition enum
  */
-export const DeliveryConditionSchema = z.enum(['excellent', 'good', 'acceptable', 'damaged'], {
-  errorMap: () => ({ message: 'Invalid delivery condition' })
-});
+export const DeliveryConditionSchema = z.enum(['excellent', 'good', 'acceptable', 'damaged']);
 
 /**
  * Dispute type enum
  */
-export const DisputeTypeSchema = z.enum(['quality', 'delivery', 'payment', 'other'], {
-  errorMap: () => ({ message: 'Invalid dispute type' })
-});
+export const DisputeTypeSchema = z.enum(['quality', 'delivery', 'payment', 'other']);
 
 /**
  * Dispute severity enum
  */
-export const DisputeSeveritySchema = z.enum(['low', 'medium', 'high'], {
-  errorMap: () => ({ message: 'Invalid dispute severity' })
-});
+export const DisputeSeveritySchema = z.enum(['low', 'medium', 'high']);
 
 /**
  * Message type enum
  */
-export const MessageTypeSchema = z.enum(['inquiry', 'negotiation', 'update', 'issue', 'general'], {
-  errorMap: () => ({ message: 'Invalid message type' })
-});
+export const MessageTypeSchema = z.enum(['inquiry', 'negotiation', 'update', 'issue', 'general']);
 
 /**
  * Document type enum
  */
-export const DocumentTypeSchema = z.enum(['contract', 'invoice', 'certificate', 'receipt', 'quality_report', 'other'], {
-  errorMap: () => ({ message: 'Invalid document type' })
-});
+export const DocumentTypeSchema = z.enum(['contract', 'invoice', 'certificate', 'receipt', 'quality_report', 'other']);
 
 /**
  * Coordinates schema
@@ -115,7 +95,7 @@ export const DeliveryAddressSchema = z.object({
  */
 export const QualityRequirementsSchema = z.object({
   grade: z.string().optional(),
-  specifications: z.record(z.any()).optional(),
+  specifications: z.record(z.string(), z.any()).optional(),
   certifications: z.array(z.string()).optional()
 });
 
@@ -149,7 +129,7 @@ export const OrderSchema = z.object({
   paymentTerms: z.string().optional(),
   specialInstructions: z.string().optional(),
   isPublic: z.boolean().default(false),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   
   // Relationships
   buyerId: z.string().uuid().optional(),
@@ -197,9 +177,7 @@ export const AcceptOrderRequestSchema = z.object({
  * Reject order request schema
  */
 export const RejectOrderRequestSchema = z.object({
-  reason: z.enum(['price', 'quantity', 'timing', 'quality', 'other'], {
-    errorMap: () => ({ message: 'Invalid rejection reason' })
-  }),
+  reason: z.enum(['price', 'quantity', 'timing', 'quality', 'other']),
   message: z.string().min(1, 'Rejection message is required')
 });
 
@@ -228,7 +206,7 @@ export const StartFulfillmentRequestSchema = z.object({
   notes: z.string().optional(),
   trackingInfo: z.object({
     batchNumbers: z.array(z.string()).optional(),
-    qualityTestResults: z.record(z.any()).optional(),
+    qualityTestResults: z.record(z.string(), z.any()).optional(),
     processingNotes: z.string().optional()
   }).optional()
 });
@@ -313,12 +291,8 @@ export const OrderSearchFiltersSchema = z.object({
  * Order search sort schema
  */
 export const OrderSearchSortSchema = z.object({
-  field: z.enum(['price', 'distance', 'rating', 'deliveryDate'], {
-    errorMap: () => ({ message: 'Invalid sort field' })
-  }),
-  direction: z.enum(['asc', 'desc'], {
-    errorMap: () => ({ message: 'Invalid sort direction' })
-  })
+  field: z.enum(['price', 'distance', 'rating', 'deliveryDate']),
+  direction: z.enum(['asc', 'desc'])
 });
 
 /**
@@ -393,7 +367,7 @@ export const CreateOrderDocumentRequestSchema = z.object({
 export const ContractSignatureRequestSchema = z.object({
   signature: z.string().min(1, 'Digital signature is required'),
   signedAt: z.string().datetime('Invalid signature date format'),
-  ipAddress: z.string().ip('Invalid IP address format')
+  ipAddress: z.string().regex(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, 'Invalid IP address format')
 });
 
 // =============================================================================
@@ -473,9 +447,7 @@ export const OrderPerformanceMetricsQuerySchema = z.object({
  * Order report request schema
  */
 export const OrderReportRequestSchema = z.object({
-  reportType: z.enum(['financial', 'performance', 'compliance', 'custom'], {
-    errorMap: () => ({ message: 'Invalid report type' })
-  }),
+  reportType: z.enum(['financial', 'performance', 'compliance', 'custom']),
   filters: z.object({
     dateRange: z.object({
       start: z.string().datetime('Invalid start date format'),
@@ -485,9 +457,7 @@ export const OrderReportRequestSchema = z.object({
     commodities: z.array(z.string().uuid()).optional(),
     partners: z.array(z.string().uuid()).optional()
   }),
-  format: z.enum(['pdf', 'excel', 'csv'], {
-    errorMap: () => ({ message: 'Invalid report format' })
-  }),
+  format: z.enum(['pdf', 'excel', 'csv']),
   includeCharts: z.boolean().default(true)
 });
 
@@ -504,9 +474,7 @@ export const OrderDisputeSchema = z.object({
   type: DisputeTypeSchema,
   description: z.string().min(1, 'Dispute description is required'),
   evidence: z.array(z.string().url()).optional(),
-  requestedResolution: z.enum(['refund', 'replacement', 'discount', 'other'], {
-    errorMap: () => ({ message: 'Invalid resolution request' })
-  }),
+  requestedResolution: z.enum(['refund', 'replacement', 'discount', 'other']),
   severity: DisputeSeveritySchema,
   status: z.enum(['open', 'in_review', 'resolved', 'closed']).optional(),
   createdBy: z.string().uuid(),
@@ -521,9 +489,7 @@ export const CreateOrderDisputeRequestSchema = z.object({
   type: DisputeTypeSchema,
   description: z.string().min(1, 'Dispute description is required'),
   evidence: z.array(z.string().url()).optional(),
-  requestedResolution: z.enum(['refund', 'replacement', 'discount', 'other'], {
-    errorMap: () => ({ message: 'Invalid resolution request' })
-  }),
+  requestedResolution: z.enum(['refund', 'replacement', 'discount', 'other']),
   severity: DisputeSeveritySchema
 });
 

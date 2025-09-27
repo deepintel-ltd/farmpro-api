@@ -229,7 +229,7 @@ export const organizationContract = c.router({
           type: z.literal('analytics'),
           attributes: z.object({
             period: z.string(),
-            metrics: z.record(z.any()),
+            metrics: z.record(z.string(), z.any()),
             trends: z.array(z.object({
               date: z.string(),
               value: z.number(),
@@ -263,7 +263,7 @@ export const organizationContract = c.router({
             action: z.string(),
             entity: z.string(),
             entityId: z.string().optional(),
-            details: z.record(z.any()),
+            details: z.record(z.string(), z.any()),
             timestamp: z.string().datetime(),
             user: z.object({
               id: z.string(),
@@ -451,7 +451,7 @@ export const organizationContract = c.router({
       data: z.object({
         type: z.literal('integrations'),
         attributes: z.object({
-          config: z.record(z.any()),
+          config: z.record(z.string(), z.any()),
           isActive: z.boolean(),
         }),
       }),
