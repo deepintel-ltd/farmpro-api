@@ -13,7 +13,7 @@
   "name": "string",
   "phone": "string?",
   "organizationName": "string",
-  "organizationType": "FARM_OPERATION|COMMODITY_TRADER|FOOD_PROCESSOR|LOGISTICS_PROVIDER|COOPERATIVE|OTHER",
+  "organizationType": "FARM_OPERATION|COMMODITY_TRADER|LOGISTICS_PROVIDER|INTEGRATED_FARM",
   "inviteCode": "string?" // Optional for invited users
 }
 ```

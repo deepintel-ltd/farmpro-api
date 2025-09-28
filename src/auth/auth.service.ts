@@ -44,7 +44,7 @@ interface UserWithOrganizationAndRoles {
   organization: {
     id: string;
     name: string;
-    type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'FOOD_PROCESSOR' | 'LOGISTICS_PROVIDER' | 'COOPERATIVE' | 'OTHER';
+    type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
     isVerified: boolean;
     plan: string;
   };

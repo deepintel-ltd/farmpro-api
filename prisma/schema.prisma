@@ -194,10 +194,8 @@ model Organization {
 enum OrganizationType {
   FARM_OPERATION
   COMMODITY_TRADER
-  FOOD_PROCESSOR
   LOGISTICS_PROVIDER
-  COOPERATIVE
-  OTHER
+  INTEGRATED_FARM
 }
 
 model Farm {

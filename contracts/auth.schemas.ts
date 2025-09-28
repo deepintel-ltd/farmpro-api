@@ -14,10 +14,8 @@ export const RegisterRequestSchema = z.object({
   organizationType: z.enum([
     'FARM_OPERATION',
     'COMMODITY_TRADER', 
-    'FOOD_PROCESSOR',
     'LOGISTICS_PROVIDER',
-    'COOPERATIVE',
-    'OTHER'
+    'INTEGRATED_FARM'
   ]),
   inviteCode: z.string().optional(),
 });
@@ -80,10 +78,8 @@ export const UserProfileSchema = z.object({
     type: z.enum([
       'FARM_OPERATION',
       'COMMODITY_TRADER',
-      'FOOD_PROCESSOR', 
       'LOGISTICS_PROVIDER',
-      'COOPERATIVE',
-      'OTHER'
+      'INTEGRATED_FARM'
     ]),
     isVerified: z.boolean(),
   }),
