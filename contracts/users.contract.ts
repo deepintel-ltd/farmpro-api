@@ -94,9 +94,9 @@ export const userContract = c.router({
     method: 'DELETE',
     path: '/users/:id',
     pathParams: UuidPathParam('User'),
-    body: c.noBody(),
+    body: z.object({}),
     responses: {
-      204: c.noBody(),
+      204: z.object({}),
       404: JsonApiErrorResponseSchema,
       400: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
