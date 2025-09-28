@@ -24,6 +24,6 @@
       "@contracts/*": ["contracts/*"]
     }
   },
-  "include": ["src/**/*", "contracts/**/*", "scripts/**/*"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "include": ["src/**/*", "contracts/**/*", "scripts/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
