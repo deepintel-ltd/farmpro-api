@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "public"."OrganizationType" AS ENUM ('FARM_OPERATION', 'COMMODITY_TRADER', 'FOOD_PROCESSOR', 'LOGISTICS_PROVIDER', 'COOPERATIVE', 'OTHER');
+CREATE TYPE "public"."OrganizationType" AS ENUM ('FARM_OPERATION', 'COMMODITY_TRADER', 'LOGISTICS_PROVIDER', 'INTEGRATED_FARM');
 
 -- CreateEnum
 CREATE TYPE "public"."CropStatus" AS ENUM ('PLANNED', 'PLANTED', 'GROWING', 'MATURE', 'HARVESTED', 'COMPLETED');
@@ -8,7 +8,7 @@ CREATE TYPE "public"."CropStatus" AS ENUM ('PLANNED', 'PLANTED', 'GROWING', 'MAT
 CREATE TYPE "public"."ActivityType" AS ENUM ('LAND_PREP', 'PLANTING', 'FERTILIZING', 'IRRIGATION', 'PEST_CONTROL', 'HARVESTING', 'MAINTENANCE', 'MONITORING', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "public"."ActivityStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "public"."ActivityStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "public"."InventoryStatus" AS ENUM ('AVAILABLE', 'RESERVED', 'SOLD', 'CONSUMED', 'EXPIRED');
@@ -61,6 +61,21 @@ CREATE TABLE "public"."users" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."email_verifications" (
+    "id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "requestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isUsed" BOOLEAN NOT NULL DEFAULT false,
+    "usedAt" TIMESTAMP(3),
+
+    CONSTRAINT "email_verifications_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -708,6 +723,21 @@ CREATE INDEX "users_organizationId_idx" ON "public"."users"("organizationId");
 CREATE INDEX "users_email_idx" ON "public"."users"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "email_verifications_token_key" ON "public"."email_verifications"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "email_verifications_tokenHash_key" ON "public"."email_verifications"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_userId_idx" ON "public"."email_verifications"("userId");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_tokenHash_idx" ON "public"."email_verifications"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "email_verifications_expiresAt_idx" ON "public"."email_verifications"("expiresAt");
+
+-- CreateIndex
 CREATE INDEX "roles_organizationId_idx" ON "public"."roles"("organizationId");
 
 -- CreateIndex
@@ -997,6 +1027,9 @@ CREATE INDEX "activity_optimizations_createdAt_idx" ON "public"."activity_optimi
 
 -- AddForeignKey
 ALTER TABLE "public"."users" ADD CONSTRAINT "users_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."email_verifications" ADD CONSTRAINT "email_verifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."roles" ADD CONSTRAINT "roles_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
