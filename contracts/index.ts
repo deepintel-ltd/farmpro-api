@@ -65,6 +65,50 @@ export type { IntelligenceContract } from './intelligence.contract';
 
 export { mobileFieldContract } from './mobile-field.contract';
 
+// Order contracts
+export { ordersCrudContract } from './orders-crud.contract';
+export type { OrdersCrudContract } from './orders-crud.contract';
+
+export { ordersMarketplaceContract } from './orders-marketplace.contract';
+export type { OrdersMarketplaceContract } from './orders-marketplace.contract';
+
+export { ordersMessagingContract } from './orders-messaging.contract';
+export type { OrdersMessagingContract } from './orders-messaging.contract';
+
+export { ordersAnalyticsContract } from './orders-analytics.contract';
+export type { OrdersAnalyticsContract } from './orders-analytics.contract';
+
+export { ordersDisputesContract } from './orders-disputes.contract';
+export type { OrdersDisputesContract } from './orders-disputes.contract';
+
+export { ordersRelationshipsContract } from './orders-relationships.contract';
+export type { OrdersRelationshipsContract } from './orders-relationships.contract';
+
+// Activities contracts
+export { activitiesCrudContract } from './activities-crud.contract';
+export type { ActivitiesCrudContract } from './activities-crud.contract';
+
+export { activitiesExecutionContract } from './activities-execution.contract';
+export type { ActivitiesExecutionContract } from './activities-execution.contract';
+
+export { activitiesTemplatesContract } from './activities-templates.contract';
+export type { ActivitiesTemplatesContract } from './activities-templates.contract';
+
+export { activitiesSchedulingContract } from './activities-scheduling.contract';
+export type { ActivitiesSchedulingContract } from './activities-scheduling.contract';
+
+export { activitiesTeamContract } from './activities-team.contract';
+export type { ActivitiesTeamContract } from './activities-team.contract';
+
+export { activitiesCostsContract } from './activities-costs.contract';
+export type { ActivitiesCostsContract } from './activities-costs.contract';
+
+export { activitiesMediaContract } from './activities-media.contract';
+export type { ActivitiesMediaContract } from './activities-media.contract';
+
+export { activitiesAnalyticsContract } from './activities-analytics.contract';
+export type { ActivitiesAnalyticsContract } from './activities-analytics.contract';
+
 // =============================================================================
 // Schema Exports
 // =============================================================================
