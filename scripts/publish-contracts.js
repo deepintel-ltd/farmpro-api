@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
 // Colors for console output
 const colors = {
@@ -47,7 +47,7 @@ function checkGitStatus() {
     } else {
       log('Git working directory is clean ✓', 'green');
     }
-  } catch (error) {
+  } catch {
     log('Warning: Could not check git status', 'yellow');
   }
 }
@@ -55,15 +55,15 @@ function checkGitStatus() {
 function updateContractsVersion(versionType = 'patch') {
   log(`Updating contracts package version (${versionType})...`, 'cyan');
   
-  const contractsDir = path.join(__dirname, '..', 'contracts');
-  const packageJsonPath = path.join(contractsDir, 'package.json');
+  const contractsDir = join(__dirname, '..', 'contracts');
+  const packageJsonPath = join(contractsDir, 'package.json');
   
-  if (!fs.existsSync(packageJsonPath)) {
+  if (!existsSync(packageJsonPath)) {
     log('Error: contracts/package.json not found', 'red');
     process.exit(1);
   }
   
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   const currentVersion = packageJson.version;
   
   log(`Current version: ${currentVersion}`, 'blue');
@@ -72,7 +72,7 @@ function updateContractsVersion(versionType = 'patch') {
   execCommand(`npm version ${versionType}`, { cwd: contractsDir });
   
   // Read updated version
-  const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const updatedPackageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
   const newVersion = updatedPackageJson.version;
   
   log(`New version: ${newVersion}`, 'green');
@@ -100,8 +100,8 @@ function publishToGitHub() {
   execCommand('git commit -m "chore: bump contracts package version"');
   
   // Create and push git tag
-  const contractsDir = path.join(__dirname, '..', 'contracts');
-  const packageJson = JSON.parse(fs.readFileSync(path.join(contractsDir, 'package.json'), 'utf8'));
+  const contractsDir = join(__dirname, '..', 'contracts');
+  const packageJson = JSON.parse(readFileSync(join(contractsDir, 'package.json'), 'utf8'));
   const version = packageJson.version;
   
   log(`Creating git tag: contracts-v${version}`, 'blue');
@@ -118,8 +118,8 @@ function publishToGitHub() {
 function publishToNPM() {
   log('Publishing to NPM...', 'cyan');
   
-  const contractsDir = path.join(__dirname, '..', 'contracts');
-  const packageJson = JSON.parse(fs.readFileSync(path.join(contractsDir, 'package.json'), 'utf8'));
+  const contractsDir = join(__dirname, '..', 'contracts');
+  const packageJson = JSON.parse(readFileSync(join(contractsDir, 'package.json'), 'utf8'));
   const packageName = packageJson.name;
   
   log(`Publishing ${packageName} to NPM...`, 'blue');
@@ -147,10 +147,11 @@ function main() {
       validateContracts();
       break;
       
-    case 'version':
+    case 'version': {
       const versionType = args[1] || 'patch';
       updateContractsVersion(versionType);
       break;
+    }
       
     case 'github':
       log('Publishing to GitHub only...', 'cyan');
@@ -167,16 +168,17 @@ function main() {
       publishToNPM();
       break;
       
-    case 'all':
+    case 'all': {
       log('Publishing to both GitHub and NPM...', 'cyan');
       checkGitStatus();
-      const newVersion = updateContractsVersion(args[1] || 'patch');
+      const newVersion = updateContractsVersion(args[1] ?? 'patch');
       buildContracts();
       validateContracts();
       publishToGitHub();
       publishToNPM();
       log(`\n🎉 Successfully published contracts v${newVersion}!`, 'green');
       break;
+    }
       
     case 'help':
     default:
