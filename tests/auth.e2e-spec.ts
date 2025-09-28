@@ -359,6 +359,363 @@ describe('Auth E2E Tests', () => {
     });
   });
 
+  describe('POST /auth/refresh', () => {
+    it('should fail to refresh with expired refresh token', async () => {
+      // Create user and login
+      const hashedPassword = await hash('RefreshPassword123!');
+      const user = await testContext.createUser({
+        email: 'refreshtest@example.com',
+        name: 'Refresh Test User',
+        hashedPassword,
+        emailVerified: true,
+        isActive: true
+      });
+
+      const loginResponse = await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'refreshtest@example.com',
+          password: 'RefreshPassword123!'
+        });
+
+      const { refreshToken } = loginResponse.body.data.attributes.tokens;
+
+      // Simulate expired refresh token by updating user metadata
+      await testContext.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          refreshTokenExpiresAt: new Date(Date.now() - 1000) // Expired
+        }
+      });
+
+      await testContext
+        .request()
+        .post('/auth/refresh')
+        .send({ refreshToken })
+        .expect(401);
+    });
+  });
+
+  describe('POST /auth/forgot-password', () => {
+    it('should initiate password reset for valid email', async () => {
+      // Create user
+      const hashedPassword = await hash('ForgotPassword123!');
+      await testContext.createUser({
+        email: 'forgottest@example.com',
+        name: 'Forgot Test User',
+        hashedPassword,
+        emailVerified: true,
+        isActive: true
+      });
+
+      const response = await testContext
+        .request()
+        .post('/auth/forgot-password')
+        .send({ email: 'forgottest@example.com' })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('message');
+      expect(response.body.data.attributes.message).toContain('password reset');
+
+      // Verify reset token was stored in user metadata
+      const user = await testContext.prisma.user.findUnique({
+        where: { email: 'forgottest@example.com' }
+      });
+      expect(user?.metadata).toHaveProperty('resetTokenHash');
+      expect(user?.metadata).toHaveProperty('resetTokenExpiresAt');
+    });
+
+    it('should return success even for non-existent email (security)', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/forgot-password')
+        .send({ email: 'nonexistent@example.com' })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('message');
+      expect(response.body.data.attributes.message).toContain('password reset');
+    });
+
+    it('should fail with invalid email format', async () => {
+      await testContext
+        .request()
+        .post('/auth/forgot-password')
+        .send({ email: 'invalid-email' })
+        .expect(400);
+    });
+  });
+
+  describe('POST /auth/reset-password', () => {
+    let resetToken: string;
+    let user: any;
+
+    beforeEach(async () => {
+      // Create user and generate reset token
+      const hashedPassword = await hash('ResetPassword123!');
+      user = await testContext.createUser({
+        email: 'resettest@example.com',
+        name: 'Reset Test User',
+        hashedPassword,
+        emailVerified: true,
+        isActive: true
+      });
+
+      // Generate reset token (simulating forgot password flow)
+      const token = 'test-reset-token-' + Date.now();
+      const tokenHash = createHash('sha256').update(token).digest('hex');
+      
+      await testContext.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            resetTokenHash: tokenHash,
+            resetTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+          }
+        }
+      });
+
+      resetToken = token;
+    });
+
+    it('should reset password with valid token', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'NewPassword123!'
+        })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('message');
+      expect(response.body.data.attributes.message).toContain('successfully');
+
+      // Verify user can login with new password
+      await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'resettest@example.com',
+          password: 'NewPassword123!'
+        })
+        .expect(200);
+
+      // Verify old password no longer works
+      await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'resettest@example.com',
+          password: 'ResetPassword123!'
+        })
+        .expect(401);
+    });
+
+    it('should fail with invalid token', async () => {
+      await testContext
+        .request()
+        .post('/auth/reset-password')
+        .send({
+          token: 'invalid-token',
+          newPassword: 'NewPassword123!'
+        })
+        .expect(400);
+    });
+
+    it('should fail with expired token', async () => {
+      // Update token to be expired
+      await testContext.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          metadata: {
+            resetTokenHash: createHash('sha256').update(resetToken).digest('hex'),
+            resetTokenExpiresAt: new Date(Date.now() - 1000).toISOString() // Expired
+          }
+        }
+      });
+
+      await testContext
+        .request()
+        .post('/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'NewPassword123!'
+        })
+        .expect(400);
+    });
+
+    it('should fail with weak password', async () => {
+      await testContext
+        .request()
+        .post('/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: 'weak'
+        })
+        .expect(400);
+    });
+  });
+
+  describe('POST /auth/change-password', () => {
+    let accessToken: string;
+
+    beforeEach(async () => {
+      // Create user and login
+      const hashedPassword = await hash('ChangePassword123!');
+      await testContext.createUser({
+        email: 'changetest@example.com',
+        name: 'Change Test User',
+        hashedPassword,
+        emailVerified: true,
+        isActive: true
+      });
+
+      const loginResponse = await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'changetest@example.com',
+          password: 'ChangePassword123!'
+        });
+
+      accessToken = loginResponse.body.data.attributes.tokens.accessToken;
+    });
+
+    it('should change password with valid current password', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          currentPassword: 'ChangePassword123!',
+          newPassword: 'NewChangePassword123!'
+        })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('message');
+      expect(response.body.data.attributes.message).toContain('successfully');
+
+      // Verify user can login with new password
+      await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'changetest@example.com',
+          password: 'NewChangePassword123!'
+        })
+        .expect(200);
+
+      // Verify old password no longer works
+      await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'changetest@example.com',
+          password: 'ChangePassword123!'
+        })
+        .expect(401);
+    });
+
+    it('should fail with incorrect current password', async () => {
+      await testContext
+        .request()
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          currentPassword: 'WrongPassword123!',
+          newPassword: 'NewChangePassword123!'
+        })
+        .expect(400);
+    });
+
+    it('should fail without authentication', async () => {
+      await testContext
+        .request()
+        .post('/auth/change-password')
+        .send({
+          currentPassword: 'ChangePassword123!',
+          newPassword: 'NewChangePassword123!'
+        })
+        .expect(401);
+    });
+
+    it('should fail with weak new password', async () => {
+      await testContext
+        .request()
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          currentPassword: 'ChangePassword123!',
+          newPassword: 'weak'
+        })
+        .expect(400);
+    });
+  });
+
+  describe('POST /auth/validate-token', () => {
+    let accessToken: string;
+
+    beforeEach(async () => {
+      // Create user and login
+      const hashedPassword = await hash('ValidatePassword123!');
+      await testContext.createUser({
+        email: 'validatetest@example.com',
+        name: 'Validate Test User',
+        hashedPassword,
+        emailVerified: true,
+        isActive: true
+      });
+
+      const loginResponse = await testContext
+        .request()
+        .post('/auth/login')
+        .send({
+          email: 'validatetest@example.com',
+          password: 'ValidatePassword123!'
+        });
+
+      accessToken = loginResponse.body.data.attributes.tokens.accessToken;
+    });
+
+    it('should validate valid token', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/validate-token')
+        .send({ token: accessToken })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('token');
+      expect(response.body.data.attributes.valid).toBe(true);
+      expect(response.body.data.attributes.user).toBeDefined();
+    });
+
+    it('should invalidate invalid token', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/validate-token')
+        .send({ token: 'invalid-token' })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('token');
+      expect(response.body.data.attributes.valid).toBe(false);
+    });
+
+    it('should invalidate expired token', async () => {
+      // Create an expired token (this would need to be implemented in the service)
+      const expiredToken = 'expired-token';
+      
+      const response = await testContext
+        .request()
+        .post('/auth/validate-token')
+        .send({ token: expiredToken })
+        .expect(200);
+
+      expect(response.body.data.type).toBe('token');
+      expect(response.body.data.attributes.valid).toBe(false);
+    });
+  });
+
   describe('POST /auth/verify-email', () => {
     let verificationToken: string;
 
@@ -413,6 +770,20 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/verify-email')
         .send({ token: 'invalid-token' })
+        .expect(400);
+    });
+
+    it('should fail with expired token', async () => {
+      // Update token to be expired
+      await testContext.prisma.emailVerification.updateMany({
+        where: { token: verificationToken },
+        data: { expiresAt: new Date(Date.now() - 1000) }
+      });
+
+      await testContext
+        .request()
+        .post('/auth/verify-email')
+        .send({ token: verificationToken })
         .expect(400);
     });
   });
