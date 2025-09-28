@@ -516,3 +516,5 @@ export const rbacContract = c.router({
     summary: 'Update permissions for role',
   },
 });
+
+export type RbacContract = typeof rbacContract;

@@ -109,6 +109,14 @@ export type { ActivitiesMediaContract } from './activities-media.contract';
 export { activitiesAnalyticsContract } from './activities-analytics.contract';
 export type { ActivitiesAnalyticsContract } from './activities-analytics.contract';
 
+// RBAC contract
+export { rbacContract } from './rbac.contract';
+export type { RbacContract } from './rbac.contract';
+
+// Media contract
+export { mediaContract } from './media.contract';
+export type { MediaContract } from './media.contract';
+
 // =============================================================================
 // Schema Exports
 // =============================================================================
