@@ -128,6 +128,7 @@ describe('Orders E2E Tests', () => {
           type: 'orders',
           attributes: {
             type: 'BUY',
+            status: 'PENDING',
             title: 'Test Wheat Order',
             description: 'Order for high quality wheat',
             deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
@@ -172,13 +173,19 @@ describe('Orders E2E Tests', () => {
         .request()
         .post('/orders')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send(orderData)
-        .expect(201);
+        .send(orderData);
+
+      if (response.status !== 201) {
+        console.log('Response status:', response.status);
+        console.log('Response body:', JSON.stringify(response.body, null, 2));
+      }
+      
+      expect(response.status).toBe(201);
 
       expect(response.body.data.type).toBe('orders');
       expect(response.body.data.attributes.title).toBe(orderData.data.attributes.title);
       expect(response.body.data.attributes.type).toBe(orderData.data.attributes.type);
-      expect(response.body.data.attributes.status).toBe('DRAFT');
+      expect(response.body.data.attributes.status).toBe('PENDING');
       expect(response.body.data.attributes.buyerOrgId).toBe(testOrganization.id);
       expect(response.body.data.attributes.createdBy).toBe(testUser.id);
       expect(response.body.data.attributes.items).toHaveLength(1);

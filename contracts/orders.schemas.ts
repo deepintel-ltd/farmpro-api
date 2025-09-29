@@ -19,16 +19,11 @@ export const OrderTypeSchema = z.enum(['BUY', 'SELL']);
  * Order status enum
  */
 export const OrderStatusSchema = z.enum([
-  'DRAFT',
-  'PUBLISHED',
-  'PENDING_ACCEPTANCE',
-  'ACCEPTED',
-  'NEGOTIATING',
+  'PENDING',
   'CONFIRMED',
-  'IN_FULFILLMENT',
-  'COMPLETED',
-  'CANCELLED',
-  'DISPUTED'
+  'IN_TRANSIT',
+  'DELIVERED',
+  'CANCELLED'
 ]);
 
 /**

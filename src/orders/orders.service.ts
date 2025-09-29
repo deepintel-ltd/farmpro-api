@@ -447,7 +447,7 @@ export class OrdersService {
 
     this.logger.log(`Found ${items.length} items for order ${orderId}`);
     return {
-      data: items.map(this.mapOrderItemToResource),
+      data: items.map(item => this.mapOrderItemToResource(item)),
     };
   }
 
@@ -1727,7 +1727,7 @@ export class OrdersService {
         metadata: order.metadata,
         createdAt: order.createdAt.toISOString(),
         updatedAt: order.updatedAt.toISOString(),
-        items: order.items?.map(this.mapOrderItemToResource) || [],
+        items: order.items?.map(item => this.mapOrderItemToResource(item)) || [],
         buyerOrg: order.buyerOrg,
         supplierOrg: order.supplierOrg,
         createdBy: order.createdBy,

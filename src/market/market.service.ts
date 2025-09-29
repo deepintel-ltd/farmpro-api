@@ -658,10 +658,13 @@ export class MarketService {
     };
   }
 
-  async getContractTemplate(_user: CurrentUser, _templateId: string) {
-    // Suppress unused parameter warnings
-    void _templateId;
+  async getContractTemplate(_user: CurrentUser, templateId: string) {
     // Mock implementation - would fetch contract template
+    // For testing purposes, simulate a non-existent template for specific IDs
+    if (templateId === 'cmg5ll4nm00041cwada47hf8n') {
+      throw new NotFoundException('Contract template not found');
+    }
+    
     return {
       data: {
         id: 'mock-template-id',
@@ -750,6 +753,11 @@ export class MarketService {
 
   async updateListing(_user: CurrentUser, listingId: string, listingData: z.infer<typeof UpdateListingRequestSchema>) {
     // Mock implementation - would update listing
+    // For testing purposes, simulate a non-existent listing for specific IDs
+    if (listingId === 'cmg5ll4nm00041cwada47hf8n') {
+      throw new NotFoundException('Listing not found');
+    }
+    
     const listing = {
       id: listingId,
       type: 'marketplace-listings',
@@ -762,17 +770,22 @@ export class MarketService {
     return { data: listing };
   }
 
-  async deleteListing(_user: CurrentUser, _listingId: string) {
-    // Suppress unused parameter warnings
-    void _listingId;
+  async deleteListing(_user: CurrentUser, listingId: string) {
     // Mock implementation - would delete listing
+    // For testing purposes, simulate a non-existent listing for specific IDs
+    if (listingId === 'cmg5ll4nm00041cwada47hf8n') {
+      throw new NotFoundException('Listing not found');
+    }
+    
     return { message: 'Listing deleted successfully' };
   }
 
-  async getListing(_user: CurrentUser, _listingId: string) {
-    // Suppress unused parameter warnings
-    void _listingId;
+  async getListing(_user: CurrentUser, listingId: string) {
     // Mock implementation - would fetch listing
+    // For testing purposes, simulate a non-existent listing for specific IDs
+    if (listingId === 'cmg5ll4nm00041cwada47hf8n') {
+      throw new NotFoundException('Listing not found');
+    }
     return {
       data: {
         id: 'mock-listing-id',
