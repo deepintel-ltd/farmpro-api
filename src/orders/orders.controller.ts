@@ -77,6 +77,209 @@ export class OrdersController {
     });
   }
 
+  // =============================================================================
+  // Order Search & Discovery
+  // =============================================================================
+
+  @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrders)
+  public getMarketplaceOrders(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersMarketplaceContract.getMarketplaceOrders, async ({ query }) => {
+      try {
+        const result = await this.ordersService.getMarketplaceOrders(req.user, query);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get marketplace orders failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve marketplace orders',
+          'GET_MARKETPLACE_ORDERS_FAILED',
+        );
+      }
+    });
+  }
+
+  @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrder)
+  public getMarketplaceOrder(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersMarketplaceContract.getMarketplaceOrder, async ({ params }) => {
+      try {
+        const result = await this.ordersService.getMarketplaceOrder(req.user, (params as OrderPathParams).id);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error(`Get marketplace order ${(params as OrderPathParams).id} failed:`, error);
+
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Marketplace order not found',
+          notFoundCode: 'MARKETPLACE_ORDER_NOT_FOUND',
+          internalErrorMessage: 'Failed to retrieve marketplace order',
+          internalErrorCode: 'GET_MARKETPLACE_ORDER_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(ordersMarketplaceContract.searchOrders)
+  public searchOrders(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersMarketplaceContract.searchOrders, async ({ body }) => {
+      try {
+        const result = await this.ordersService.searchOrders(req.user, body);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Search orders failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to search orders',
+          'SEARCH_ORDERS_FAILED',
+        );
+      }
+    });
+  }
+
+  @TsRestHandler(ordersMarketplaceContract.getOrderRecommendations)
+  public getOrderRecommendations(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersMarketplaceContract.getOrderRecommendations, async ({ query }) => {
+      try {
+        const result = await this.ordersService.getOrderRecommendations(req.user, query);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get order recommendations failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve order recommendations',
+          'GET_ORDER_RECOMMENDATIONS_FAILED',
+        );
+      }
+    });
+  }
+
+  // =============================================================================
+  // Order Analytics & Reporting
+  // =============================================================================
+
+  @TsRestHandler(ordersAnalyticsContract.getOrderAnalytics)
+  public getOrderAnalytics(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersAnalyticsContract.getOrderAnalytics, async ({ query }) => {
+      try {
+        const result = await this.ordersService.getOrderAnalytics(req.user, query);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get order analytics failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve order analytics',
+          'GET_ORDER_ANALYTICS_FAILED',
+        );
+      }
+    });
+  }
+
+  @TsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary)
+  public getOrderFinancialSummary(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary, async ({ query }) => {
+      try {
+        const result = await this.ordersService.getOrderFinancialSummary(req.user, query);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get order financial summary failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve order financial summary',
+          'GET_ORDER_FINANCIAL_SUMMARY_FAILED',
+        );
+      }
+    });
+  }
+
+  @TsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics)
+  public getOrderPerformanceMetrics(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics, async ({ query }) => {
+      try {
+        const result = await this.ordersService.getOrderPerformanceMetrics(req.user, query);
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get order performance metrics failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve order performance metrics',
+          'GET_ORDER_PERFORMANCE_METRICS_FAILED',
+        );
+      }
+    });
+  }
+
+  @TsRestHandler(ordersAnalyticsContract.generateOrderReport)
+  public generateOrderReport(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(ordersAnalyticsContract.generateOrderReport, async ({ body }) => {
+      try {
+        const result = await this.ordersService.generateOrderReport(req.user, body);
+
+        this.logger.log(`Order report generated by user ${req.user.userId}`);
+
+        return {
+          status: 202 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Generate order report failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to generate order report',
+          'GENERATE_ORDER_REPORT_FAILED',
+        );
+      }
+    });
+  }
+
   @TsRestHandler(ordersCrudContract.getOrder)
   public getOrder(@Request() req: AuthenticatedRequest): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(ordersCrudContract.getOrder, async ({ params }) => {
@@ -437,6 +640,8 @@ export class OrdersController {
           notFoundCode: 'ORDER_NOT_FOUND',
           badRequestMessage: 'Invalid item data',
           badRequestCode: 'INVALID_ITEM_DATA',
+          forbiddenMessage: 'Access denied to add items to this order',
+          forbiddenCode: 'ADD_ORDER_ITEM_FORBIDDEN',
           internalErrorMessage: 'Failed to add item to order',
           internalErrorCode: 'ADD_ORDER_ITEM_FAILED',
         });
@@ -471,6 +676,8 @@ export class OrdersController {
           notFoundCode: 'ORDER_OR_ITEM_NOT_FOUND',
           badRequestMessage: 'Invalid item data',
           badRequestCode: 'INVALID_ITEM_DATA',
+          forbiddenMessage: 'Access denied to update this order item',
+          forbiddenCode: 'UPDATE_ORDER_ITEM_FORBIDDEN',
           internalErrorMessage: 'Failed to update order item',
           internalErrorCode: 'UPDATE_ORDER_ITEM_FAILED',
         });
@@ -498,6 +705,8 @@ export class OrdersController {
         return ErrorResponseUtil.handleCommonError(error, {
           notFoundMessage: 'Order or item not found',
           notFoundCode: 'ORDER_OR_ITEM_NOT_FOUND',
+          forbiddenMessage: 'Access denied to delete this order item',
+          forbiddenCode: 'DELETE_ORDER_ITEM_FORBIDDEN',
           internalErrorMessage: 'Failed to delete order item',
           internalErrorCode: 'DELETE_ORDER_ITEM_FAILED',
         });
@@ -505,106 +714,6 @@ export class OrdersController {
     });
   }
 
-  // =============================================================================
-  // Order Search & Discovery
-  // =============================================================================
-
-  @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrders)
-  public getMarketplaceOrders(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersMarketplaceContract.getMarketplaceOrders, async ({ query }) => {
-      try {
-        const result = await this.ordersService.getMarketplaceOrders(req.user, query);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get marketplace orders failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve marketplace orders',
-          'GET_MARKETPLACE_ORDERS_FAILED',
-        );
-      }
-    });
-  }
-
-  @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrder)
-  public getMarketplaceOrder(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersMarketplaceContract.getMarketplaceOrder, async ({ params }) => {
-      try {
-        const result = await this.ordersService.getMarketplaceOrder(req.user, (params as OrderPathParams).id);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error(`Get marketplace order ${(params as OrderPathParams).id} failed:`, error);
-
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Marketplace order not found',
-          notFoundCode: 'MARKETPLACE_ORDER_NOT_FOUND',
-          internalErrorMessage: 'Failed to retrieve marketplace order',
-          internalErrorCode: 'GET_MARKETPLACE_ORDER_FAILED',
-        });
-      }
-    });
-  }
-
-  @TsRestHandler(ordersMarketplaceContract.searchOrders)
-  public searchOrders(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersMarketplaceContract.searchOrders, async ({ body }) => {
-      try {
-        const result = await this.ordersService.searchOrders(req.user, body);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Search orders failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to search orders',
-          'SEARCH_ORDERS_FAILED',
-        );
-      }
-    });
-  }
-
-  @TsRestHandler(ordersMarketplaceContract.getOrderRecommendations)
-  public getOrderRecommendations(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersMarketplaceContract.getOrderRecommendations, async ({ query }) => {
-      try {
-        const result = await this.ordersService.getOrderRecommendations(req.user, query);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get order recommendations failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve order recommendations',
-          'GET_ORDER_RECOMMENDATIONS_FAILED',
-        );
-      }
-    });
-  }
 
   // =============================================================================
   // Order Communication
@@ -698,105 +807,4 @@ export class OrdersController {
     });
   }
 
-  // =============================================================================
-  // Order Analytics & Reporting
-  // =============================================================================
-
-  @TsRestHandler(ordersAnalyticsContract.getOrderAnalytics)
-  public getOrderAnalytics(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersAnalyticsContract.getOrderAnalytics, async ({ query }) => {
-      try {
-        const result = await this.ordersService.getOrderAnalytics(req.user, query);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get order analytics failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve order analytics',
-          'GET_ORDER_ANALYTICS_FAILED',
-        );
-      }
-    });
-  }
-
-  @TsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary)
-  public getOrderFinancialSummary(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary, async ({ query }) => {
-      try {
-        const result = await this.ordersService.getOrderFinancialSummary(req.user, query);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get order financial summary failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve order financial summary',
-          'GET_ORDER_FINANCIAL_SUMMARY_FAILED',
-        );
-      }
-    });
-  }
-
-  @TsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics)
-  public getOrderPerformanceMetrics(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics, async ({ query }) => {
-      try {
-        const result = await this.ordersService.getOrderPerformanceMetrics(req.user, query);
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get order performance metrics failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve order performance metrics',
-          'GET_ORDER_PERFORMANCE_METRICS_FAILED',
-        );
-      }
-    });
-  }
-
-  @TsRestHandler(ordersAnalyticsContract.generateOrderReport)
-  public generateOrderReport(
-    @Request() req: AuthenticatedRequest,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(ordersAnalyticsContract.generateOrderReport, async ({ body }) => {
-      try {
-        const result = await this.ordersService.generateOrderReport(req.user, body);
-
-        this.logger.log(`Order report generated by user ${req.user.userId}`);
-
-        return {
-          status: 202 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Generate order report failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to generate order report',
-          'GENERATE_ORDER_REPORT_FAILED',
-        );
-      }
-    });
-  }
 }

@@ -16,7 +16,7 @@ import {
   CommonQueryParams,
   ResourceFieldsParams,
   CommonErrorResponses,
-  UuidPathParam,
+  CuidPathParam,
 } from './common';
 
 const c = initContract();
@@ -34,7 +34,7 @@ export const ordersMessagingContract = c.router({
   getOrderMessages: {
     method: 'GET',
     path: '/orders/:id/messages',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams,
     responses: {
       200: OrderMessageCollectionSchema,
@@ -47,7 +47,7 @@ export const ordersMessagingContract = c.router({
   sendOrderMessage: {
     method: 'POST',
     path: '/orders/:id/messages',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: CreateOrderMessageRequestSchema,
     responses: {
       201: OrderMessageResourceSchema,
@@ -60,8 +60,8 @@ export const ordersMessagingContract = c.router({
   markMessageAsRead: {
     method: 'PATCH',
     path: '/orders/:id/messages/:messageId/read',
-    pathParams: UuidPathParam('Order').extend({
-      messageId: z.string().uuid('Invalid message ID'),
+    pathParams: CuidPathParam('Order').extend({
+      messageId: z.string().regex(/^c[0-9a-z]{24}$/, 'Invalid message ID'),
     }),
     body: z.object({}),
     responses: {
@@ -79,7 +79,7 @@ export const ordersMessagingContract = c.router({
   getOrderDocuments: {
     method: 'GET',
     path: '/orders/:id/documents',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: OrderDocumentCollectionSchema,
@@ -92,7 +92,7 @@ export const ordersMessagingContract = c.router({
   uploadOrderDocument: {
     method: 'POST',
     path: '/orders/:id/documents',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: CreateOrderDocumentRequestSchema,
     responses: {
       201: OrderDocumentResourceSchema,
@@ -105,7 +105,7 @@ export const ordersMessagingContract = c.router({
   getOrderContract: {
     method: 'GET',
     path: '/orders/:id/contract',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     responses: {
       200: z.object({
         data: z.object({
@@ -131,7 +131,7 @@ export const ordersMessagingContract = c.router({
   signOrderContract: {
     method: 'POST',
     path: '/orders/:id/contract/sign',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: ContractSignatureRequestSchema,
     responses: {
       200: z.object({ message: z.string() }),
@@ -148,7 +148,7 @@ export const ordersMessagingContract = c.router({
   getOrderTimeline: {
     method: 'GET',
     path: '/orders/:id/timeline',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams,
     responses: {
       200: z.object({
@@ -166,7 +166,7 @@ export const ordersMessagingContract = c.router({
   getOrderTracking: {
     method: 'GET',
     path: '/orders/:id/tracking',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     responses: {
       200: z.object({
         data: OrderTrackingInfoSchema,
@@ -183,7 +183,7 @@ export const ordersMessagingContract = c.router({
   addStatusUpdate: {
     method: 'POST',
     path: '/orders/:id/status-updates',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: OrderStatusUpdateRequestSchema,
     responses: {
       201: z.object({

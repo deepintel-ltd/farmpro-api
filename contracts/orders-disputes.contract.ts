@@ -11,7 +11,7 @@ import {
   CommonQueryParams,
   ResourceFieldsParams,
   CommonErrorResponses,
-  UuidPathParam,
+  CuidPathParam,
 } from './common';
 
 const c = initContract();
@@ -29,7 +29,7 @@ export const ordersDisputesContract = c.router({
   createOrderDispute: {
     method: 'POST',
     path: '/orders/:id/dispute',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: CreateOrderDisputeRequestSchema,
     responses: {
       201: OrderDisputeResourceSchema,
@@ -42,7 +42,7 @@ export const ordersDisputesContract = c.router({
   getOrderDisputes: {
     method: 'GET',
     path: '/orders/:id/disputes',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: OrderDisputeCollectionSchema,
@@ -55,7 +55,7 @@ export const ordersDisputesContract = c.router({
   respondToDispute: {
     method: 'POST',
     path: '/orders/:id/disputes/:disputeId/respond',
-    pathParams: UuidPathParam('Order').extend({
+    pathParams: CuidPathParam('Order').extend({
       disputeId: z.string().uuid('Invalid dispute ID'),
     }),
     body: DisputeResponseRequestSchema,
@@ -70,7 +70,7 @@ export const ordersDisputesContract = c.router({
   resolveDispute: {
     method: 'POST',
     path: '/orders/:id/disputes/:disputeId/resolve',
-    pathParams: UuidPathParam('Order').extend({
+    pathParams: CuidPathParam('Order').extend({
       disputeId: z.string().uuid('Invalid dispute ID'),
     }),
     body: DisputeResolutionRequestSchema,

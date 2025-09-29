@@ -120,7 +120,7 @@ export class OrdersService {
     this.logger.log(`Found ${orders.length} orders for user: ${user.userId}`);
 
     return {
-      data: orders.map(this.mapOrderToResource),
+      data: orders.map(order => this.mapOrderToResource(order)),
       meta: {
         total,
         page,
@@ -179,10 +179,15 @@ export class OrdersService {
       throw new BadRequestException('Order must have at least one item');
     }
 
-    // Calculate total price
+    // Calculate total price and get primary commodity info
     const totalPrice = items.reduce((sum, item) => {
       return sum + (item.quantity * (item.unitPrice || 0));
     }, 0);
+    
+    // Use the first item as the primary commodity for the order
+    const primaryItem = items[0];
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+    const averagePricePerUnit = totalPrice / totalQuantity;
 
     const order = await this.prisma.order.create({
       data: {
@@ -190,6 +195,9 @@ export class OrdersService {
         title,
         type: type as OrderType,
         status: OrderStatus.PENDING,
+        commodityId: primaryItem.commodityId,
+        quantity: totalQuantity,
+        pricePerUnit: averagePricePerUnit,
         deliveryDate: new Date(deliveryDate),
         deliveryLocation: deliveryAddress.street,
         deliveryAddress: deliveryAddress as any,
@@ -229,7 +237,7 @@ export class OrdersService {
     }
 
     const { data: orderData } = data;
-    const { title, description, deliveryDate, deliveryAddress, paymentTerms, specialInstructions, isPublic } = orderData.attributes;
+    const { title, description, deliveryDate, deliveryAddress, deliveryLocation, terms, paymentTerms, specialInstructions, isPublic } = orderData.attributes;
 
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
@@ -238,16 +246,20 @@ export class OrdersService {
         ...(description && { description }),
         ...(deliveryDate && { deliveryDate: new Date(deliveryDate) }),
         ...(deliveryAddress && { 
-          deliveryLocation: deliveryAddress.street,
           deliveryAddress: deliveryAddress as any,
         }),
-        ...(paymentTerms && { 
+        ...(deliveryLocation && { deliveryLocation }),
+        ...(deliveryAddress && !deliveryLocation && { 
+          deliveryLocation: deliveryAddress.street,
+        }),
+        ...(terms && { terms: terms as any }),
+        ...(!terms && paymentTerms && { 
           terms: { 
             ...(order.terms as any), 
             paymentTerms 
           } 
         }),
-        ...(specialInstructions && { 
+        ...(!terms && specialInstructions && { 
           terms: { 
             ...(order.terms as any), 
             specialInstructions 
@@ -474,7 +486,7 @@ export class OrdersService {
         inventoryId,
         quantity,
         unitPrice,
-        metadata: qualityRequirements as any,
+        metadata: { qualityRequirements } as any,
       },
       include: {
         commodity: { select: { id: true, name: true, category: true } },
@@ -511,8 +523,13 @@ export class OrdersService {
       data: {
         ...(quantity && { quantity }),
         ...(unitPrice && { unitPrice }),
-        ...(qualityRequirements && { metadata: qualityRequirements as any }),
-        ...(notes && { metadata: { ...(existingItem?.metadata as any), notes } }),
+        ...(qualityRequirements || notes) && {
+          metadata: {
+            ...(existingItem?.metadata as any),
+            ...(qualityRequirements && { qualityRequirements }),
+            ...(notes && { notes }),
+          }
+        },
       },
       include: {
         commodity: { select: { id: true, name: true, category: true } },
@@ -592,7 +609,7 @@ export class OrdersService {
 
     this.logger.log(`Found ${orders.length} marketplace orders`);
     return {
-      data: orders.map(this.mapOrderToResource),
+      data: orders.map(order => this.mapOrderToResource(order)),
       meta: {
         total,
         page,
@@ -696,7 +713,7 @@ export class OrdersService {
 
     this.logger.log(`Found ${orders.length} orders matching search criteria`);
     return {
-      data: orders.map(this.mapOrderToResource),
+      data: orders.map(order => this.mapOrderToResource(order)),
     };
   }
 
@@ -767,7 +784,7 @@ export class OrdersService {
 
     this.logger.log(`Found ${orders.length} recommended orders`);
     return {
-      data: orders.map(this.mapOrderToResource),
+      data: orders.map(order => this.mapOrderToResource(order)),
     };
   }
 
@@ -797,7 +814,7 @@ export class OrdersService {
         skip,
         take: limit,
         include: {
-          // Note: sender relation would need to be defined in Prisma schema
+          user: { select: { id: true, name: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -826,19 +843,21 @@ export class OrdersService {
       throw new ForbiddenException('Access denied to this order');
     }
 
-    const { content, type } = data;
+    const { content, type, attachments, isUrgent } = data;
 
     const message = await this.prisma.message.create({
       data: {
         orderId,
         content,
         type: type as any,
-        // attachments: attachments as any, // Note: attachments field would need to be defined in Prisma schema
-        // isUrgent, // Note: isUrgent field would need to be defined in Prisma schema
-        senderId: user.userId,
-      } as any,
+        userId: user.userId,
+        metadata: {
+          attachments: attachments || [],
+          isUrgent: isUrgent || false,
+        },
+      },
       include: {
-        // Note: sender relation would need to be defined in Prisma schema
+        user: { select: { id: true, name: true, email: true } },
       },
     });
 
@@ -1721,6 +1740,7 @@ export class OrdersService {
         type: order.type,
         status: order.status,
         deliveryDate: order.deliveryDate.toISOString(),
+        deliveryLocation: order.deliveryLocation,
         deliveryAddress: order.deliveryAddress,
         totalPrice: order.totalPrice,
         terms: order.terms,
@@ -1776,15 +1796,16 @@ export class OrdersService {
       attributes: {
         content: message.content,
         type: message.type,
-        attachments: message.attachments,
-        isUrgent: message.isUrgent,
+        attachments: message.metadata?.attachments || [],
+        isUrgent: message.metadata?.isUrgent || false,
+        isRead: message.isRead,
         readAt: message.readAt?.toISOString() || null,
         createdAt: message.createdAt.toISOString(),
-        sender: message.sender,
+        sender: message.user,
       },
       relationships: {
         sender: {
-          data: { type: 'users', id: message.senderId },
+          data: { type: 'users', id: message.user.id },
         },
       },
     };

@@ -10,8 +10,13 @@ import {
   AllQueryParams,
   CommonErrorResponses,
   CollectionErrorResponses,
-  UuidPathParam,
+  CuidPathParam,
 } from './common';
+
+/**
+ * CUID validation schema
+ */
+const cuidSchema = z.string().regex(/^c[0-9a-z]{24}$/, 'Invalid CUID format');
 
 const c = initContract();
 
@@ -30,7 +35,7 @@ export const ordersMarketplaceContract = c.router({
     path: '/orders/marketplace',
     query: AllQueryParams.extend({
       type: z.enum(['BUY', 'SELL']).optional(),
-      commodityId: z.string().uuid().optional(),
+      commodityId: cuidSchema.optional(),
       location: z.string().optional(),
       priceRange: z.string().optional(),
       deliveryDate: z.string().optional(),
@@ -48,7 +53,7 @@ export const ordersMarketplaceContract = c.router({
   getMarketplaceOrder: {
     method: 'GET',
     path: '/orders/marketplace/:id',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams,
     responses: {
       200: OrderResourceSchema,

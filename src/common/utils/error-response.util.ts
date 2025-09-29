@@ -89,6 +89,15 @@ export class ErrorResponseUtil {
    * Check if error is a forbidden error
    */
   static isForbidden(error: unknown): boolean {
+    // Check for ForbiddenException instance
+    if (error && typeof error === 'object' && 'constructor' in error) {
+      const errorConstructor = (error as any).constructor;
+      if (errorConstructor && errorConstructor.name === 'ForbiddenException') {
+        return true;
+      }
+    }
+    
+    // Fallback to message-based detection
     return error instanceof Error && 
            (error.message.includes('forbidden') || 
             error.message.includes('Forbidden') ||

@@ -11,6 +11,11 @@ import {
 // =============================================================================
 
 /**
+ * CUID validation schema
+ */
+const cuidSchema = z.string().regex(/^c[0-9a-z]{24}$/, 'Invalid CUID format');
+
+/**
  * Order type enum
  */
 export const OrderTypeSchema = z.enum(['BUY', 'SELL']);
@@ -98,9 +103,9 @@ export const QualityRequirementsSchema = z.object({
  * Order item schema
  */
 export const OrderItemSchema = z.object({
-  id: z.string().uuid().optional(),
-  commodityId: z.string().uuid('Invalid commodity ID'),
-  inventoryId: z.string().uuid().optional(), // For SELL orders
+  id: cuidSchema.optional(),
+  commodityId: cuidSchema,
+  inventoryId: cuidSchema.optional(), // For SELL orders
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
   qualityRequirements: QualityRequirementsSchema.optional(),
@@ -119,10 +124,12 @@ export const OrderSchema = z.object({
   description: z.string().optional(),
   status: OrderStatusSchema,
   deliveryDate: z.string().datetime('Invalid delivery date format'),
+  deliveryLocation: z.string().optional(),
   deliveryAddress: DeliveryAddressSchema,
   items: z.array(OrderItemSchema).min(1, 'At least one item is required'),
   paymentTerms: z.string().optional(),
   specialInstructions: z.string().optional(),
+  terms: z.record(z.string(), z.any()).optional(),
   isPublic: z.boolean().default(false),
   metadata: z.record(z.string(), z.any()).optional(),
   
@@ -231,8 +238,8 @@ export const CompleteOrderRequestSchema = z.object({
  * Create order item request schema
  */
 export const CreateOrderItemRequestSchema = z.object({
-  commodityId: z.string().uuid('Invalid commodity ID'),
-  inventoryId: z.string().uuid().optional(),
+  commodityId: cuidSchema,
+  inventoryId: cuidSchema.optional(),
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
   qualityRequirements: QualityRequirementsSchema.optional(),
@@ -258,7 +265,7 @@ export const UpdateOrderItemRequestSchema = z.object({
  * Order search filters schema
  */
 export const OrderSearchFiltersSchema = z.object({
-  commodities: z.array(z.string().uuid()).optional(),
+  commodities: z.array(cuidSchema).optional(),
   location: z.object({
     center: CoordinatesSchema,
     radius: z.number().positive('Radius must be positive')
@@ -418,7 +425,7 @@ export const OrderAnalyticsQuerySchema = z.object({
   period: z.enum(['day', 'week', 'month', 'quarter', 'year']).optional(),
   type: OrderTypeSchema.optional(),
   status: OrderStatusSchema.optional(),
-  commodityId: z.string().uuid().optional()
+  commodityId: cuidSchema.optional()
 });
 
 /**
@@ -503,7 +510,7 @@ export const DisputeResponseRequestSchema = z.object({
 export const DisputeResolutionRequestSchema = z.object({
   resolution: z.string().min(1, 'Resolution is required'),
   compensation: z.number().min(0, 'Compensation must be non-negative').optional(),
-  terms: z.string().optional()
+  terms: z.record(z.string(), z.any()).optional()
 });
 
 // =============================================================================

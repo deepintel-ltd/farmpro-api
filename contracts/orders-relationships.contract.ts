@@ -7,7 +7,7 @@ import {
   CommonQueryParams,
   ResourceFieldsParams,
   CommonErrorResponses,
-  UuidPathParam,
+  CuidPathParam,
 } from './common';
 
 const c = initContract();
@@ -25,7 +25,7 @@ export const ordersRelationshipsContract = c.router({
   getOrderBuyer: {
     method: 'GET',
     path: '/orders/:id/buyer',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: UserResourceSchema,
@@ -38,7 +38,7 @@ export const ordersRelationshipsContract = c.router({
   getOrderSeller: {
     method: 'GET',
     path: '/orders/:id/seller',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: UserResourceSchema,
@@ -51,7 +51,7 @@ export const ordersRelationshipsContract = c.router({
   getOrderBuyerRelationship: {
     method: 'GET',
     path: '/orders/:id/relationships/buyer',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     responses: {
       200: z.object({
         data: z
@@ -76,7 +76,7 @@ export const ordersRelationshipsContract = c.router({
   getOrderSellerRelationship: {
     method: 'GET',
     path: '/orders/:id/relationships/seller',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     responses: {
       200: z.object({
         data: z

@@ -25,8 +25,13 @@ import {
   AllQueryParams,
   CommonErrorResponses,
   CollectionErrorResponses,
-  UuidPathParam,
+  CuidPathParam,
 } from './common';
+
+/**
+ * CUID validation schema
+ */
+const cuidSchema = z.string().regex(/^c[0-9a-z]{24}$/, 'Invalid CUID format');
 
 const c = initContract();
 
@@ -62,7 +67,7 @@ export const ordersCrudContract = c.router({
   getOrder: {
     method: 'GET',
     path: '/orders/:id',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: OrderResourceSchema,
@@ -87,7 +92,7 @@ export const ordersCrudContract = c.router({
   updateOrder: {
     method: 'PATCH',
     path: '/orders/:id',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: UpdateOrderRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -100,7 +105,7 @@ export const ordersCrudContract = c.router({
   deleteOrder: {
     method: 'DELETE',
     path: '/orders/:id',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: z.object({}),
     responses: {
       200: z.object({ message: z.string() }),
@@ -119,7 +124,7 @@ export const ordersCrudContract = c.router({
   publishOrder: {
     method: 'POST',
     path: '/orders/:id/publish',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: PublishOrderRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -132,7 +137,7 @@ export const ordersCrudContract = c.router({
   acceptOrder: {
     method: 'POST',
     path: '/orders/:id/accept',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: AcceptOrderRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -145,7 +150,7 @@ export const ordersCrudContract = c.router({
   rejectOrder: {
     method: 'POST',
     path: '/orders/:id/reject',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: RejectOrderRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -158,7 +163,7 @@ export const ordersCrudContract = c.router({
   counterOffer: {
     method: 'POST',
     path: '/orders/:id/counter-offer',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: CounterOfferRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -171,7 +176,7 @@ export const ordersCrudContract = c.router({
   confirmOrder: {
     method: 'POST',
     path: '/orders/:id/confirm',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: z.object({}),
     responses: {
       200: OrderResourceSchema,
@@ -184,7 +189,7 @@ export const ordersCrudContract = c.router({
   startFulfillment: {
     method: 'POST',
     path: '/orders/:id/start-fulfillment',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: StartFulfillmentRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -197,7 +202,7 @@ export const ordersCrudContract = c.router({
   completeOrder: {
     method: 'POST',
     path: '/orders/:id/complete',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: CompleteOrderRequestSchema,
     responses: {
       200: OrderResourceSchema,
@@ -214,7 +219,7 @@ export const ordersCrudContract = c.router({
   getOrderItems: {
     method: 'GET',
     path: '/orders/:id/items',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: OrderItemCollectionSchema,
@@ -227,7 +232,7 @@ export const ordersCrudContract = c.router({
   addOrderItem: {
     method: 'POST',
     path: '/orders/:id/items',
-    pathParams: UuidPathParam('Order'),
+    pathParams: CuidPathParam('Order'),
     body: CreateOrderItemRequestSchema,
     responses: {
       201: OrderItemResourceSchema,
@@ -240,8 +245,8 @@ export const ordersCrudContract = c.router({
   updateOrderItem: {
     method: 'PATCH',
     path: '/orders/:id/items/:itemId',
-    pathParams: UuidPathParam('Order').extend({
-      itemId: z.string().uuid(),
+    pathParams: CuidPathParam('Order').extend({
+      itemId: cuidSchema,
     }),
     body: UpdateOrderItemRequestSchema,
     responses: {
@@ -255,8 +260,8 @@ export const ordersCrudContract = c.router({
   deleteOrderItem: {
     method: 'DELETE',
     path: '/orders/:id/items/:itemId',
-    pathParams: UuidPathParam('Order').extend({
-      itemId: z.string().uuid(),
+    pathParams: CuidPathParam('Order').extend({
+      itemId: cuidSchema,
     }),
     body: z.object({}),
     responses: {
