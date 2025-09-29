@@ -108,6 +108,44 @@ export class ActivitiesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesSchedulingContract.getCalendar)
+  public getCalendar(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesSchedulingContract.getCalendar, async ({ query }) => {
+      const calendarQuery: CalendarQueryOptions = {
+        farmId: query.farmId!,
+        startDate: query.startDate!,
+        endDate: query.endDate!,
+        userId: query.userId,
+        view: query.view,
+      };
+      const events = await this.activitiesService.getCalendarEvents(calendarQuery, req.user.organizationId);
+      return {
+        status: 200 as const,
+        body: {
+          data: events.map(event => ({
+            id: event.id,
+            type: 'calendar-events' as const,
+            attributes: event,
+          })),
+          meta: {
+            period: { start: query.startDate, end: query.endDate },
+            totalCount: events.length,
+          },
+        },
+      };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesTeamContract.getMyTasks)
+  public getMyTasks(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesTeamContract.getMyTasks, async ({ query }) => {
+      const result = await this.activitiesService.getMyTasks(req.user.userId, query, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
   @TsRestHandler(activitiesCrudContract.getActivity)
   public getActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.getActivity, async ({ params }) => {
@@ -239,44 +277,6 @@ export class ActivitiesController {
     });
   }
 
-  // Calendar & Tasks
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesSchedulingContract.getCalendar)
-  public getCalendar(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesSchedulingContract.getCalendar, async ({ query }) => {
-      const calendarQuery: CalendarQueryOptions = {
-        farmId: query.farmId!,
-        startDate: query.startDate!,
-        endDate: query.endDate!,
-        userId: query.userId,
-        view: query.view,
-      };
-      const events = await this.activitiesService.getCalendarEvents(calendarQuery, req.user.organizationId);
-      return {
-        status: 200 as const,
-        body: {
-          data: events.map(event => ({
-            id: event.id,
-            type: 'calendar-events' as const,
-            attributes: event,
-          })),
-          meta: {
-            period: { start: query.startDate, end: query.endDate },
-            totalCount: events.length,
-          },
-        },
-      };
-    });
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesTeamContract.getMyTasks)
-  public getMyTasks(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesTeamContract.getMyTasks, async ({ query }) => {
-      const result = await this.activitiesService.getMyTasks(req.user.userId, query, req.user.organizationId);
-      return { status: 200 as const, body: result };
-    });
-  }
 
   // Analytics
   @UseGuards(JwtAuthGuard)
