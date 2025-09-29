@@ -958,7 +958,8 @@ describe('Activities E2E Tests', () => {
           .expect(200);
 
         expect(response.body.data).toBeDefined();
-        expect(Array.isArray(response.body.data)).toBe(true);
+        expect(response.body.data.type).toBe('completion-rates');
+        expect(response.body.data.attributes).toBeDefined();
       });
 
       it('should get cost analysis', async () => {
@@ -969,18 +970,21 @@ describe('Activities E2E Tests', () => {
           .expect(200);
 
         expect(response.body.data).toBeDefined();
-        expect(Array.isArray(response.body.data)).toBe(true);
+        expect(response.body.data.type).toBe('cost-analysis');
+        expect(response.body.data.attributes).toBeDefined();
       });
     });
 
     describe('POST /activities/reports', () => {
       it('should generate report successfully', async () => {
         const reportData = {
-          reportType: 'activity_summary',
+          reportType: 'efficiency',
           filters: {
             farmId: testFarm.id,
-            startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            endDate: new Date().toISOString()
+            dateRange: {
+              start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              end: new Date().toISOString()
+            }
           },
           format: 'pdf',
           includeCharts: true
@@ -990,8 +994,9 @@ describe('Activities E2E Tests', () => {
           .request()
           .post('/activities/reports')
           .set('Authorization', `Bearer ${accessToken}`)
-          .send(reportData)
-          .expect(202);
+          .send(reportData);
+
+        expect(response.status).toBe(202);
 
         expect(response.body.data).toBeDefined();
         expect(response.body.data.attributes).toBeDefined();
@@ -1045,11 +1050,11 @@ describe('Activities E2E Tests', () => {
               farmId: testFarm.id
             },
             {
-              name: '', // Invalid - empty name
+              name: 'Activity with Non-existent Farm',
               type: 'PLANTING',
               priority: 'NORMAL',
               scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-              farmId: testFarm.id
+              farmId: 'non-existent-farm-id' // Invalid - non-existent farm
             }
           ]
         };
@@ -1060,6 +1065,7 @@ describe('Activities E2E Tests', () => {
           .set('Authorization', `Bearer ${accessToken}`)
           .send(activitiesData)
           .expect(201);
+
 
         expect(response.body.data.attributes.created).toBe(1);
         expect(response.body.data.attributes.failed).toBe(1);
@@ -1221,7 +1227,7 @@ describe('Activities E2E Tests', () => {
 
         const response = await testContext
           .request()
-          .post(`/activities/${testActivity.id}/assign`)
+          .put(`/activities/${testActivity.id}/assign`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(assignData)
           .expect(200);
@@ -1238,7 +1244,7 @@ describe('Activities E2E Tests', () => {
 
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/assign`)
+          .put(`/activities/${testActivity.id}/assign`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(assignData)
           .expect(400);
@@ -1253,7 +1259,7 @@ describe('Activities E2E Tests', () => {
 
         await testContext
           .request()
-          .post('/activities/non-existent-id/assign')
+          .put('/activities/non-existent-id/assign')
           .set('Authorization', `Bearer ${accessToken}`)
           .send(assignData)
           .expect(404);
@@ -1265,8 +1271,18 @@ describe('Activities E2E Tests', () => {
         const helpData = {
           message: 'Need assistance with equipment setup',
           skillsNeeded: ['equipment_operation', 'safety_protocols'],
-          urgency: 'HIGH'
+          urgency: 'high'
         };
+
+        // First assign the user to the activity so they can request help
+        await testContext
+          .request()
+          .put(`/activities/${testActivity.id}/assign`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            assignedTo: [testUser.id],
+            notifyUsers: false
+          });
 
         const response = await testContext
           .request()
@@ -1283,7 +1299,7 @@ describe('Activities E2E Tests', () => {
         const helpData = {
           message: 'Need assistance',
           skillsNeeded: ['equipment_operation'],
-          urgency: 'NORMAL'
+          urgency: 'normal'
         };
 
         await testContext
@@ -1310,9 +1326,10 @@ describe('Activities E2E Tests', () => {
       it('should filter team performance by metric', async () => {
         const response = await testContext
           .request()
-          .get(`/activities/team-performance?farmId=${testFarm.id}&period=week&metric=completion_rate`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
+          .get(`/activities/team-performance?farmId=${testFarm.id}&period=week&metric=completion`)
+          .set('Authorization', `Bearer ${accessToken}`);
+
+        expect(response.status).toBe(200);
 
         expect(response.body.data).toBeDefined();
         expect(Array.isArray(response.body.data)).toBe(true);

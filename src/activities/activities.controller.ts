@@ -145,6 +145,121 @@ export class ActivitiesController {
     });
   }
 
+  // Team Performance Analytics - MUST come before getActivity to avoid route conflicts
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesTeamContract.getTeamPerformance)
+  public getTeamPerformance(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesTeamContract.getTeamPerformance, async ({ query }) => {
+      const analyticsQuery = {
+        farmId: query.farmId!,
+        period: query.period,
+        type: query.type,
+        metric: query.metric,
+      };
+      const result = await this.activitiesService.getTeamPerformance(analyticsQuery, req.user.organizationId);
+      
+      // Transform to match expected contract format
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: result.included.map(item => ({
+            id: item.id,
+            type: 'team-performance' as const,
+            attributes: {
+              userId: item.attributes.user.id,
+              userName: item.attributes.user.name,
+              completedActivities: item.attributes.completed,
+              averageCompletionTime: 0, // Not available in current data
+              onTimeCompletion: item.attributes.completionRate,
+              qualityScore: item.attributes.efficiency,
+            }
+          }))
+        } 
+      };
+    });
+  }
+
+  // Analytics - MUST come before getActivity to avoid route conflicts
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesAnalyticsContract.getAnalytics)
+  public getAnalytics() {
+    return tsRestHandler(activitiesAnalyticsContract.getAnalytics, async ({ query }) => {
+      const analyticsQuery: AnalyticsQueryOptions = {
+        farmId: query.farmId,
+        period: query.period,
+        type: query.type,
+      };
+      const analytics = await this.activitiesService.getAnalytics(analyticsQuery);
+      return {
+        status: 200 as const,
+        body: {
+          data: {
+            id: 'analytics',
+            type: 'activity-analytics' as const,
+            attributes: analytics,
+          },
+        },
+      };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesAnalyticsContract.getCompletionRates)
+  public getCompletionRates(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesAnalyticsContract.getCompletionRates, async ({ query }) => {
+      const analyticsQuery: AnalyticsQueryOptions = {
+        farmId: query.farmId,
+        period: query.period,
+        type: query.type,
+      };
+      const result = await this.activitiesService.getCompletionRates(analyticsQuery, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesAnalyticsContract.getCostAnalysis)
+  public getCostAnalysis(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesAnalyticsContract.getCostAnalysis, async ({ query }) => {
+      const analyticsQuery: AnalyticsQueryOptions = {
+        farmId: query.farmId,
+        period: query.period,
+        type: query.type,
+      };
+      const result = await this.activitiesService.getCostAnalysis(analyticsQuery, req.user.organizationId);
+      return { status: 200 as const, body: result };
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesAnalyticsContract.generateReport)
+  public generateReport(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesAnalyticsContract.generateReport, async ({ body }) => {
+      const result = await this.activitiesService.generateReport({
+        reportType: body.reportType,
+        filters: body.filters,
+        format: body.format,
+        includeCharts: body.includeCharts
+      }, req.user.organizationId);
+      return { status: 202 as const, body: result };
+    });
+  }
+
+  // Templates - MUST come before getActivity to avoid route conflicts
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(activitiesTemplatesContract.getActivityTemplates)
+  public getActivityTemplates(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesTemplatesContract.getActivityTemplates, async ({ query }) => {
+      const result = await this.templateService.getTemplates(req.user.organizationId, {
+        type: query.type,
+        cropType: query.cropType,
+        farmType: query.farmType,
+        search: query.search,
+      });
+      return { status: 200 as const, body: result };
+    });
+  }
+
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(activitiesCrudContract.getActivity)
   public getActivity(@Request() req: AuthenticatedRequest) {
@@ -278,71 +393,6 @@ export class ActivitiesController {
   }
 
 
-  // Analytics
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesAnalyticsContract.getAnalytics)
-  public getAnalytics() {
-    return tsRestHandler(activitiesAnalyticsContract.getAnalytics, async ({ query }) => {
-      const analyticsQuery: AnalyticsQueryOptions = {
-        farmId: query.farmId,
-        period: query.period,
-        type: query.type,
-      };
-      const analytics = await this.activitiesService.getAnalytics(analyticsQuery);
-      return {
-        status: 200 as const,
-        body: {
-          data: {
-            id: 'analytics',
-            type: 'activity-analytics' as const,
-            attributes: analytics,
-          },
-        },
-      };
-    });
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesAnalyticsContract.getCompletionRates)
-  public getCompletionRates(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesAnalyticsContract.getCompletionRates, async ({ query }) => {
-      const analyticsQuery: AnalyticsQueryOptions = {
-        farmId: query.farmId,
-        period: query.period,
-        type: query.type,
-      };
-      const result = await this.activitiesService.getCompletionRates(analyticsQuery, req.user.organizationId);
-      return { status: 200 as const, body: result };
-    });
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesAnalyticsContract.getCostAnalysis)
-  public getCostAnalysis(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesAnalyticsContract.getCostAnalysis, async ({ query }) => {
-      const analyticsQuery: AnalyticsQueryOptions = {
-        farmId: query.farmId,
-        period: query.period,
-        type: query.type,
-      };
-      const result = await this.activitiesService.getCostAnalysis(analyticsQuery, req.user.organizationId);
-      return { status: 200 as const, body: result };
-    });
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesAnalyticsContract.generateReport)
-  public generateReport(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesAnalyticsContract.generateReport, async ({ body }) => {
-      const result = await this.activitiesService.generateReport({
-        reportType: body.reportType,
-        filters: body.filters,
-        format: body.format,
-        includeCharts: body.includeCharts
-      }, req.user.organizationId);
-      return { status: 202 as const, body: result };
-    });
-  }
 
   // Cost Management
   @UseGuards(JwtAuthGuard)
@@ -423,54 +473,9 @@ export class ActivitiesController {
     });
   }
 
-  // Team Performance Analytics
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesTeamContract.getTeamPerformance)
-  public getTeamPerformance(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesTeamContract.getTeamPerformance, async ({ query }) => {
-      const analyticsQuery = {
-        farmId: query.farmId!,
-        period: query.period,
-        type: query.type,
-        metric: query.metric,
-      };
-      const result = await this.activitiesService.getTeamPerformance(analyticsQuery, req.user.organizationId);
-      
-      // Transform to match expected contract format
-      return { 
-        status: 200 as const, 
-        body: { 
-          data: result.included.map(item => ({
-            id: item.id,
-            type: 'team-performance' as const,
-            attributes: {
-              userId: item.attributes.user.id,
-              userName: item.attributes.user.name,
-              completedActivities: item.attributes.completed,
-              averageCompletionTime: 0, // Not available in current data
-              onTimeCompletion: item.attributes.completionRate,
-              qualityScore: item.attributes.efficiency,
-            }
-          }))
-        }
-      };
-    });
-  }
 
   // Template Management
-  @UseGuards(JwtAuthGuard)
-  @TsRestHandler(activitiesTemplatesContract.getActivityTemplates)
-  public getActivityTemplates(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesTemplatesContract.getActivityTemplates, async ({ query }) => {
-      const result = await this.templateService.getTemplates(req.user.organizationId, {
-        type: query.type,
-        cropType: query.cropType,
-        farmType: query.farmType,
-        search: query.search,
-      });
-      return { status: 200 as const, body: result };
-    });
-  }
+  
 
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(activitiesTemplatesContract.getActivityTemplate)
