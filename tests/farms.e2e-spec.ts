@@ -5,7 +5,6 @@ describe('Farms E2E Tests', () => {
   let testContext: TestContext;
   let accessToken: string;
   let organizationId: string;
-  let userId: string;
 
   beforeAll(async () => {
     testContext = new TestContext();
@@ -45,7 +44,7 @@ describe('Farms E2E Tests', () => {
 
     // Create test user
     const hashedPassword = await hash('TestPassword123!');
-    const user = await testContext.createUser({
+    await testContext.createUser({
       email: 'farmer@farmpro.app',
       name: 'Test Farmer',
       hashedPassword,
@@ -53,8 +52,6 @@ describe('Farms E2E Tests', () => {
       emailVerified: true,
       isActive: true
     });
-
-    userId = user.id;
 
     // Login to get access token
     const loginResponse = await testContext
