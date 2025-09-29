@@ -1074,9 +1074,9 @@ export class OrdersService {
     
     const order = await this.getOrderById(orderId);
     
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
+    // Check access - only supplier can make counter offers
+    if (order.supplierOrgId !== user.organizationId) {
+      throw new ForbiddenException('Only supplier can make counter offers');
     }
 
     const { message, changes, expiresAt } = data;
@@ -1118,8 +1118,8 @@ export class OrdersService {
       throw new ForbiddenException('Only order creator can confirm the order');
     }
 
-    if (order.status !== OrderStatus.CONFIRMED) {
-      throw new BadRequestException('Only confirmed orders can be finalized');
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException('Only pending orders can be confirmed');
     }
 
     const updatedOrder = await this.prisma.order.update({
@@ -1195,9 +1195,9 @@ export class OrdersService {
     
     const order = await this.getOrderById(orderId);
     
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
+    // Check access - only supplier can complete orders
+    if (order.supplierOrgId !== user.organizationId) {
+      throw new ForbiddenException('Only supplier can complete orders');
     }
 
     if (order.status !== OrderStatus.IN_TRANSIT) {
