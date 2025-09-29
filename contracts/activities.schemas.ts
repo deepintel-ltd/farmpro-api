@@ -191,12 +191,14 @@ export const UpdateProgressRequestSchema = z.object({
 });
 
 export const CompleteActivityRequestSchema = z.object({
-  completedAt: z.string().datetime(),
-  results: ActivityResultsSchema,
-  actualCost: z.number().nonnegative(),
+  completedAt: z.string().datetime().optional(),
+  actualDuration: z.number().positive().optional(),
+  results: ActivityResultsSchema.optional(),
+  actualCost: z.number().nonnegative().optional(),
   resourcesUsed: z.array(ResourceUsageSchema).default([]),
   issues: z.string().optional(),
   recommendations: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const PauseActivityRequestSchema = z.object({
@@ -401,6 +403,7 @@ export const TemplateQueryParams = z.object({
   type: ActivityTypeEnum.optional(),
   cropType: z.string().optional(),
   farmType: z.string().optional(),
+  search: z.string().optional(),
 });
 
 export const AnalyticsQueryParams = z.object({

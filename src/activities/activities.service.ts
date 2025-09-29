@@ -396,9 +396,11 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity
+    // Check if user is assigned to this activity or is the creator
     const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    if (!isAssigned) {
+    const isCreator = activity.createdById === userId;
+    
+    if (!isAssigned && !isCreator) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -419,15 +421,22 @@ export class ActivitiesService {
       where: { id: activityId },
       data: {
         status: 'IN_PROGRESS',
+        startedAt: new Date(),
         metadata: {
           ...(activity.metadata as object || {}),
-          startedAt: new Date().toISOString(),
+          percentComplete: 0,
+          actualResources: data.actualResources || [],
           location: data.location,
         },
       },
       include: {
         farm: { select: { id: true, name: true } },
+        area: { select: { id: true, name: true } },
         createdBy: { select: { id: true, name: true, email: true } },
+        assignments: {
+          where: { isActive: true },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        },
       },
     });
 
@@ -505,9 +514,11 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity
+    // Check if user is assigned to this activity or is the creator
     const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    if (!isAssigned) {
+    const isCreator = activity.createdById === userId;
+    
+    if (!isAssigned && !isCreator) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -529,10 +540,12 @@ export class ActivitiesService {
       where: { id: activityId },
       data: {
         status: 'COMPLETED',
-        completedAt: new Date(data.completedAt),
+        completedAt: data.completedAt ? new Date(data.completedAt) : new Date(),
+        actualDuration: data.actualDuration,
         cost: data.actualCost,
         metadata: {
           ...(activity.metadata as object || {}),
+          percentComplete: 100,
           results: data.results,
           issues: data.issues,
           recommendations: data.recommendations,
@@ -540,7 +553,12 @@ export class ActivitiesService {
       },
       include: {
         farm: { select: { id: true, name: true } },
+        area: { select: { id: true, name: true } },
         createdBy: { select: { id: true, name: true, email: true } },
+        assignments: {
+          where: { isActive: true },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        },
       },
     });
 
@@ -749,9 +767,11 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity
+    // Check if user is assigned to this activity or is the creator
     const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    if (!isAssigned) {
+    const isCreator = activity.createdById === userId;
+    
+    if (!isAssigned && !isCreator) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -794,9 +814,11 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity
+    // Check if user is assigned to this activity or is the creator
     const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    if (!isAssigned) {
+    const isCreator = activity.createdById === userId;
+    
+    if (!isAssigned && !isCreator) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 
@@ -1104,7 +1126,7 @@ export class ActivitiesService {
       instructions: activity.metadata?.instructions || '',
       safetyNotes: activity.metadata?.safetyNotes || '',
       estimatedCost: activity.metadata?.estimatedCost || 0,
-      actualCost: activity.metadata?.actualCost || null,
+      actualCost: activity.cost || activity.metadata?.actualCost || null,
       location: activity.metadata?.location || null,
       results: activity.metadata?.results || null,
       issues: activity.metadata?.issues || null,

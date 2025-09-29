@@ -13,10 +13,13 @@ export interface CreateTemplateDto {
 }
 
 export interface CreateFromTemplateDto {
+  name?: string;
   farmId: string;
   areaId?: string;
   cropCycleId?: string;
   scheduledAt: string;
+  priority?: string;
+  assignedTo?: string[];
   customizations?: {
     name?: string;
     assignedTo?: string[];
@@ -32,6 +35,7 @@ export class ActivityTemplateService {
     type?: string;
     cropType?: string;
     farmType?: string;
+    search?: string;
   } = {}) {
     const where: any = {
       OR: [
@@ -47,6 +51,13 @@ export class ActivityTemplateService {
     if (filters.cropType) {
       where.applicableCrops = {
         hasSome: [filters.cropType],
+      };
+    }
+
+    if (filters.search) {
+      where.name = {
+        contains: filters.search,
+        mode: 'insensitive',
       };
     }
 
@@ -174,8 +185,9 @@ export class ActivityTemplateService {
         areaId: data.areaId,
         cropCycleId: data.cropCycleId,
         type: template.attributes.type as any,
-        name: data.customizations?.name || template.attributes.name,
+        name: data.name || data.customizations?.name || template.attributes.name,
         description: template.attributes.description,
+        priority: data.priority as any || 'NORMAL',
         scheduledAt: new Date(data.scheduledAt),
         estimatedDuration: template.attributes.defaultDuration,
         createdById: userId,
@@ -189,9 +201,10 @@ export class ActivityTemplateService {
     });
 
     // Create assignments if specified
-    if (data.customizations?.assignedTo?.length) {
+    const assignedUsers = data.assignedTo || data.customizations?.assignedTo || [];
+    if (assignedUsers.length) {
       await Promise.all(
-        data.customizations.assignedTo.map(assignedUserId =>
+        assignedUsers.map(assignedUserId =>
           this.prisma.activityAssignment.create({
             data: {
               activityId: activity.id,
@@ -205,18 +218,63 @@ export class ActivityTemplateService {
       );
     }
 
+    // Fetch the full activity with relations for complete response
+    const fullActivity = await this.prisma.farmActivity.findUnique({
+      where: { id: activity.id },
+      include: {
+        farm: { select: { id: true, name: true } },
+        area: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        assignments: {
+          where: { isActive: true },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        },
+      },
+    });
+
+    if (!fullActivity) {
+      throw new NotFoundException('Activity not found after creation');
+    }
+
+    return {
+      id: fullActivity.id,
+      type: 'activities' as const,
+      attributes: this.formatActivityResponse(fullActivity),
+    };
+  }
+
+  private formatActivityResponse(activity: any) {
     return {
       id: activity.id,
-      type: 'activities' as const,
-      attributes: {
-        id: activity.id,
-        name: activity.name,
-        type: activity.type,
-        status: activity.status,
-        scheduledAt: activity.scheduledAt?.toISOString(),
-        templateId,
-        createdAt: activity.createdAt.toISOString(),
-      },
+      farmId: activity.farmId,
+      areaId: activity.areaId,
+      cropCycleId: activity.cropCycleId,
+      type: activity.type,
+      name: activity.name,
+      description: activity.description,
+      status: activity.status,
+      priority: activity.priority,
+      scheduledAt: activity.scheduledAt?.toISOString() || null,
+      completedAt: activity.completedAt?.toISOString() || null,
+      startedAt: activity.startedAt?.toISOString() || null,
+      estimatedDuration: activity.estimatedDuration,
+      actualDuration: activity.actualDuration,
+      percentComplete: (activity.metadata?.percentComplete as number) || 0,
+      assignedTo: activity.assignments?.map((assignment: any) => assignment.userId) || [],
+      resources: activity.metadata?.resources || [],
+      actualResources: activity.metadata?.actualResources || [],
+      instructions: activity.metadata?.instructions || '',
+      safetyNotes: activity.metadata?.safetyNotes || '',
+      estimatedCost: activity.metadata?.estimatedCost || 0,
+      actualCost: activity.cost || activity.metadata?.actualCost || null,
+      location: activity.metadata?.location || null,
+      results: activity.metadata?.results || null,
+      issues: activity.metadata?.issues || null,
+      recommendations: activity.metadata?.recommendations || null,
+      metadata: activity.metadata,
+      createdAt: activity.createdAt.toISOString(),
+      updatedAt: activity.updatedAt.toISOString(),
+      createdBy: activity.createdById,
     };
   }
 }

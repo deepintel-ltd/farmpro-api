@@ -462,7 +462,12 @@ export class ActivitiesController {
   @TsRestHandler(activitiesTemplatesContract.getActivityTemplates)
   public getActivityTemplates(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTemplatesContract.getActivityTemplates, async ({ query }) => {
-      const result = await this.templateService.getTemplates(req.user.organizationId, query);
+      const result = await this.templateService.getTemplates(req.user.organizationId, {
+        type: query.type,
+        cropType: query.cropType,
+        farmType: query.farmType,
+        search: query.search,
+      });
       return { status: 200 as const, body: result };
     });
   }

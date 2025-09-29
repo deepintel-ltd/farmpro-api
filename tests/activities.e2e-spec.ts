@@ -21,10 +21,10 @@ describe('Activities E2E Tests', () => {
   beforeEach(async () => {
     // Clean up activities-related tables before each test
     await testContext.cleanupTables([
-      'activityNotes',
-      'activityCosts',
-      'activityAssignments',
-      'farmActivities',
+      'activity_notes',
+      'activity_costs',
+      'activity_assignments',
+      'farm_activities',
       'farms',
       'areas',
       'users',
@@ -273,7 +273,9 @@ describe('Activities E2E Tests', () => {
 
       expect(response.body.data).toBeDefined();
       expect(response.body.meta).toBeDefined();
-      expect(response.body.meta.pagination).toBeDefined();
+      expect(response.body.meta.totalCount).toBeDefined();
+      expect(response.body.meta.page).toBeDefined();
+      expect(response.body.meta.pageSize).toBeDefined();
     });
 
     it('should fail without authentication', async () => {
@@ -444,11 +446,12 @@ describe('Activities E2E Tests', () => {
       expect(response.body.data.attributes.success).toBe(true);
       expect(response.body.data.attributes.message).toContain('cancelled successfully');
 
-      // Verify activity is deleted
-      const deletedActivity = await testContext.prisma.farmActivity.findUnique({
+      // Verify activity is cancelled (not deleted)
+      const cancelledActivity = await testContext.prisma.farmActivity.findUnique({
         where: { id: testActivity.id }
       });
-      expect(deletedActivity).toBeNull();
+      expect(cancelledActivity).toBeDefined();
+      expect(cancelledActivity?.status).toBe('CANCELLED');
     });
 
     it('should fail to delete non-existent activity', async () => {
@@ -948,7 +951,7 @@ describe('Activities E2E Tests', () => {
       it('should get completion rates', async () => {
         const response = await testContext
           .request()
-          .get(`/activities/analytics/completion-rates?farmId=${testFarm.id}&period=week`)
+          .get(`/activities/completion-rates?farmId=${testFarm.id}&period=week`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -959,7 +962,7 @@ describe('Activities E2E Tests', () => {
       it('should get cost analysis', async () => {
         const response = await testContext
           .request()
-          .get(`/activities/analytics/cost-analysis?farmId=${testFarm.id}&period=week`)
+          .get(`/activities/cost-analysis?farmId=${testFarm.id}&period=week`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect(200);
 
@@ -968,7 +971,7 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('POST /activities/analytics/reports', () => {
+    describe('POST /activities/reports', () => {
       it('should generate report successfully', async () => {
         const reportData = {
           reportType: 'activity_summary',
@@ -983,7 +986,7 @@ describe('Activities E2E Tests', () => {
 
         const response = await testContext
           .request()
-          .post('/activities/analytics/reports')
+          .post('/activities/reports')
           .set('Authorization', `Bearer ${accessToken}`)
           .send(reportData)
           .expect(202);
@@ -1190,7 +1193,7 @@ describe('Activities E2E Tests', () => {
       });
 
       // Create test activity
-      await testContext.prisma.farmActivity.create({
+      testActivity = await testContext.prisma.farmActivity.create({
         data: {
           name: 'Team Assignment Activity',
           description: 'Test activity for team assignment',
@@ -1255,7 +1258,7 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('POST /activities/:activityId/help-request', () => {
+    describe('POST /activities/:activityId/request-help', () => {
       it('should send help request successfully', async () => {
         const helpData = {
           message: 'Need assistance with equipment setup',
@@ -1265,7 +1268,7 @@ describe('Activities E2E Tests', () => {
 
         const response = await testContext
           .request()
-          .post(`/activities/${testActivity.id}/help-request`)
+          .post(`/activities/${testActivity.id}/request-help`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(helpData)
           .expect(200);
@@ -1283,7 +1286,7 @@ describe('Activities E2E Tests', () => {
 
         await testContext
           .request()
-          .post('/activities/non-existent-id/help-request')
+          .post('/activities/non-existent-id/request-help')
           .set('Authorization', `Bearer ${accessToken}`)
           .send(helpData)
           .expect(404);
@@ -1442,7 +1445,7 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('POST /activities/templates/:templateId/create-from-template', () => {
+    describe('POST /activities/from-template/:templateId', () => {
       it('should create activity from template successfully', async () => {
         const createData = {
           name: 'Corn Planting from Template',
@@ -1455,7 +1458,7 @@ describe('Activities E2E Tests', () => {
 
         const response = await testContext
           .request()
-          .post(`/activities/templates/${testTemplate.id}/create-from-template`)
+          .post(`/activities/from-template/${testTemplate.id}`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(createData)
           .expect(201);
@@ -1476,7 +1479,7 @@ describe('Activities E2E Tests', () => {
 
         await testContext
           .request()
-          .post('/activities/templates/non-existent-id/create-from-template')
+          .post('/activities/from-template/non-existent-id')
           .set('Authorization', `Bearer ${accessToken}`)
           .send(createData)
           .expect(404);
