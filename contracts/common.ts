@@ -59,6 +59,11 @@ export const UuidPathParam = (resourceName: string) =>
     id: z.string().uuid(`${resourceName} ID must be a valid UUID`),
   });
 
+export const CuidPathParam = (resourceName: string) =>
+  z.object({
+    id: z.string().cuid(`${resourceName} ID must be a valid CUID`),
+  });
+
 // =============================================================================
 // Contract Validation and Type Checking Utilities
 // =============================================================================

@@ -843,4 +843,141 @@ export class TestContext {
   async getDatabaseHealth(): Promise<{ healthy: boolean; error?: string }> {
     return await this._dbManager.getHealthStatus();
   }
+
+  /**
+   * Seed basic RBAC data for testing
+   */
+  async seedBasicRbacData(organizationId: string): Promise<void> {
+    // Create basic permissions
+    const permissions = await Promise.all([
+      this.prisma.permission.create({
+        data: {
+          resource: 'role',
+          action: 'create',
+          description: 'Create new roles',
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'role',
+          action: 'read',
+          description: 'View roles',
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'role',
+          action: 'update',
+          description: 'Update roles',
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'role',
+          action: 'delete',
+          description: 'Delete roles',
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'user',
+          action: 'read',
+          description: 'View users',
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'user',
+          action: 'update',
+          description: 'Update users',
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'permission',
+          action: 'read',
+          description: 'View permissions',
+        },
+      }),
+    ]);
+
+    // Create basic roles for the organization
+    const adminRole = await this.prisma.role.create({
+      data: {
+        name: 'Admin',
+        description: 'Administrator role with full access',
+        organizationId: organizationId,
+        level: 100,
+        isActive: true,
+        isSystemRole: true,
+      },
+    });
+
+    const managerRole = await this.prisma.role.create({
+      data: {
+        name: 'Manager',
+        description: 'Manager role with limited admin access',
+        organizationId: organizationId,
+        level: 75,
+        isActive: true,
+        isSystemRole: true,
+      },
+    });
+
+    const employeeRole = await this.prisma.role.create({
+      data: {
+        name: 'Employee',
+        description: 'Basic employee role',
+        organizationId: organizationId,
+        level: 25,
+        isActive: true,
+        isSystemRole: true,
+      },
+    });
+
+    // Assign permissions to admin role (all permissions)
+    await Promise.all(
+      permissions.map(permission =>
+        this.prisma.rolePermission.create({
+          data: {
+            roleId: adminRole.id,
+            permissionId: permission.id,
+            granted: true,
+          },
+        })
+      )
+    );
+
+    // Assign limited permissions to manager role
+    const managerPermissions = permissions.filter(p => 
+      p.resource === 'user' || (p.resource === 'role' && p.action === 'read')
+    );
+    await Promise.all(
+      managerPermissions.map(permission =>
+        this.prisma.rolePermission.create({
+          data: {
+            roleId: managerRole.id,
+            permissionId: permission.id,
+            granted: true,
+          },
+        })
+      )
+    );
+
+    // Assign basic permissions to employee role
+    const employeePermissions = permissions.filter(p => 
+      p.action === 'read'
+    );
+    await Promise.all(
+      employeePermissions.map(permission =>
+        this.prisma.rolePermission.create({
+          data: {
+            roleId: employeeRole.id,
+            permissionId: permission.id,
+            granted: true,
+          },
+        })
+      )
+    );
+  }
 }

@@ -184,7 +184,7 @@ export class RbacController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(rbacContract.getPermissions, async () => {
       try {
-        const result = await this.rbacService.getPermissions(query);
+        const result = await this.rbacService.getPermissions(req.user, query);
 
         this.logger.log(`Retrieved permissions`);
         return {

@@ -29,6 +29,12 @@ export class RbacService {
   }) {
     this.logger.log(`Getting roles for organization: ${user.organizationId}`, { query });
 
+    // Check if user has permission to read roles
+    const hasPermission = await this.hasPermission(user.userId, 'role', 'read');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to view roles');
+    }
+
     const page = query.page || 1;
     const limit = Math.min(query.limit || 25, 100);
     const skip = (page - 1) * limit;
@@ -92,6 +98,12 @@ export class RbacService {
   async getRole(roleId: string, user: CurrentUser): Promise<{ data: any }> {
     this.logger.log(`Getting role: ${roleId} for organization: ${user.organizationId}`);
 
+    // Check if user has permission to read roles
+    const hasPermission = await this.hasPermission(user.userId, 'role', 'read');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to view role');
+    }
+
     const role = await this.prisma.role.findFirst({
       where: {
         id: roleId,
@@ -126,6 +138,12 @@ export class RbacService {
 
   async createRole(user: CurrentUser, data: CreateRoleDto): Promise<{ data: any }> {
     this.logger.log(`Creating role: ${data.name} for organization: ${user.organizationId}`);
+
+    // Check if user has permission to create roles
+    const hasPermission = await this.hasPermission(user.userId, 'role', 'create');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to create role');
+    }
 
     // Check if role name already exists in organization
     const existingRole = await this.prisma.role.findFirst({
@@ -174,6 +192,12 @@ export class RbacService {
 
   async updateRole(roleId: string, user: CurrentUser, data: UpdateRoleDto): Promise<{ data: any }> {
     this.logger.log(`Updating role: ${roleId} for organization: ${user.organizationId}`);
+
+    // Check if user has permission to update roles
+    const hasPermission = await this.hasPermission(user.userId, 'role', 'update');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to update role');
+    }
 
     const existingRole = await this.prisma.role.findFirst({
       where: {
@@ -240,6 +264,12 @@ export class RbacService {
   async deleteRole(roleId: string, user: CurrentUser): Promise<{ data: any }> {
     this.logger.log(`Deleting role: ${roleId} for organization: ${user.organizationId}`);
 
+    // Check if user has permission to delete roles
+    const hasPermission = await this.hasPermission(user.userId, 'role', 'delete');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to delete role');
+    }
+
     const existingRole = await this.prisma.role.findFirst({
       where: {
         id: roleId,
@@ -290,13 +320,19 @@ export class RbacService {
   // Permission Management
   // =============================================================================
 
-  async getPermissions(query: {
+  async getPermissions(user: CurrentUser, query: {
     page?: number;
     limit?: number;
     resource?: string;
     action?: string;
   }) {
     this.logger.log(`Getting permissions`, { query });
+
+    // Check if user has permission to read permissions
+    const hasPermission = await this.hasPermission(user.userId, 'permission', 'read');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to view permissions');
+    }
 
     const page = query.page || 1;
     const limit = Math.min(query.limit || 25, 100);
@@ -327,7 +363,7 @@ export class RbacService {
     return {
       data: permissions.map(permission => ({
         id: permission.id,
-        type: 'permissions' as const,
+        type: 'permission' as const,
         attributes: {
           id: permission.id,
           resource: permission.resource,
@@ -370,7 +406,7 @@ export class RbacService {
     return {
       data: {
         id: 'permission-check',
-        type: 'permission-checks' as const,
+        type: 'permission-check' as const,
         attributes: result,
       },
     };
@@ -389,7 +425,7 @@ export class RbacService {
 
         return {
           id: `permission-check-${index}`,
-          type: 'permission-checks' as const,
+          type: 'permission-check' as const,
           attributes: {
             resource: permission.resource,
             action: permission.action,
@@ -437,7 +473,7 @@ export class RbacService {
     const permissions = userRoles.flatMap(userRole =>
       userRole.role.permissions.map(rolePermission => ({
         id: rolePermission.permission.id,
-        type: 'permissions' as const,
+        type: 'permission' as const,
         attributes: {
           id: rolePermission.permission.id,
           resource: rolePermission.permission.resource,
@@ -481,6 +517,12 @@ export class RbacService {
   async getUserRoles(userId: string, currentUser: CurrentUser) {
     this.logger.log(`Getting roles for user: ${userId} by admin: ${currentUser.userId}`);
 
+    // Check if user has permission to read user roles  
+    const hasPermission = await this.hasPermission(currentUser.userId, 'user', 'read');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to view user roles');
+    }
+
     // Check if target user is in same organization
     const targetUser = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -514,7 +556,7 @@ export class RbacService {
     return {
       data: userRoles.map(userRole => ({
         id: userRole.id,
-        type: 'user-roles' as const,
+        type: 'user-role' as const,
         attributes: {
           id: userRole.id,
           userId: userRole.userId,
@@ -550,6 +592,24 @@ export class RbacService {
   async bulkAssignRoles(user: CurrentUser, data: BulkAssignRolesDto): Promise<{ data: any }> {
     this.logger.log(`Bulk assigning role ${data.roleId} to ${data.userIds.length} users`);
 
+    // Check if user has permission to assign roles
+    const hasPermission = await this.hasPermission(user.userId, 'role', 'create');
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permissions to assign roles');
+    }
+
+    // Check if role exists first
+    const role = await this.prisma.role.findFirst({
+      where: {
+        id: data.roleId,
+        organizationId: user.organizationId,
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
     const results: Array<{ id: string; success: boolean; error?: string }> = [];
     let successCount = 0;
     let failureCount = 0;
@@ -566,20 +626,6 @@ export class RbacService {
 
         if (!targetUser) {
           results.push({ id: userId, success: false, error: 'User not found' });
-          failureCount++;
-          continue;
-        }
-
-        // Check if role exists
-        const role = await this.prisma.role.findFirst({
-          where: {
-            id: data.roleId,
-            organizationId: user.organizationId,
-          },
-        });
-
-        if (!role) {
-          results.push({ id: userId, success: false, error: 'Role not found' });
           failureCount++;
           continue;
         }
@@ -629,7 +675,7 @@ export class RbacService {
     return {
       data: {
         id: 'bulk-assign-roles',
-        type: 'bulk-operations' as const,
+        type: 'bulk-operation' as const,
         attributes: {
           successCount,
           failureCount,
@@ -678,7 +724,7 @@ export class RbacService {
   private formatRoleResponse(role: any): any {
     return {
       id: role.id,
-      type: 'roles' as const,
+      type: 'role' as const,
       attributes: {
         id: role.id,
         name: role.name,

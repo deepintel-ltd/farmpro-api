@@ -14,13 +14,15 @@ export class FarmsService {
   // =============================================================================
 
   async getFarms(query: {
-    page?: number;
-    limit?: number;
+    'page[number]'?: number;
+    'page[size]'?: number;
     search?: string;
     isActive?: boolean;
     organizationId?: string;
   }) {
-    const { page = 1, limit = 10, search, isActive, organizationId } = query;
+    const page = query['page[number]'] || 1;
+    const limit = query['page[size]'] || 10;
+    const { search, isActive, organizationId } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.FarmWhereInput = {
@@ -250,6 +252,7 @@ export class FarmsService {
         cropTypes: farm.cropTypes,
         establishedDate: farm.establishedDate.toISOString(),
         certifications: farm.certifications || [],
+        isActive: farm.isActive,
       },
       relationships: {
         organization: {

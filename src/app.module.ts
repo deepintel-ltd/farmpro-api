@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { AuthModule } from '@/auth/auth.module';
+import { RbacModule } from '@/rbac/rbac.module';
 import { FarmsModule } from '@/farms/farms.module';
 import { InventoryModule } from '@/inventory/inventory.module';
 import { OrganizationsModule } from '@/organizations/organizations.module';
@@ -28,6 +29,7 @@ import { getRateLimitConfig } from '@/common/config/rate-limit.config';
     ThrottlerModule.forRoot(getRateLimitConfig()),
     PrismaModule,
     AuthModule,
+    RbacModule,
     FarmsModule,
     InventoryModule,
     OrganizationsModule,
