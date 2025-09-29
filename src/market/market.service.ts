@@ -79,7 +79,8 @@ export class MarketService {
       totalPages: number;
     };
   }> {
-    const { page = 1, limit = 20 } = query;
+    const page = query['page[number]'] || query.page || 1;
+    const limit = query['page[size]'] || query.limit || 20;
     const filters: MarketplaceFilters = query;
     const skip = (page - 1) * limit;
 
@@ -174,7 +175,8 @@ export class MarketService {
     user: CurrentUser,
     query: any,
   ) {
-    const { page = 1, limit = 20 } = query;
+    const page = query['page[number]'] || query.page || 1;
+    const limit = query['page[size]'] || query.limit || 20;
     const filters: MarketplaceFilters = query;
     const skip = (page - 1) * limit;
 
@@ -317,7 +319,8 @@ export class MarketService {
     user: CurrentUser,
     query: any,
   ) {
-    const { page = 1, limit = 20 } = query;
+    const page = query['page[number]'] || query.page || 1;
+    const limit = query['page[size]'] || query.limit || 20;
     const filters: MarketplaceFilters = query;
     const skip = (page - 1) * limit;
 

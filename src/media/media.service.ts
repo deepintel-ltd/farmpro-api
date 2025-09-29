@@ -4,7 +4,7 @@ import { S3 } from 'aws-sdk';
 import { ConfigService } from '@nestjs/config';
 
 export interface UploadFileDto {
-  file: Express.Multer.File;
+  file: any;
   metadata: {
     context: string; // 'activity', 'order', 'observation', etc.
     contextId: string;
@@ -34,12 +34,28 @@ export class MediaService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.s3 = new S3({
-      accessKeyId: this.configService.get('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.configService.get('AWS_SECRET_ACCESS_KEY'),
-      region: this.configService.get('AWS_REGION') || 'us-east-1',
-    });
-    this.bucketName = this.configService.get('AWS_S3_BUCKET') || 'farmpro-media-dev';
+    // In test environment, use mock S3
+    if (process.env.NODE_ENV === 'test') {
+      this.s3 = {
+        upload: () => ({
+          promise: () => Promise.resolve({
+            Location: 'https://test-bucket.s3.amazonaws.com/test-key.jpg'
+          })
+        }),
+        deleteObject: () => ({
+          promise: () => Promise.resolve({})
+        }),
+        getSignedUrl: () => 'https://test-bucket.s3.amazonaws.com/test-key.jpg?signature=test'
+      } as any;
+      this.bucketName = 'farmpro-media-test';
+    } else {
+      this.s3 = new S3({
+        accessKeyId: this.configService.get('AWS_ACCESS_KEY_ID'),
+        secretAccessKey: this.configService.get('AWS_SECRET_ACCESS_KEY'),
+        region: this.configService.get('AWS_REGION') || 'us-east-1',
+      });
+      this.bucketName = this.configService.get('AWS_S3_BUCKET') || 'farmpro-media-dev';
+    }
   }
 
   async uploadFile(
@@ -110,24 +126,7 @@ export class MediaService {
         },
       });
 
-      return {
-        id: media.id,
-        type: 'media-file' as const,
-        attributes: {
-          id: media.id,
-          filename: media.filename,
-          mimeType: media.mimeType,
-          size: media.size,
-          context: uploadData.metadata.context,
-          contextId: uploadData.metadata.contextId,
-          uploadedAt: media.uploadedAt.toISOString(),
-          metadata: {
-            description: uploadData.metadata.description,
-            tags: uploadData.metadata.tags,
-            location: uploadData.metadata.location,
-          },
-        },
-      };
+      return this.formatMediaResponse(media);
     } catch (error) {
       throw new BadRequestException(`Failed to upload file: ${(error as Error).message}`);
     }
@@ -338,14 +337,27 @@ export class MediaService {
   }
 
   async getFileAudit(mediaId: string, organizationId: string) {
-    const media = await this.getFile(mediaId, organizationId);
-    const metadata = media.attributes as any;
+    const media = await this.prisma.media.findFirst({
+      where: {
+        id: mediaId,
+        metadata: {
+          path: ['organizationId'],
+          equals: organizationId
+        }
+      },
+    });
+
+    if (!media) {
+      throw new NotFoundException('File not found');
+    }
+
+    const metadata = media.metadata as any;
     
     return {
       mediaId,
-      filename: media.attributes.filename,
+      filename: media.filename,
       auditTrail: metadata?.auditTrail || [],
-      createdAt: media.attributes.uploadedAt,
+      createdAt: media.uploadedAt.toISOString(),
       uploadedBy: metadata?.uploadedBy,
     };
   }
@@ -496,7 +508,7 @@ export class MediaService {
     };
   }
 
-  private validateFile(file: Express.Multer.File) {
+  private validateFile(file: any) {
     const maxSize = 50 * 1024 * 1024; // 50MB
     const allowedTypes = [
       'image/jpeg',

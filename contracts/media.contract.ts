@@ -160,7 +160,7 @@ export const mediaContract = c.router({
     method: 'GET',
     path: '/media/:mediaId',
     pathParams: z.object({
-      mediaId: z.string(),
+      mediaId: z.string().min(1, "Media ID is required").regex(/^[a-zA-Z0-9]+$/, "Invalid media ID format"),
     }),
     summary: 'Get file details by ID',
     responses: {
@@ -174,7 +174,7 @@ export const mediaContract = c.router({
     method: 'GET',
     path: '/media/:mediaId/download',
     pathParams: z.object({
-      mediaId: z.string(),
+      mediaId: z.string().min(1, "Media ID is required").regex(/^[a-zA-Z0-9]+$/, "Invalid media ID format"),
     }),
     summary: 'Get secure download URL for file',
     responses: {
@@ -189,7 +189,7 @@ export const mediaContract = c.router({
     method: 'DELETE',
     path: '/media/:mediaId',
     pathParams: z.object({
-      mediaId: z.string(),
+      mediaId: z.string().min(1, "Media ID is required").regex(/^[a-zA-Z0-9]+$/, "Invalid media ID format"),
     }),
     body: DeleteFileRequestSchema,
     summary: 'Delete a file (only if user created it)',
@@ -206,7 +206,7 @@ export const mediaContract = c.router({
     method: 'GET',
     path: '/media/:mediaId/audit',
     pathParams: z.object({
-      mediaId: z.string(),
+      mediaId: z.string().min(1, "Media ID is required").regex(/^[a-zA-Z0-9]+$/, "Invalid media ID format"),
     }),
     summary: 'Get file audit trail',
     responses: {
@@ -220,7 +220,7 @@ export const mediaContract = c.router({
     method: 'POST',
     path: '/media/:mediaId/update',
     pathParams: z.object({
-      mediaId: z.string(),
+      mediaId: z.string().min(1, "Media ID is required").regex(/^[a-zA-Z0-9]+$/, "Invalid media ID format"),
     }),
     body: UpdateFileMetadataRequestSchema,
     summary: 'Update file metadata (only if user created it)',

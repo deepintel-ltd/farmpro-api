@@ -1,16 +1,11 @@
 import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { Request as ExpressRequest } from 'express';
 import { MarketService } from './market.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { marketContract } from '../../contracts/market.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
-
-interface AuthenticatedRequest extends ExpressRequest {
-  user: CurrentUser;
-}
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @ApiTags('market')
 @ApiBearerAuth('JWT-auth')
@@ -306,6 +301,7 @@ export class MarketController {
     );
   }
 
+  @TsRestHandler(marketContract.getMarketAnalysis)
   public getMarketAnalysis(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -338,6 +334,7 @@ export class MarketController {
   // Demand & Supply Matching
   // =============================================================================
 
+  @TsRestHandler(marketContract.getDemandForecast)
   public getDemandForecast(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -366,6 +363,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getSupplyOpportunities)
   public getSupplyOpportunities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -394,6 +392,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getBuyingOpportunities)
   public getBuyingOpportunities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -422,6 +421,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.createMatchRequest)
   public createMatchRequest(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -454,6 +454,7 @@ export class MarketController {
   // Contract Templates & Standards
   // =============================================================================
 
+  @TsRestHandler(marketContract.getContractTemplates)
   public getContractTemplates(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -482,6 +483,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getContractTemplate)
   public getContractTemplate(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -518,6 +520,7 @@ export class MarketController {
     );
   }
 
+  @TsRestHandler(marketContract.generateContract)
   public generateContract(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -550,6 +553,7 @@ export class MarketController {
   // Market Participation & Listings
   // =============================================================================
 
+  @TsRestHandler(marketContract.getMyListings)
   public getMyListings(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -578,6 +582,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.createListing)
   public createListing(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -606,6 +611,7 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.updateListing)
   public updateListing(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -643,6 +649,7 @@ export class MarketController {
     );
   }
 
+  @TsRestHandler(marketContract.deleteListing)
   public deleteListing(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -679,6 +686,7 @@ export class MarketController {
     );
   }
 
+  @TsRestHandler(marketContract.getListing)
   public getListing(
     @Request() req: AuthenticatedRequest,
   ) {

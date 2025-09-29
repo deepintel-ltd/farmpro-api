@@ -15,6 +15,7 @@ import { AnalyticsModule } from '@/analytics/analytics.module';
 import { OrdersModule } from '@/orders/orders.module';
 import { IntelligenceModule } from '@/intelligence/intelligence.module';
 import { ActivitiesModule } from '@/activities/activities.module';
+import { MediaModule } from '@/media/media.module';
 import { HealthModule } from '@/health/health.module';
 import { AppCacheModule } from '@/common/cache.module';
 import { BrevoModule } from '@/external-service/brevo/brevo.module';
@@ -38,6 +39,7 @@ import { getRateLimitConfig } from '@/common/config/rate-limit.config';
     OrdersModule,
     IntelligenceModule,
     ActivitiesModule,
+    MediaModule,
     HealthModule,
     AppCacheModule,
     BrevoModule,

@@ -2,15 +2,10 @@ import { Controller, UseGuards, UseInterceptors, BadRequestException, Request } 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { mediaContract } from '../../contracts/media.contract';
 import { MediaService } from './media.service';
-
-interface AuthenticatedRequest extends ExpressRequest {
-  user: CurrentUser;
-}
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @ApiTags('media')
 @ApiBearerAuth('JWT-auth')
@@ -23,7 +18,7 @@ export class MediaController {
   @UseInterceptors(FileInterceptor('file'))
   public uploadFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.uploadFile, async ({ body }) => {
-      const file = req.file as Express.Multer.File;
+      const file = req.file;
       
       if (!file) {
         throw new BadRequestException('No file provided');

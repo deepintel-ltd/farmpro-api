@@ -45,14 +45,14 @@ export const marketContract = c.router({
   // Browse available commodities in marketplace
   getMarketplaceCommodities: {
     method: 'GET',
-    path: '/api/marketplace/commodities',
+    path: '/marketplace/commodities',
     query: AllQueryParams.extend({
       category: z.string().optional(),
       location: z.string().optional(),
       priceRange: z.string().optional(), // "min-max" format
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
-      availability: z.boolean().optional(),
-      organic: z.boolean().optional(),
+      availability: z.coerce.boolean().optional(),
+      organic: z.coerce.boolean().optional(),
     }),
     responses: {
       200: MarketplaceCommodityCollectionSchema,
@@ -64,13 +64,13 @@ export const marketContract = c.router({
   // Browse commodity suppliers
   getMarketplaceSuppliers: {
     method: 'GET',
-    path: '/api/marketplace/suppliers',
+    path: '/marketplace/suppliers',
     query: AllQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       location: z.string().optional(),
-      rating: z.number().min(1).max(5).optional(),
+      rating: z.coerce.number().min(1).max(5).optional(),
       verificationStatus: z.enum(['verified', 'pending', 'rejected']).optional(),
-      deliveryDistance: z.number().positive().optional(),
+      deliveryDistance: z.coerce.number().positive().optional(),
     }),
     responses: {
       200: MarketplaceSupplierCollectionSchema,
@@ -82,8 +82,10 @@ export const marketContract = c.router({
   // Get detailed supplier profile
   getMarketplaceSupplier: {
     method: 'GET',
-    path: '/api/marketplace/suppliers/:supplierId',
-    pathParams: UuidPathParam('Supplier'),
+    path: '/marketplace/suppliers/:supplierId',
+    pathParams: z.object({
+      supplierId: z.string().cuid('Supplier ID must be a valid CUID'),
+    }),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: MarketplaceSupplierResourceSchema,
@@ -95,13 +97,13 @@ export const marketContract = c.router({
   // Browse commodity buyers
   getMarketplaceBuyers: {
     method: 'GET',
-    path: '/api/marketplace/buyers',
+    path: '/marketplace/buyers',
     query: AllQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       location: z.string().optional(),
-      orderVolume: z.number().positive().optional(),
-      rating: z.number().min(1).max(5).optional(),
-      paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])).optional(),
+      orderVolume: z.coerce.number().positive().optional(),
+      rating: z.coerce.number().min(1).max(5).optional(),
+      paymentTerms: z.string().transform((val) => val.split(',').map(term => term.trim())).pipe(z.array(z.enum(['cash', 'credit', 'escrow']))).optional(),
     }),
     responses: {
       200: MarketplaceBuyerCollectionSchema,
@@ -113,7 +115,7 @@ export const marketContract = c.router({
   // Advanced marketplace search
   searchMarketplace: {
     method: 'POST',
-    path: '/api/marketplace/search',
+    path: '/marketplace/search',
     body: MarketplaceSearchRequestSchema,
     responses: {
       200: MarketplaceSearchResponseSchema,
@@ -129,9 +131,9 @@ export const marketContract = c.router({
   // Get commodity price trends
   getPriceTrends: {
     method: 'GET',
-    path: '/api/marketplace/price-trends',
+    path: '/marketplace/price-trends',
     query: CommonQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       region: z.string().optional(),
       period: z.enum(['7d', '30d', '90d', '1y']).optional(),
       grade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
@@ -146,7 +148,7 @@ export const marketContract = c.router({
   // Get price alert notifications
   getPriceAlerts: {
     method: 'GET',
-    path: '/api/marketplace/price-alerts',
+    path: '/marketplace/price-alerts',
     query: CommonQueryParams,
     responses: {
       200: PriceAlertCollectionSchema,
@@ -158,7 +160,7 @@ export const marketContract = c.router({
   // Create price alert
   createPriceAlert: {
     method: 'POST',
-    path: '/api/marketplace/price-alerts',
+    path: '/marketplace/price-alerts',
     body: PriceAlertRequestSchema,
     responses: {
       201: PriceAlertResourceSchema,
@@ -170,8 +172,10 @@ export const marketContract = c.router({
   // Remove price alert
   deletePriceAlert: {
     method: 'DELETE',
-    path: '/api/marketplace/price-alerts/:alertId',
-    pathParams: UuidPathParam('PriceAlert'),
+    path: '/marketplace/price-alerts/:alertId',
+    pathParams: z.object({
+      alertId: z.string().cuid('Price Alert ID must be a valid CUID'),
+    }),
     body: c.noBody(),
     responses: {
       200: z.object({ message: z.string() }),
@@ -183,9 +187,9 @@ export const marketContract = c.router({
   // Get market analysis report
   getMarketAnalysis: {
     method: 'GET',
-    path: '/api/marketplace/market-analysis',
+    path: '/marketplace/market-analysis',
     query: CommonQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       region: z.string().optional(),
       period: z.enum(['7d', '30d', '90d', '1y']).optional(),
     }),
@@ -203,9 +207,9 @@ export const marketContract = c.router({
   // Get demand forecasting data
   getDemandForecast: {
     method: 'GET',
-    path: '/api/marketplace/demand-forecast',
+    path: '/marketplace/demand-forecast',
     query: CommonQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       region: z.string().optional(),
       timeframe: z.enum(['1m', '3m', '6m', '1y']).optional(),
     }),
@@ -219,9 +223,9 @@ export const marketContract = c.router({
   // Find supply opportunities for farmers
   getSupplyOpportunities: {
     method: 'GET',
-    path: '/api/marketplace/supply-opportunities',
+    path: '/marketplace/supply-opportunities',
     query: AllQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       location: z.string().optional(),
       deliveryDate: z.string().datetime().optional(),
       priceRange: z.string().optional(), // "min-max" format
@@ -236,9 +240,9 @@ export const marketContract = c.router({
   // Find buying opportunities for buyers
   getBuyingOpportunities: {
     method: 'GET',
-    path: '/api/marketplace/buying-opportunities',
+    path: '/marketplace/buying-opportunities',
     query: AllQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       location: z.string().optional(),
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
       priceRange: z.string().optional(), // "min-max" format
@@ -253,7 +257,7 @@ export const marketContract = c.router({
   // Request AI-powered matching
   createMatchRequest: {
     method: 'POST',
-    path: '/api/marketplace/match-requests',
+    path: '/marketplace/match-requests',
     body: MatchRequestSchema,
     responses: {
       200: MatchResponseSchema,
@@ -269,9 +273,9 @@ export const marketContract = c.router({
   // List available contract templates
   getContractTemplates: {
     method: 'GET',
-    path: '/api/marketplace/contract-templates',
+    path: '/marketplace/contract-templates',
     query: AllQueryParams.extend({
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       type: z.enum(['purchase', 'sale', 'supply', 'distribution']).optional(),
       region: z.string().optional(),
     }),
@@ -285,8 +289,10 @@ export const marketContract = c.router({
   // Get contract template details
   getContractTemplate: {
     method: 'GET',
-    path: '/api/marketplace/contract-templates/:templateId',
-    pathParams: UuidPathParam('ContractTemplate'),
+    path: '/marketplace/contract-templates/:templateId',
+    pathParams: z.object({
+      templateId: z.string().cuid('Contract Template ID must be a valid CUID'),
+    }),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: ContractTemplateResourceSchema,
@@ -298,7 +304,7 @@ export const marketContract = c.router({
   // Generate contract from template
   generateContract: {
     method: 'POST',
-    path: '/api/marketplace/contracts/generate',
+    path: '/marketplace/contracts/generate',
     body: ContractGenerationRequestSchema,
     responses: {
       201: ContractGenerationResponseSchema,
@@ -314,10 +320,10 @@ export const marketContract = c.router({
   // Get user's marketplace listings
   getMyListings: {
     method: 'GET',
-    path: '/api/marketplace/my-listings',
+    path: '/marketplace/my-listings',
     query: AllQueryParams.extend({
       status: z.enum(['active', 'inactive', 'expired', 'sold']).optional(),
-      commodityId: z.string().uuid().optional(),
+      commodityId: z.string().cuid().optional(),
       expiryDate: z.string().datetime().optional(),
     }),
     responses: {
@@ -330,7 +336,7 @@ export const marketContract = c.router({
   // Create marketplace listing
   createListing: {
     method: 'POST',
-    path: '/api/marketplace/listings',
+    path: '/marketplace/listings',
     body: CreateListingRequestSchema,
     responses: {
       201: MarketplaceListingResourceSchema,
@@ -342,8 +348,10 @@ export const marketContract = c.router({
   // Update marketplace listing
   updateListing: {
     method: 'PATCH',
-    path: '/api/marketplace/listings/:listingId',
-    pathParams: UuidPathParam('MarketplaceListing'),
+    path: '/marketplace/listings/:listingId',
+    pathParams: z.object({
+      listingId: z.string().cuid('Marketplace Listing ID must be a valid CUID'),
+    }),
     body: UpdateListingRequestSchema,
     responses: {
       200: MarketplaceListingResourceSchema,
@@ -355,8 +363,10 @@ export const marketContract = c.router({
   // Delete marketplace listing
   deleteListing: {
     method: 'DELETE',
-    path: '/api/marketplace/listings/:listingId',
-    pathParams: UuidPathParam('MarketplaceListing'),
+    path: '/marketplace/listings/:listingId',
+    pathParams: z.object({
+      listingId: z.string().cuid('Marketplace Listing ID must be a valid CUID'),
+    }),
     body: c.noBody(),
     responses: {
       200: z.object({ message: z.string() }),
@@ -368,8 +378,10 @@ export const marketContract = c.router({
   // Get marketplace listing details
   getListing: {
     method: 'GET',
-    path: '/api/marketplace/listings/:listingId',
-    pathParams: UuidPathParam('MarketplaceListing'),
+    path: '/marketplace/listings/:listingId',
+    pathParams: z.object({
+      listingId: z.string().cuid('Marketplace Listing ID must be a valid CUID'),
+    }),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
       200: MarketplaceListingResourceSchema,
