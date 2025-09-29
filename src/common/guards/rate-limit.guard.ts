@@ -60,6 +60,7 @@ export class RateLimitGuard extends ThrottlerGuard {
 
   protected async getTtl(context: ExecutionContext): Promise<number> {
     // All limits are per minute (60 seconds)
+    this.logger.debug('Getting TTL for context', context);
     return 60;
   }
 
