@@ -6,6 +6,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
+import {
+  MarketplaceSearchRequestSchema,
+  PriceAlertRequestSchema,
+  MatchRequestSchema,
+  ContractGenerationRequestSchema,
+  CreateListingRequestSchema,
+  UpdateListingRequestSchema,
+} from '../../contracts/market.schemas';
 
 interface MarketplaceFilters {
   category?: string;
@@ -383,7 +392,7 @@ export class MarketService {
     };
   }
 
-  async searchMarketplace(_user: CurrentUser, searchRequest: any) {
+  async searchMarketplace(_user: CurrentUser, searchRequest: z.infer<typeof MarketplaceSearchRequestSchema>) {
     // This would implement advanced search logic
     // For now, return a basic implementation
     // Extract search parameters (currently unused in mock implementation)
@@ -466,13 +475,13 @@ export class MarketService {
     };
   }
 
-  async createPriceAlert(_user: CurrentUser, alertData: any) {
+  async createPriceAlert(_user: CurrentUser, alertData: z.infer<typeof PriceAlertRequestSchema>) {
     // Mock implementation - would create price alert
     const alert = {
       id: 'mock-alert-id',
       type: 'price-alerts',
       attributes: {
-        ...alertData.attributes,
+        ...alertData.data.attributes,
         isActive: true,
         createdAt: new Date().toISOString(),
       },
@@ -608,15 +617,15 @@ export class MarketService {
     };
   }
 
-  async createMatchRequest(_user: CurrentUser, matchData: any) {
+  async createMatchRequest(_user: CurrentUser, matchData: z.infer<typeof MatchRequestSchema>) {
     // Mock implementation - would create match request
     return {
       matches: [],
       totalMatches: 0,
       searchCriteria: {
-        commodityId: matchData.attributes.commodityId,
-        quantity: matchData.attributes.quantity,
-        maxDistance: matchData.attributes.maxDistance,
+        commodityId: matchData.data.attributes.commodityId,
+        quantity: matchData.data.attributes.quantity,
+        maxDistance: matchData.data.attributes.maxDistance,
       },
     };
   }
@@ -680,14 +689,14 @@ export class MarketService {
     };
   }
 
-  async generateContract(_user: CurrentUser, contractData: any) {
+  async generateContract(_user: CurrentUser, contractData: z.infer<typeof ContractGenerationRequestSchema>) {
     // Mock implementation - would generate contract
     return {
       contractId: 'mock-contract-id',
-      templateId: contractData.attributes.templateId,
-      orderId: contractData.attributes.orderId,
+      templateId: contractData.data.attributes.templateId,
+      orderId: contractData.data.attributes.orderId,
       generatedContract: 'Mock contract content',
-      customizations: contractData.attributes.customizations,
+      customizations: contractData.data.attributes.customizations,
       status: 'draft' as const,
       createdAt: new Date().toISOString(),
     };
@@ -721,13 +730,13 @@ export class MarketService {
     };
   }
 
-  async createListing(_user: CurrentUser, listingData: any) {
+  async createListing(_user: CurrentUser, listingData: z.infer<typeof CreateListingRequestSchema>) {
     // Mock implementation - would create listing
     const listing = {
       id: 'mock-listing-id',
       type: 'marketplace-listings',
       attributes: {
-        ...listingData.attributes,
+        ...listingData.data.attributes,
         status: 'active' as const,
         views: 0,
         inquiries: 0,
@@ -739,13 +748,13 @@ export class MarketService {
     return { data: listing };
   }
 
-  async updateListing(_user: CurrentUser, listingId: string, listingData: any) {
+  async updateListing(_user: CurrentUser, listingId: string, listingData: z.infer<typeof UpdateListingRequestSchema>) {
     // Mock implementation - would update listing
     const listing = {
       id: listingId,
       type: 'marketplace-listings',
       attributes: {
-        ...listingData.attributes,
+        ...listingData.data.attributes,
         updatedAt: new Date().toISOString(),
       },
     };

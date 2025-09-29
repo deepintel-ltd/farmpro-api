@@ -244,7 +244,7 @@ describe('Market E2E Tests', () => {
     });
 
     it('should fail with non-existent supplier', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
+      const fakeId = 'cmg5ll4nm00041cwada47hf8n'; // Valid CUID format but non-existent
       await testContext
         .request()
         .get(`/marketplace/suppliers/${fakeId}`)
@@ -308,10 +308,18 @@ describe('Market E2E Tests', () => {
       const searchRequest = {
         query: 'corn',
         filters: {
-          category: 'grain',
-          location: 'Test City'
+          location: {
+            center: {
+              lat: 37.7749,
+              lng: -122.4194
+            },
+            radius: 50
+          }
         },
-        sort: 'price_asc',
+        sort: {
+          field: 'price',
+          direction: 'asc'
+        },
         limit: 20
       };
 
@@ -321,7 +329,6 @@ describe('Market E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send(searchRequest)
         .expect(200);
-
       expect(response.body.data).toBeDefined();
       expect(response.body.data.type).toBe('marketplace-search-results');
       expect(response.body.data.attributes).toBeDefined();
@@ -331,7 +338,10 @@ describe('Market E2E Tests', () => {
       const searchRequest = {
         query: '',
         filters: {},
-        sort: 'relevance',
+        sort: {
+          field: 'price',
+          direction: 'asc'
+        },
         limit: 20
       };
 
@@ -341,7 +351,6 @@ describe('Market E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send(searchRequest)
         .expect(200);
-
       expect(response.body.data).toBeDefined();
     });
 
@@ -451,9 +460,9 @@ describe('Market E2E Tests', () => {
           type: 'price-alerts',
           attributes: {
             commodityId: testCommodity.id,
-            condition: 'above',
-            targetPrice: 300.0,
-            isActive: true
+            alertType: 'above',
+            threshold: 300.0,
+            notifications: ['email', 'push']
           }
         }
       };
@@ -464,7 +473,6 @@ describe('Market E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send(alertData)
         .expect(201);
-
       expect(response.body.data).toBeDefined();
       expect(response.body.data.type).toBe('price-alerts');
       expect(response.body.data.attributes).toBeDefined();
@@ -512,14 +520,13 @@ describe('Market E2E Tests', () => {
 
   describe('DELETE /marketplace/price-alerts/:alertId', () => {
     it('should delete price alert successfully', async () => {
-      const alertId = 'test-alert-id';
+      const alertId = 'cmg5ll4nm00041cwada47hf8n'; // Valid CUID format
       
       const response = await testContext
         .request()
         .delete(`/marketplace/price-alerts/${alertId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-
       expect(response.body.message).toBeDefined();
     });
 
@@ -699,10 +706,15 @@ describe('Market E2E Tests', () => {
         data: {
           type: 'match-requests',
           attributes: {
+            type: 'supply',
             commodityId: testCommodity.id,
             quantity: 100,
+            location: {
+              lat: 37.7749,
+              lng: -122.4194
+            },
             maxDistance: 50,
-            qualityGrade: 'premium',
+            deliveryDate: '2024-12-31T23:59:59Z',
             priceRange: { min: 200, max: 300 }
           }
         }
@@ -714,7 +726,6 @@ describe('Market E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send(matchData)
         .expect(200);
-
       expect(response.body).toBeDefined();
       expect(response.body.matches).toBeDefined();
       expect(response.body.totalMatches).toBeDefined();
@@ -810,14 +821,13 @@ describe('Market E2E Tests', () => {
 
   describe('GET /marketplace/contract-templates/:templateId', () => {
     it('should get specific contract template successfully', async () => {
-      const templateId = 'test-template-id';
+      const templateId = 'cmg5ll4nm00041cwada47hf8n'; // Valid CUID format
       
       const response = await testContext
         .request()
         .get(`/marketplace/contract-templates/${templateId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-
       expect(response.body.data).toBeDefined();
       expect(response.body.data.type).toBe('contract-templates');
       expect(response.body.data.attributes).toBeDefined();

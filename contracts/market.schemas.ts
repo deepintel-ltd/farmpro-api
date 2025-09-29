@@ -231,7 +231,7 @@ export const PriceAlertRequestSchema = z.object({
   data: z.object({
     type: z.literal('price-alerts'),
     attributes: z.object({
-      commodityId: z.string().uuid(),
+      commodityId: z.string().cuid(),
       region: z.string().optional(),
       alertType: z.enum(['above', 'below', 'change']),
       threshold: z.number().positive(),
@@ -367,7 +367,7 @@ export const MatchRequestSchema = z.object({
     type: z.literal('match-requests'),
     attributes: z.object({
       type: z.enum(['supply', 'demand']),
-      commodityId: z.string().uuid(),
+      commodityId: z.string().cuid(),
       quantity: z.number().positive(),
       qualityRequirements: z.record(z.string(), z.any()).optional(),
       location: z.object({
