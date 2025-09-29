@@ -466,9 +466,11 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity
+    // Check if user is assigned to this activity or is the creator
     const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    if (!isAssigned) {
+    const isCreator = activity.createdById === userId;
+    
+    if (!isAssigned && !isCreator) {
       throw new ForbiddenException('Not assigned to this activity');
     }
 

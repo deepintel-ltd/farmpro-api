@@ -8,6 +8,7 @@ describe('Activities E2E Tests', () => {
   let testFarm: any;
   let testArea: any;
   let accessToken: string;
+  const nonExistentFarmId = 'cixf02ym000001b66m45ae4k8';
 
   beforeAll(async () => {
     testContext = new TestContext();
@@ -180,7 +181,7 @@ describe('Activities E2E Tests', () => {
         name: 'Test Activity',
         type: 'PLANTING',
         priority: 'NORMAL',
-        farmId: 'non-existent-farm-id'
+        farmId: nonExistentFarmId
       };
 
       await testContext
@@ -1116,7 +1117,7 @@ describe('Activities E2E Tests', () => {
 
         const response = await testContext
           .request()
-          .post('/activities/bulk-update')
+          .patch('/activities/bulk-update')
           .set('Authorization', `Bearer ${accessToken}`)
           .send(updateData)
           .expect(200);

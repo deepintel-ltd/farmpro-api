@@ -107,7 +107,7 @@ export const activitiesSchedulingContract = c.router({
 
   // Bulk delete
   bulkDelete: {
-    method: 'DELETE',
+    method: 'POST',
     path: '/activities/bulk-delete',
     body: BulkDeleteRequestSchema,
     responses: {

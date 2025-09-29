@@ -18,6 +18,8 @@ import { DatabaseTestManager } from './database-test-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppModule } from '../app.module';
 import * as request from 'supertest';
+import { MockOpenAIService } from './mocks/openai.mock';
+import { OpenAIService } from '@/intelligence/openai.service';
 
 // Type definitions for entities with relations
 type OrganizationWithRelations = Organization;
@@ -126,6 +128,8 @@ export class TestContext {
     })
       .overrideProvider(PrismaService)
       .useValue(this._prisma)
+      .overrideProvider(OpenAIService)
+      .useValue(new MockOpenAIService())
       .compile();
 
     // Create NestJS application instance

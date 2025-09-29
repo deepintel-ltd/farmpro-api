@@ -36,7 +36,7 @@ export const AnalyticsChartSchema = z.object({
 });
 
 export const AnalyticsInsightSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().cuid(),
   title: z.string(),
   description: z.string(),
   category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']),
@@ -63,7 +63,7 @@ export const AnalyticsResponseSchema = z.object({
     id: z.string(),
     attributes: z.object({
       period: AnalyticsPeriodSchema,
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
       metrics: z.array(AnalyticsMetricSchema),
       charts: z.array(AnalyticsChartSchema),
       insights: z.array(AnalyticsInsightSchema).optional(),
@@ -80,43 +80,43 @@ export const AnalyticsResponseSchema = z.object({
 
 export const BaseAnalyticsQuerySchema = z.object({
   period: AnalyticsPeriodSchema.optional().default('month'),
-  farmId: z.string().uuid().optional(),
-  includeInsights: z.boolean().optional().default(true),
-  useCache: z.boolean().optional().default(true),
+  farmId: z.string().cuid().optional(),
+  includeInsights: z.coerce.boolean().optional().default(true),
+  useCache: z.coerce.boolean().optional().default(true),
 });
 
 export const FinancialQuerySchema = BaseAnalyticsQuerySchema.extend({
-  commodityId: z.string().uuid().optional(),
-  includeBreakdown: z.boolean().optional().default(false),
-  compareWithPrevious: z.boolean().optional().default(true),
+  commodityId: z.string().cuid().optional(),
+  includeBreakdown: z.coerce.boolean().optional().default(false),
+  compareWithPrevious: z.coerce.boolean().optional().default(true),
 });
 
 export const ActivityQuerySchema = BaseAnalyticsQuerySchema.extend({
   activityType: z.string().optional(),
-  includeEfficiency: z.boolean().optional().default(true),
-  includeCosts: z.boolean().optional().default(true),
+  includeEfficiency: z.coerce.boolean().optional().default(true),
+  includeCosts: z.coerce.boolean().optional().default(true),
 });
 
 export const MarketQuerySchema = BaseAnalyticsQuerySchema.extend({
-  commodityId: z.string().uuid().optional(),
+  commodityId: z.string().cuid().optional(),
   region: z.string().optional(),
-  includePredictions: z.boolean().optional().default(false),
+  includePredictions: z.coerce.boolean().optional().default(false),
 });
 
 export const FarmToMarketQuerySchema = BaseAnalyticsQuerySchema.extend({
-  cropCycleId: z.string().uuid().optional(),
-  commodityId: z.string().uuid().optional(),
-  includeQuality: z.boolean().optional().default(true),
-  includePricing: z.boolean().optional().default(true),
+  cropCycleId: z.string().cuid().optional(),
+  commodityId: z.string().cuid().optional(),
+  includeQuality: z.coerce.boolean().optional().default(true),
+  includePricing: z.coerce.boolean().optional().default(true),
 });
 
 export const ExportRequestSchema = z.object({
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   format: z.enum(['csv', 'excel', 'json']),
   period: AnalyticsPeriodSchema,
-  farmId: z.string().uuid().optional(),
-  includeCharts: z.boolean().optional().default(false),
-  includeInsights: z.boolean().optional().default(true),
+  farmId: z.string().cuid().optional(),
+  includeCharts: z.coerce.boolean().optional().default(false),
+  includeInsights: z.coerce.boolean().optional().default(true),
 });
 
 export const ReportRequestSchema = z.object({
@@ -124,10 +124,10 @@ export const ReportRequestSchema = z.object({
   title: z.string(),
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   period: AnalyticsPeriodSchema,
-  farmIds: z.array(z.string().uuid()).optional(),
-  commodities: z.array(z.string().uuid()).optional(),
-  includeComparisons: z.boolean().optional().default(false),
-  includePredictions: z.boolean().optional().default(false),
+  farmIds: z.array(z.string().cuid()).optional(),
+  commodities: z.array(z.string().cuid()).optional(),
+  includeComparisons: z.coerce.boolean().optional().default(false),
+  includePredictions: z.coerce.boolean().optional().default(false),
   format: z.enum(['pdf', 'html', 'excel']),
   recipients: z.array(z.string().email()).optional(),
 });
@@ -257,7 +257,7 @@ export const analyticsContract = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('analytics_export'),
-          id: z.string().uuid(),
+          id: z.string().cuid(),
           attributes: z.object({
             status: z.literal('processing'),
             downloadUrl: z.string().url(),
@@ -284,7 +284,7 @@ export const analyticsContract = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('analytics_report'),
-          id: z.string().uuid(),
+          id: z.string().cuid(),
           attributes: z.object({
             status: z.literal('generating'),
             title: z.string(),

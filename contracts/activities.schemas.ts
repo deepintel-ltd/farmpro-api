@@ -152,9 +152,9 @@ export const CreateActivityRequestSchema = z.object({
   cropCycleId: z.string().optional(),
   type: ActivityTypeEnum,
   name: z.string().min(1).max(255),
-  description: z.string(),
+  description: z.string().default(''),
   scheduledAt: z.string().datetime(),
-  estimatedDuration: z.number().positive(),
+  estimatedDuration: z.number().positive().optional(),
   priority: ActivityPriorityEnum.default('NORMAL'),
   assignedTo: z.array(z.string()).default([]),
   resources: z.array(ResourceSchema).default([]),
@@ -221,10 +221,13 @@ export const CreateActivityTemplateRequestSchema = z.object({
 });
 
 export const CreateFromTemplateRequestSchema = z.object({
+  name: z.string().optional(),
   farmId: z.string(),
   areaId: z.string().optional(),
   cropCycleId: z.string().optional(),
   scheduledAt: z.string().datetime(),
+  priority: ActivityPriorityEnum.optional(),
+  assignedTo: z.array(z.string()).optional(),
   customizations: z.object({
     name: z.string().optional(),
     assignedTo: z.array(z.string()).optional(),

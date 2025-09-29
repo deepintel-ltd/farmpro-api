@@ -506,7 +506,13 @@ export class AnalyticsService {
 
   private async getActivityCount(whereClause: WhereClause) {
     const result = await this.prisma.farmActivity.count({
-      where: whereClause
+      where: {
+        farm: {
+          organizationId: whereClause.organizationId
+        },
+        ...(whereClause.farmId && { farmId: whereClause.farmId }),
+        ...(whereClause.createdAt && { createdAt: whereClause.createdAt })
+      }
     });
     return result;
   }
@@ -1067,7 +1073,7 @@ export class AnalyticsService {
   private buildActivityMetrics(activities: any, efficiency: any, costs: any): AnalyticsMetric[] {
     const completionRate = activities.totalActivities > 0 ? (activities.completedActivities / activities.totalActivities) * 100 : 0;
     const avgDuration = activities.avgDuration || 0;
-    const costPerActivity = costs.avgCostPerActivity || 0;
+    const costPerActivity = costs?.avgCostPerActivity || 0;
 
     return [
       {
@@ -1090,9 +1096,9 @@ export class AnalyticsService {
       },
       {
         name: 'Resource Efficiency',
-        value: Math.round((efficiency.efficiency || 0) * 100) / 100,
+        value: Math.round((efficiency?.efficiency || 0) * 100) / 100,
         unit: 'USD/activity',
-        trend: efficiency.efficiency >= 1000 ? 'up' : efficiency.efficiency >= 500 ? 'stable' : 'down'
+        trend: (efficiency?.efficiency || 0) >= 1000 ? 'up' : (efficiency?.efficiency || 0) >= 500 ? 'stable' : 'down'
       }
     ];
   }
@@ -1113,8 +1119,8 @@ export class AnalyticsService {
         type: 'line',
         title: 'Resource Efficiency Trend',
         data: [
-          { label: 'Efficiency', value: efficiency.efficiency || 0, timestamp: new Date().toISOString() },
-          { label: 'Utilization', value: efficiency.resourceUtilization || 0, timestamp: new Date().toISOString() }
+          { label: 'Efficiency', value: efficiency?.efficiency || 0, timestamp: new Date().toISOString() },
+          { label: 'Utilization', value: efficiency?.resourceUtilization || 0, timestamp: new Date().toISOString() }
         ],
         xAxis: 'Metric',
         yAxis: 'Value'
@@ -1124,7 +1130,7 @@ export class AnalyticsService {
 
   private buildActivitySummary(activities: any, costs: any): AnalyticsSummary {
     const completionRate = activities.totalActivities > 0 ? (activities.completedActivities / activities.totalActivities) * 100 : 0;
-    const totalCosts = costs.totalCosts || 0;
+    const totalCosts = costs?.totalCosts || 0;
     
     return {
       totalRevenue: 0, // Activities don't directly generate revenue
@@ -1141,9 +1147,9 @@ export class AnalyticsService {
     const totalSales = salesData.totalSales || 0;
     const avgOrderValue = salesData.avgOrderValue || 0;
     const customerCount = salesData.customerCount || 0;
-    const repeatCustomers = customerData.repeatCustomers || 0;
-    const totalCustomers = customerData.totalCustomers || 0;
-    const avgPrice = pricingData.avgPrice || 0;
+    const repeatCustomers = customerData?.repeatCustomers || 0;
+    const totalCustomers = customerData?.totalCustomers || 0;
+    const avgPrice = pricingData?.avgPrice || 0;
 
     return [
       {
@@ -1174,7 +1180,7 @@ export class AnalyticsService {
         name: 'Average Price',
         value: Math.round(avgPrice * 100) / 100,
         unit: 'USD',
-        trend: pricingData.priceTrend || 'stable'
+        trend: pricingData?.priceTrend || 'stable'
       }
     ];
   }
@@ -1384,7 +1390,7 @@ export class AnalyticsService {
     }
 
     // Validate farmId format if provided
-    if (query.farmId && !this.isValidUUID(query.farmId)) {
+    if (query.farmId && !this.isValidCUID(query.farmId)) {
       throw new Error('Invalid farmId format');
     }
 
@@ -1412,6 +1418,11 @@ export class AnalyticsService {
   private isValidUUID(uuid: string): boolean {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
+  }
+
+  private isValidCUID(cuid: string): boolean {
+    const cuidRegex = /^c[0-9a-z]{24}$/i;
+    return cuidRegex.test(cuid);
   }
 
 
