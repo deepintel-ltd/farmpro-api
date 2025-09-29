@@ -21,6 +21,7 @@ import { AppCacheModule } from '@/common/cache.module';
 import { BrevoModule } from '@/external-service/brevo/brevo.module';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { getRateLimitConfig } from '@/common/config/rate-limit.config';
+import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { getRateLimitConfig } from '@/common/config/rate-limit.config';
     PrismaModule,
     AuthModule,
     RbacModule,
+    PlatformAdminModule,
     FarmsModule,
     InventoryModule,
     OrganizationsModule,

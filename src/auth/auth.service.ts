@@ -94,6 +94,11 @@ export class AuthService {
     const hashedPassword = await this.hashPassword(password);
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Initialize organization features based on type and plan
+      const { allowedModules, features } = await import('@/common/config/organization-features.config').then(m =>
+        m.initializeOrganizationFeatures(organizationType, 'basic')
+      );
+
       const organization = await tx.organization.create({
         data: {
           name: organizationName,
@@ -103,7 +108,8 @@ export class AuthService {
           plan: 'basic',
           maxUsers: 5,
           maxFarms: 1,
-          features: ['basic_features'],
+          features,
+          allowedModules,
         },
       });
 

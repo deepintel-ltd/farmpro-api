@@ -78,14 +78,16 @@ model Role {
   id          String @id @default(cuid())
   name        String
   description String?
-  
+
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+
   level       Int      @default(0)
   isActive    Boolean  @default(true)
   isSystemRole Boolean @default(false)
-  
+  isPlatformAdmin Boolean @default(false)
+  scope       RoleScope @default(ORGANIZATION)
+
   metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -95,6 +97,8 @@ model Role {
 
   @@unique([name, organizationId])
   @@index([organizationId])
+  @@index([isPlatformAdmin])
+  @@index([scope])
   @@map("roles")
 }
 
@@ -165,13 +169,20 @@ model Organization {
   logo         String?
   isVerified   Boolean          @default(false)
   isActive     Boolean          @default(true)
-  
+
   plan         String           @default("basic")
   maxUsers     Int              @default(5)
   maxFarms     Int              @default(1)
   features     String[]
+  allowedModules String[]       @default([])
+  featureFlags Json?
   allowCustomRoles Boolean @default(false)
-  
+
+  suspendedAt      DateTime?
+  suspensionReason String?
+  verifiedAt       DateTime?
+  verifiedBy       String?
+
   metadata     Json?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -188,6 +199,8 @@ model Organization {
   ratingsReceived Rating[]        @relation("RatingReceived")
   activityTemplates ActivityTemplate[]
 
+  @@index([type])
+  @@index([isActive, suspendedAt])
   @@map("organizations")
 }
 
@@ -1043,4 +1056,10 @@ enum CostType {
   MATERIAL
   FUEL
   OTHER
+}
+
+enum RoleScope {
+  PLATFORM
+  ORGANIZATION
+  FARM
 }

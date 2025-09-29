@@ -1,0 +1,153 @@
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import {
+  ORGANIZATION_FEATURES,
+  hasModuleAccess,
+} from '@/common/config/organization-features.config';
+
+// Metadata keys for feature requirements
+export const REQUIRE_FEATURE_KEY = 'requireFeature';
+export const REQUIRE_CAPABILITY_KEY = 'requireCapability';
+export const REQUIRE_ORG_TYPE_KEY = 'requireOrgType';
+
+/**
+ * Feature Access Guard
+ *
+ * Controls access to features based on:
+ * 1. Organization type (what features are available to this type)
+ * 2. Organization plan (what features are enabled in their subscription)
+ * 3. Organization-specific feature flags
+ *
+ * Platform admins bypass these restrictions.
+ */
+@Injectable()
+export class FeatureAccessGuard implements CanActivate {
+  private readonly logger = new Logger(FeatureAccessGuard.name);
+
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const user: CurrentUser = request.user;
+
+    if (!user) {
+      throw new ForbiddenException('User context not found');
+    }
+
+    // Platform admins bypass all feature restrictions
+    if (user.isPlatformAdmin) {
+      this.logger.debug('Platform admin bypassing feature restrictions');
+      return true;
+    }
+
+    // Check required feature/module
+    const requiredFeature = this.reflector.getAllAndOverride<string>(
+      REQUIRE_FEATURE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (requiredFeature) {
+      this.checkFeatureAccess(user, requiredFeature);
+    }
+
+    // Check required capability
+    const requiredCapability = this.reflector.getAllAndOverride<string>(
+      REQUIRE_CAPABILITY_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (requiredCapability) {
+      this.checkCapabilityAccess(user, requiredCapability);
+    }
+
+    // Check organization type requirement
+    const requiredOrgTypes = this.reflector.getAllAndOverride<string[]>(
+      REQUIRE_ORG_TYPE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (requiredOrgTypes && requiredOrgTypes.length > 0) {
+      this.checkOrgTypeAccess(user, requiredOrgTypes);
+    }
+
+    return true;
+  }
+
+  private checkFeatureAccess(user: CurrentUser, feature: string): void {
+    const { organization } = user;
+
+    // Check if org type supports this feature
+    if (!hasModuleAccess(organization.type, feature)) {
+      this.logger.warn(
+        `User ${user.email} attempted to access feature '${feature}' not available for org type ${organization.type}`,
+      );
+      throw new ForbiddenException(
+        `Feature '${feature}' is not available for ${organization.type} organizations`,
+      );
+    }
+
+    // Check if feature is in allowed modules
+    if (!organization.allowedModules.includes(feature)) {
+      this.logger.warn(
+        `User ${user.email} attempted to access feature '${feature}' not in allowed modules`,
+      );
+      throw new ForbiddenException(
+        `Feature '${feature}' is not enabled for your organization`,
+      );
+    }
+
+    // Check if feature is enabled in plan
+    if (!organization.features.includes(feature)) {
+      this.logger.warn(
+        `User ${user.email} attempted to access feature '${feature}' not in plan`,
+      );
+      throw new ForbiddenException(
+        `Feature '${feature}' is not included in your current plan. Please upgrade to access this feature.`,
+      );
+    }
+
+    this.logger.debug(
+      `User ${user.email} granted access to feature '${feature}'`,
+    );
+  }
+
+  private checkCapabilityAccess(user: CurrentUser, capability: string): void {
+    if (!user.capabilities.includes(capability)) {
+      this.logger.warn(
+        `User ${user.email} attempted to use capability '${capability}' not available to them`,
+      );
+      throw new ForbiddenException(
+        `Your organization does not have the '${capability}' capability`,
+      );
+    }
+
+    this.logger.debug(
+      `User ${user.email} granted capability '${capability}'`,
+    );
+  }
+
+  private checkOrgTypeAccess(
+    user: CurrentUser,
+    allowedTypes: string[],
+  ): void {
+    if (!allowedTypes.includes(user.organization.type)) {
+      this.logger.warn(
+        `User ${user.email} with org type ${user.organization.type} attempted to access resource restricted to ${allowedTypes.join(', ')}`,
+      );
+      throw new ForbiddenException(
+        `This resource is only available to ${allowedTypes.join(', ')} organizations`,
+      );
+    }
+
+    this.logger.debug(
+      `User ${user.email} org type ${user.organization.type} matches required types`,
+    );
+  }
+}

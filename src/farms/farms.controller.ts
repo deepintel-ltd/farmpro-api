@@ -7,6 +7,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { farmContract } from '../../contracts/farms.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import {
+  RequireFeature,
+  RequirePermission,
+  RequireCapability,
+} from '../common/decorators/authorization.decorators';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -15,7 +23,8 @@ interface AuthenticatedRequest extends ExpressRequest {
 @ApiTags('farms')
 @ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('farm_management')
 export class FarmsController {
   private readonly logger = new Logger(FarmsController.name);
 
@@ -26,6 +35,7 @@ export class FarmsController {
   // =============================================================================
 
   @TsRestHandler(farmContract.getFarms)
+  @RequirePermission('farms', 'read')
   public getFarms(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -53,6 +63,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.getFarm)
+  @RequirePermission('farms', 'read')
   public getFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -81,6 +92,8 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.createFarm)
+  @RequirePermission('farms', 'create')
+  @RequireCapability('create_farms')
   public createFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -111,6 +124,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.updateFarm)
+  @RequirePermission('farms', 'update')
   public updateFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -144,6 +158,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.deleteFarm)
+  @RequirePermission('farms', 'delete')
   public deleteFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
