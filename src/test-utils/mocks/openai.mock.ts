@@ -60,6 +60,31 @@ export class MockOpenAIService {
         insights: ['Activity optimization insight 1', 'Activity optimization insight 2'],
         recommendations: ['Activity recommendation 1', 'Activity recommendation 2'],
         confidence: 0.75,
+        optimizedPlan: {
+          schedule: [
+            { date: '2024-02-01T00:00:00.000Z', activity: 'Prepare soil', resources: ['tractor', 'plow'], cost: 150 },
+            { date: '2024-02-02T00:00:00.000Z', activity: 'Plant seeds', resources: ['seeds', 'planter'], cost: 200 },
+            { date: '2024-02-03T00:00:00.000Z', activity: 'Apply fertilizer', resources: ['fertilizer', 'spreader'], cost: 100 }
+          ],
+          totalCost: 450,
+          totalDuration: 3,
+          expectedYield: 1200,
+          riskScore: 0.3
+        },
+        alternatives: [
+          {
+            description: 'Extended timeline approach',
+            pros: ['Lower risk', 'Better resource utilization'],
+            cons: ['Longer duration', 'Higher labor costs'],
+            cost: 500
+          },
+          {
+            description: 'Intensive approach',
+            pros: ['Faster completion', 'Higher yield potential'],
+            cons: ['Higher risk', 'More resource intensive'],
+            cost: 400
+          }
+        ],
         data: {
           optimizedSchedule: '2024-01-15',
           resourceAllocation: 'Optimal',

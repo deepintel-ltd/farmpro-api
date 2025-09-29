@@ -428,9 +428,9 @@ describe('Intelligence E2E Tests', () => {
       const response = await testContext
         .request()
         .get('/intelligence/farm/analyses?page=1&limit=1')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
+        .set('Authorization', `Bearer ${accessToken}`);
 
+      expect(response.status).toBe(200);
       expect(response.body.data.length).toBeLessThanOrEqual(1);
       expect(response.body.pagination.page).toBe(1);
       expect(response.body.pagination.limit).toBe(1);
@@ -722,8 +722,14 @@ describe('Intelligence E2E Tests', () => {
         .request()
         .post('/intelligence/activity/optimize')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send(requestData)
-        .expect(200);
+        .send(requestData);
+
+      if (response.status !== 200) {
+        console.log('Activity optimization response status:', response.status);
+        console.log('Activity optimization response body:', JSON.stringify(response.body, null, 2));
+      }
+
+      expect(response.status).toBe(200);
 
       expect(response.body.id).toBeDefined();
       expect(response.body.farmId).toBe(testFarm.id);

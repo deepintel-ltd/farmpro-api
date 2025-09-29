@@ -54,7 +54,7 @@ export const intelligenceContract = c.router({
     method: 'GET',
     path: '/intelligence/farm/analysis/:id',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string(),
     }),
     responses: {
       200: FarmAnalysisResponseSchema,
@@ -98,7 +98,7 @@ export const intelligenceContract = c.router({
     method: 'GET',
     path: '/intelligence/market/analysis/:id',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string(),
     }),
     responses: {
       200: MarketIntelligenceResponseSchema,
@@ -143,7 +143,7 @@ export const intelligenceContract = c.router({
     method: 'GET',
     path: '/intelligence/activity/optimization/:id',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string(),
     }),
     responses: {
       200: ActivityOptimizationResponseSchema,
@@ -185,7 +185,7 @@ export const intelligenceContract = c.router({
     method: 'GET',
     path: '/intelligence/response/:id',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string(),
     }),
     responses: {
       200: IntelligenceResponseSchema,
