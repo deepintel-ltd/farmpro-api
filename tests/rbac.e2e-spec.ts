@@ -9,12 +9,10 @@ describe('RBAC E2E Tests', () => {
   let managerUser: any;
   let employeeUser: any;
   let adminAccessToken: string;
-  let managerAccessToken: string;
   let employeeAccessToken: string;
   
   // Test roles and permissions
   let customRole: any;
-  let testPermissions: any[];
 
   beforeAll(async () => {
     testContext = new TestContext();
@@ -139,7 +137,7 @@ describe('RBAC E2E Tests', () => {
       .expect(200);
     adminAccessToken = adminLogin.body.data.attributes.tokens.accessToken;
 
-    const managerLogin = await testContext
+    await testContext
       .request()
       .post('/auth/login')
       .send({
@@ -147,7 +145,6 @@ describe('RBAC E2E Tests', () => {
         password: 'TestPassword123!'
       })
       .expect(200);
-    managerAccessToken = managerLogin.body.data.attributes.tokens.accessToken;
 
     const employeeLogin = await testContext
       .request()
@@ -552,7 +549,6 @@ describe('RBAC E2E Tests', () => {
       const permissionCheck = {
         resource: 'role',
         action: 'create',
-        resourceId: null,
       };
 
       const response = await testContext
@@ -572,7 +568,6 @@ describe('RBAC E2E Tests', () => {
       const permissionCheck = {
         resource: 'role',
         action: 'create',
-        resourceId: null,
       };
 
       const response = await testContext
@@ -604,9 +599,9 @@ describe('RBAC E2E Tests', () => {
     it('should check multiple permissions', async () => {
       const permissionsCheck = {
         permissions: [
-          { resource: 'role', action: 'create', resourceId: null },
-          { resource: 'role', action: 'read', resourceId: null },
-          { resource: 'user', action: 'read', resourceId: null },
+          { resource: 'role', action: 'create' },
+          { resource: 'role', action: 'read' },
+          { resource: 'user', action: 'read' },
         ],
       };
 

@@ -964,9 +964,9 @@ export class TestContext {
       )
     );
 
-    // Assign basic permissions to employee role
+    // Assign basic permissions to employee role (only non-sensitive read permissions)
     const employeePermissions = permissions.filter(p => 
-      p.action === 'read'
+      p.action === 'read' && p.resource !== 'role' && p.resource !== 'permission'
     );
     await Promise.all(
       employeePermissions.map(permission =>

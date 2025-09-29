@@ -31,6 +31,9 @@ export class ErrorResponseUtil {
     return error instanceof Error && 
            (error.message.includes('validation') || 
             error.message.includes('required') ||
+            error.message.includes('cannot be empty') ||
+            error.message.includes('is required') ||
+            error.message.includes('cannot be deleted') ||
             (error.message.includes('invalid') && !error.message.includes('token')) ||
             (error.message.includes('Invalid') && !error.message.includes('token')));
   }
@@ -94,7 +97,9 @@ export class ErrorResponseUtil {
             error.message.includes('insufficient permissions') ||
             error.message.includes('Insufficient permissions') ||
             error.message.includes('access denied') ||
-            error.message.includes('Access denied'));
+            error.message.includes('Access denied') ||
+            error.message.includes('Cannot update system role') ||
+            error.message.includes('Cannot delete system role'));
   }
 
   /**

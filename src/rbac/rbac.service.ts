@@ -390,6 +390,14 @@ export class RbacService {
   async checkPermission(user: CurrentUser, data: CheckPermissionDto): Promise<{ data: any }> {
     this.logger.log(`Checking permission: ${data.resource}:${data.action} for user: ${user.userId}`);
 
+    // Validate input
+    if (!data.resource || data.resource.trim() === '') {
+      throw new BadRequestException('Resource cannot be empty');
+    }
+    if (!data.action || data.action.trim() === '') {
+      throw new BadRequestException('Action cannot be empty');
+    }
+
     const hasPermission = await this.hasPermission(user.userId, data.resource, data.action);
 
     const result: PermissionCheckResult = {
@@ -414,6 +422,21 @@ export class RbacService {
 
   async checkPermissions(user: CurrentUser, data: CheckPermissionsDto): Promise<{ data: any[]; meta: any }> {
     this.logger.log(`Checking ${data.permissions.length} permissions for user: ${user.userId}`);
+
+    // Validate input
+    if (!data.permissions) {
+      throw new BadRequestException('Permissions array is required');
+    }
+
+    // Validate each permission if array is not empty
+    for (const permission of data.permissions) {
+      if (!permission.resource || permission.resource.trim() === '') {
+        throw new BadRequestException('Resource cannot be empty');
+      }
+      if (!permission.action || permission.action.trim() === '') {
+        throw new BadRequestException('Action cannot be empty');
+      }
+    }
 
     const results = await Promise.all(
       data.permissions.map(async (permission, index) => {
@@ -517,9 +540,9 @@ export class RbacService {
   async getUserRoles(userId: string, currentUser: CurrentUser) {
     this.logger.log(`Getting roles for user: ${userId} by admin: ${currentUser.userId}`);
 
-    // Check if user has permission to read user roles  
-    const hasPermission = await this.hasPermission(currentUser.userId, 'user', 'read');
-    if (!hasPermission) {
+    // Check if user has permission to read user roles - should be admin-level permission
+    const hasRoleManagementPermission = await this.hasPermission(currentUser.userId, 'role', 'create');
+    if (!hasRoleManagementPermission && currentUser.userId !== userId) {
       throw new ForbiddenException('Insufficient permissions to view user roles');
     }
 
