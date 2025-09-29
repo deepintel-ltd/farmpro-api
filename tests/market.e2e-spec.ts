@@ -288,12 +288,9 @@ describe('Market E2E Tests', () => {
       const response = await testContext
         .request()
         .get('/marketplace/buyers?paymentTerms=cash,credit')
-        .set('Authorization', `Bearer ${accessToken}`);
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
 
-      console.log('Response status:', response.status);
-      console.log('Response body:', JSON.stringify(response.body, null, 2));
-
-      expect(response.status).toBe(200);
       expect(response.body.data).toBeDefined();
       expect(Array.isArray(response.body.data)).toBe(true);
     });

@@ -317,12 +317,10 @@ describe('Media E2E Tests', () => {
   });
 
   describe('GET /media/my-files', () => {
-    let mediaId1: string;
-    let mediaId2: string;
 
     beforeEach(async () => {
       // Create test media files
-      const media1 = await testContext.prisma.media.create({
+      await testContext.prisma.media.create({
         data: {
           farmActivityId: activityId,
           filename: 'test1.jpg',
@@ -340,7 +338,7 @@ describe('Media E2E Tests', () => {
         }
       });
 
-      const media2 = await testContext.prisma.media.create({
+      await testContext.prisma.media.create({
         data: {
           farmActivityId: activityId,
           filename: 'test2.pdf',
@@ -357,9 +355,6 @@ describe('Media E2E Tests', () => {
           }
         }
       });
-
-      mediaId1 = media1.id;
-      mediaId2 = media2.id;
     });
 
     it('should get user files successfully', async () => {
@@ -421,12 +416,10 @@ describe('Media E2E Tests', () => {
   });
 
   describe('GET /media/context/:context/:contextId', () => {
-    let mediaId1: string;
-    let mediaId2: string;
 
     beforeEach(async () => {
       // Create test media files for the activity
-      const media1 = await testContext.prisma.media.create({
+      await testContext.prisma.media.create({
         data: {
           farmActivityId: activityId,
           filename: 'activity-image1.jpg',
@@ -443,7 +436,7 @@ describe('Media E2E Tests', () => {
         }
       });
 
-      const media2 = await testContext.prisma.media.create({
+      await testContext.prisma.media.create({
         data: {
           farmActivityId: activityId,
           filename: 'activity-doc1.pdf',
@@ -460,8 +453,6 @@ describe('Media E2E Tests', () => {
         }
       });
 
-      mediaId1 = media1.id;
-      mediaId2 = media2.id;
     });
 
     it('should get context files successfully', async () => {
