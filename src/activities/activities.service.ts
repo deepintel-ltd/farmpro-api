@@ -187,7 +187,7 @@ export class ActivitiesService {
       select: { id: true, name: true }
     });
     if (!farm) {
-      throw new BadRequestException('Invalid farm ID');
+      throw new NotFoundException('Farm not found');
     }
 
     // Use assignment service for creating activity with assignments
@@ -262,7 +262,7 @@ export class ActivitiesService {
   }
 
   async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, organizationId: string) {
-    const activity = await this.prisma.farmActivity.findFirstOrThrow({
+    const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
         farm: { organizationId },
@@ -281,6 +281,10 @@ export class ActivitiesService {
         }
       }
     });
+
+    if (!activity) {
+      throw new NotFoundException('Activity not found');
+    }
 
     // Check if user can update (assigned or creator)
     const canUpdate = activity.createdById === userId || activity.assignments.length > 0;

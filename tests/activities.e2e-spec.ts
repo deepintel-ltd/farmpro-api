@@ -181,6 +181,7 @@ describe('Activities E2E Tests', () => {
         name: 'Test Activity',
         type: 'PLANTING',
         priority: 'NORMAL',
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         farmId: nonExistentFarmId
       };
 
