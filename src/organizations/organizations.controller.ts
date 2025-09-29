@@ -101,7 +101,7 @@ export class OrganizationsController {
   @UseInterceptors(FileInterceptor('file'))
   public uploadLogo(
     @Request() req: AuthenticatedRequest,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.uploadLogo, async () => {
       try {

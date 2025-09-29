@@ -12,6 +12,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { EmailVerificationService } from '@/auth/email-verification.service';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
+import { UserMetadata } from './types/user-metadata.types';
 import {
   RegisterDto,
   LoginDto,
@@ -38,7 +39,7 @@ interface UserWithOrganizationAndRoles {
   isActive: boolean;
   lastLoginAt: Date | null;
   organizationId: string;
-  metadata: any;
+  metadata?: UserMetadata | null;
   createdAt: Date;
   updatedAt: Date;
   organization: {
@@ -214,6 +215,14 @@ export class AuthService {
       },
     } : undefined;
 
+    // Prepare metadata update
+    const currentMetadata = (user.metadata as UserMetadata) || {};
+    const updatedMetadata: UserMetadata = {
+      ...currentMetadata,
+      ...(sessionMetadata || {}),
+      loggedOutAt: null, // Clear logout timestamp on new login
+    };
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
@@ -222,12 +231,7 @@ export class AuthService {
         refreshTokenExpiresAt: new Date(
           Date.now() + this.REFRESH_TOKEN_EXPIRES_IN_MS,
         ),
-        ...(sessionMetadata && { 
-          metadata: {
-            ...((user.metadata as any) || {}),
-            ...sessionMetadata,
-          },
-        }),
+        metadata: updatedMetadata,
       },
     });
 
@@ -241,7 +245,7 @@ export class AuthService {
 
   async refresh(
     refreshTokenDto: RefreshTokenDto,
-  ): Promise<{ accessToken: string; expiresIn: number }> {
+  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number; tokenType: 'Bearer' }> {
     const { refreshToken } = refreshTokenDto;
 
     try {
@@ -286,9 +290,31 @@ export class AuthService {
         organizationId: user.organizationId,
       });
 
+      // Generate new refresh token
+      const newRefreshToken = this.jwtService.sign(
+        { sub: user.id },
+        {
+          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+          expiresIn: this.REFRESH_TOKEN_EXPIRES_IN_MS / 1000,
+        },
+      );
+
+      // Update user with new refresh token
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          refreshTokenHash: await this.hashRefreshToken(newRefreshToken),
+          refreshTokenExpiresAt: new Date(
+            Date.now() + this.REFRESH_TOKEN_EXPIRES_IN_MS,
+          ),
+        },
+      });
+
       return {
         accessToken,
+        refreshToken: newRefreshToken,
         expiresIn: this.JWT_EXPIRES_IN,
+        tokenType: 'Bearer' as const,
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -519,7 +545,7 @@ export class AuthService {
   }
 
   private async getUserWithRoles(userId: string): Promise<UserWithOrganizationAndRoles | null> {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         organization: true,
@@ -533,6 +559,13 @@ export class AuthService {
         },
       },
     });
+
+    if (!user) return null;
+
+    return {
+      ...user,
+      metadata: user.metadata as UserMetadata | null,
+    };
   }
 
   private async findUserByToken(tokenHash: string, tokenType: string) {
@@ -547,7 +580,7 @@ export class AuthService {
     });
 
     return users.find((user) => {
-      const metadata = user.metadata as any;
+      const metadata = user.metadata as UserMetadata;
       const expiresAt = metadata?.[tokenType.replace('Hash', 'ExpiresAt')];
       return expiresAt && new Date(expiresAt) > new Date();
     });
@@ -597,11 +630,21 @@ export class AuthService {
   }
 
   private async clearRefreshToken(userId: string): Promise<void> {
+    // Get current user to preserve existing metadata
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { metadata: true },
+    });
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {
         refreshTokenHash: null,
         refreshTokenExpiresAt: null,
+        metadata: {
+          ...((user?.metadata as UserMetadata) || {}),
+          loggedOutAt: new Date().toISOString(),
+        } as UserMetadata,
       },
     });
   }
@@ -660,7 +703,7 @@ export class AuthService {
 
     // If user has an active refresh token, create a session entry
     if (user.refreshTokenHash && user.refreshTokenExpiresAt && user.refreshTokenExpiresAt > new Date()) {
-      const sessionMetadata = (user.metadata as any)?.session || {};
+      const sessionMetadata = (user.metadata as UserMetadata)?.session || {};
       
       sessions.push({
         id: 'current-session',

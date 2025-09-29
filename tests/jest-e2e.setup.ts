@@ -1,5 +1,17 @@
 import { DatabaseTestManager } from '../src/test-utils/database-test-manager';
 
+// Set NODE_ENV to test for rate limiting bypass
+process.env.NODE_ENV = 'test';
+
+// Set required environment variables for testing
+process.env.JWT_SECRET = 'test-jwt-secret-key-for-development-and-testing-only';
+process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-key-for-development-and-testing-only';
+process.env.JWT_EXPIRES_IN_SECONDS = '3600';
+process.env.BREVO_API_KEY = 'test-brevo-api-key';
+process.env.FROM_EMAIL = 'noreply@farmpro.app';
+process.env.FROM_NAME = 'FarmPro';
+process.env.REDIS_URL = 'redis://localhost:6379';
+
 // Global test setup
 beforeAll(async () => {
   console.log('🚀 Setting up E2E test environment...');

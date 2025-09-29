@@ -31,19 +31,44 @@ export class ErrorResponseUtil {
     return error instanceof Error && 
            (error.message.includes('validation') || 
             error.message.includes('required') ||
-            error.message.includes('invalid') ||
-            error.message.includes('Invalid'));
+            (error.message.includes('invalid') && !error.message.includes('token')) ||
+            (error.message.includes('Invalid') && !error.message.includes('token')));
   }
 
   /**
    * Check if error is an unauthorized error
    */
   static isUnauthorized(error: unknown): boolean {
-    return error instanceof Error && 
-           (error.message.includes('unauthorized') || 
-            error.message.includes('Unauthorized') ||
-            error.message.includes('Invalid credentials') ||
-            error.message.includes('disabled'));
+    // Check if it's an Error instance
+    if (error instanceof Error) {
+      return error.message.includes('unauthorized') || 
+             error.message.includes('Unauthorized') ||
+             error.message.includes('Invalid credentials') ||
+             error.message.includes('Invalid refresh token') ||
+             error.message.includes('Invalid or expired refresh token') ||
+             error.message.includes('jwt') ||
+             error.message.includes('JWT') ||
+             error.message.includes('token') ||
+             error.message.includes('Token');
+    }
+    
+    // Check if it's an object with a message property (like JWT errors)
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+      const message = (error as any).message;
+      return typeof message === 'string' && (
+        message.includes('unauthorized') || 
+        message.includes('Unauthorized') ||
+        message.includes('Invalid credentials') ||
+        message.includes('Invalid refresh token') ||
+        message.includes('Invalid or expired refresh token') ||
+        message.includes('jwt') ||
+        message.includes('JWT') ||
+        message.includes('token') ||
+        message.includes('Token')
+      );
+    }
+    
+    return false;
   }
 
   /**
@@ -64,6 +89,8 @@ export class ErrorResponseUtil {
     return error instanceof Error && 
            (error.message.includes('forbidden') || 
             error.message.includes('Forbidden') ||
+            error.message.includes('disabled') ||
+            error.message.includes('Disabled') ||
             error.message.includes('insufficient permissions') ||
             error.message.includes('Insufficient permissions') ||
             error.message.includes('access denied') ||

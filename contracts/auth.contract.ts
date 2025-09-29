@@ -73,7 +73,7 @@ export const authContract = c.router({
     path: '/auth/logout',
     body: z.object({}),
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
@@ -85,7 +85,7 @@ export const authContract = c.router({
     path: '/auth/logout-all',
     body: z.object({}),
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
@@ -98,7 +98,7 @@ export const authContract = c.router({
     path: '/auth/forgot-password',
     body: ForgotPasswordRequestSchema,
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
@@ -111,7 +111,7 @@ export const authContract = c.router({
     path: '/auth/reset-password',
     body: ResetPasswordRequestSchema,
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
       401: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,
@@ -125,7 +125,7 @@ export const authContract = c.router({
     path: '/auth/change-password',
     body: ChangePasswordRequestSchema,
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
       401: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,
@@ -140,7 +140,7 @@ export const authContract = c.router({
     path: '/auth/send-verification',
     body: z.object({}),
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       401: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
     },
@@ -152,7 +152,7 @@ export const authContract = c.router({
     path: '/auth/verify-email',
     body: VerifyEmailRequestSchema,
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
       401: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,
@@ -168,7 +168,7 @@ export const authContract = c.router({
       email: z.string().email(),
     }),
     responses: {
-      200: MessageResourceSchema,
+      200: AuthResourceSchema,
       400: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema,
@@ -238,7 +238,7 @@ export const authContract = c.router({
     path: '/auth/validate-token',
     body: ValidateTokenRequestSchema,
     responses: {
-      200: AuthUserProfileResourceSchema,
+      200: TokenResourceSchema,
       400: JsonApiErrorResponseSchema,
       401: JsonApiErrorResponseSchema,
       422: JsonApiErrorResponseSchema,

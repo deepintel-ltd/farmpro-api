@@ -498,7 +498,7 @@ export class AuthController {
           body: {
             data: {
               id: req.user.userId,
-              type: 'users',
+              type: 'user',
               attributes: result,
             },
           },
@@ -531,7 +531,7 @@ export class AuthController {
           body: {
             data: {
               id: 'validate-token',
-              type: 'auth',
+              type: 'token',
               attributes: result,
             },
           },
