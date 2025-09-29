@@ -1,9 +1,17 @@
 import { Controller, UseGuards, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { Request as ExpressRequest } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { intelligenceContract } from '../../contracts/intelligence.contract';
 import { IntelligenceService } from './intelligence.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { Public } from '@/auth/decorators/public.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+
+
+interface AuthenticatedRequest extends ExpressRequest {
+  user: CurrentUser;
+}
 
 @ApiTags('intelligence')
 @ApiBearerAuth('JWT-auth')
@@ -38,12 +46,12 @@ export class IntelligenceController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(intelligenceContract.generateResponse)
-  async generateResponse(@Request() req: any) {
+  async generateResponse(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.generateResponse, async ({ body }) => {
       // Add user ID from JWT token
       const requestWithUser = {
         ...body,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.generateResponse(requestWithUser);
@@ -63,11 +71,11 @@ export class IntelligenceController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(intelligenceContract.analyzeFarm)
-  async analyzeFarm(@Request() req: any) {
+  async analyzeFarm(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.analyzeFarm, async ({ body }) => {
       const requestWithUser = {
         ...body,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.analyzeFarm(requestWithUser);
@@ -90,11 +98,11 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.listFarmAnalyses)
-  async listFarmAnalyses(@Request() req: any) {
+  async listFarmAnalyses(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.listFarmAnalyses, async ({ query }) => {
       const queryWithUser = {
         ...query,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.listIntelligenceHistory(queryWithUser);
@@ -106,11 +114,11 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.analyzeMarket)
-  async analyzeMarket(@Request() req: any) {
+  async analyzeMarket(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.analyzeMarket, async ({ body }) => {
       const requestWithUser = {
         ...body,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.analyzeMarket(requestWithUser);
@@ -133,11 +141,11 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.listMarketAnalyses)
-  async listMarketAnalyses(@Request() req: any) {
+  async listMarketAnalyses(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.listMarketAnalyses, async ({ query }) => {
       const queryWithUser = {
         ...query,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.listIntelligenceHistory(queryWithUser);
@@ -149,11 +157,11 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.optimizeActivity)
-  async optimizeActivity(@Request() req: any) {
+  async optimizeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.optimizeActivity, async ({ body }) => {
       const requestWithUser = {
         ...body,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.optimizeActivity(requestWithUser);
@@ -176,11 +184,11 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.listActivityOptimizations)
-  async listActivityOptimizations(@Request() req: any) {
+  async listActivityOptimizations(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.listActivityOptimizations, async ({ query }) => {
       const queryWithUser = {
         ...query,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.listIntelligenceHistory(queryWithUser);
@@ -192,11 +200,11 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.getIntelligenceHistory)
-  async getIntelligenceHistory(@Request() req: any) {
+  async getIntelligenceHistory(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.getIntelligenceHistory, async ({ query }) => {
       const queryWithUser = {
         ...query,
-        userId: req.user.id,
+        userId: req.user.userId,
       };
 
       const response = await this.intelligenceService.listIntelligenceHistory(queryWithUser);
@@ -218,6 +226,7 @@ export class IntelligenceController {
     });
   }
 
+  @Public()
   @ApiOperation({ 
     summary: 'Health check',
     description: 'Check the health and availability of the intelligence service'

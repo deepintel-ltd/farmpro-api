@@ -3,20 +3,16 @@ import { Logger } from '@nestjs/common';
 export class MockOpenAIService {
   private readonly logger = new Logger(MockOpenAIService.name);
 
-  async generateWithContext(_prompt: string, _context: any) {
-    this.logger.debug('MockOpenAIService.generateWithContext called with:', { _prompt, _context });
+  async generateWithContext(systemPrompt: string, userPrompt: string, options?: any) {
+    this.logger.debug('MockOpenAIService.generateWithContext called with:', { systemPrompt, userPrompt, options });
     return {
-      content: JSON.stringify({
-        insights: ['Mock insight 1', 'Mock insight 2'],
-        recommendations: ['Mock recommendation 1', 'Mock recommendation 2'],
-        confidence: 0.85
-      }),
+      content: `Mock AI response for: ${userPrompt}`,
       usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 }
     };
   }
 
-  async generateFarmAnalysis(_data: any) {
-    this.logger.debug('MockOpenAIService.generateFarmAnalysis called with:', { _data });
+  async generateFarmAnalysis(analysisType: string, data: any, options?: any) {
+    this.logger.debug('MockOpenAIService.generateFarmAnalysis called with:', { analysisType, data, options });
     return {
       content: JSON.stringify({
         insights: ['Farm analysis insight 1', 'Farm analysis insight 2'],
@@ -34,26 +30,31 @@ export class MockOpenAIService {
     };
   }
 
-  async generateMarketAnalysis(_data: any) {
-    this.logger.debug('MockOpenAIService.generateMarketAnalysis called with:', { _data });
+  async generateMarketAnalysis(commodity: string, region: string | undefined, analysisType: string, timeframe: string, options?: any) {
+    this.logger.debug('MockOpenAIService.generateMarketAnalysis called with:', { commodity, region, analysisType, timeframe, options });
     return {
       content: JSON.stringify({
         insights: ['Market insight 1', 'Market insight 2'],
         recommendations: ['Market recommendation 1', 'Market recommendation 2'],
         confidence: 0.8,
+        predictions: [
+          { date: '2024-02-01T00:00:00.000Z', value: 4.50, confidence: 0.8 },
+          { date: '2024-03-01T00:00:00.000Z', value: 4.75, confidence: 0.7 },
+          { date: '2024-04-01T00:00:00.000Z', value: 4.60, confidence: 0.6 }
+        ],
+        riskFactors: ['Weather', 'Economic conditions'],
         data: {
           pricePrediction: 4.50,
           demandForecast: 'High',
-          supplyAnalysis: 'Moderate',
-          riskFactors: ['Weather', 'Economic conditions']
+          supplyAnalysis: 'Moderate'
         }
       }),
       usage: { promptTokens: 110, completionTokens: 55, totalTokens: 165 }
     };
   }
 
-  async generateActivityOptimization(_data: any) {
-    this.logger.debug('MockOpenAIService.generateActivityOptimization called with:', { _data });
+  async generateActivityOptimization(activityType: string, constraints: any, objectives: string[], options?: any) {
+    this.logger.debug('MockOpenAIService.generateActivityOptimization called with:', { activityType, constraints, objectives, options });
     return {
       content: JSON.stringify({
         insights: ['Activity optimization insight 1', 'Activity optimization insight 2'],
@@ -85,8 +86,7 @@ export class MockOpenAIService {
   async healthCheck() {
     return {
       status: 'healthy',
-      model: 'gpt-4-mock',
-      lastChecked: new Date().toISOString()
+      models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo']
     };
   }
 

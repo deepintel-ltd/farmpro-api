@@ -7,8 +7,8 @@ export const IntelligenceRequestSchema = z.object({
   model: z.enum(['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo']).default('gpt-3.5-turbo').describe('OpenAI model to use'),
   temperature: z.number().min(0).max(2).default(0.7).describe('Temperature for response generation'),
   maxTokens: z.number().min(1).max(4000).default(1000).describe('Maximum tokens in response'),
-  userId: z.string().uuid().describe('User making the request'),
-  farmId: z.string().uuid().optional().describe('Farm context for the request'),
+  userId: z.string().uuid().optional().describe('User making the request (added by controller)'),
+  farmId: z.string().optional().describe('Farm context for the request'),
 });
 
 export const IntelligenceResponseSchema = z.object({
@@ -27,7 +27,7 @@ export const IntelligenceResponseSchema = z.object({
 
 // Farm-specific intelligence schemas
 export const FarmAnalysisRequestSchema = z.object({
-  farmId: z.string().uuid().describe('Farm to analyze'),
+  farmId: z.string().describe('Farm to analyze'),
   analysisType: z.enum([
     'crop_health',
     'yield_prediction',
@@ -39,7 +39,7 @@ export const FarmAnalysisRequestSchema = z.object({
     'sustainability_score'
   ]).describe('Type of analysis to perform'),
   data: z.record(z.string(), z.any()).describe('Farm data for analysis'),
-  userId: z.string().uuid().describe('User requesting analysis'),
+  userId: z.string().uuid().optional().describe('User requesting analysis (added by controller)'),
 });
 
 export const FarmAnalysisResponseSchema = z.object({
@@ -67,7 +67,7 @@ export const MarketIntelligenceRequestSchema = z.object({
     'risk_assessment',
     'opportunity_identification'
   ]).describe('Type of market analysis'),
-  userId: z.string().uuid().describe('User requesting analysis'),
+  userId: z.string().uuid().optional().describe('User requesting analysis (added by controller)'),
 });
 
 export const MarketIntelligenceResponseSchema = z.object({
@@ -102,12 +102,12 @@ export const ActivityOptimizationRequestSchema = z.object({
     }).optional().describe('Weather constraints'),
   }).describe('Optimization constraints'),
   objectives: z.array(z.enum(['maximize_yield', 'minimize_cost', 'minimize_time', 'maximize_quality', 'minimize_risk'])).describe('Optimization objectives'),
-  userId: z.string().uuid().describe('User requesting optimization'),
+  userId: z.string().uuid().optional().describe('User requesting optimization (added by controller)'),
 });
 
 export const ActivityOptimizationResponseSchema = z.object({
   id: z.string().uuid().describe('Optimization identifier'),
-  farmId: z.string().uuid().describe('Farm optimized'),
+  farmId: z.string().describe('Farm optimized'),
   activityType: z.string().describe('Activity type optimized'),
   optimizedPlan: z.object({
     schedule: z.array(z.object({
