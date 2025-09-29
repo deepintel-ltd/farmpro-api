@@ -97,12 +97,14 @@ export class JobQueueService {
     this.logger.debug('Starting job processing');
 
     try {
-      while (true) {
+      let hasJobs = true;
+      while (hasJobs) {
         const pendingJobs = Array.from(this.jobs.values())
           .filter(job => job.status === 'pending')
           .sort((a, b) => b.priority - a.priority);
 
         if (pendingJobs.length === 0) {
+          hasJobs = false;
           break;
         }
 

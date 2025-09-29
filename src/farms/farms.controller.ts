@@ -1,6 +1,6 @@
 import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { FarmsService } from './farms.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
