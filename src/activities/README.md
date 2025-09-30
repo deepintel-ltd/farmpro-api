@@ -37,7 +37,7 @@ FarmActivity (1) -> (M) ActivityProgressLog (M) -> (1) User
 - `ActivitiesService`: Core activity CRUD and lifecycle management
 - `ActivityAssignmentService`: Multi-user assignment management
 - `ActivityCostService`: Cost tracking with proper database storage
-- `PermissionsService`: Role-based access control
+- Authorization is now handled by guards and decorators
 - `ActivityTemplateService`: Template-based activity creation
 
 ## Usage Examples

@@ -5,9 +5,17 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { userContract } from '../../contracts/users.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { UsersService } from './users.service';
+import {
+  RequireFeature,
+  RequirePermission,
+  RequireRoleLevel,
+} from '../common/decorators/authorization.decorators';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -16,6 +24,8 @@ interface AuthenticatedRequest extends ExpressRequest {
 @ApiTags('users')
 @ApiBearerAuth('JWT-auth')
 @Controller()
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('users')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
@@ -25,8 +35,8 @@ export class UsersController {
   // User Profile Management
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getProfile)
+  @RequirePermission('users', 'read')
   public getProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -55,8 +65,8 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.updateProfile)
+  @RequirePermission('users', 'update')
   public updateProfile(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -92,9 +102,9 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('avatar'))
   @TsRestHandler(userContract.uploadAvatar)
+  @RequirePermission('users', 'update')
+  @UseInterceptors(FileInterceptor('avatar'))
   public uploadAvatar(
     @Request() req: AuthenticatedRequest,
     @UploadedFile() file: any,
@@ -142,8 +152,8 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.deleteAvatar)
+  @RequirePermission('users', 'update')
   public deleteAvatar(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -177,8 +187,8 @@ export class UsersController {
   // User Management (Admin/Manager)
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getUsersWithQuery)
+  @RequirePermission('users', 'read')
   public getUsers(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -221,8 +231,8 @@ export class UsersController {
   // User Preferences
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getPreferences)
+  @RequirePermission('users', 'read')
   public getPreferences(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -252,8 +262,8 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.updatePreferences)
+  @RequirePermission('users', 'update')
   public updatePreferences(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -288,8 +298,8 @@ export class UsersController {
   // Activity & Analytics
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getMyActivity)
+  @RequirePermission('users', 'read')
   public getMyActivity(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -325,8 +335,8 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getMyStats)
+  @RequirePermission('users', 'read')
   public getMyStats(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -363,8 +373,8 @@ export class UsersController {
   // Additional User Management (Admin)
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getUser)
+  @RequirePermission('users', 'read')
   public getUserById(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -395,8 +405,9 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.activateUser)
+  @RequirePermission('users', 'update')
+  @RequireRoleLevel(50)
   public activateUser(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -431,8 +442,8 @@ export class UsersController {
   // Notification Settings
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getNotificationSettings)
+  @RequirePermission('users', 'read')
   public getNotificationSettings(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -462,8 +473,8 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.updateNotificationSettings)
+  @RequirePermission('users', 'update')
   public updateNotificationSettings(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -498,8 +509,8 @@ export class UsersController {
   // Admin Activity & Stats
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getUserActivity)
+  @RequirePermission('users', 'read')
   public getUserActivity(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -536,8 +547,8 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(userContract.getUserStats)
+  @RequirePermission('users', 'read')
   public getUserStats(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,

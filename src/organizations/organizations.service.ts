@@ -20,10 +20,29 @@ export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
   // =============================================================================
+  // Helper Methods
+  // =============================================================================
+
+  private getOrganizationIdFromRequest(request: any): string {
+    // Get organizationId from request.organizationFilter added by OrganizationIsolationGuard
+    if (request.organizationFilter?.organizationId) {
+      return request.organizationFilter.organizationId;
+    }
+    
+    // Fallback to user.organizationId if organizationFilter is not available
+    if (request.user?.organizationId) {
+      return request.user.organizationId;
+    }
+    
+    throw new Error('Organization ID not found in request context');
+  }
+
+  // =============================================================================
   // Organization Profile & Settings
   // =============================================================================
 
-  async getProfile(organizationId: string): Promise<{ data: OrganizationResource['data'] }> {
+  async getProfile(request: any): Promise<{ data: OrganizationResource['data'] }> {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     try {
       const organization = await this.prisma.organization.findUnique({
         where: { id: organizationId },
@@ -63,7 +82,8 @@ export class OrganizationsService {
     }
   }
 
-  async updateProfile(organizationId: string, requestData: UpdateOrganizationRequest): Promise<{ data: OrganizationResource['data'] }> {
+  async updateProfile(requestData: UpdateOrganizationRequest, request: any): Promise<{ data: OrganizationResource['data'] }> {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const { data } = requestData;
     const { attributes } = data;
 
@@ -136,7 +156,8 @@ export class OrganizationsService {
     }
   }
 
-  async uploadLogo(organizationId: string, file: any): Promise<{ data: { id: string; type: string; attributes: { logo: string } } }> {
+  async uploadLogo(file: any, request: any): Promise<{ data: { id: string; type: string; attributes: { logo: string } } }> {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     try {
       // Validate file
       if (!file) {

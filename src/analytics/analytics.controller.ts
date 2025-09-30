@@ -17,7 +17,6 @@ import {
   ReportRequest
 } from '../../contracts/analytics.contract';
 import { AnalyticsService } from './analytics.service';
-import { AnalyticsPermissionsService } from './permissions.service';
 import {
   RequireFeature,
   RequirePermission,
@@ -30,8 +29,7 @@ import {
 @RequireFeature('analytics')
 export class AnalyticsController {
   constructor(
-    private readonly analyticsService: AnalyticsService,
-    private readonly permissionsService: AnalyticsPermissionsService
+    private readonly analyticsService: AnalyticsService
   ) {}
 
   @TsRestHandler(analyticsContract.getDashboard)
@@ -39,9 +37,7 @@ export class AnalyticsController {
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getDashboard(@Query() query: BaseAnalyticsQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getDashboard, async () => {
-      // Check permissions
-      await this.permissionsService.checkAnalyticsPermission(user, 'read');
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.getDashboard(user, query);
       return {
         status: 200 as const,
@@ -55,9 +51,7 @@ export class AnalyticsController {
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getFinancialAnalytics(@Query() query: FinancialQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getFinancialAnalytics, async () => {
-      // Check permissions
-      await this.permissionsService.checkAnalyticsPermission(user, 'read');
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.getFinancialAnalytics(user, query);
       return {
         status: 200 as const,
@@ -71,9 +65,7 @@ export class AnalyticsController {
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getFarmToMarketAnalytics(@Query() query: FarmToMarketQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getFarmToMarketAnalytics, async () => {
-      // Check permissions
-      await this.permissionsService.checkAnalyticsPermission(user, 'read');
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.getFarmToMarketAnalytics(user, query);
       return {
         status: 200 as const,
@@ -87,9 +79,7 @@ export class AnalyticsController {
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getActivityAnalytics(@Query() query: ActivityQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getActivityAnalytics, async () => {
-      // Check permissions
-      await this.permissionsService.checkAnalyticsPermission(user, 'read');
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.getActivityAnalytics(user, query);
       return {
         status: 200 as const,
@@ -103,9 +93,7 @@ export class AnalyticsController {
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getMarketAnalytics(@Query() query: MarketQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getMarketAnalytics, async () => {
-      // Check permissions
-      await this.permissionsService.checkAnalyticsPermission(user, 'read');
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.getMarketAnalytics(user, query);
       return {
         status: 200 as const,
@@ -119,9 +107,7 @@ export class AnalyticsController {
   @Header('Cache-Control', 'public, max-age=600') // 10 minutes cache for AI insights
   async getInsights(@Query() query: BaseAnalyticsQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getInsights, async () => {
-      // Check permissions
-      await this.permissionsService.checkAnalyticsPermission(user, 'read');
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.getInsights(user, query);
       return {
         status: 200 as const,
@@ -135,9 +121,7 @@ export class AnalyticsController {
   @RequireRoleLevel(50)
   async exportAnalytics(@Body() request: ExportRequest, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.exportAnalytics, async () => {
-      // Check permissions
-      await this.permissionsService.validateDataExportPermission(user);
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.exportAnalytics(user, request);
       return {
         status: 202 as const,
@@ -151,9 +135,7 @@ export class AnalyticsController {
   @RequireRoleLevel(50)
   async generateReport(@Body() request: ReportRequest, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.generateReport, async () => {
-      // Check permissions
-      await this.permissionsService.validateDataExportPermission(user);
-      
+      // Authorization is now handled by guards and decorators
       const result = await this.analyticsService.generateReport(user, request);
       return {
         status: 202 as const,

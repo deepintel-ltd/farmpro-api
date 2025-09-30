@@ -115,7 +115,7 @@ export class ActivitiesController {
   @RequirePermission('activities', 'read')
   public getActivities(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.getActivities, async ({ query }) => {
-      const result = await this.activitiesService.getActivities(req.user.organizationId, query);
+      const result = await this.activitiesService.getActivities(query, req);
       return { status: 200 as const, body: result };
     });
   }
@@ -131,7 +131,7 @@ export class ActivitiesController {
         userId: query.userId,
         view: query.view,
       };
-      const events = await this.activitiesService.getCalendarEvents(calendarQuery, req.user.organizationId);
+      const events = await this.activitiesService.getCalendarEvents(calendarQuery, req);
       return {
         status: 200 as const,
         body: {
@@ -153,7 +153,7 @@ export class ActivitiesController {
   @RequirePermission('activities', 'read')
   public getMyTasks(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTeamContract.getMyTasks, async ({ query }) => {
-      const result = await this.activitiesService.getMyTasks(req.user.userId, query, req.user.organizationId);
+      const result = await this.activitiesService.getMyTasks(req.user.userId, query, req);
       return { status: 200 as const, body: result };
     });
   }
@@ -169,7 +169,7 @@ export class ActivitiesController {
         type: query.type,
         metric: query.metric,
       };
-      const result = await this.activitiesService.getTeamPerformance(analyticsQuery, req.user.organizationId);
+      const result = await this.activitiesService.getTeamPerformance(analyticsQuery, req);
       
       // Transform to match expected contract format
       return { 
@@ -225,7 +225,7 @@ export class ActivitiesController {
         period: query.period,
         type: query.type,
       };
-      const result = await this.activitiesService.getCompletionRates(analyticsQuery, req.user.organizationId);
+      const result = await this.activitiesService.getCompletionRates(analyticsQuery, req);
       return { status: 200 as const, body: result };
     });
   }
@@ -239,7 +239,7 @@ export class ActivitiesController {
         period: query.period,
         type: query.type,
       };
-      const result = await this.activitiesService.getCostAnalysis(analyticsQuery, req.user.organizationId);
+      const result = await this.activitiesService.getCostAnalysis(analyticsQuery, req);
       return { status: 200 as const, body: result };
     });
   }
@@ -278,7 +278,7 @@ export class ActivitiesController {
   @RequirePermission('activities', 'read')
   public getActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.getActivity, async ({ params }) => {
-      const activity = await this.activitiesService.getActivity(params.activityId, req.user.organizationId);
+      const activity = await this.activitiesService.getActivity(params.activityId, req);
       return { 
         status: 200 as const, 
         body: formatActivityResponse(activity as Activity)
@@ -291,7 +291,7 @@ export class ActivitiesController {
   @RequireCapability('track_activities')
   public createActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.createActivity, async ({ body }) => {
-      const result = await this.activitiesService.createActivity(body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.createActivity(body, req.user.userId, req);
       return { 
         status: 201 as const, 
         body: formatActivityResponse(result as Activity)
@@ -304,7 +304,7 @@ export class ActivitiesController {
   @UseGuards(FarmAccessGuard)
   public updateActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.updateActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.updateActivity(params.activityId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.updateActivity(params.activityId, body, req.user.userId, req);
       return { 
         status: 200 as const, 
         body: formatActivityResponse(result as Activity)
@@ -317,7 +317,7 @@ export class ActivitiesController {
   @UseGuards(FarmAccessGuard)
   public deleteActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.deleteActivity, async ({ params }) => {
-      await this.activitiesService.deleteActivity(params.activityId, req.user.userId, req.user.organizationId);
+      await this.activitiesService.deleteActivity(params.activityId, req.user.userId, req);
       return {
         status: 200 as const,
         body: {
@@ -337,7 +337,7 @@ export class ActivitiesController {
   @UseGuards(ActivityAssignmentGuard)
   public startActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.startActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId, req);
       return { 
         status: 200 as const, 
         body: formatActivityResponse(result as Activity)
@@ -350,7 +350,7 @@ export class ActivitiesController {
   @UseGuards(ActivityAssignmentGuard)
   public updateProgress(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.updateProgress, async ({ params, body }) => {
-      const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId, req);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
@@ -360,7 +360,7 @@ export class ActivitiesController {
   @UseGuards(ActivityAssignmentGuard)
   public completeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.completeActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId, req);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
@@ -370,7 +370,7 @@ export class ActivitiesController {
   @UseGuards(ActivityAssignmentGuard)
   public completeHarvestActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.completeHarvestActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.completeHarvestActivity(params.activityId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.completeHarvestActivity(params.activityId, body, req.user.userId, req);
       return { 
         status: 200 as const, 
         body: { 
@@ -400,7 +400,7 @@ export class ActivitiesController {
   @UseGuards(ActivityAssignmentGuard)
   public pauseActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.pauseActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId, req);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
@@ -410,7 +410,7 @@ export class ActivitiesController {
   @UseGuards(ActivityAssignmentGuard)
   public resumeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.resumeActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body, req.user.organizationId);
+      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body, req);
       return { status: 200 as const, body: formatActivityResponse(result as Activity) };
     });
   }
@@ -422,7 +422,7 @@ export class ActivitiesController {
   @RequirePermission('activities', 'read')
   public getActivityCosts(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCostsContract.getActivityCosts, async ({ params }) => {
-      const result = await this.activitiesService.getActivityCosts(params.activityId, req.user.organizationId);
+      const result = await this.activitiesService.getActivityCosts(params.activityId, req);
       return { status: 200 as const, body: result };
     });
   }
@@ -441,7 +441,7 @@ export class ActivitiesController {
         receipt: body.receipt,
         vendor: body.vendor,
       };
-      const result = await this.activitiesService.addCost(params.activityId, costData, req.user.userId, req.user.organizationId);
+      const result = await this.activitiesService.addCost(params.activityId, costData, req.user.userId, req);
       return { status: 201 as const, body: result };
     });
   }

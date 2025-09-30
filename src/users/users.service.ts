@@ -165,8 +165,7 @@ export class UsersService {
   }) {
     this.logger.log(`User search requested by: ${user.userId}`, { query });
     
-    // Check if user has permission to view users
-    await this.checkPermission(user, 'user', 'read');
+    // Authorization is now handled by guards and decorators
 
     const page = query.page || 1;
     const limit = Math.min(query.limit || 25, 100);
@@ -255,7 +254,7 @@ export class UsersService {
   async getUserById(currentUser: CurrentUser, userId: string) {
     this.logger.log(`Get user by ID requested by: ${currentUser.userId} for user: ${userId}`);
     
-    await this.checkPermission(currentUser, 'user', 'read');
+    // Authorization is now handled by guards and decorators
     await this.checkSameOrganization(currentUser, userId);
 
     const profile = await this.getProfile({ ...currentUser, userId });
@@ -268,7 +267,7 @@ export class UsersService {
   async activateUser(currentUser: CurrentUser, userId: string) {
     this.logger.log(`User activation requested by: ${currentUser.userId} for user: ${userId}`);
     
-    await this.checkPermission(currentUser, 'user', 'update');
+    // Authorization is now handled by guards and decorators
     await this.checkSameOrganization(currentUser, userId);
 
     const user = await this.prisma.user.update({
@@ -495,7 +494,7 @@ export class UsersService {
   async getUserActivity(currentUser: CurrentUser, userId: string, query: any) {
     this.logger.log(`Admin ${currentUser.userId} requesting activity for user: ${userId}`);
     
-    await this.checkPermission(currentUser, 'user', 'read');
+    // Authorization is now handled by guards and decorators
     await this.checkSameOrganization(currentUser, userId);
 
     return this.getMyActivity({ ...currentUser, userId }, query);
@@ -550,7 +549,7 @@ export class UsersService {
   async getUserStats(currentUser: CurrentUser, userId: string, query: any) {
     this.logger.log(`Admin ${currentUser.userId} requesting stats for user: ${userId}`);
     
-    await this.checkPermission(currentUser, 'user', 'read');
+    // Authorization is now handled by guards and decorators
     await this.checkSameOrganization(currentUser, userId);
 
     return this.getMyStats({ ...currentUser, userId }, query);
@@ -560,51 +559,6 @@ export class UsersService {
   // Helper Methods
   // =============================================================================
 
-  private async checkPermission(user: CurrentUser, resource: string, action: string) {
-    this.logger.debug(`Checking permission for user ${user.userId}: ${resource}:${action}`);
-    
-    const userRecord = await this.prisma.user.findFirst({
-      where: {
-        id: user.userId,
-        organizationId: user.organizationId,
-        isActive: true,
-      },
-      include: {
-        userRoles: {
-          where: { isActive: true },
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: { permission: true },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!userRecord) {
-      this.logger.warn(`User not found or inactive during permission check: ${user.userId}`);
-      throw new ForbiddenException('User not found or inactive');
-    }
-
-    const hasPermission = userRecord.userRoles.some(userRole =>
-      userRole.role.permissions.some(rolePermission =>
-        rolePermission.permission.resource === resource &&
-        rolePermission.permission.action === action &&
-        rolePermission.granted
-      )
-    );
-
-    if (!hasPermission) {
-      this.logger.warn(`Insufficient permissions for user ${user.userId}: ${resource}:${action}`);
-      throw new ForbiddenException(`Insufficient permissions for ${resource}:${action}`);
-    }
-
-    this.logger.debug(`Permission granted for user ${user.userId}: ${resource}:${action}`);
-  }
 
   private async checkSameOrganization(currentUser: CurrentUser, userId: string) {
     this.logger.debug(`Checking organization access for user ${currentUser.userId} to access user ${userId}`);

@@ -11,6 +11,20 @@ describe('UsersService', () => {
     userId: 'user-123',
     email: 'test@example.com',
     organizationId: 'org-123',
+    isPlatformAdmin: false,
+    roles: [],
+    organization: {
+      id: 'org-123',
+      name: 'Test Organization',
+      type: 'FARM' as any,
+      plan: 'basic',
+      features: [],
+      allowedModules: [],
+      isVerified: true,
+      isSuspended: false,
+    },
+    permissions: [],
+    capabilities: [],
   };
 
   const mockUserProfile = {
@@ -284,8 +298,7 @@ describe('UsersService', () => {
     ];
 
     beforeEach(() => {
-      // Mock the permission check
-      jest.spyOn(service as any, 'checkPermission').mockResolvedValue(true);
+      // Authorization is now handled by guards and decorators
     });
 
     it('should search users successfully', async () => {
@@ -402,7 +415,6 @@ describe('UsersService', () => {
 
   describe('getUserById', () => {
     beforeEach(() => {
-      jest.spyOn(service as any, 'checkPermission').mockResolvedValue(true);
       jest.spyOn(service as any, 'checkSameOrganization').mockResolvedValue(true);
       jest.spyOn(service, 'getProfile').mockResolvedValue({
         id: 'user-456',
@@ -423,11 +435,7 @@ describe('UsersService', () => {
       const result = await service.getUserById(mockCurrentUser, 'user-456');
 
       expect(result.id).toBe('user-456');
-      expect(service['checkPermission']).toHaveBeenCalledWith(
-        mockCurrentUser,
-        'user',
-        'read',
-      );
+      // Authorization is now handled by guards and decorators
       expect(service['checkSameOrganization']).toHaveBeenCalledWith(
         mockCurrentUser,
         'user-456',
@@ -437,7 +445,6 @@ describe('UsersService', () => {
 
   describe('activateUser', () => {
     beforeEach(() => {
-      jest.spyOn(service as any, 'checkPermission').mockResolvedValue(true);
       jest.spyOn(service as any, 'checkSameOrganization').mockResolvedValue(true);
     });
 
@@ -473,11 +480,7 @@ describe('UsersService', () => {
 
       await service.activateUser(mockCurrentUser, 'user-456');
 
-      expect(service['checkPermission']).toHaveBeenCalledWith(
-        mockCurrentUser,
-        'user',
-        'update',
-      );
+      // Authorization is now handled by guards and decorators
     });
   });
 
@@ -874,7 +877,6 @@ describe('UsersService', () => {
 
   describe('getUserActivity', () => {
     beforeEach(() => {
-      jest.spyOn(service as any, 'checkPermission').mockResolvedValue(true);
       jest.spyOn(service as any, 'checkSameOrganization').mockResolvedValue(true);
       jest.spyOn(service, 'getMyActivity').mockResolvedValue({
         data: [],
@@ -885,11 +887,7 @@ describe('UsersService', () => {
     it('should get user activity as admin', async () => {
       await service.getUserActivity(mockCurrentUser, 'user-456', {});
 
-      expect(service['checkPermission']).toHaveBeenCalledWith(
-        mockCurrentUser,
-        'user',
-        'read',
-      );
+      // Authorization is now handled by guards and decorators
       expect(service['checkSameOrganization']).toHaveBeenCalledWith(
         mockCurrentUser,
         'user-456',
@@ -899,7 +897,6 @@ describe('UsersService', () => {
 
   describe('getUserStats', () => {
     beforeEach(() => {
-      jest.spyOn(service as any, 'checkPermission').mockResolvedValue(true);
       jest.spyOn(service as any, 'checkSameOrganization').mockResolvedValue(true);
       jest.spyOn(service, 'getMyStats').mockResolvedValue({
         period: 'month',
@@ -915,11 +912,7 @@ describe('UsersService', () => {
     it('should get user stats as admin', async () => {
       await service.getUserStats(mockCurrentUser, 'user-456', {});
 
-      expect(service['checkPermission']).toHaveBeenCalledWith(
-        mockCurrentUser,
-        'user',
-        'read',
-      );
+      // Authorization is now handled by guards and decorators
       expect(service['checkSameOrganization']).toHaveBeenCalledWith(
         mockCurrentUser,
         'user-456',
@@ -927,134 +920,6 @@ describe('UsersService', () => {
     });
   });
 
-  describe('checkPermission', () => {
-    it('should throw ForbiddenException when user not found', async () => {
-      mockPrismaService.user.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service['checkPermission'](mockCurrentUser, 'user', 'read'),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should throw ForbiddenException when permission not granted', async () => {
-      const userWithoutPermission = {
-        ...mockUserProfile,
-        userRoles: [
-          {
-            role: {
-              permissions: [
-                {
-                  permission: {
-                    resource: 'user',
-                    action: 'write',
-                  },
-                  granted: false,
-                },
-              ],
-            },
-          },
-        ],
-      };
-      mockPrismaService.user.findFirst.mockResolvedValue(userWithoutPermission);
-
-      await expect(
-        service['checkPermission'](mockCurrentUser, 'user', 'read'),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should pass when user has correct permission', async () => {
-      const userWithPermission = {
-        ...mockUserProfile,
-        userRoles: [
-          {
-            role: {
-              permissions: [
-                {
-                  permission: {
-                    resource: 'user',
-                    action: 'read',
-                  },
-                  granted: true,
-                },
-              ],
-            },
-          },
-        ],
-      };
-      mockPrismaService.user.findFirst.mockResolvedValue(userWithPermission);
-
-      await expect(
-        service['checkPermission'](mockCurrentUser, 'user', 'read'),
-      ).resolves.not.toThrow();
-    });
-
-    it('should pass when user has multiple roles with correct permission', async () => {
-      const userWithMultipleRoles = {
-        ...mockUserProfile,
-        userRoles: [
-          {
-            role: {
-              permissions: [
-                {
-                  permission: {
-                    resource: 'user',
-                    action: 'write',
-                  },
-                  granted: false,
-                },
-              ],
-            },
-          },
-          {
-            role: {
-              permissions: [
-                {
-                  permission: {
-                    resource: 'user',
-                    action: 'read',
-                  },
-                  granted: true,
-                },
-              ],
-            },
-          },
-        ],
-      };
-      mockPrismaService.user.findFirst.mockResolvedValue(userWithMultipleRoles);
-
-      await expect(
-        service['checkPermission'](mockCurrentUser, 'user', 'read'),
-      ).resolves.not.toThrow();
-    });
-
-    it('should log permission check', async () => {
-      const userWithPermission = {
-        ...mockUserProfile,
-        userRoles: [
-          {
-            role: {
-              permissions: [
-                {
-                  permission: {
-                    resource: 'user',
-                    action: 'read',
-                  },
-                  granted: true,
-                },
-              ],
-            },
-          },
-        ],
-      };
-      mockPrismaService.user.findFirst.mockResolvedValue(userWithPermission);
-
-      await service['checkPermission'](mockCurrentUser, 'user', 'read');
-
-      expect(service['logger'].debug).toHaveBeenCalledWith(
-        'Checking permission for user user-123: user:read',
-      );
-    });
-  });
 
   describe('checkSameOrganization', () => {
     it('should throw ForbiddenException when user not in same organization', async () => {

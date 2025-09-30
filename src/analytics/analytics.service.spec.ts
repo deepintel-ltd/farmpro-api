@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from './analytics.service';
-import { AnalyticsPermissionsService } from './permissions.service';
 import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -91,15 +90,6 @@ describe('AnalyticsService', () => {
               confidence: 0.8,
               model: 'gpt-4',
             }),
-          },
-        },
-        {
-          provide: AnalyticsPermissionsService,
-          useValue: {
-            checkAnalyticsPermission: jest.fn().mockResolvedValue(true),
-            validateFarmAccess: jest.fn().mockResolvedValue(true),
-            validateExportPermission: jest.fn().mockResolvedValue(true),
-            validateReportPermission: jest.fn().mockResolvedValue(true),
           },
         },
       ],

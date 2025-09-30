@@ -4,9 +4,18 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { rbacContract } from '../../contracts/rbac.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { RbacService } from './rbac.service';
+import {
+  RequireFeature,
+  RequirePermission,
+  RequireCapability,
+  RequireRoleLevel,
+} from '../common/decorators/authorization.decorators';
 import {
   CreateRoleDto,
   UpdateRoleDto,
@@ -22,6 +31,8 @@ interface AuthenticatedRequest extends ExpressRequest {
 @ApiTags('rbac')
 @ApiBearerAuth('JWT-auth')
 @Controller()
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('rbac')
 export class RbacController {
   private readonly logger = new Logger(RbacController.name);
 
@@ -33,8 +44,8 @@ export class RbacController {
   // Role Management
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.getRoles)
+  @RequirePermission('rbac', 'read')
   public getRoles(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -57,8 +68,8 @@ export class RbacController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.getRole)
+  @RequirePermission('rbac', 'read')
   public getRole(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -84,8 +95,9 @@ export class RbacController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.createRole)
+  @RequirePermission('rbac', 'create')
+  @RequireRoleLevel(50)
   public createRole(
     @Request() req: AuthenticatedRequest,
     @Body() body: CreateRoleDto,
@@ -113,8 +125,9 @@ export class RbacController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.updateRole)
+  @RequirePermission('rbac', 'update')
+  @RequireRoleLevel(50)
   public updateRole(
     @Request() req: AuthenticatedRequest,
     @Body() body: UpdateRoleDto,
@@ -143,8 +156,9 @@ export class RbacController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.deleteRole)
+  @RequirePermission('rbac', 'delete')
+  @RequireRoleLevel(50)
   public deleteRole(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -176,8 +190,8 @@ export class RbacController {
   // Permission Management
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.getPermissions)
+  @RequirePermission('rbac', 'read')
   public getPermissions(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -205,8 +219,8 @@ export class RbacController {
   // Permission Checking & Authorization
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.checkPermission)
+  @RequirePermission('rbac', 'read')
   public checkPermission(
     @Request() req: AuthenticatedRequest,
     @Body() body: CheckPermissionDto,
@@ -230,8 +244,8 @@ export class RbacController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.checkPermissions)
+  @RequirePermission('rbac', 'read')
   public checkPermissions(
     @Request() req: AuthenticatedRequest,
     @Body() body: CheckPermissionsDto,
@@ -255,8 +269,8 @@ export class RbacController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.getCurrentUserPermissions)
+  @RequirePermission('rbac', 'read')
   public getCurrentUserPermissions(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -284,8 +298,8 @@ export class RbacController {
   // User Role Management
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.getUserRoles)
+  @RequirePermission('rbac', 'read')
   public getUserRoles(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -315,8 +329,9 @@ export class RbacController {
   // Bulk Operations
   // =============================================================================
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(rbacContract.bulkAssignRoles)
+  @RequirePermission('rbac', 'update')
+  @RequireRoleLevel(50)
   public bulkAssignRoles(
     @Request() req: AuthenticatedRequest,
     @Body() body: BulkAssignRolesDto,

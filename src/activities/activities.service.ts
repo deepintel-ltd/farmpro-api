@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
-import { PermissionsService } from './permissions.service';
 import { CostType, Prisma } from '@prisma/client';
 import {
   CreateActivityDto,
@@ -55,10 +54,28 @@ export class ActivitiesService {
     private readonly prisma: PrismaService,
     private readonly assignmentService: ActivityAssignmentService,
     private readonly activityUpdatesGateway: ActivityUpdatesGateway,
-    private readonly permissionsService: PermissionsService,
   ) {}
 
-  async getActivities(organizationId: string, query: ActivityQueryOptions) {
+  // =============================================================================
+  // Helper Methods
+  // =============================================================================
+
+  private getOrganizationIdFromRequest(request: any): string {
+    // Get organizationId from request.organizationFilter added by OrganizationIsolationGuard
+    if (request.organizationFilter?.organizationId) {
+      return request.organizationFilter.organizationId;
+    }
+    
+    // Fallback to user.organizationId if organizationFilter is not available
+    if (request.user?.organizationId) {
+      return request.user.organizationId;
+    }
+    
+    throw new Error('Organization ID not found in request context');
+  }
+
+  async getActivities(query: ActivityQueryOptions, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const where: any = {
       farm: { organizationId },
     };
@@ -130,7 +147,8 @@ export class ActivitiesService {
     };
   }
 
-  async getActivity(activityId: string, organizationId: string) {
+  async getActivity(activityId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
@@ -163,7 +181,8 @@ export class ActivitiesService {
     return result;
   }
 
-  async createActivity(data: CreateActivityDto, userId: string, organizationId: string) {
+  async createActivity(data: CreateActivityDto, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     this.logger.log('Creating new activity', {
       userId,
       organizationId,
@@ -261,7 +280,8 @@ export class ActivitiesService {
     return this.formatActivityResponse(result);
   }
 
-  async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, organizationId: string) {
+  async updateActivity(activityId: string, data: UpdateActivityDto, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
@@ -324,7 +344,8 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async deleteActivity(activityId: string, userId: string, organizationId: string) {
+  async deleteActivity(activityId: string, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
         id: activityId,
@@ -385,11 +406,12 @@ export class ActivitiesService {
     // Activity deleted successfully
   }
 
-  async startActivity(activityId: string, data: StartActivityDto, userId: string, organizationId?: string) {
+  async startActivity(activityId: string, data: StartActivityDto, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
         id: activityId,
-        ...(organizationId && { farm: { organizationId } })
+        farm: { organizationId }
       },
       include: {
         farm: { select: { organizationId: true } }
@@ -449,11 +471,12 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async updateProgress(activityId: string, data: UpdateProgressDto, userId: string, organizationId?: string) {
+  async updateProgress(activityId: string, data: UpdateProgressDto, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
         id: activityId,
-        ...(organizationId && { farm: { organizationId } })
+        farm: { organizationId }
       },
       include: {
         farm: { select: { organizationId: true } }
@@ -493,11 +516,12 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async completeActivity(activityId: string, data: CompleteActivityDto, userId: string, organizationId?: string) {
+  async completeActivity(activityId: string, data: CompleteActivityDto, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
         id: activityId,
-        ...(organizationId && { farm: { organizationId } })
+        farm: { organizationId }
       },
       include: {
         farm: { select: { organizationId: true } }
@@ -553,7 +577,8 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async completeHarvestActivity(activityId: string, harvestData: any, userId: string, organizationId: string) {
+  async completeHarvestActivity(activityId: string, harvestData: any, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
         id: activityId,
@@ -736,11 +761,12 @@ export class ActivitiesService {
     };
   }
 
-  async pauseActivity(activityId: string, data: PauseActivityDto, userId: string, organizationId?: string) {
+  async pauseActivity(activityId: string, data: PauseActivityDto, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
         id: activityId,
-        ...(organizationId && { farm: { organizationId } })
+        farm: { organizationId }
       },
       include: {
         farm: { select: { organizationId: true } }
@@ -777,11 +803,12 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async resumeActivity(activityId: string, userId: string, data?: { notes?: string }, organizationId?: string) {
+  async resumeActivity(activityId: string, userId: string, data?: { notes?: string }, request?: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
         id: activityId,
-        ...(organizationId && { farm: { organizationId } })
+        farm: { organizationId }
       },
       include: {
         farm: { select: { organizationId: true } }
@@ -816,7 +843,8 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async getCalendarEvents(query: CalendarQueryOptions, organizationId: string): Promise<CalendarEvent[]> {
+  async getCalendarEvents(query: CalendarQueryOptions, request: any): Promise<CalendarEvent[]> {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const where: any = {
       farmId: query.farmId,
       farm: { organizationId },
@@ -877,7 +905,8 @@ export class ActivitiesService {
     });
   }
 
-  async getMyTasks(userId: string, query: MyTasksQueryOptions, organizationId: string) {
+  async getMyTasks(userId: string, query: MyTasksQueryOptions, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     // Use the assignment service to get user's activities
     return this.assignmentService.getUserActivities(userId, organizationId, {
       status: query.status,
@@ -942,7 +971,8 @@ export class ActivitiesService {
     };
   }
 
-  async getTeamPerformance(query: any, organizationId: string) {
+  async getTeamPerformance(query: any, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     const startDate = this.getStartDate(query.period || 'month');
     const endDate = new Date();
 
@@ -1354,8 +1384,7 @@ export class ActivitiesService {
       try {
         const activityData = activities[i];
         
-        // Check permissions
-        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, activityData.farmId);
+        // Authorization is now handled by guards
 
         const activity = await this.prisma.farmActivity.create({
           data: {
@@ -1472,7 +1501,7 @@ export class ActivitiesService {
       };
     }>,
     organizationId: string,
-    userId: string
+    _userId: string // eslint-disable-line @typescript-eslint/no-unused-vars
   ) {
     this.logger.log(`Bulk updating ${updates.length} activities for organization: ${organizationId}`);
 
@@ -1502,8 +1531,7 @@ export class ActivitiesService {
           continue;
         }
 
-        // Check farm access
-        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, existingActivity.farmId);
+        // Authorization is now handled by guards
 
         // Prepare update data
         const updateData: any = {};
@@ -1622,8 +1650,7 @@ export class ActivitiesService {
           continue;
         }
 
-        // Check farm access
-        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, existingActivity.farmId);
+        // Authorization is now handled by guards
 
         // Soft delete by updating status
         await this.prisma.farmActivity.update({
@@ -1696,8 +1723,7 @@ export class ActivitiesService {
           continue;
         }
 
-        // Check farm access
-        await this.permissionsService.checkFarmAccess({ userId: assignedBy, organizationId } as any, existingActivity.farmId);
+        // Authorization is now handled by guards
 
         // Create assignment
         await this.assignmentService.assignUsers(
@@ -1768,8 +1794,7 @@ export class ActivitiesService {
           continue;
         }
 
-        // Check farm access
-        await this.permissionsService.checkFarmAccess({ userId, organizationId } as any, existingActivity.farmId);
+        // Authorization is now handled by guards
 
         // Update activity status
         const activity = await this.prisma.farmActivity.update({
@@ -1859,7 +1884,8 @@ export class ActivitiesService {
   // Cost Management Methods (Consolidated from ActivityCostService)
   // =============================================================================
 
-  async getActivityCosts(activityId: string, organizationId: string) {
+  async getActivityCosts(activityId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     // Verify activity exists and user has access
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
@@ -1908,7 +1934,8 @@ export class ActivitiesService {
     };
   }
 
-  async addCost(activityId: string, data: CostEntryData, userId: string, organizationId: string) {
+  async addCost(activityId: string, data: CostEntryData, userId: string, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     // Verify activity exists and user has access
     const activity = await this.prisma.farmActivity.findFirst({
       where: {
@@ -2185,7 +2212,8 @@ export class ActivitiesService {
   // Missing API Endpoints Implementation
   // =============================================================================
 
-  async getCompletionRates(query: AnalyticsQueryOptions, organizationId: string) {
+  async getCompletionRates(query: AnalyticsQueryOptions, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     this.logger.log('Getting completion rates analytics', {
       organizationId,
       query
@@ -2252,7 +2280,8 @@ export class ActivitiesService {
     };
   }
 
-  async getCostAnalysis(query: AnalyticsQueryOptions, organizationId: string) {
+  async getCostAnalysis(query: AnalyticsQueryOptions, request: any) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
     this.logger.log('Getting cost analysis', {
       organizationId,
       query

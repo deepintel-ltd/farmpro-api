@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ActivitiesController } from './activities.controller';
 import { ActivitiesService } from './activities.service';
-import { PermissionsService } from './permissions.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityTemplateService } from './activity-template.service';
 import { ActivitySchedulingService } from './activity-scheduling.service';
@@ -29,7 +28,6 @@ import { ActivityAssignmentGuard } from './guards';
   controllers: [ActivitiesController, MobileFieldController],
   providers: [
     ActivitiesService,
-    PermissionsService,
     ActivityAssignmentService,
     ActivityTemplateService,
     ActivitySchedulingService,
@@ -41,7 +39,6 @@ import { ActivityAssignmentGuard } from './guards';
   ],
   exports: [
     ActivitiesService,
-    PermissionsService,
     ActivityAssignmentService,
     ActivityTemplateService,
     ActivitySchedulingService,
