@@ -6,7 +6,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '@/prisma/prisma.service';
+import { OrdersService } from '../orders.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 /**
@@ -24,7 +24,7 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 export class OrderParticipantGuard implements CanActivate {
   private readonly logger = new Logger(OrderParticipantGuard.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -40,16 +40,7 @@ export class OrderParticipantGuard implements CanActivate {
     let order = request.order;
 
     if (!order) {
-      order = await this.prisma.order.findUnique({
-        where: { id: orderId },
-        select: {
-          id: true,
-          buyerOrgId: true,
-          supplierOrgId: true,
-          createdById: true,
-          status: true,
-        },
-      });
+      order = await this.ordersService.findOrderById(orderId);
 
       if (!order) {
         this.logger.warn(`Order ${orderId} not found`);

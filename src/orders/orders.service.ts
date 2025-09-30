@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
-  Order,
   OrderType, 
   OrderStatus,
   Prisma 
@@ -1551,6 +1550,23 @@ export class OrdersService {
   // Helper Methods
   // =============================================================================
 
+  /**
+   * Find order by ID for guard usage
+   * Returns null if not found (guards handle error)
+   */
+  async findOrderById(id: string) {
+    return this.prisma.order.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        buyerOrgId: true,
+        supplierOrgId: true,
+        createdById: true,
+        status: true,
+      },
+    });
+  }
+
   private async getOrderById(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -1747,22 +1763,5 @@ Delivery Date: ${order.deliveryDate.toISOString().split('T')[0]}
 
 Terms and conditions apply as per standard agricultural trading agreement.
     `.trim();
-  }
-
-  /**
-   * Find order by ID for guard usage
-   * Returns null if not found (guards handle error)
-   */
-  async findOrderById(id: string): Promise<Pick<Order, 'id' | 'buyerOrgId' | 'supplierOrgId' | 'createdById' | 'status'> | null> {
-    return this.prisma.order.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        buyerOrgId: true,
-        supplierOrgId: true,
-        createdById: true,
-        status: true,
-      },
-    });
   }
 }

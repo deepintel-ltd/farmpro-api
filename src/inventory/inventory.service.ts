@@ -94,6 +94,10 @@ export class InventoryService {
     return where;
   }
 
+  /**
+   * Validates farm access for operations where FarmAccessGuard cannot be used
+   * (e.g., when farmId comes from request body, not params)
+   */
   private async validateFarmAccess(
     user: CurrentUser,
     farmId: string,
@@ -198,10 +202,7 @@ export class InventoryService {
   async create(user: CurrentUser, createDto: CreateInventoryDto) {
     this.logger.log(`Creating inventory item for user: ${user.userId}`);
 
-    // Validate farm access and commodity existence
-    if (createDto.farmId) {
-      await this.validateFarmAccess(user, createDto.farmId);
-    }
+    // Validate commodity existence (farm access is handled by FarmAccessGuard)
     await this.validateCommodityExists(createDto.commodityId);
 
     const item = await this.prisma.inventory.create({
