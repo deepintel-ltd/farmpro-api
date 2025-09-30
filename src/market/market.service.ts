@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -460,40 +461,122 @@ export class MarketService {
     return mockData;
   }
 
-  async getPriceAlerts(_user: CurrentUser) {
-    // Suppress unused parameter warnings
-    void _user;
-    // Mock implementation - would fetch user's price alerts
+  async getPriceAlerts(user: CurrentUser) {
+    const alerts = await this.prisma.priceAlert.findMany({
+      where: {
+        userId: user.userId,
+      },
+      include: {
+        commodity: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const data = alerts.map((alert) => {
+      // Map condition to alertType
+      let alertType: 'above' | 'below' | 'change' = 'above';
+      if (alert.condition === 'ABOVE') alertType = 'above';
+      else if (alert.condition === 'BELOW') alertType = 'below';
+      else if (alert.condition === 'EQUAL') alertType = 'change';
+
+      return {
+        id: alert.id,
+        type: 'price-alerts' as const,
+        attributes: {
+          commodityId: alert.commodityId,
+          region: alert.region,
+          alertType: alertType,
+          threshold: alert.targetPrice,
+          percentageChange: undefined, // Not stored in DB currently
+          notifications: ['email'] as ('email' | 'sms' | 'push')[], // Default value
+          isActive: alert.isActive,
+          lastTriggered: alert.lastTriggered?.toISOString(),
+          createdAt: alert.createdAt.toISOString(),
+        },
+      };
+    });
+
     return {
-      data: [],
+      data,
       meta: {
-        total: 0,
+        total: alerts.length,
         page: 1,
         limit: 20,
-        totalPages: 0,
+        totalPages: Math.ceil(alerts.length / 20),
       },
     };
   }
 
-  async createPriceAlert(_user: CurrentUser, alertData: z.infer<typeof PriceAlertRequestSchema>) {
-    // Mock implementation - would create price alert
-    const alert = {
-      id: 'mock-alert-id',
-      type: 'price-alerts',
-      attributes: {
-        ...alertData.data.attributes,
-        isActive: true,
-        createdAt: new Date().toISOString(),
+  async createPriceAlert(user: CurrentUser, alertData: z.infer<typeof PriceAlertRequestSchema>) {
+    const attrs = alertData.data.attributes;
+
+    // Get commodity name if not provided
+    let commodityName = 'Unknown';
+    if (attrs.commodityId) {
+      const commodity = await this.prisma.commodity.findUnique({
+        where: { id: attrs.commodityId },
+      });
+      if (commodity) {
+        commodityName = commodity.name;
+      }
+    }
+
+    // Map alertType to condition
+    let condition: 'ABOVE' | 'BELOW' | 'EQUAL' = 'ABOVE';
+    if (attrs.alertType === 'above') condition = 'ABOVE';
+    else if (attrs.alertType === 'below') condition = 'BELOW';
+    else if (attrs.alertType === 'change') condition = 'EQUAL';
+
+    const alert = await this.prisma.priceAlert.create({
+      data: {
+        userId: user.userId,
+        commodityId: attrs.commodityId,
+        commodityName: commodityName,
+        targetPrice: attrs.threshold,
+        condition: condition,
+        region: attrs.region,
+      },
+    });
+
+    return {
+      data: {
+        id: alert.id,
+        type: 'price-alerts' as const,
+        attributes: {
+          commodityId: alert.commodityId,
+          region: alert.region,
+          alertType: alert.condition.toLowerCase() as 'above' | 'below' | 'change',
+          threshold: alert.targetPrice,
+          percentageChange: attrs.percentageChange,
+          notifications: attrs.notifications,
+          isActive: alert.isActive,
+          lastTriggered: alert.lastTriggered?.toISOString(),
+          createdAt: alert.createdAt.toISOString(),
+        },
       },
     };
-
-    return { data: alert };
   }
 
-  async deletePriceAlert(_user: CurrentUser, _alertId: string) {
-    // Suppress unused parameter warnings
-    void _alertId;
-    // Mock implementation - would delete price alert
+  async deletePriceAlert(user: CurrentUser, alertId: string) {
+    // Verify alert exists and belongs to user
+    const alert = await this.prisma.priceAlert.findUnique({
+      where: { id: alertId },
+    });
+
+    if (!alert) {
+      throw new NotFoundException('Price alert not found');
+    }
+
+    if (alert.userId !== user.userId) {
+      throw new ForbiddenException('You do not have permission to delete this price alert');
+    }
+
+    await this.prisma.priceAlert.delete({
+      where: { id: alertId },
+    });
+
     return { message: 'Price alert deleted successfully' };
   }
 
@@ -710,108 +793,292 @@ export class MarketService {
   // =============================================================================
 
   async getMyListings(
-    _user: CurrentUser,
-    _filters: {
+    user: CurrentUser,
+    filters: {
       status?: string;
       commodityId?: string;
       expiryDate?: string;
     } = {},
-    _pagination: PaginationOptions = {},
+    pagination: PaginationOptions = {},
   ) {
-    // Suppress unused parameter warnings
-    void _filters;
-    void _pagination;
-    // Mock implementation - would fetch user's listings
+    const page = pagination.page || 1;
+    const limit = pagination.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.MarketplaceListingWhereInput = {
+      organizationId: user.organizationId,
+    };
+
+    if (filters.status) {
+      where.status = filters.status as any;
+    }
+
+    if (filters.commodityId) {
+      where.inventory = {
+        commodityId: filters.commodityId,
+      };
+    }
+
+    if (filters.expiryDate) {
+      where.availableUntil = {
+        lte: new Date(filters.expiryDate),
+      };
+    }
+
+    const [listings, total] = await Promise.all([
+      this.prisma.marketplaceListing.findMany({
+        where,
+        include: {
+          inventory: {
+            include: {
+              commodity: true,
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.marketplaceListing.count({ where }),
+    ]);
+
+    const data = listings.map((listing) => ({
+      id: listing.id,
+      type: 'marketplace-listings' as const,
+      attributes: {
+        inventoryId: listing.inventoryId,
+        title: listing.title,
+        description: listing.description,
+        quantity: listing.quantity,
+        unitPrice: listing.unitPrice,
+        priceType: listing.priceType.toLowerCase() as 'fixed' | 'negotiable' | 'auction',
+        minQuantity: listing.minQuantity,
+        qualityGrade: listing.qualityGrade as 'premium' | 'grade_a' | 'grade_b' | 'standard' | null,
+        certifications: listing.certifications,
+        availableFrom: listing.availableFrom.toISOString(),
+        availableUntil: listing.availableUntil.toISOString(),
+        deliveryOptions: listing.deliveryOptions as ('pickup' | 'delivery')[],
+        deliveryRadius: listing.deliveryRadius,
+        paymentTerms: listing.paymentTerms as ('cash' | 'credit' | 'escrow')[],
+        isPublic: listing.isPublic,
+        images: listing.images,
+        status: listing.status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'sold',
+        views: listing.views,
+        inquiries: listing.inquiries,
+        createdAt: listing.createdAt.toISOString(),
+        updatedAt: listing.updatedAt.toISOString(),
+      },
+    }));
+
     return {
-      data: [],
+      data,
       meta: {
-        total: 0,
-        page: 1,
-        limit: 20,
-        totalPages: 0,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
 
-  async createListing(_user: CurrentUser, listingData: z.infer<typeof CreateListingRequestSchema>) {
-    // Mock implementation - would create listing
-    const listing = {
-      id: 'mock-listing-id',
-      type: 'marketplace-listings',
-      attributes: {
-        ...listingData.data.attributes,
-        status: 'active' as const,
-        views: 0,
-        inquiries: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+  async createListing(user: CurrentUser, listingData: z.infer<typeof CreateListingRequestSchema>) {
+    const attrs = listingData.data.attributes;
+
+    // Verify inventory belongs to user's organization
+    const inventory = await this.prisma.inventory.findUnique({
+      where: { id: attrs.inventoryId },
+    });
+
+    if (!inventory || inventory.organizationId !== user.organizationId) {
+      throw new NotFoundException('Inventory not found or does not belong to your organization');
+    }
+
+    const listing = await this.prisma.marketplaceListing.create({
+      data: {
+        organizationId: user.organizationId,
+        inventoryId: attrs.inventoryId,
+        title: attrs.title,
+        description: attrs.description,
+        quantity: attrs.quantity,
+        unitPrice: attrs.unitPrice,
+        priceType: attrs.priceType.toUpperCase() as any,
+        minQuantity: attrs.minQuantity,
+        qualityGrade: attrs.qualityGrade,
+        certifications: attrs.certifications || [],
+        availableFrom: new Date(attrs.availableFrom),
+        availableUntil: new Date(attrs.availableUntil),
+        deliveryOptions: attrs.deliveryOptions || [],
+        deliveryRadius: attrs.deliveryRadius,
+        paymentTerms: attrs.paymentTerms || [],
+        isPublic: attrs.isPublic ?? true,
+        images: attrs.images || [],
+      },
+    });
+
+    return {
+      data: {
+        id: listing.id,
+        type: 'marketplace-listings' as const,
+        attributes: {
+          inventoryId: listing.inventoryId,
+          title: listing.title,
+          description: listing.description,
+          quantity: listing.quantity,
+          unitPrice: listing.unitPrice,
+          priceType: listing.priceType.toLowerCase() as 'fixed' | 'negotiable' | 'auction',
+          minQuantity: listing.minQuantity,
+          qualityGrade: listing.qualityGrade as 'premium' | 'grade_a' | 'grade_b' | 'standard' | null,
+          certifications: listing.certifications,
+          availableFrom: listing.availableFrom.toISOString(),
+          availableUntil: listing.availableUntil.toISOString(),
+          deliveryOptions: listing.deliveryOptions as ('pickup' | 'delivery')[],
+          deliveryRadius: listing.deliveryRadius,
+          paymentTerms: listing.paymentTerms as ('cash' | 'credit' | 'escrow')[],
+          isPublic: listing.isPublic,
+          images: listing.images,
+          status: listing.status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'sold',
+          views: listing.views,
+          inquiries: listing.inquiries,
+          createdAt: listing.createdAt.toISOString(),
+          updatedAt: listing.updatedAt.toISOString(),
+        },
       },
     };
-
-    return { data: listing };
   }
 
-  async updateListing(_user: CurrentUser, listingId: string, listingData: z.infer<typeof UpdateListingRequestSchema>) {
-    // Mock implementation - would update listing
-    // For testing purposes, simulate a non-existent listing for specific IDs
-    if (listingId === 'cmg5ll4nm00041cwada47hf8n') {
+  async updateListing(user: CurrentUser, listingId: string, listingData: z.infer<typeof UpdateListingRequestSchema>) {
+    // Verify listing exists and belongs to user's organization
+    const existingListing = await this.prisma.marketplaceListing.findUnique({
+      where: { id: listingId },
+    });
+
+    if (!existingListing) {
       throw new NotFoundException('Listing not found');
     }
-    
-    const listing = {
-      id: listingId,
-      type: 'marketplace-listings',
-      attributes: {
-        ...listingData.data.attributes,
-        updatedAt: new Date().toISOString(),
+
+    if (existingListing.organizationId !== user.organizationId) {
+      throw new ForbiddenException('You do not have permission to update this listing');
+    }
+
+    const attrs = listingData.data.attributes;
+    const updateData: any = {};
+
+    if (attrs.title !== undefined) updateData.title = attrs.title;
+    if (attrs.description !== undefined) updateData.description = attrs.description;
+    if (attrs.quantity !== undefined) updateData.quantity = attrs.quantity;
+    if (attrs.unitPrice !== undefined) updateData.unitPrice = attrs.unitPrice;
+    if (attrs.priceType !== undefined) updateData.priceType = attrs.priceType.toUpperCase();
+    if (attrs.minQuantity !== undefined) updateData.minQuantity = attrs.minQuantity;
+    if (attrs.qualityGrade !== undefined) updateData.qualityGrade = attrs.qualityGrade;
+    if (attrs.certifications !== undefined) updateData.certifications = attrs.certifications;
+    if (attrs.availableFrom !== undefined) updateData.availableFrom = new Date(attrs.availableFrom);
+    if (attrs.availableUntil !== undefined) updateData.availableUntil = new Date(attrs.availableUntil);
+    if (attrs.deliveryOptions !== undefined) updateData.deliveryOptions = attrs.deliveryOptions;
+    if (attrs.deliveryRadius !== undefined) updateData.deliveryRadius = attrs.deliveryRadius;
+    if (attrs.paymentTerms !== undefined) updateData.paymentTerms = attrs.paymentTerms;
+    if (attrs.isPublic !== undefined) updateData.isPublic = attrs.isPublic;
+    if (attrs.images !== undefined) updateData.images = attrs.images;
+
+    const listing = await this.prisma.marketplaceListing.update({
+      where: { id: listingId },
+      data: updateData,
+    });
+
+    return {
+      data: {
+        id: listing.id,
+        type: 'marketplace-listings' as const,
+        attributes: {
+          inventoryId: listing.inventoryId,
+          title: listing.title,
+          description: listing.description,
+          quantity: listing.quantity,
+          unitPrice: listing.unitPrice,
+          priceType: listing.priceType.toLowerCase() as 'fixed' | 'negotiable' | 'auction',
+          minQuantity: listing.minQuantity,
+          qualityGrade: listing.qualityGrade as 'premium' | 'grade_a' | 'grade_b' | 'standard' | null,
+          certifications: listing.certifications,
+          availableFrom: listing.availableFrom.toISOString(),
+          availableUntil: listing.availableUntil.toISOString(),
+          deliveryOptions: listing.deliveryOptions as ('pickup' | 'delivery')[],
+          deliveryRadius: listing.deliveryRadius,
+          paymentTerms: listing.paymentTerms as ('cash' | 'credit' | 'escrow')[],
+          isPublic: listing.isPublic,
+          images: listing.images,
+          status: listing.status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'sold',
+          views: listing.views,
+          inquiries: listing.inquiries,
+          createdAt: listing.createdAt.toISOString(),
+          updatedAt: listing.updatedAt.toISOString(),
+        },
       },
     };
-
-    return { data: listing };
   }
 
-  async deleteListing(_user: CurrentUser, listingId: string) {
-    // Mock implementation - would delete listing
-    // For testing purposes, simulate a non-existent listing for specific IDs
-    if (listingId === 'cmg5ll4nm00041cwada47hf8n') {
+  async deleteListing(user: CurrentUser, listingId: string) {
+    // Verify listing exists and belongs to user's organization
+    const listing = await this.prisma.marketplaceListing.findUnique({
+      where: { id: listingId },
+    });
+
+    if (!listing) {
       throw new NotFoundException('Listing not found');
     }
-    
+
+    if (listing.organizationId !== user.organizationId) {
+      throw new ForbiddenException('You do not have permission to delete this listing');
+    }
+
+    await this.prisma.marketplaceListing.delete({
+      where: { id: listingId },
+    });
+
     return { message: 'Listing deleted successfully' };
   }
 
   async getListing(_user: CurrentUser, listingId: string) {
-    // Mock implementation - would fetch listing
-    // For testing purposes, simulate a non-existent listing for specific IDs
-    if (listingId === 'cmg5ll4nm00041cwada47hf8n') {
+    const listing = await this.prisma.marketplaceListing.findUnique({
+      where: { id: listingId },
+      include: {
+        inventory: {
+          include: {
+            commodity: true,
+          },
+        },
+        organization: true,
+      },
+    });
+
+    if (!listing) {
       throw new NotFoundException('Listing not found');
     }
+
     return {
       data: {
-        id: 'mock-listing-id',
-        type: 'marketplace-listings',
+        id: listing.id,
+        type: 'marketplace-listings' as const,
         attributes: {
-          inventoryId: 'mock-inventory-id',
-          title: 'Mock Marketplace Listing',
-          description: 'A mock marketplace listing for testing',
-          quantity: 100,
-          unitPrice: 25.50,
-          priceType: 'fixed' as 'fixed' | 'negotiable' | 'auction',
-          minQuantity: 10,
-          qualityGrade: 'grade_a' as 'premium' | 'grade_a' | 'grade_b' | 'standard',
-          certifications: ['organic', 'non-gmo'],
-          availableFrom: new Date().toISOString(),
-          availableUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          deliveryOptions: ['pickup', 'delivery'] as ('pickup' | 'delivery')[],
-          deliveryRadius: 50,
-          paymentTerms: ['cash', 'credit', 'escrow'] as ('cash' | 'credit' | 'escrow')[],
-          isPublic: true,
-          images: ['https://example.com/image1.jpg'],
-          status: 'active' as 'active' | 'inactive' | 'expired' | 'sold',
-          views: 0,
-          inquiries: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          inventoryId: listing.inventoryId,
+          title: listing.title,
+          description: listing.description,
+          quantity: listing.quantity,
+          unitPrice: listing.unitPrice,
+          priceType: listing.priceType.toLowerCase() as 'fixed' | 'negotiable' | 'auction',
+          minQuantity: listing.minQuantity,
+          qualityGrade: listing.qualityGrade as 'premium' | 'grade_a' | 'grade_b' | 'standard' | null,
+          certifications: listing.certifications,
+          availableFrom: listing.availableFrom.toISOString(),
+          availableUntil: listing.availableUntil.toISOString(),
+          deliveryOptions: listing.deliveryOptions as ('pickup' | 'delivery')[],
+          deliveryRadius: listing.deliveryRadius,
+          paymentTerms: listing.paymentTerms as ('cash' | 'credit' | 'escrow')[],
+          isPublic: listing.isPublic,
+          images: listing.images,
+          status: listing.status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'sold',
+          views: listing.views,
+          inquiries: listing.inquiries,
+          createdAt: listing.createdAt.toISOString(),
+          updatedAt: listing.updatedAt.toISOString(),
         },
       },
     };
@@ -862,15 +1129,28 @@ export class MarketService {
     return Array.isArray(metadata.images) ? metadata.images : [];
   }
 
-  private getOrganizationLocation(_org: any): any {
-    // Suppress unused parameter warnings
-    void _org;
-    // Mock location - would use actual farm location
+  private getOrganizationLocation(org: any): any {
+    // Extract location from the first farm's location field
+    if (org.farms && org.farms.length > 0) {
+      const farm = org.farms[0];
+      if (farm.location) {
+        // farm.location is a JSON field that should contain location data
+        const location = farm.location;
+        return {
+          latitude: location.latitude || 0,
+          longitude: location.longitude || 0,
+          address: location.address || '',
+          region: location.region || '',
+        };
+      }
+    }
+
+    // Fallback to default if no farm location available
     return {
-      latitude: 40.7128,
-      longitude: -74.0060,
-      address: '123 Farm Road, City, State',
-      region: 'North America',
+      latitude: 0,
+      longitude: 0,
+      address: '',
+      region: '',
     };
   }
 

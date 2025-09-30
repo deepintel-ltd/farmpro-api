@@ -49,6 +49,7 @@ model User {
   marketAnalyses       MarketAnalysis[]
   activityOptimizations ActivityOptimization[]
   emailVerifications   EmailVerification[]
+  priceAlerts          PriceAlert[]
 
   @@index([organizationId])
   @@index([email])
@@ -198,6 +199,7 @@ model Organization {
   ratings         Rating[]        @relation("RatingGiven")
   ratingsReceived Rating[]        @relation("RatingReceived")
   activityTemplates ActivityTemplate[]
+  listings        MarketplaceListing[]
 
   @@index([type])
   @@index([isActive, suspendedAt])
@@ -311,6 +313,7 @@ model Commodity {
   cropCycles CropCycle[]
   orderItems OrderItem[]
   inventory  Inventory[]
+  priceAlerts PriceAlert[]
 
   @@index([isGlobal, createdBy])
   @@index([farmId])
@@ -536,6 +539,7 @@ model Inventory {
   commodity    Commodity    @relation(fields: [commodityId], references: [id])
   harvest      Harvest?     @relation(fields: [harvestId], references: [id])
   orderItems   OrderItem[]
+  listings     MarketplaceListing[]
 
   @@index([organizationId, status])
   @@index([farmId])
@@ -957,6 +961,63 @@ model ActivityOptimization {
   @@map("activity_optimizations")
 }
 
+model MarketplaceListing {
+  id              String   @id @default(cuid())
+  organizationId  String
+  inventoryId     String
+  title           String
+  description     String?
+  quantity        Float
+  unitPrice       Float
+  priceType       ListingPriceType @default(FIXED)
+  minQuantity     Float?
+  qualityGrade    String?
+  certifications  String[]
+  availableFrom   DateTime
+  availableUntil  DateTime
+  deliveryOptions String[]
+  deliveryRadius  Int?
+  paymentTerms    String[]
+  isPublic        Boolean  @default(true)
+  images          String[]
+  status          ListingStatus @default(ACTIVE)
+  views           Int      @default(0)
+  inquiries       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventory    Inventory    @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([inventoryId])
+  @@index([status])
+  @@index([availableUntil])
+  @@map("marketplace_listings")
+}
+
+model PriceAlert {
+  id             String   @id @default(cuid())
+  userId         String
+  commodityId    String?
+  commodityName  String
+  targetPrice    Float
+  condition      PriceAlertCondition
+  region         String?
+  isActive       Boolean  @default(true)
+  lastTriggered  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commodity Commodity? @relation(fields: [commodityId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([commodityId])
+  @@index([isActive])
+  @@map("price_alerts")
+}
+
 enum CropStatus {
   PLANNED
   PLANTED
@@ -1062,4 +1123,23 @@ enum RoleScope {
   PLATFORM
   ORGANIZATION
   FARM
+}
+
+enum ListingStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  SOLD
+}
+
+enum ListingPriceType {
+  FIXED
+  NEGOTIABLE
+  AUCTION
+}
+
+enum PriceAlertCondition {
+  ABOVE
+  BELOW
+  EQUAL
 }
