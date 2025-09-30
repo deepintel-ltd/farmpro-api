@@ -10,22 +10,18 @@ import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { Request as ExpressRequest } from 'express';
 import { OrderType, OrderStatus } from '@prisma/client';
 import { Secured } from '../common/decorators/secured.decorator';
-import { FEATURES } from '../common/constants';
+import { FEATURES, PERMISSIONS } from '../common/constants';
 import {
   RequirePermission,
   RequireCapability,
   MarketplaceAccess,
 } from '../common/decorators/authorization.decorators';
 import {
-  OrderView,
-  OrderCreate,
-  OrderUpdate,
-  OrderDelete,
-  SupplierAction,
-  OrderMessage,
-  OrderMessageView,
-} from './decorators/order-auth.decorators';
-import { OrderMarketplaceGuard } from './guards';
+  OrderMarketplaceGuard,
+  OrderOwnershipGuard,
+  OrderParticipantGuard,
+  OrderSupplierGuard,
+} from './guards';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -307,7 +303,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.getOrder)
-  @OrderView()
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.READ)
   public getOrder(@Request() req: AuthenticatedRequest): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(ordersCrudContract.getOrder, async ({ params }) => {
       try {
@@ -331,7 +328,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.createOrder)
-  @OrderCreate()
+  @RequirePermission(...PERMISSIONS.ORDERS.CREATE)
   @RequireCapability('create_orders')
   public createOrder(
     @Request() req: AuthenticatedRequest,
@@ -360,7 +357,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.updateOrder)
-  @OrderUpdate()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   public updateOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -390,7 +388,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.deleteOrder)
-  @OrderDelete()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.DELETE)
   public deleteOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -422,7 +421,8 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersCrudContract.publishOrder)
-  @OrderUpdate()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   @MarketplaceAccess()
   public publishOrder(
     @Request() req: AuthenticatedRequest,
@@ -485,7 +485,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.rejectOrder)
-  @OrderView()
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.READ)
   public rejectOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -513,7 +514,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.counterOffer)
-  @SupplierAction()
+  @UseGuards(OrderSupplierGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   @MarketplaceAccess()
   public counterOffer(
     @Request() req: AuthenticatedRequest,
@@ -542,7 +544,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.confirmOrder)
-  @OrderUpdate()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   public confirmOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -572,7 +575,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.startFulfillment)
-  @SupplierAction()
+  @UseGuards(OrderSupplierGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   public startFulfillment(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -602,7 +606,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.completeOrder)
-  @SupplierAction()
+  @UseGuards(OrderSupplierGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   public completeOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -636,7 +641,8 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersCrudContract.getOrderItems)
-  @OrderView()
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.READ)
   public getOrderItems(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -662,7 +668,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.addOrderItem)
-  @OrderUpdate()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   public addOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -694,7 +701,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.updateOrderItem)
-  @OrderUpdate()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.UPDATE)
   public updateOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -731,7 +739,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.deleteOrderItem)
-  @OrderDelete()
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.DELETE)
   public deleteOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -766,7 +775,8 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersMessagingContract.getOrderMessages)
-  @OrderMessageView()
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.READ)
   public getOrderMessages(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -795,7 +805,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMessagingContract.sendOrderMessage)
-  @OrderMessage()
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.CREATE)
   public sendOrderMessage(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -825,7 +836,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMessagingContract.markMessageAsRead)
-  @OrderMessage()
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission(...PERMISSIONS.ORDERS.CREATE)
   public markMessageAsRead(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
