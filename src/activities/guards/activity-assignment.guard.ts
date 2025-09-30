@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -63,7 +64,7 @@ export class ActivityAssignmentGuard implements CanActivate {
 
     if (!activity) {
       this.logger.warn(`Activity ${activityId} not found`);
-      throw new ForbiddenException('Activity not found');
+      throw new NotFoundException('Activity not found');
     }
 
     // Platform admins can access any activity

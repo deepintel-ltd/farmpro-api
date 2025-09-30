@@ -77,8 +77,10 @@ const SYSTEM_PERMISSIONS = [
   { resource: 'permission', action: 'manage', description: 'Manage permissions' },
 
   // Media Management
+  { resource: 'media', action: 'create', description: 'Create/upload media files' },
   { resource: 'media', action: 'upload', description: 'Upload media files' },
   { resource: 'media', action: 'read', description: 'View media files' },
+  { resource: 'media', action: 'update', description: 'Update media files' },
   { resource: 'media', action: 'delete', description: 'Delete media files' },
   { resource: 'media', action: 'manage', description: 'Full media management' },
 
@@ -87,6 +89,14 @@ const SYSTEM_PERMISSIONS = [
   { resource: 'intelligence', action: 'analyze', description: 'Run farm analysis' },
   { resource: 'intelligence', action: 'optimize', description: 'Run activity optimization' },
   { resource: 'intelligence', action: 'manage', description: 'Full intelligence management' },
+
+  // Marketplace Management
+  { resource: 'marketplace', action: 'browse', description: 'Browse marketplace' },
+  { resource: 'marketplace', action: 'create', description: 'Create marketplace listings' },
+  { resource: 'marketplace', action: 'read', description: 'View marketplace listings' },
+  { resource: 'marketplace', action: 'update', description: 'Update marketplace listings' },
+  { resource: 'marketplace', action: 'delete', description: 'Delete marketplace listings' },
+  { resource: 'marketplace', action: 'manage', description: 'Full marketplace management' },
 
   // Financial Management
   { resource: 'transaction', action: 'create', description: 'Create transactions' },
@@ -159,7 +169,7 @@ const SYSTEM_ROLES = [
     permissions: [
       'user:read', 'farm:read', 'activity:read', 'activity:execute',
       'inventory:read', 'inventory:update', 'order:read', 'commodity:read',
-      'media:upload', 'media:read'
+      'media:create', 'media:read', 'media:update', 'media:delete'
     ]
   },
 

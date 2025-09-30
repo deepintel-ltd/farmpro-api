@@ -7,8 +7,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 import {
-  ORGANIZATION_FEATURES,
   hasModuleAccess,
 } from '@/common/config/organization-features.config';
 
@@ -34,6 +34,16 @@ export class FeatureAccessGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Check if this route is public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const user: CurrentUser = request.user;
 
@@ -83,6 +93,14 @@ export class FeatureAccessGuard implements CanActivate {
   private checkFeatureAccess(user: CurrentUser, feature: string): void {
     const { organization } = user;
 
+    // Special case: RBAC is available to all organizations
+    if (feature === 'rbac') {
+      this.logger.debug(
+        `User ${user.email} granted access to RBAC feature (available to all organizations)`,
+      );
+      return;
+    }
+
     // Check if org type supports this feature
     if (!hasModuleAccess(organization.type, feature)) {
       this.logger.warn(
@@ -104,7 +122,8 @@ export class FeatureAccessGuard implements CanActivate {
     }
 
     // Check if feature is enabled in plan
-    if (!organization.features.includes(feature)) {
+    // Special case: 'all_features' grants access to all features
+    if (!organization.features.includes('all_features') && !organization.features.includes(feature)) {
       this.logger.warn(
         `User ${user.email} attempted to access feature '${feature}' not in plan`,
       );

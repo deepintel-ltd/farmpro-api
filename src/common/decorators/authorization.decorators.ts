@@ -151,7 +151,7 @@ export const MarketplaceAccess = () => {
     descriptor: PropertyDescriptor,
   ) => {
     RequireFeature('marketplace')(target, propertyKey, descriptor);
-    RequireOrgType('COMMODITY_TRADER', 'INTEGRATED_FARM')(
+    RequireOrgType('COMMODITY_TRADER', 'INTEGRATED_FARM', 'FARM_OPERATION')(
       target,
       propertyKey,
       descriptor,

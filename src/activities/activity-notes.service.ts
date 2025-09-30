@@ -44,13 +44,7 @@ export class ActivityNotesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to the activity or is the creator
-    const isAssigned = activity.assignments.some(a => a.userId === userId);
-    const isCreator = activity.createdById === userId;
-
-    if (!isAssigned && !isCreator) {
-      throw new ForbiddenException('Not authorized to add notes to this activity');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     // Validate attachments if provided
     if (noteData.attachments?.length) {
@@ -117,14 +111,7 @@ export class ActivityNotesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check access level
-    const isAssigned = activity.assignments.some(a => a.userId === userId);
-    const isCreator = activity.createdById === userId;
-    const hasAccess = isAssigned || isCreator;
-
-    if (!hasAccess) {
-      throw new ForbiddenException('Not authorized to view notes for this activity');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     // Build where clause
     const where: any = { activityId };

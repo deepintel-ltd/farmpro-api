@@ -49,7 +49,7 @@ describe('RBAC E2E Tests', () => {
     const hashedPassword = await hash('TestPassword123!');
     
     // Admin user
-    adminUser = await testContext.createUser({
+    adminUser = await testContext.createUserWithoutRole({
       email: 'admin@rbactest.com',
       name: 'Admin User',
       hashedPassword,
@@ -58,8 +58,8 @@ describe('RBAC E2E Tests', () => {
       emailVerified: true,
     });
 
-    // Manager user
-    managerUser = await testContext.createUser({
+    // Manager user (create without automatic role assignment)
+    managerUser = await testContext.createUserWithoutRole({
       email: 'manager@rbactest.com',
       name: 'Manager User',
       hashedPassword,
@@ -68,8 +68,8 @@ describe('RBAC E2E Tests', () => {
       emailVerified: true,
     });
 
-    // Employee user
-    employeeUser = await testContext.createUser({
+    // Employee user (create without automatic role assignment)
+    employeeUser = await testContext.createUserWithoutRole({
       email: 'employee@rbactest.com',
       name: 'Employee User',
       hashedPassword,
@@ -570,14 +570,12 @@ describe('RBAC E2E Tests', () => {
         action: 'create',
       };
 
-      const response = await testContext
+      await testContext
         .request()
         .post('/rbac/check-permission')
         .set('Authorization', `Bearer ${employeeAccessToken}`)
         .send(permissionCheck)
-        .expect(200);
-
-      expect(response.body.data.attributes.granted).toBe(false);
+        .expect(403);
     });
 
     it('should fail with invalid permission check data', async () => {

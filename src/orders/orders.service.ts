@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
@@ -343,7 +343,7 @@ export class OrdersService {
 
     // Business logic validation
     if (order.createdById === user.userId) {
-      throw new BadRequestException('Order creator cannot accept their own order');
+      throw new ForbiddenException('Order creator cannot accept their own order');
     }
 
     if (order.status !== OrderStatus.CONFIRMED) {

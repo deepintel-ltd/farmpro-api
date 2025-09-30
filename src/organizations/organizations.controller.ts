@@ -82,8 +82,8 @@ export class OrganizationsController {
       async ({ body }) => {
         try {
           const result = await this.organizationsService.updateProfile(
-            req.user.organizationId,
             body,
+            req,
           );
 
           this.logger.log(

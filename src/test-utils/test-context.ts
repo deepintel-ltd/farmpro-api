@@ -20,6 +20,7 @@ import { AppModule } from '../app.module';
 import * as request from 'supertest';
 import { MockOpenAIService } from './mocks/openai.mock';
 import { OpenAIService } from '@/intelligence/openai.service';
+import { initializeOrganizationFeatures } from '@/common/config/organization-features.config';  
 
 // Type definitions for entities with relations
 type OrganizationWithRelations = Organization;
@@ -198,15 +199,27 @@ export class TestContext {
   async createOrganization(
     overrides: Partial<Prisma.OrganizationCreateInput> = {},
   ): Promise<OrganizationWithRelations> {
+    
+    const orgType = overrides.type || OrganizationType.FARM_OPERATION;
+    const plan = overrides.plan || 'basic';
+    
+    // Initialize organization features based on type and plan
+    const { allowedModules, features } = initializeOrganizationFeatures(orgType, plan);
+    
+    // Add RBAC feature to all test organizations
+    const featuresWithRbac = [...features, 'rbac'];
+    const modulesWithRbac = [...allowedModules, 'rbac'];
+    
     const defaultData: Prisma.OrganizationCreateInput = {
       name: `Test Organization ${Date.now()}`,
-      type: OrganizationType.FARM_OPERATION,
+      type: orgType,
       email: `test-org-${Date.now()}@example.com`,
       isActive: true,
-      plan: 'basic',
+      plan,
       maxUsers: 5,
       maxFarms: 1,
-      features: ['basic_features'],
+      features: featuresWithRbac,
+      allowedModules: modulesWithRbac,
       ...overrides,
     };
 
@@ -237,12 +250,49 @@ export class TestContext {
       ...overrides,
     };
 
-    return await this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: defaultData,
       include: {
         organization: true,
       },
     });
+
+    // Assign a role with farm permissions to the user
+    await this.assignFarmManagerRole(user.id, organizationId);
+
+    return user;
+  }
+
+  /**
+   * Create a test user without automatic role assignment
+   */
+  async createUserWithoutRole(
+    overrides: Partial<Prisma.UserUncheckedCreateInput> = {},
+  ): Promise<UserWithRelations> {
+    // Create organization if not provided
+    let organizationId = overrides.organizationId;
+    if (!organizationId) {
+      const org = await this.createOrganization();
+      organizationId = org.id;
+    }
+
+    const defaultData: Prisma.UserUncheckedCreateInput = {
+      email: `test-user-${Date.now()}@example.com`,
+      name: `Test User ${Date.now()}`,
+      organizationId,
+      isActive: true,
+      emailVerified: true,
+      ...overrides,
+    };
+
+    const user = await this.prisma.user.create({
+      data: defaultData,
+      include: {
+        organization: true,
+      },
+    });
+
+    return user;
   }
 
   /**
@@ -849,16 +899,321 @@ export class TestContext {
   }
 
   /**
+   * Assign farm manager role to a user
+   */
+  async assignFarmManagerRole(userId: string, organizationId: string, farmId?: string): Promise<void> {
+    // First, ensure farm, activities, and orders permissions exist
+    await this.ensureFarmPermissions();
+    await this.ensureActivitiesPermissions();
+    await this.ensureOrdersPermissions();
+    
+    // Use farmId parameter (can be undefined for organization-level roles)
+    const targetFarmId = farmId || null;
+
+    // Create or get the Farm Manager role
+    let farmManagerRole = await this.prisma.role.findFirst({
+      where: {
+        name: 'Farm Manager',
+        organizationId: organizationId,
+      },
+    });
+
+    if (!farmManagerRole) {
+      farmManagerRole = await this.prisma.role.create({
+        data: {
+          name: 'Farm Manager',
+          description: 'Manage farm operations and team',
+          organizationId: organizationId,
+          level: 80,
+          isActive: true,
+          isSystemRole: true,
+        },
+      });
+
+      // Assign farm permissions to the role
+      const farmPermissions = await this.prisma.permission.findMany({
+        where: {
+          resource: 'farms',
+        },
+      });
+
+      await Promise.all(
+        farmPermissions.map(permission =>
+          this.prisma.rolePermission.create({
+            data: {
+              roleId: farmManagerRole.id,
+              permissionId: permission.id,
+              granted: true,
+            },
+          })
+        )
+      );
+
+      // Assign activities permissions to the role
+      const activitiesPermissions = await this.prisma.permission.findMany({
+        where: {
+          resource: 'activities',
+        },
+      });
+
+      await Promise.all(
+        activitiesPermissions.map(permission =>
+          this.prisma.rolePermission.create({
+            data: {
+              roleId: farmManagerRole.id,
+              permissionId: permission.id,
+              granted: true,
+            },
+          })
+        )
+      );
+
+      // Ensure marketplace permissions exist and assign them to the role
+      await this.ensureMarketplacePermissions();
+      const marketplacePermissions = await this.prisma.permission.findMany({
+        where: {
+          resource: 'marketplace',
+        },
+      });
+
+      await Promise.all(
+        marketplacePermissions.map(permission =>
+          this.prisma.rolePermission.create({
+            data: {
+              roleId: farmManagerRole.id,
+              permissionId: permission.id,
+              granted: true,
+            },
+          })
+        )
+      );
+
+      // Ensure orders permissions exist and assign them to the role
+      const ordersPermissions = await this.prisma.permission.findMany({
+        where: {
+          resource: 'orders',
+        },
+      });
+
+      await Promise.all(
+        ordersPermissions.map(permission =>
+          this.prisma.rolePermission.create({
+            data: {
+              roleId: farmManagerRole.id,
+              permissionId: permission.id,
+              granted: true,
+            },
+          })
+        )
+      );
+
+      // Ensure media permissions exist and assign them to the role
+      const mediaPermissions = await this.prisma.permission.findMany({
+        where: {
+          resource: 'media',
+        },
+      });
+
+      await Promise.all(
+        mediaPermissions.map(permission =>
+          this.prisma.rolePermission.create({
+            data: {
+              roleId: farmManagerRole.id,
+              permissionId: permission.id,
+              granted: true,
+            },
+          })
+        )
+      );
+
+    }
+
+    // Assign the role to the user
+    // Use the provided farmId or a placeholder for organization-level roles
+    await this.prisma.userRole.create({
+      data: {
+        userId: userId,
+        roleId: farmManagerRole.id,
+        farmId: targetFarmId || 'org-level-role',
+        isActive: true,
+      },
+    });
+  }
+
+  /**
+   * Ensure farm permissions exist in the database
+   */
+  async ensureFarmPermissions(): Promise<void> {
+    const farmPermissions = [
+      { resource: 'farms', action: 'create', description: 'Create farms' },
+      { resource: 'farms', action: 'read', description: 'View farm information' },
+      { resource: 'farms', action: 'update', description: 'Update farm details' },
+      { resource: 'farms', action: 'delete', description: 'Delete farms' },
+      { resource: 'farms', action: 'manage', description: 'Full farm management' },
+    ];
+
+    for (const permission of farmPermissions) {
+      await this.prisma.permission.upsert({
+        where: {
+          resource_action: {
+            resource: permission.resource,
+            action: permission.action,
+          },
+        },
+        update: permission,
+        create: {
+          ...permission,
+          isSystemPermission: true,
+        },
+      });
+    }
+  }
+
+  /**
+   * Ensure activities permissions exist in the database
+   */
+  async ensureActivitiesPermissions(): Promise<void> {
+    const activitiesPermissions = [
+      { resource: 'activities', action: 'create', description: 'Create activities' },
+      { resource: 'activities', action: 'read', description: 'View activities' },
+      { resource: 'activities', action: 'update', description: 'Update activities' },
+      { resource: 'activities', action: 'delete', description: 'Delete activities' },
+      { resource: 'activities', action: 'execute', description: 'Execute activities' },
+      { resource: 'activities', action: 'assign', description: 'Assign activities' },
+      { resource: 'activities', action: 'bulk_schedule', description: 'Bulk schedule activities' },
+    ];
+
+    for (const permission of activitiesPermissions) {
+      await this.prisma.permission.upsert({
+        where: {
+          resource_action: {
+            resource: permission.resource,
+            action: permission.action,
+          },
+        },
+        update: permission,
+        create: {
+          ...permission,
+          isSystemPermission: true,
+        },
+      });
+    }
+  }
+
+  /**
+   * Ensure marketplace permissions exist in the database
+   */
+  async ensureMarketplacePermissions(): Promise<void> {
+    const marketplacePermissions = [
+      { resource: 'marketplace', action: 'browse', description: 'Browse marketplace' },
+      { resource: 'marketplace', action: 'create', description: 'Create marketplace listings' },
+      { resource: 'marketplace', action: 'read', description: 'View marketplace listings' },
+      { resource: 'marketplace', action: 'update', description: 'Update marketplace listings' },
+      { resource: 'marketplace', action: 'delete', description: 'Delete marketplace listings' },
+      { resource: 'marketplace', action: 'manage', description: 'Full marketplace management' },
+      { resource: 'marketplace', action: 'generate_contract', description: 'Generate contracts' },
+      { resource: 'marketplace', action: 'create_listing', description: 'Create marketplace listings' },
+    ];
+
+    for (const permission of marketplacePermissions) {
+      await this.prisma.permission.upsert({
+        where: {
+          resource_action: {
+            resource: permission.resource,
+            action: permission.action,
+          },
+        },
+        update: permission,
+        create: {
+          ...permission,
+          isSystemPermission: true,
+        },
+      });
+    }
+  }
+
+  /**
+   * Ensure orders permissions exist in the database
+   */
+  async ensureOrdersPermissions(): Promise<void> {
+    const ordersPermissions = [
+      { resource: 'orders', action: 'create', description: 'Create orders' },
+      { resource: 'orders', action: 'read', description: 'View orders' },
+      { resource: 'orders', action: 'update', description: 'Update orders' },
+      { resource: 'orders', action: 'delete', description: 'Delete orders' },
+      { resource: 'orders', action: 'manage', description: 'Full order management' },
+      { resource: 'orders', action: 'publish', description: 'Publish orders' },
+      { resource: 'orders', action: 'accept', description: 'Accept orders' },
+      { resource: 'orders', action: 'reject', description: 'Reject orders' },
+      { resource: 'orders', action: 'counter_offer', description: 'Make counter offers' },
+      { resource: 'orders', action: 'confirm', description: 'Confirm orders' },
+      { resource: 'orders', action: 'start_fulfillment', description: 'Start order fulfillment' },
+      { resource: 'orders', action: 'complete', description: 'Complete orders' },
+    ];
+
+    for (const permission of ordersPermissions) {
+      await this.prisma.permission.upsert({
+        where: {
+          resource_action: {
+            resource: permission.resource,
+            action: permission.action,
+          },
+        },
+        update: permission,
+        create: {
+          ...permission,
+          isSystemPermission: true,
+        },
+      });
+    }
+  }
+
+  /**
    * Seed basic RBAC data for testing
    */
   async seedBasicRbacData(organizationId: string): Promise<void> {
     // Create basic permissions
     const permissions = await Promise.all([
+      // RBAC permissions (required by RBAC controller)
+      this.prisma.permission.create({
+        data: {
+          resource: 'rbac',
+          action: 'create',
+          description: 'Create RBAC resources (roles, permissions)',
+          isSystemPermission: true,
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'rbac',
+          action: 'read',
+          description: 'View RBAC resources (roles, permissions)',
+          isSystemPermission: true,
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'rbac',
+          action: 'update',
+          description: 'Update RBAC resources (roles, permissions)',
+          isSystemPermission: true,
+        },
+      }),
+      this.prisma.permission.create({
+        data: {
+          resource: 'rbac',
+          action: 'delete',
+          description: 'Delete RBAC resources (roles, permissions)',
+          isSystemPermission: true,
+        },
+      }),
+      // Legacy role permissions (for backward compatibility)
       this.prisma.permission.create({
         data: {
           resource: 'role',
           action: 'create',
           description: 'Create new roles',
+          isSystemPermission: true,
         },
       }),
       this.prisma.permission.create({
@@ -866,6 +1221,7 @@ export class TestContext {
           resource: 'role',
           action: 'read',
           description: 'View roles',
+          isSystemPermission: true,
         },
       }),
       this.prisma.permission.create({
@@ -873,6 +1229,7 @@ export class TestContext {
           resource: 'role',
           action: 'update',
           description: 'Update roles',
+          isSystemPermission: true,
         },
       }),
       this.prisma.permission.create({
@@ -880,6 +1237,7 @@ export class TestContext {
           resource: 'role',
           action: 'delete',
           description: 'Delete roles',
+          isSystemPermission: true,
         },
       }),
       this.prisma.permission.create({
@@ -887,6 +1245,7 @@ export class TestContext {
           resource: 'user',
           action: 'read',
           description: 'View users',
+          isSystemPermission: true,
         },
       }),
       this.prisma.permission.create({
@@ -894,6 +1253,7 @@ export class TestContext {
           resource: 'user',
           action: 'update',
           description: 'Update users',
+          isSystemPermission: true,
         },
       }),
       this.prisma.permission.create({
@@ -901,6 +1261,7 @@ export class TestContext {
           resource: 'permission',
           action: 'read',
           description: 'View permissions',
+          isSystemPermission: true,
         },
       }),
     ]);
@@ -954,7 +1315,7 @@ export class TestContext {
 
     // Assign limited permissions to manager role
     const managerPermissions = permissions.filter(p => 
-      p.resource === 'user' || (p.resource === 'role' && p.action === 'read')
+      p.resource === 'user' || (p.resource === 'role' && p.action === 'read') || (p.resource === 'rbac' && p.action === 'read')
     );
     await Promise.all(
       managerPermissions.map(permission =>
@@ -970,7 +1331,7 @@ export class TestContext {
 
     // Assign basic permissions to employee role (only non-sensitive read permissions)
     const employeePermissions = permissions.filter(p => 
-      p.action === 'read' && p.resource !== 'role' && p.resource !== 'permission'
+      p.action === 'read' && p.resource !== 'role' && p.resource !== 'permission' && p.resource !== 'rbac'
     );
     await Promise.all(
       employeePermissions.map(permission =>

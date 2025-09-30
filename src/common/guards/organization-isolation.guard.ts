@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 
 // Metadata key for bypassing organization isolation
 export const BYPASS_ORG_ISOLATION_KEY = 'bypassOrgIsolation';
@@ -26,6 +27,16 @@ export class OrganizationIsolationGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Check if this route is public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    
+    if (isPublic) {
+      return true;
+    }
+
     // Check if this route explicitly bypasses org isolation
     const bypassOrgIsolation = this.reflector.getAllAndOverride<boolean>(
       BYPASS_ORG_ISOLATION_KEY,

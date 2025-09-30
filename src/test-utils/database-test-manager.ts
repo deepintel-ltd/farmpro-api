@@ -52,6 +52,9 @@ export class DatabaseTestManager {
     // Run migrations
     await this.runMigrations();
 
+    // Initialize database with permissions and roles
+    await this.initializeDatabase();
+
     console.log('PostgreSQL test container started successfully');
   }
 
@@ -124,6 +127,37 @@ export class DatabaseTestManager {
       console.log('Database migrations completed successfully');
     } catch (error) {
       console.error('Failed to run migrations:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize database with permissions and roles
+   */
+  async initializeDatabase(): Promise<void> {
+    if (!this.prisma) {
+      throw new Error(
+        'Prisma client not initialized. Call startContainer() first.',
+      );
+    }
+
+    try {
+      // Set environment variable for init script
+      const connectionUrl = this.getConnectionUrl();
+      process.env.DATABASE_URL = connectionUrl;
+
+      // Run the init script
+      execSync('npx tsx scripts/init-db.ts', {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          DATABASE_URL: connectionUrl,
+        },
+      });
+
+      console.log('Database initialization completed successfully');
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
       throw error;
     }
   }

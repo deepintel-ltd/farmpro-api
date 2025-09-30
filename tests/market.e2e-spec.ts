@@ -31,10 +31,11 @@ describe('Market E2E Tests', () => {
     // Create test user and organization
     const hashedPassword = await hash('TestPassword123!');
     testOrganization = await testContext.createOrganization({
-      name: 'Test Farm Organization',
-      type: 'FARM_OPERATION',
-      email: 'testfarm@example.com',
-      isActive: true
+      name: 'Test Market Organization',
+      type: 'INTEGRATED_FARM',
+      email: 'testmarket@example.com',
+      isActive: true,
+      plan: 'professional' // Ensure marketplace features are enabled
     });
 
     await testContext.createUser({
@@ -100,6 +101,13 @@ describe('Market E2E Tests', () => {
       .expect(200);
 
     accessToken = loginResponse.body.data.attributes.tokens.accessToken;
+
+    // Verify user login
+    await testContext
+      .request()
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
     
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));

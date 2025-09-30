@@ -29,11 +29,7 @@ export class RbacService {
   }) {
     this.logger.log(`Getting roles for organization: ${user.organizationId}`, { query });
 
-    // Check if user has permission to read roles
-    const hasPermission = await this.hasPermission(user.userId, 'role', 'read');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to view roles');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     const page = query.page || 1;
     const limit = Math.min(query.limit || 25, 100);
@@ -98,11 +94,7 @@ export class RbacService {
   async getRole(roleId: string, user: CurrentUser): Promise<{ data: any }> {
     this.logger.log(`Getting role: ${roleId} for organization: ${user.organizationId}`);
 
-    // Check if user has permission to read roles
-    const hasPermission = await this.hasPermission(user.userId, 'role', 'read');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to view role');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     const role = await this.prisma.role.findFirst({
       where: {
@@ -139,11 +131,7 @@ export class RbacService {
   async createRole(user: CurrentUser, data: CreateRoleDto): Promise<{ data: any }> {
     this.logger.log(`Creating role: ${data.name} for organization: ${user.organizationId}`);
 
-    // Check if user has permission to create roles
-    const hasPermission = await this.hasPermission(user.userId, 'role', 'create');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to create role');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     // Check if role name already exists in organization
     const existingRole = await this.prisma.role.findFirst({
@@ -193,11 +181,7 @@ export class RbacService {
   async updateRole(roleId: string, user: CurrentUser, data: UpdateRoleDto): Promise<{ data: any }> {
     this.logger.log(`Updating role: ${roleId} for organization: ${user.organizationId}`);
 
-    // Check if user has permission to update roles
-    const hasPermission = await this.hasPermission(user.userId, 'role', 'update');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to update role');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     const existingRole = await this.prisma.role.findFirst({
       where: {
@@ -264,11 +248,7 @@ export class RbacService {
   async deleteRole(roleId: string, user: CurrentUser): Promise<{ data: any }> {
     this.logger.log(`Deleting role: ${roleId} for organization: ${user.organizationId}`);
 
-    // Check if user has permission to delete roles
-    const hasPermission = await this.hasPermission(user.userId, 'role', 'delete');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to delete role');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     const existingRole = await this.prisma.role.findFirst({
       where: {
@@ -328,11 +308,7 @@ export class RbacService {
   }) {
     this.logger.log(`Getting permissions`, { query });
 
-    // Check if user has permission to read permissions
-    const hasPermission = await this.hasPermission(user.userId, 'permission', 'read');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to view permissions');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     const page = query.page || 1;
     const limit = Math.min(query.limit || 25, 100);
@@ -615,11 +591,7 @@ export class RbacService {
   async bulkAssignRoles(user: CurrentUser, data: BulkAssignRolesDto): Promise<{ data: any }> {
     this.logger.log(`Bulk assigning role ${data.roleId} to ${data.userIds.length} users`);
 
-    // Check if user has permission to assign roles
-    const hasPermission = await this.hasPermission(user.userId, 'role', 'create');
-    if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permissions to assign roles');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     // Check if role exists first
     const role = await this.prisma.role.findFirst({

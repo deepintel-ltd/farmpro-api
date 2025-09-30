@@ -43,20 +43,14 @@ describe('Analytics E2E Tests', () => {
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Create test user and get access token
-    const hashedPassword = await hash('TestPassword123!');
-    user = await testContext.createUser({
-      email: 'analytics-test@example.com',
-      name: 'Analytics Test User',
-      phone: '+1234567890',
-      hashedPassword,
-      emailVerified: true,
-      isActive: true
+    // Create test organization first with analytics features
+    organization = await testContext.createOrganization({
+      plan: 'professional', // Professional plan includes analytics
+      features: ['farm_management', 'activities', 'inventory', 'analytics', 'marketplace', 'orders', 'trading', 'deliveries', 'observations', 'crop_cycles', 'intelligence'],
+      allowedModules: ['farm_management', 'activities', 'inventory', 'analytics', 'observations', 'sensors', 'crop_cycles', 'areas', 'seasons']
     });
-
-    organization = user.organization;
     
-    // Create test farm
+    // Create test farm first
     farm = await testContext.createFarm({
       organization: { connect: { id: organization.id } },
       name: 'Test Analytics Farm',
@@ -70,6 +64,29 @@ describe('Analytics E2E Tests', () => {
       establishedDate: new Date('2020-01-01'),
       certifications: ['organic'],
       isActive: true
+    });
+
+    // Create test user and get access token
+    const hashedPassword = await hash('TestPassword123!');
+    user = await testContext.createUser({
+      email: 'analytics-test@example.com',
+      name: 'Analytics Test User',
+      phone: '+1234567890',
+      hashedPassword,
+      emailVerified: true,
+      isActive: true,
+      organizationId: organization.id
+    });
+
+    // Update the user role to include the farmId
+    await testContext.prisma.userRole.updateMany({
+      where: {
+        userId: user.id,
+        farmId: null
+      },
+      data: {
+        farmId: farm.id
+      }
     });
 
     // Create test commodity

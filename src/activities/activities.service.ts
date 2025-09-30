@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
@@ -306,11 +306,7 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user can update (assigned or creator)
-    const canUpdate = activity.createdById === userId || activity.assignments.length > 0;
-    if (!canUpdate) {
-      throw new ForbiddenException('Not authorized to edit this activity');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
@@ -378,16 +374,7 @@ export class ActivitiesService {
     // Validate state transition - only allow cancellation from certain states
     this.validateStateTransition(activity.status, 'CANCELLED', 'cancel activity');
 
-    // Check if user can delete (creator only for simplicity)
-    if (activity.createdById !== userId) {
-      this.logger.warn('Unauthorized activity deletion attempt', {
-        activityId,
-        userId,
-        organizationId,
-        createdBy: activity.createdById
-      });
-      throw new ForbiddenException('Not authorized to delete this activity');
-    }
+    // Authorization is now handled by guards and decorators in the controller
 
     await this.prisma.farmActivity.update({
       where: { id: activityId },

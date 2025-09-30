@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -51,7 +52,7 @@ export class OrderOwnershipGuard implements CanActivate {
 
       if (!order) {
         this.logger.warn(`Order ${orderId} not found`);
-        throw new ForbiddenException('Order not found');
+        throw new NotFoundException('Order not found');
       }
     }
 

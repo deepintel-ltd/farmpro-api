@@ -10,18 +10,17 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 /**
- * Order Supplier Guard
+ * Order Marketplace Guard
  *
- * Verifies that the current user's organization is the supplier of the order.
- * Used for operations that require supplier access:
- * - Start fulfillment
- * - Complete order
- * - Update fulfillment status
- * - Add fulfillment notes
+ * Verifies that the order exists and is published (available for marketplace operations).
+ * Used for marketplace operations that don't require existing participation:
+ * - Accept order (any organization can accept published orders)
+ * - Make counter offers
+ * - Browse marketplace orders
  */
 @Injectable()
-export class OrderSupplierGuard implements CanActivate {
-  private readonly logger = new Logger(OrderSupplierGuard.name);
+export class OrderMarketplaceGuard implements CanActivate {
+  private readonly logger = new Logger(OrderMarketplaceGuard.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -47,6 +46,7 @@ export class OrderSupplierGuard implements CanActivate {
           supplierOrgId: true,
           createdById: true,
           status: true,
+          metadata: true,
         },
       });
 
@@ -63,18 +63,21 @@ export class OrderSupplierGuard implements CanActivate {
       return true;
     }
 
-    // Check if user's organization is the supplier
-    if (order.supplierOrgId !== user.organizationId) {
+    // For marketplace operations, the order must be published (status CONFIRMED and isPublic in metadata)
+    const metadata = order.metadata as any;
+    const isPublished = order.status === 'CONFIRMED' && metadata?.isPublic === true;
+    
+    if (!isPublished) {
       this.logger.warn(
-        `User ${user.userId} from org ${user.organizationId} attempted to access order ${orderId} as supplier (supplier org: ${order.supplierOrgId})`,
+        `User ${user.userId} attempted to access unpublished order ${orderId} for marketplace operation`,
       );
-      throw new ForbiddenException('Only supplier can perform this action');
+      throw new ForbiddenException('Order is not published and not available for marketplace operations');
     }
 
     // Attach order to request to avoid re-querying
     request.order = order;
 
-    this.logger.debug(`User ${user.email} verified as supplier for order ${orderId}`);
+    this.logger.debug(`User ${user.email} verified marketplace access to order ${orderId}`);
     return true;
   }
 }

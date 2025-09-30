@@ -34,9 +34,11 @@ describe('Intelligence E2E Tests', () => {
     // Create test organization
     testOrganization = await testContext.createOrganization({
       name: 'Test Intelligence Organization',
-      type: 'FARM_OPERATION',
-      email: 'test@intelligence.com'
+      type: 'INTEGRATED_FARM',
+      email: 'test@intelligence.com',
+      plan: 'professional' // Use professional plan to get intelligence features
     });
+    
 
     // Create test user
     const hashedPassword = await hash('TestPassword123!');
@@ -48,6 +50,62 @@ describe('Intelligence E2E Tests', () => {
       emailVerified: true,
       isActive: true,
       organizationId: testOrganization.id
+    });
+
+    // Create admin role and assign to user for intelligence permissions
+    const adminRole = await testContext.prisma.role.create({
+      data: {
+        name: 'Admin',
+        description: 'Administrator role with all permissions',
+        organizationId: testOrganization.id,
+        level: 100,
+        isActive: true,
+        isSystemRole: false,
+      },
+    });
+
+    // Create intelligence permissions
+    const intelligencePermissions = await Promise.all([
+      testContext.prisma.permission.upsert({
+        where: { resource_action: { resource: 'intelligence', action: 'create' } },
+        update: {},
+        create: {
+          resource: 'intelligence',
+          action: 'create',
+          description: 'Create intelligence responses',
+        },
+      }),
+      testContext.prisma.permission.upsert({
+        where: { resource_action: { resource: 'intelligence', action: 'read' } },
+        update: {},
+        create: {
+          resource: 'intelligence',
+          action: 'read',
+          description: 'Read intelligence responses',
+        },
+      }),
+    ]);
+
+    // Assign permissions to admin role
+    await Promise.all(
+      intelligencePermissions.map(permission =>
+        testContext.prisma.rolePermission.create({
+          data: {
+            roleId: adminRole.id,
+            permissionId: permission.id,
+            granted: true,
+          },
+        })
+      )
+    );
+
+    // Assign admin role to user
+    await testContext.prisma.userRole.create({
+      data: {
+        userId: testUser.id,
+        roleId: adminRole.id,
+        isActive: true,
+      },
     });
 
     // Create test farm
@@ -79,6 +137,14 @@ describe('Intelligence E2E Tests', () => {
 
     accessToken = loginResponse.body.data.attributes.tokens.accessToken;
     
+    // Verify user login
+    await testContext
+      .request()
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    
+    
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
   });
@@ -98,9 +164,9 @@ describe('Intelligence E2E Tests', () => {
         .request()
         .post('/intelligence/generate')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send(requestData)
-        .expect(200);
-
+        .send(requestData);
+        
+      
       expect(response.status).toBe(200);
       expect(response.body.id).toBeDefined();
       expect(response.body.content).toBeDefined();

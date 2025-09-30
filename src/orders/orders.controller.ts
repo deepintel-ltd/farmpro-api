@@ -24,6 +24,7 @@ import {
   OrderOwnershipGuard,
   OrderParticipantGuard,
   OrderSupplierGuard,
+  OrderMarketplaceGuard,
 } from './guards';
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -459,7 +460,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.acceptOrder)
-  @UseGuards(OrderParticipantGuard)
+  @UseGuards(OrderMarketplaceGuard)
   @MarketplaceAccess()
   @RequirePermission('orders', 'update')
   public acceptOrder(
@@ -520,7 +521,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.counterOffer)
-  @UseGuards(OrderSupplierGuard)
+  @UseGuards(OrderMarketplaceGuard)
   @MarketplaceAccess()
   @RequirePermission('orders', 'update')
   public counterOffer(

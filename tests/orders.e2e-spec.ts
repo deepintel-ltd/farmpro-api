@@ -173,8 +173,14 @@ describe('Orders E2E Tests', () => {
         .request()
         .post('/orders')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send(orderData)
-        .expect(201);
+        .send(orderData);
+
+      if (response.status !== 201) {
+        console.log('Create order response status:', response.status);
+        console.log('Create order response body:', JSON.stringify(response.body, null, 2));
+      }
+      
+      expect(response.status).toBe(201);
 
       expect(response.body.data.type).toBe('orders');
       expect(response.body.data.attributes.title).toBe(orderData.data.attributes.title);
@@ -668,8 +674,14 @@ describe('Orders E2E Tests', () => {
           .request()
           .post(`/orders/${testOrder.id}/publish`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({})
-          .expect(200);
+          .send({});
+
+        if (response.status !== 200) {
+          console.log('Publish order response status:', response.status);
+          console.log('Publish order response body:', JSON.stringify(response.body, null, 2));
+        }
+        
+        expect(response.status).toBe(200);
 
         expect(response.body.data.attributes.status).toBe('CONFIRMED');
         expect(response.body.data.attributes.metadata.isPublic).toBe(true);

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 
 // Metadata keys for permission requirements
 export const REQUIRE_PERMISSION_KEY = 'requirePermission';
@@ -38,6 +39,16 @@ export class PermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Check if this route is public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const user: CurrentUser = request.user;
 

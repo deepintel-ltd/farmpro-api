@@ -468,7 +468,7 @@ export class ActivitiesController {
         notifyUsers: body.notifyUsers
       });
       // Return the updated activity instead of assignment results
-      const activity = await this.activitiesService.getActivity(params.activityId!, req.user.organizationId);
+      const activity = await this.activitiesService.getActivity(params.activityId!, req);
       return { status: 200 as const, body: formatActivityResponse(activity as Activity) };
     });
   }
