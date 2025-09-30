@@ -3,18 +3,29 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { mediaContract } from '../../contracts/media.contract';
 import { MediaService } from './media.service';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
+import {
+  RequireFeature,
+  RequirePermission,
+  RequireCapability,
+  RequireRoleLevel,
+} from '../common/decorators/authorization.decorators';
 
 @ApiTags('media')
 @ApiBearerAuth('JWT-auth')
 @Controller()
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.uploadFile)
+  @RequirePermission('media', 'create')
   @UseInterceptors(FileInterceptor('file'))
   public uploadFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.uploadFile, async ({ body }) => {
@@ -56,8 +67,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.getMyFiles)
+  @RequirePermission('media', 'read')
   public getMyFiles(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getMyFiles, async ({ query }) => {
       const result = await this.mediaService.getUserFiles(
@@ -74,8 +85,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.getContextFiles)
+  @RequirePermission('media', 'read')
   public getContextFiles(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getContextFiles, async ({ params }) => {
       const result = await this.mediaService.getContextFiles(
@@ -87,8 +98,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.getFile)
+  @RequirePermission('media', 'read')
   public getFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getFile, async ({ params }) => {
       const result = await this.mediaService.getFile(
@@ -99,8 +110,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.getFileDownloadUrl)
+  @RequirePermission('media', 'read')
   public getFileDownloadUrl(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getFileDownloadUrl, async ({ params }) => {
       const url = await this.mediaService.generateDownloadUrl(
@@ -124,8 +135,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.deleteFile)
+  @RequirePermission('media', 'delete')
   public deleteFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.deleteFile, async ({ params, body }) => {
       const result = await this.mediaService.deleteFile(
@@ -138,8 +149,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.getFileAudit)
+  @RequirePermission('media', 'read')
   public getFileAudit(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getFileAudit, async ({ params }) => {
       const result = await this.mediaService.getFileAudit(
@@ -159,8 +170,8 @@ export class MediaController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @TsRestHandler(mediaContract.updateFileMetadata)
+  @RequirePermission('media', 'update')
   public updateFileMetadata(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.updateFileMetadata, async ({ params, body }) => {
       const result = await this.mediaService.updateFileMetadata(

@@ -11,12 +11,12 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 /**
  * Order Supplier Guard
  *
- * Verifies that the current user's organization is the supplier.
- * Used for operations that only the supplier can perform:
+ * Verifies that the current user's organization is the supplier of the order.
+ * Used for operations that require supplier access:
  * - Start fulfillment
- * - Update fulfillment status
  * - Complete order
- * - Add delivery information
+ * - Update fulfillment status
+ * - Add fulfillment notes
  */
 @Injectable()
 export class OrderSupplierGuard implements CanActivate {
@@ -27,14 +27,14 @@ export class OrderSupplierGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user: CurrentUser = request.user;
-    const orderId = request.params.id || request.params.orderId;
+    const orderId = request.params.id;
 
     if (!orderId) {
       this.logger.warn('Order ID not found in request params');
       throw new ForbiddenException('Order ID is required');
     }
 
-    // Check if order is already attached to request by previous guard
+    // Check if order is already attached to request
     let order = request.order;
 
     if (!order) {
@@ -42,9 +42,9 @@ export class OrderSupplierGuard implements CanActivate {
         where: { id: orderId },
         select: {
           id: true,
-          createdById: true,
           buyerOrgId: true,
           supplierOrgId: true,
+          createdById: true,
           status: true,
         },
       });
@@ -62,26 +62,18 @@ export class OrderSupplierGuard implements CanActivate {
       return true;
     }
 
-    // Check if supplier org ID is set
-    if (!order.supplierOrgId) {
-      this.logger.warn(`Order ${orderId} has no supplier assigned yet`);
-      throw new ForbiddenException('Order has no supplier assigned');
-    }
-
     // Check if user's organization is the supplier
     if (order.supplierOrgId !== user.organizationId) {
       this.logger.warn(
-        `User ${user.userId} from org ${user.organizationId} attempted supplier action on order ${orderId} (supplier: ${order.supplierOrgId})`,
+        `User ${user.userId} from org ${user.organizationId} attempted to access order ${orderId} as supplier (supplier org: ${order.supplierOrgId})`,
       );
-      throw new ForbiddenException('Only the supplier can perform this action');
+      throw new ForbiddenException('Only supplier can perform this action');
     }
 
-    // Attach order to request
+    // Attach order to request to avoid re-querying
     request.order = order;
 
-    this.logger.debug(
-      `User ${user.email} verified as supplier for order ${orderId}`,
-    );
+    this.logger.debug(`User ${user.email} verified as supplier for order ${orderId}`);
     return true;
   }
 }

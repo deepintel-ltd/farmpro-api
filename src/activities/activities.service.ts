@@ -400,13 +400,7 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity or is the creator
-    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    const isCreator = activity.createdById === userId;
-    
-    if (!isAssigned && !isCreator) {
-      throw new ForbiddenException('Not assigned to this activity');
-    }
+    // Authorization is now handled by ActivityAssignmentGuard in the controller
 
     // Validate state transition
     this.validateStateTransition(activity.status, 'IN_PROGRESS', 'start activity');
@@ -470,13 +464,7 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity or is the creator
-    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    const isCreator = activity.createdById === userId;
-    
-    if (!isAssigned && !isCreator) {
-      throw new ForbiddenException('Not assigned to this activity');
-    }
+    // Authorization is now handled by ActivityAssignmentGuard in the controller
 
     if (activity.status !== 'IN_PROGRESS') {
       throw new BadRequestException('Activity is not in progress - current status: ' + activity.status);
@@ -520,13 +508,7 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity or is the creator
-    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    const isCreator = activity.createdById === userId;
-    
-    if (!isAssigned && !isCreator) {
-      throw new ForbiddenException('Not assigned to this activity');
-    }
+    // Authorization is now handled by ActivityAssignmentGuard in the controller
 
     // Validate state transition
     this.validateStateTransition(activity.status, 'COMPLETED', 'complete activity');
@@ -592,11 +574,7 @@ export class ActivitiesService {
       throw new NotFoundException('Harvest activity not found');
     }
 
-    // Check if user is assigned to this activity
-    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, organizationId);
-    if (!isAssigned) {
-      throw new ForbiddenException('Not assigned to this activity');
-    }
+    // Authorization is now handled by ActivityAssignmentGuard in the controller
 
     // Validate state transition
     this.validateStateTransition(activity.status, 'COMPLETED', 'complete harvest activity');
@@ -773,13 +751,7 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity or is the creator
-    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    const isCreator = activity.createdById === userId;
-    
-    if (!isAssigned && !isCreator) {
-      throw new ForbiddenException('Not assigned to this activity');
-    }
+    // Authorization is now handled by ActivityAssignmentGuard in the controller
 
     // Validate state transition
     this.validateStateTransition(activity.status, 'PAUSED', 'pause activity');
@@ -820,13 +792,7 @@ export class ActivitiesService {
       throw new NotFoundException('Activity not found');
     }
 
-    // Check if user is assigned to this activity or is the creator
-    const isAssigned = await this.assignmentService.checkAssignment(activityId, userId, activity.farm.organizationId);
-    const isCreator = activity.createdById === userId;
-    
-    if (!isAssigned && !isCreator) {
-      throw new ForbiddenException('Not assigned to this activity');
-    }
+    // Authorization is now handled by ActivityAssignmentGuard in the controller
 
     // Validate state transition
     this.validateStateTransition(activity.status, 'IN_PROGRESS', 'resume activity');
@@ -2382,6 +2348,40 @@ export class ActivitiesService {
         }
       }
     };
+  }
+
+  /**
+   * Find activity by ID for guard usage
+   */
+  async findActivityById(id: string) {
+    return this.prisma.farmActivity.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        farmId: true,
+        createdById: true,
+        status: true,
+        farm: {
+          select: {
+            organizationId: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Check if user is assigned to activity
+   */
+  async checkUserAssignment(activityId: string, userId: string): Promise<boolean> {
+    const assignment = await this.prisma.activityAssignment.findFirst({
+      where: {
+        activityId,
+        userId,
+        isActive: true,
+      },
+    });
+    return !!assignment;
   }
 
 }

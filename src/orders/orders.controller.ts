@@ -17,6 +17,7 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
 import {
   RequireFeature,
   RequirePermission,
+  RequireCapability,
   MarketplaceAccess,
 } from '../common/decorators/authorization.decorators';
 import {
@@ -334,6 +335,7 @@ export class OrdersController {
 
   @TsRestHandler(ordersCrudContract.createOrder)
   @RequirePermission('orders', 'create')
+  @RequireCapability('create_orders')
   public createOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -457,6 +459,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.acceptOrder)
+  @UseGuards(OrderParticipantGuard)
   @MarketplaceAccess()
   @RequirePermission('orders', 'update')
   public acceptOrder(

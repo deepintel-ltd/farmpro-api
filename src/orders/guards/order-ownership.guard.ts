@@ -12,10 +12,11 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
  * Order Ownership Guard
  *
  * Verifies that the current user is the creator of the order.
- * Used for operations that only the order creator can perform:
- * - Update order details
- * - Delete/cancel order
+ * Used for operations that require order ownership:
+ * - Update order
+ * - Delete order
  * - Publish order
+ * - Cancel order
  */
 @Injectable()
 export class OrderOwnershipGuard implements CanActivate {
@@ -26,28 +27,32 @@ export class OrderOwnershipGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user: CurrentUser = request.user;
-    const orderId = request.params.id || request.params.orderId;
+    const orderId = request.params.id;
 
     if (!orderId) {
       this.logger.warn('Order ID not found in request params');
       throw new ForbiddenException('Order ID is required');
     }
 
-    // Fetch order with minimal fields for performance
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      select: {
-        id: true,
-        createdById: true,
-        buyerOrgId: true,
-        supplierOrgId: true,
-        status: true,
-      },
-    });
+    // Check if order is already attached to request
+    let order = request.order;
 
     if (!order) {
-      this.logger.warn(`Order ${orderId} not found`);
-      throw new ForbiddenException('Order not found');
+      order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: {
+          id: true,
+          buyerOrgId: true,
+          supplierOrgId: true,
+          createdById: true,
+          status: true,
+        },
+      });
+
+      if (!order) {
+        this.logger.warn(`Order ${orderId} not found`);
+        throw new ForbiddenException('Order not found');
+      }
     }
 
     // Platform admins can access any order
@@ -57,18 +62,18 @@ export class OrderOwnershipGuard implements CanActivate {
       return true;
     }
 
-    // Check if user is the creator
+    // Check if user is the creator of the order
     if (order.createdById !== user.userId) {
       this.logger.warn(
         `User ${user.userId} attempted to access order ${orderId} they did not create`,
       );
-      throw new ForbiddenException('Only the order creator can perform this action');
+      throw new ForbiddenException('Only order creator can perform this action');
     }
 
-    // Attach order to request to avoid re-querying in controller/service
+    // Attach order to request to avoid re-querying
     request.order = order;
 
-    this.logger.debug(`User ${user.email} verified as creator of order ${orderId}`);
+    this.logger.debug(`User ${user.email} verified as owner of order ${orderId}`);
     return true;
   }
 }

@@ -7,6 +7,15 @@ import { IntelligenceService } from './intelligence.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { Public } from '@/auth/decorators/public.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import {
+  RequireFeature,
+  RequirePermission,
+  RequireCapability,
+  RequireRoleLevel,
+} from '../common/decorators/authorization.decorators';
 
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -16,7 +25,8 @@ interface AuthenticatedRequest extends ExpressRequest {
 @ApiTags('intelligence')
 @ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('intelligence')
 export class IntelligenceController {
   constructor(private readonly intelligenceService: IntelligenceService) {}
 
@@ -46,6 +56,7 @@ export class IntelligenceController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(intelligenceContract.generateResponse)
+  @RequirePermission('intelligence', 'create')
   async generateResponse(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.generateResponse, async ({ body }) => {
       // Add user ID from JWT token
@@ -71,6 +82,7 @@ export class IntelligenceController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @TsRestHandler(intelligenceContract.analyzeFarm)
+  @RequirePermission('intelligence', 'create')
   async analyzeFarm(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.analyzeFarm, async ({ body }) => {
       const requestWithUser = {
@@ -87,6 +99,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.getFarmAnalysis)
+  @RequirePermission('intelligence', 'read')
   async getFarmAnalysis() {
     return tsRestHandler(intelligenceContract.getFarmAnalysis, async ({ params }) => {
       const response = await this.intelligenceService.getFarmAnalysis(params.id);
@@ -98,6 +111,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.listFarmAnalyses)
+  @RequirePermission('intelligence', 'read')
   async listFarmAnalyses(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.listFarmAnalyses, async ({ query }) => {
       const queryWithUser = {
@@ -114,6 +128,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.analyzeMarket)
+  @RequirePermission('intelligence', 'create')
   async analyzeMarket(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.analyzeMarket, async ({ body }) => {
       const requestWithUser = {
@@ -130,6 +145,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.getMarketAnalysis)
+  @RequirePermission('intelligence', 'read')
   async getMarketAnalysis() {
     return tsRestHandler(intelligenceContract.getMarketAnalysis, async ({ params }) => {
       const response = await this.intelligenceService.getMarketAnalysis(params.id);
@@ -141,6 +157,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.listMarketAnalyses)
+  @RequirePermission('intelligence', 'read')
   async listMarketAnalyses(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.listMarketAnalyses, async ({ query }) => {
       const queryWithUser = {
@@ -157,6 +174,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.optimizeActivity)
+  @RequirePermission('intelligence', 'create')
   async optimizeActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.optimizeActivity, async ({ body }) => {
       const requestWithUser = {
@@ -173,6 +191,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.getActivityOptimization)
+  @RequirePermission('intelligence', 'read')
   async getActivityOptimization() {
     return tsRestHandler(intelligenceContract.getActivityOptimization, async ({ params }) => {
       const response = await this.intelligenceService.getActivityOptimization(params.id);
@@ -184,6 +203,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.listActivityOptimizations)
+  @RequirePermission('intelligence', 'read')
   async listActivityOptimizations(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.listActivityOptimizations, async ({ query }) => {
       const queryWithUser = {
@@ -200,6 +220,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.getIntelligenceHistory)
+  @RequirePermission('intelligence', 'read')
   async getIntelligenceHistory(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(intelligenceContract.getIntelligenceHistory, async ({ query }) => {
       const queryWithUser = {
@@ -216,6 +237,7 @@ export class IntelligenceController {
   }
 
   @TsRestHandler(intelligenceContract.getIntelligenceResponse)
+  @RequirePermission('intelligence', 'read')
   async getIntelligenceResponse() {
     return tsRestHandler(intelligenceContract.getIntelligenceResponse, async ({ params }) => {
       const response = await this.intelligenceService.getIntelligenceResponse(params.id);
@@ -250,6 +272,7 @@ export class IntelligenceController {
   })
   @ApiResponse({ status: 500, description: 'Service unavailable' })
   @TsRestHandler(intelligenceContract.health)
+  @Public()
   async health() {
     return tsRestHandler(intelligenceContract.health, async () => {
       const response = await this.intelligenceService.healthCheck();
