@@ -19,10 +19,10 @@ export const platformAdminContract = c.router({
     method: 'GET',
     path: '/platform-admin/organizations',
     query: z.object({
-      page: z.number().optional(),
-      limit: z.number().optional(),
+      page: z.coerce.number().positive().optional(),
+      limit: z.coerce.number().positive().max(100).optional(),
       type: z.enum(['FARM_OPERATION', 'COMMODITY_TRADER', 'LOGISTICS_PROVIDER', 'INTEGRATED_FARM']).optional(),
-      isActive: z.boolean().optional(),
+      isActive: z.coerce.boolean().optional(),
     }),
     responses: {
       200: PlatformAdminOrganizationListResponseSchema,
