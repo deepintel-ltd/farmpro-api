@@ -4,8 +4,6 @@ import { hash } from '@node-rs/argon2';
 describe('Authorization Integration Tests', () => {
   let testContext: TestContext;
   let farmUser: any;
-  let traderUser: any;
-  let platformAdmin: any;
   let farmOrganization: any;
   let traderOrganization: any;
   let testFarm: any;
@@ -61,7 +59,7 @@ describe('Authorization Integration Tests', () => {
       organizationId: farmOrganization.id
     });
 
-    traderUser = await testContext.createUser({
+    await testContext.createUser({
       email: 'traderuser@test.com',
       name: 'Trader User',
       phone: '+1234567891',
@@ -71,15 +69,35 @@ describe('Authorization Integration Tests', () => {
       organizationId: traderOrganization.id
     });
 
-    platformAdmin = await testContext.createUser({
+    const platformAdminUser = await testContext.createUser({
       email: 'admin@platform.com',
       name: 'Platform Admin',
       phone: '+1234567892',
       hashedPassword,
       emailVerified: true,
       isActive: true,
-      organizationId: farmOrganization.id,
-      isPlatformAdmin: true
+      organizationId: farmOrganization.id
+    });
+
+    // Create platform admin role and assign it to the user
+    const platformAdminRole = await testContext.prisma.role.create({
+      data: {
+        name: 'platform_admin',
+        description: 'Platform Administrator',
+        organizationId: farmOrganization.id,
+        level: 1000,
+        isActive: true,
+        isSystemRole: true,
+        isPlatformAdmin: true
+      }
+    });
+
+    await testContext.prisma.userRole.create({
+      data: {
+        userId: platformAdminUser.id,
+        roleId: platformAdminRole.id,
+        isActive: true
+      }
     });
 
     // Create test farm
@@ -102,16 +120,20 @@ describe('Authorization Integration Tests', () => {
     // Create test order
     testOrder = await testContext.prisma.order.create({
       data: {
+        orderNumber: `ORD-${Date.now()}`,
         title: 'Test Order',
-        type: 'PURCHASE',
-        status: 'DRAFT',
-        buyerOrgId: farmOrganization.id,
-        supplierOrgId: traderOrganization.id,
-        createdById: farmUser.id,
+        type: 'BUY',
+        status: 'PENDING',
+        commodityId: 'test-commodity',
+        quantity: 100,
+        pricePerUnit: 10.50,
+        totalPrice: 1050.00,
         deliveryDate: new Date(),
         deliveryLocation: 'Test Location',
         deliveryAddress: {},
-        commodityId: 'test-commodity',
+        buyerOrgId: farmOrganization.id,
+        supplierOrgId: traderOrganization.id,
+        createdById: farmUser.id,
         farmId: testFarm.id
       }
     });
@@ -121,7 +143,7 @@ describe('Authorization Integration Tests', () => {
       data: {
         name: 'Test Activity',
         type: 'PLANTING',
-        status: 'SCHEDULED',
+        status: 'PLANNED',
         farmId: testFarm.id,
         createdById: farmUser.id,
         scheduledAt: new Date(),
