@@ -1,12 +1,10 @@
 import { Controller, Body, Query, UseGuards, Header } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../common/guards/rate-limit.guard';
-import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
-import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { CurrentUser, GetCurrentUser } from '../auth/decorators/current-user.decorator';
-import { 
+import { Secured } from '../common/decorators/secured.decorator';
+import { FEATURES, PERMISSIONS } from '../common/constants';
+import {
   analyticsContract,
   BaseAnalyticsQuery,
   FinancialQuery,
@@ -18,22 +16,21 @@ import {
 } from '../../contracts/analytics.contract';
 import { AnalyticsService } from './analytics.service';
 import {
-  RequireFeature,
   RequirePermission,
   RequireCapability,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 
 @Controller()
-@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard, RateLimitGuard)
-@RequireFeature('analytics')
+@Secured(FEATURES.ANALYTICS)
+@UseGuards(RateLimitGuard)
 export class AnalyticsController {
   constructor(
     private readonly analyticsService: AnalyticsService
   ) {}
 
   @TsRestHandler(analyticsContract.getDashboard)
-  @RequirePermission('analytics', 'read')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getDashboard(@Query() query: BaseAnalyticsQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getDashboard, async () => {
@@ -47,7 +44,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.getFinancialAnalytics)
-  @RequirePermission('analytics', 'read')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getFinancialAnalytics(@Query() query: FinancialQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getFinancialAnalytics, async () => {
@@ -61,7 +58,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.getFarmToMarketAnalytics)
-  @RequirePermission('analytics', 'read')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getFarmToMarketAnalytics(@Query() query: FarmToMarketQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getFarmToMarketAnalytics, async () => {
@@ -75,7 +72,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.getActivityAnalytics)
-  @RequirePermission('analytics', 'read')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getActivityAnalytics(@Query() query: ActivityQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getActivityAnalytics, async () => {
@@ -89,7 +86,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.getMarketAnalytics)
-  @RequirePermission('analytics', 'read')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
   @Header('Cache-Control', 'public, max-age=300') // 5 minutes cache
   async getMarketAnalytics(@Query() query: MarketQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getMarketAnalytics, async () => {
@@ -103,7 +100,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.getInsights)
-  @RequirePermission('analytics', 'read')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
   @Header('Cache-Control', 'public, max-age=600') // 10 minutes cache for AI insights
   async getInsights(@Query() query: BaseAnalyticsQuery, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.getInsights, async () => {
@@ -117,7 +114,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.exportAnalytics)
-  @RequirePermission('analytics', 'export')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.EXPORT)
   @RequireRoleLevel(50)
   async exportAnalytics(@Body() request: ExportRequest, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.exportAnalytics, async () => {
@@ -131,7 +128,7 @@ export class AnalyticsController {
   }
 
   @TsRestHandler(analyticsContract.generateReport)
-  @RequirePermission('analytics', 'export')
+  @RequirePermission(...PERMISSIONS.ANALYTICS.EXPORT)
   @RequireRoleLevel(50)
   async generateReport(@Body() request: ReportRequest, @GetCurrentUser() user: CurrentUser) {
     return tsRestHandler(analyticsContract.generateReport, async () => {

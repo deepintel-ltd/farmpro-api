@@ -1,18 +1,14 @@
-import { Controller, UseGuards, Logger, Request, Body, Query, Param, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, UseInterceptors, Logger, Request, Body, Query, Param, UploadedFile } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request as ExpressRequest } from 'express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
-import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Secured } from '../common/decorators/secured.decorator';
+import { FEATURES, PERMISSIONS } from '../common/constants';
 import { userContract } from '../../contracts/users.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { UsersService } from './users.service';
 import {
-  RequireFeature,
   RequirePermission,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
@@ -21,11 +17,8 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
 }
 
-@ApiTags('users')
-@ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
-@RequireFeature('users')
+@Secured(FEATURES.USERS)
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
@@ -36,7 +29,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getProfile)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -66,7 +59,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updateProfile)
-  @RequirePermission('users', 'update')
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   public updateProfile(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -103,7 +96,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.uploadAvatar)
-  @RequirePermission('users', 'update')
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   @UseInterceptors(FileInterceptor('avatar'))
   public uploadAvatar(
     @Request() req: AuthenticatedRequest,
@@ -153,7 +146,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.deleteAvatar)
-  @RequirePermission('users', 'update')
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   public deleteAvatar(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -188,7 +181,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getUsersWithQuery)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getUsers(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -232,7 +225,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getPreferences)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getPreferences(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -263,7 +256,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updatePreferences)
-  @RequirePermission('users', 'update')
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   public updatePreferences(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -299,7 +292,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getMyActivity)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getMyActivity(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -336,7 +329,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.getMyStats)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getMyStats(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -374,7 +367,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getUser)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getUserById(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -406,7 +399,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.activateUser)
-  @RequirePermission('users', 'update')
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   @RequireRoleLevel(50)
   public activateUser(
     @Request() req: AuthenticatedRequest,
@@ -443,7 +436,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getNotificationSettings)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getNotificationSettings(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -474,7 +467,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updateNotificationSettings)
-  @RequirePermission('users', 'update')
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   public updateNotificationSettings(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -510,7 +503,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getUserActivity)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getUserActivity(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -548,7 +541,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.getUserStats)
-  @RequirePermission('users', 'read')
+  @RequirePermission(...PERMISSIONS.USERS.READ)
   public getUserStats(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,

@@ -15,6 +15,7 @@ import {
   RequirePermission,
   RequireCapability,
 } from '../common/decorators/authorization.decorators';
+import { PERMISSIONS } from '../common/constants';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -35,7 +36,7 @@ export class FarmsController {
   // =============================================================================
 
   @TsRestHandler(farmContract.getFarms)
-  @RequirePermission('farms', 'read')
+  @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getFarms(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -63,7 +64,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.getFarm)
-  @RequirePermission('farms', 'read')
+  @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -92,7 +93,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.createFarm)
-  @RequirePermission('farms', 'create')
+  @RequirePermission(...PERMISSIONS.FARMS.CREATE)
   @RequireCapability('create_farms')
   public createFarm(
     @Request() req: AuthenticatedRequest,
@@ -124,7 +125,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.updateFarm)
-  @RequirePermission('farms', 'update')
+  @RequirePermission(...PERMISSIONS.FARMS.UPDATE)
   public updateFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -158,7 +159,7 @@ export class FarmsController {
   }
 
   @TsRestHandler(farmContract.deleteFarm)
-  @RequirePermission('farms', 'delete')
+  @RequirePermission(...PERMISSIONS.FARMS.DELETE)
   public deleteFarm(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {

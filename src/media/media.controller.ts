@@ -1,31 +1,24 @@
-import { Controller, UseGuards, UseInterceptors, BadRequestException, Request } from '@nestjs/common';
+import { Controller, UseInterceptors, BadRequestException, Request } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
-import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Secured } from '../common/decorators/secured.decorator';
+import { FEATURES, PERMISSIONS } from '../common/constants';
 import { mediaContract } from '../../contracts/media.contract';
 import { MediaService } from './media.service';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import {
-  RequireFeature,
   RequirePermission,
   RequireCapability,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 
-@ApiTags('media')
-@ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
-@RequireFeature('media')
+@Secured(FEATURES.MEDIA)
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   @TsRestHandler(mediaContract.uploadFile)
-  @RequirePermission('media', 'create')
+  @RequirePermission(...PERMISSIONS.MEDIA.CREATE)
   @UseInterceptors(FileInterceptor('file'))
   public uploadFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.uploadFile, async ({ body }) => {
@@ -68,7 +61,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.getMyFiles)
-  @RequirePermission('media', 'read')
+  @RequirePermission(...PERMISSIONS.MEDIA.READ)
   public getMyFiles(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getMyFiles, async ({ query }) => {
       const result = await this.mediaService.getUserFiles(
@@ -86,7 +79,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.getContextFiles)
-  @RequirePermission('media', 'read')
+  @RequirePermission(...PERMISSIONS.MEDIA.READ)
   public getContextFiles(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getContextFiles, async ({ params }) => {
       const result = await this.mediaService.getContextFiles(
@@ -99,7 +92,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.getFile)
-  @RequirePermission('media', 'read')
+  @RequirePermission(...PERMISSIONS.MEDIA.READ)
   public getFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getFile, async ({ params }) => {
       const result = await this.mediaService.getFile(
@@ -111,7 +104,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.getFileDownloadUrl)
-  @RequirePermission('media', 'read')
+  @RequirePermission(...PERMISSIONS.MEDIA.READ)
   public getFileDownloadUrl(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getFileDownloadUrl, async ({ params }) => {
       const url = await this.mediaService.generateDownloadUrl(
@@ -136,7 +129,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.deleteFile)
-  @RequirePermission('media', 'delete')
+  @RequirePermission(...PERMISSIONS.MEDIA.DELETE)
   public deleteFile(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.deleteFile, async ({ params, body }) => {
       const result = await this.mediaService.deleteFile(
@@ -150,7 +143,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.getFileAudit)
-  @RequirePermission('media', 'read')
+  @RequirePermission(...PERMISSIONS.MEDIA.READ)
   public getFileAudit(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.getFileAudit, async ({ params }) => {
       const result = await this.mediaService.getFileAudit(
@@ -171,7 +164,7 @@ export class MediaController {
   }
 
   @TsRestHandler(mediaContract.updateFileMetadata)
-  @RequirePermission('media', 'update')
+  @RequirePermission(...PERMISSIONS.MEDIA.UPDATE)
   public updateFileMetadata(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(mediaContract.updateFileMetadata, async ({ params, body }) => {
       const result = await this.mediaService.updateFileMetadata(

@@ -1,27 +1,20 @@
-import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
+import { Controller, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { MarketService } from './market.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
-import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Secured } from '../common/decorators/secured.decorator';
+import { FEATURES, PERMISSIONS } from '../common/constants';
 import { marketContract } from '../../contracts/market.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import {
-  RequireFeature,
   RequirePermission,
   RequireCapability,
   RequireRoleLevel,
   RequireOrgType,
 } from '../common/decorators/authorization.decorators';
 
-@ApiTags('market')
-@ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
-@RequireFeature('marketplace')
+@Secured(FEATURES.MARKETPLACE)
 @RequireOrgType('COMMODITY_TRADER', 'INTEGRATED_FARM')
 export class MarketController {
   private readonly logger = new Logger(MarketController.name);
@@ -33,7 +26,7 @@ export class MarketController {
   // =============================================================================
 
   @TsRestHandler(marketContract.getMarketplaceCommodities)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getMarketplaceCommodities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -63,7 +56,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getMarketplaceSuppliers)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getMarketplaceSuppliers(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -93,7 +86,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getMarketplaceSupplier)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getMarketplaceSupplier(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -131,7 +124,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getMarketplaceBuyers)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getMarketplaceBuyers(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -161,7 +154,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.searchMarketplace)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public searchMarketplace(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -195,7 +188,7 @@ export class MarketController {
   // =============================================================================
 
   @TsRestHandler(marketContract.getPriceTrends)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getPriceTrends(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -225,7 +218,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getPriceAlerts)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getPriceAlerts(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -255,7 +248,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.createPriceAlert)
-  @RequirePermission('marketplace', 'create')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.CREATE)
   public createPriceAlert(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -285,7 +278,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.deletePriceAlert)
-  @RequirePermission('marketplace', 'delete')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.DELETE)
   public deletePriceAlert(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -323,7 +316,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getMarketAnalysis)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getMarketAnalysis(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -357,7 +350,7 @@ export class MarketController {
   // =============================================================================
 
   @TsRestHandler(marketContract.getDemandForecast)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getDemandForecast(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -387,7 +380,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getSupplyOpportunities)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getSupplyOpportunities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -417,7 +410,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getBuyingOpportunities)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getBuyingOpportunities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -447,7 +440,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.createMatchRequest)
-  @RequirePermission('marketplace', 'create')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.CREATE)
   public createMatchRequest(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -481,7 +474,7 @@ export class MarketController {
   // =============================================================================
 
   @TsRestHandler(marketContract.getContractTemplates)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getContractTemplates(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -511,7 +504,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getContractTemplate)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getContractTemplate(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -549,7 +542,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.generateContract)
-  @RequirePermission('marketplace', 'generate_contract')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.GENERATE_CONTRACT)
   @RequireRoleLevel(50)
   public generateContract(
     @Request() req: AuthenticatedRequest,
@@ -584,7 +577,7 @@ export class MarketController {
   // =============================================================================
 
   @TsRestHandler(marketContract.getMyListings)
-  @RequirePermission('marketplace', 'read')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.READ)
   public getMyListings(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -614,7 +607,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.createListing)
-  @RequirePermission('marketplace', 'create_listing')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.CREATE_LISTING)
   @RequireCapability('create_orders')
   public createListing(
     @Request() req: AuthenticatedRequest,
@@ -645,7 +638,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.updateListing)
-  @RequirePermission('marketplace', 'update')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.UPDATE)
   public updateListing(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -684,7 +677,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.deleteListing)
-  @RequirePermission('marketplace', 'delete')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.DELETE)
   public deleteListing(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -722,7 +715,7 @@ export class MarketController {
   }
 
   @TsRestHandler(marketContract.getListing)
-  @RequirePermission('marketplace', 'browse')
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
   public getListing(
     @Request() req: AuthenticatedRequest,
   ) {

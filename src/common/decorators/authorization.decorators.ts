@@ -99,45 +99,6 @@ export const BypassOrgIsolation = () =>
   SetMetadata(BYPASS_ORG_ISOLATION_KEY, true);
 
 /**
- * Shorthand decorator for platform admin only routes
- * Combines @UseGuards(PlatformAdminGuard) with @BypassOrgIsolation()
- *
- * Note: You still need to apply @UseGuards(PlatformAdminGuard) separately
- * This only sets the metadata
- */
-export const PlatformAdminOnly = () => BypassOrgIsolation();
-
-/**
- * Require user to be organization admin
- * Convenience decorator that checks for 'admin' role
- */
-export const RequireOrgAdmin = () => RequireRole('admin');
-
-/**
- * Require user to be farm manager or higher
- * Checks for role level >= 50
- */
-export const RequireFarmManager = () => RequireRoleLevel(50);
-
-/**
- * Combined decorator for common farm management operations
- *
- * @example
- * @FarmManagementAccess()
- * async createFarm() { ... }
- */
-export const FarmManagementAccess = () => {
-  return (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor,
-  ) => {
-    RequireFeature('farm_management')(target, propertyKey, descriptor);
-    RequireCapability('create_farms')(target, propertyKey, descriptor);
-  };
-};
-
-/**
  * Combined decorator for marketplace operations
  *
  * @example
@@ -156,23 +117,5 @@ export const MarketplaceAccess = () => {
       propertyKey,
       descriptor,
     );
-  };
-};
-
-/**
- * Combined decorator for trading operations
- *
- * @example
- * @TradingAccess()
- * async createOrder() { ... }
- */
-export const TradingAccess = () => {
-  return (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor,
-  ) => {
-    RequireFeature('orders')(target, propertyKey, descriptor);
-    RequireCapability('create_orders')(target, propertyKey, descriptor);
   };
 };

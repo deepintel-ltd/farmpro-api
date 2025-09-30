@@ -2,16 +2,13 @@ import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { InventoryService } from './inventory.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
-import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Secured } from '../common/decorators/secured.decorator';
+import { FEATURES, PERMISSIONS } from '../common/constants';
 import { FarmAccessGuard } from '../farms/guards/farm-access.guard';
 import { inventoryContract } from '../../contracts/inventory.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import {
-  RequireFeature,
   RequirePermission,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
@@ -21,8 +18,7 @@ interface AuthenticatedRequest extends ExpressRequest {
 }
 
 @Controller()
-@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
-@RequireFeature('inventory')
+@Secured(FEATURES.INVENTORY)
 export class InventoryController {
   private readonly logger = new Logger(InventoryController.name);
 
@@ -33,7 +29,7 @@ export class InventoryController {
   // =============================================================================
 
   @TsRestHandler(inventoryContract.getInventory)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -63,7 +59,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.getInventoryItem)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getInventoryItem(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -101,7 +97,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.createInventory)
-  @RequirePermission('inventory', 'create')
+  @RequirePermission(...PERMISSIONS.INVENTORY.CREATE)
   @UseGuards(FarmAccessGuard)
   public createInventory(
     @Request() req: AuthenticatedRequest,
@@ -130,7 +126,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.updateInventory)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @UseGuards(FarmAccessGuard)
   public updateInventory(
     @Request() req: AuthenticatedRequest,
@@ -170,7 +166,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.deleteInventory)
-  @RequirePermission('inventory', 'delete')
+  @RequirePermission(...PERMISSIONS.INVENTORY.DELETE)
   @UseGuards(FarmAccessGuard)
   public deleteInventory(
     @Request() req: AuthenticatedRequest,
@@ -210,7 +206,7 @@ export class InventoryController {
   // =============================================================================
 
   @TsRestHandler(inventoryContract.getInventoryMovements)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getInventoryMovements(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -246,7 +242,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.adjustInventory)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
   public adjustInventory(
     @Request() req: AuthenticatedRequest,
@@ -286,7 +282,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.reserveInventory)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   public reserveInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -325,7 +321,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.releaseInventory)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   public releaseInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -368,7 +364,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.transferInventory)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
   public transferInventory(
     @Request() req: AuthenticatedRequest,
@@ -411,7 +407,7 @@ export class InventoryController {
   // =============================================================================
 
   @TsRestHandler(inventoryContract.getQualityTests)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getQualityTests(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -447,7 +443,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.addQualityTest)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   public addQualityTest(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -486,7 +482,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.updateQualityGrade)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
   public updateQualityGrade(
     @Request() req: AuthenticatedRequest,
@@ -530,7 +526,7 @@ export class InventoryController {
   // =============================================================================
 
   @TsRestHandler(inventoryContract.getInventoryAnalytics)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getInventoryAnalytics(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -565,7 +561,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.getStockAlerts)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getStockAlerts(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -605,7 +601,7 @@ export class InventoryController {
   // =============================================================================
 
   @TsRestHandler(inventoryContract.getBatchInventory)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getBatchInventory(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -643,7 +639,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.mergeBatches)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
   public mergeBatches(
     @Request() req: AuthenticatedRequest,
@@ -681,7 +677,7 @@ export class InventoryController {
   }
 
   @TsRestHandler(inventoryContract.splitBatch)
-  @RequirePermission('inventory', 'update')
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
   public splitBatch(
     @Request() req: AuthenticatedRequest,
@@ -723,7 +719,7 @@ export class InventoryController {
   // =============================================================================
 
   @TsRestHandler(inventoryContract.getTraceability)
-  @RequirePermission('inventory', 'read')
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getTraceability(
     @Request() req: AuthenticatedRequest,
   ) {
