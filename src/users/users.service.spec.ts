@@ -10,6 +10,7 @@ describe('UsersService', () => {
   const mockCurrentUser: CurrentUser = {
     userId: 'user-123',
     email: 'test@example.com',
+    name: 'Test User',
     organizationId: 'org-123',
     isPlatformAdmin: false,
     roles: [],
