@@ -4,6 +4,7 @@ import { OrganizationType, RoleScope } from '@prisma/client';
 export interface CurrentUser {
   userId: string;
   email: string;
+  name: string;
   organizationId: string;
 
   // Enhanced authorization context

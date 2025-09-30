@@ -501,6 +501,7 @@ export class AuthController {
               attributes: {
                 id: req.user.userId,
                 email: req.user.email,
+                name: req.user.name,
                 organizationId: req.user.organizationId,
                 isPlatformAdmin: req.user.isPlatformAdmin,
                 roles: req.user.roles,

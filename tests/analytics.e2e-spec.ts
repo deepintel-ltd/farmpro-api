@@ -115,6 +115,15 @@ describe('Analytics E2E Tests', () => {
         }
       }),
       testContext.prisma.permission.upsert({
+        where: { resource_action: { resource: 'analytics', action: 'export' } },
+        update: {},
+        create: {
+          resource: 'analytics',
+          action: 'export',
+          description: 'Export analytics data'
+        }
+      }),
+      testContext.prisma.permission.upsert({
         where: { resource_action: { resource: 'finance', action: 'read' } },
         update: {},
         create: {

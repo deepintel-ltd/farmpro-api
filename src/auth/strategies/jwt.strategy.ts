@@ -27,6 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       select: {
         id: true,
         email: true,
+        name: true,
         isActive: true,
         organizationId: true,
         refreshTokenExpiresAt: true,
@@ -128,6 +129,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: user.id,
       email: user.email,
+      name: user.name,
       organizationId: user.organizationId,
       isPlatformAdmin,
       roles,
