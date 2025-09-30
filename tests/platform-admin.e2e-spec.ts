@@ -198,357 +198,505 @@ describe('Platform Admin E2E Tests', () => {
     });
   });
 
-  describe('POST /platform-admin/organizations/:id/suspend', () => {
-    it('should suspend an organization successfully', async () => {
-      const suspendData = {
-        reason: 'Violation of terms of service and multiple complaints'
-      };
+  describe('PATCH /platform-admin/organizations/:id (Consolidated Update)', () => {
+    describe('Status Management', () => {
+      it('should suspend an organization successfully', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization2.id,
+            attributes: {
+              status: 'suspended',
+              suspensionReason: 'Violation of terms of service and multiple complaints'
+            }
+          }
+        };
 
-      const response = await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/suspend`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(suspendData)
-        .expect(200);
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
 
-      expect(response.body.suspendedAt).toBeDefined();
-      expect(response.body.suspensionReason).toBe(suspendData.reason);
-      expect(response.body.isActive).toBe(false);
+        expect(response.body.data.attributes.suspendedAt).toBeDefined();
+        expect(response.body.data.attributes.suspensionReason).toBe(updateData.data.attributes.suspensionReason);
+        expect(response.body.data.attributes.isActive).toBe(false);
+      });
+
+      it('should reactivate a suspended organization', async () => {
+        // First suspend the organization
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization2.id,
+              attributes: {
+                status: 'suspended',
+                suspensionReason: 'Test suspension for reactivation'
+              }
+            }
+          })
+          .expect(200);
+
+        // Then reactivate
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization2.id,
+            attributes: {
+              status: 'active'
+            }
+          }
+        };
+
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
+
+        expect(response.body.data.attributes.suspendedAt).toBeNull();
+        expect(response.body.data.attributes.suspensionReason).toBeNull();
+        expect(response.body.data.attributes.isActive).toBe(true);
+      });
+
+      it('should fail to suspend without reason', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization2.id,
+            attributes: {
+              status: 'suspended'
+            }
+          }
+        };
+
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
+
+      it('should fail to suspend already suspended organization', async () => {
+        // First suspend
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization2.id,
+              attributes: {
+                status: 'suspended',
+                suspensionReason: 'First suspension reason'
+              }
+            }
+          })
+          .expect(200);
+
+        // Try to suspend again
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization2.id,
+              attributes: {
+                status: 'suspended',
+                suspensionReason: 'Second suspension reason'
+              }
+            }
+          })
+          .expect(400);
+      });
+
+      it('should fail to reactivate non-suspended organization', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              status: 'active'
+            }
+          }
+        };
+
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
     });
 
-    it('should fail to suspend non-existent organization', async () => {
-      const suspendData = {
-        reason: 'Test suspension reason'
-      };
+    describe('Verification Management', () => {
+      it('should verify an organization', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization2.id,
+            attributes: {
+              isVerified: true
+            }
+          }
+        };
 
-      await testContext
-        .request()
-        .post('/platform-admin/organizations/non-existent-id/suspend')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(suspendData)
-        .expect(404);
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
+
+        expect(response.body.data.attributes.isVerified).toBe(true);
+        expect(response.body.data.attributes.verifiedAt).toBeDefined();
+        expect(response.body.data.attributes.verifiedBy).toBe(platformAdminUser.id);
+      });
+
+      it('should unverify an organization', async () => {
+        // First verify
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization2.id,
+              attributes: {
+                isVerified: true
+              }
+            }
+          })
+          .expect(200);
+
+        // Then unverify
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization2.id,
+            attributes: {
+              isVerified: false
+            }
+          }
+        };
+
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
+
+        expect(response.body.data.attributes.isVerified).toBe(false);
+        expect(response.body.data.attributes.verifiedAt).toBeNull();
+        expect(response.body.data.attributes.verifiedBy).toBeNull();
+      });
+
+      it('should fail to verify already verified organization', async () => {
+        // First verify
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization2.id,
+              attributes: {
+                isVerified: true
+              }
+            }
+          })
+          .expect(200);
+
+        // Try to verify again
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization2.id,
+              attributes: {
+                isVerified: true
+              }
+            }
+          })
+          .expect(400);
+      });
     });
 
-    it('should fail to suspend already suspended organization', async () => {
-      // First suspend
-      const suspendData = {
-        reason: 'First suspension reason'
-      };
+    describe('Organization Type Management', () => {
+      it('should change organization type', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              organizationType: 'INTEGRATED_FARM'
+            }
+          }
+        };
 
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/suspend`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(suspendData)
-        .expect(200);
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
 
-      // Try to suspend again
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/suspend`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(suspendData)
-        .expect(400);
+        expect(response.body.data.attributes.type).toBe('INTEGRATED_FARM');
+        expect(response.body.data.attributes.allowedModules).toBeDefined();
+        expect(response.body.data.attributes.features).toBeDefined();
+      });
+
+      it('should fail to change to same type', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              organizationType: 'FARM_OPERATION'
+            }
+          }
+        };
+
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
+
+      it('should fail with invalid organization type', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              organizationType: 'INVALID_TYPE'
+            }
+          }
+        };
+
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
     });
 
-    it('should fail with invalid suspension reason', async () => {
-      const invalidData = {
-        reason: 'Short'
-      };
+    describe('Plan Management', () => {
+      it('should update organization plan', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              plan: 'enterprise'
+            }
+          }
+        };
 
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/suspend`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(invalidData)
-        .expect(400);
-    });
-  });
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
 
-  describe('POST /platform-admin/organizations/:id/reactivate', () => {
-    beforeEach(async () => {
-      // Suspend organization first
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/suspend`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({ reason: 'Test suspension for reactivation' })
-        .expect(200);
-    });
+        expect(response.body.data.attributes.plan).toBe('enterprise');
+        expect(response.body.data.attributes.allowedModules).toBeDefined();
+        expect(response.body.data.attributes.features).toBeDefined();
+      });
 
-    it('should reactivate a suspended organization', async () => {
-      const response = await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/reactivate`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(200);
+      it('should fail with invalid plan', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              plan: 'invalid_plan'
+            }
+          }
+        };
 
-      expect(response.body.suspendedAt).toBeNull();
-      expect(response.body.suspensionReason).toBeNull();
-      expect(response.body.isActive).toBe(true);
-    });
-
-    it('should fail to reactivate non-existent organization', async () => {
-      await testContext
-        .request()
-        .post('/platform-admin/organizations/non-existent-id/reactivate')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(404);
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
     });
 
-    it('should fail to reactivate non-suspended organization', async () => {
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/reactivate`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(400);
-    });
-  });
+    describe('Feature Management', () => {
+      it('should enable a feature for organization', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              features: {
+                analytics: true
+              }
+            }
+          }
+        };
 
-  describe('POST /platform-admin/organizations/:id/verify', () => {
-    it('should verify an organization', async () => {
-      const response = await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/verify`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(200);
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
 
-      expect(response.body.isVerified).toBe(true);
-      expect(response.body.verifiedAt).toBeDefined();
-      expect(response.body.verifiedBy).toBe(platformAdminUser.id);
-    });
+        expect(response.body.data.attributes.features).toContain('analytics');
+      });
 
-    it('should fail to verify non-existent organization', async () => {
-      await testContext
-        .request()
-        .post('/platform-admin/organizations/non-existent-id/verify')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(404);
-    });
+      it('should disable a feature for organization', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              features: {
+                farms: false
+              }
+            }
+          }
+        };
 
-    it('should fail to verify already verified organization', async () => {
-      // First verify
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/verify`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(200);
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
 
-      // Try to verify again
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization2.id}/verify`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send({})
-        .expect(400);
-    });
-  });
+        expect(response.body.data.attributes.features).not.toContain('farms');
+      });
 
-  describe('PUT /platform-admin/organizations/:id/type', () => {
-    it('should change organization type', async () => {
-      const changeTypeData = {
-        type: 'INTEGRATED_FARM'
-      };
+      it('should fail to enable feature not available for organization type', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization.id,
+            attributes: {
+              features: {
+                market: true // Not available for FARM_OPERATION
+              }
+            }
+          }
+        };
 
-      const response = await testContext
-        .request()
-        .put(`/platform-admin/organizations/${testOrganization.id}/type`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(changeTypeData)
-        .expect(200);
-
-      expect(response.body.type).toBe('INTEGRATED_FARM');
-      expect(response.body.allowedModules).toBeDefined();
-      expect(response.body.features).toBeDefined();
-    });
-
-    it('should fail to change to same type', async () => {
-      const changeTypeData = {
-        type: 'FARM_OPERATION'
-      };
-
-      await testContext
-        .request()
-        .put(`/platform-admin/organizations/${testOrganization.id}/type`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(changeTypeData)
-        .expect(400);
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
     });
 
-    it('should fail to change type of non-existent organization', async () => {
-      const changeTypeData = {
-        type: 'INTEGRATED_FARM'
-      };
+    describe('Combined Updates', () => {
+      it('should handle multiple updates in a single request', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: testOrganization2.id,
+            attributes: {
+              isVerified: true,
+              plan: 'professional',
+              features: {
+                analytics: true,
+                orders: false
+              }
+            }
+          }
+        };
 
-      await testContext
-        .request()
-        .put('/platform-admin/organizations/non-existent-id/type')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(changeTypeData)
-        .expect(404);
+        const response = await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization2.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(200);
+
+        expect(response.body.data.attributes.isVerified).toBe(true);
+        expect(response.body.data.attributes.plan).toBe('professional');
+        expect(response.body.data.attributes.features).toContain('analytics');
+        expect(response.body.data.attributes.features).not.toContain('orders');
+      });
     });
 
-    it('should fail with invalid organization type', async () => {
-      const invalidData = {
-        type: 'INVALID_TYPE'
-      };
+    describe('Error Handling', () => {
+      it('should fail to update non-existent organization', async () => {
+        const updateData = {
+          data: {
+            type: 'organizations',
+            id: 'non-existent-id',
+            attributes: {
+              isVerified: true
+            }
+          }
+        };
 
-      await testContext
-        .request()
-        .put(`/platform-admin/organizations/${testOrganization.id}/type`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(invalidData)
-        .expect(400);
-    });
-  });
+        await testContext
+          .request()
+          .patch('/platform-admin/organizations/non-existent-id')
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(404);
+      });
 
-  describe('POST /platform-admin/organizations/:id/features/enable', () => {
-    it('should enable a feature for organization', async () => {
-      const enableFeatureData = {
-        feature: 'analytics'
-      };
+      it('should fail with invalid JSON:API format', async () => {
+        const updateData = {
+          isVerified: true // Missing data wrapper
+        };
 
-      const response = await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/features/enable`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(enableFeatureData)
-        .expect(200);
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
 
-      expect(response.body.features).toContain('analytics');
-    });
+      it('should fail with invalid organization type in data', async () => {
+        const updateData = {
+          data: {
+            type: 'invalid-type',
+            id: testOrganization.id,
+            attributes: {
+              isVerified: true
+            }
+          }
+        };
 
-    it('should fail to enable already enabled feature', async () => {
-      const enableFeatureData = {
-        feature: 'farms'
-      };
-
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/features/enable`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(enableFeatureData)
-        .expect(400);
-    });
-
-    it('should fail to enable feature not available for organization type', async () => {
-      const enableFeatureData = {
-        feature: 'market' // Not available for FARM_OPERATION
-      };
-
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/features/enable`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(enableFeatureData)
-        .expect(400);
-    });
-
-    it('should fail to enable feature for non-existent organization', async () => {
-      const enableFeatureData = {
-        feature: 'analytics'
-      };
-
-      await testContext
-        .request()
-        .post('/platform-admin/organizations/non-existent-id/features/enable')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(enableFeatureData)
-        .expect(404);
-    });
-  });
-
-  describe('POST /platform-admin/organizations/:id/features/disable', () => {
-    it('should disable a feature for organization', async () => {
-      const disableFeatureData = {
-        feature: 'farms'
-      };
-
-      const response = await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/features/disable`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(disableFeatureData)
-        .expect(200);
-
-      expect(response.body.features).not.toContain('farms');
-    });
-
-    it('should fail to disable non-enabled feature', async () => {
-      const disableFeatureData = {
-        feature: 'analytics'
-      };
-
-      await testContext
-        .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/features/disable`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(disableFeatureData)
-        .expect(400);
-    });
-
-    it('should fail to disable feature for non-existent organization', async () => {
-      const disableFeatureData = {
-        feature: 'farms'
-      };
-
-      await testContext
-        .request()
-        .post('/platform-admin/organizations/non-existent-id/features/disable')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(disableFeatureData)
-        .expect(404);
-    });
-  });
-
-  describe('PUT /platform-admin/organizations/:id/plan', () => {
-    it('should update organization plan', async () => {
-      const updatePlanData = {
-        plan: 'enterprise'
-      };
-
-      const response = await testContext
-        .request()
-        .put(`/platform-admin/organizations/${testOrganization.id}/plan`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(updatePlanData)
-        .expect(200);
-
-      expect(response.body.plan).toBe('enterprise');
-      expect(response.body.allowedModules).toBeDefined();
-      expect(response.body.features).toBeDefined();
-    });
-
-    it('should fail to update plan for non-existent organization', async () => {
-      const updatePlanData = {
-        plan: 'enterprise'
-      };
-
-      await testContext
-        .request()
-        .put('/platform-admin/organizations/non-existent-id/plan')
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(updatePlanData)
-        .expect(404);
-    });
-
-    it('should fail with invalid plan', async () => {
-      const invalidData = {
-        plan: 'invalid_plan'
-      };
-
-      await testContext
-        .request()
-        .put(`/platform-admin/organizations/${testOrganization.id}/plan`)
-        .set('Authorization', `Bearer ${platformAdminToken}`)
-        .send(invalidData)
-        .expect(400);
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send(updateData)
+          .expect(400);
+      });
     });
   });
 

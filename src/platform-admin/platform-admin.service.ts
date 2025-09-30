@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { OrganizationType } from '@prisma/client';
+import { UpdateOrganizationRequest } from '../../contracts/platform-admin.schemas';
 import {
   ORGANIZATION_FEATURES,
   initializeOrganizationFeatures,
@@ -46,6 +47,221 @@ export class PlatformAdminService {
   // ============================================================================
   // Organization Management
   // ============================================================================
+
+  /**
+   * Consolidated update organization method (JSON:API compliant)
+   * Handles status, verification, type, plan, and feature updates in one endpoint
+   */
+  async updateOrganizationConsolidated(
+    user: CurrentUser,
+    orgId: string,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+  ) {
+    this.requirePlatformAdmin(user);
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const updateData = this.buildUpdateData(user, org, updates);
+
+    const updated = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: updateData,
+    });
+
+    return this.formatOrganization(updated);
+  }
+
+  /**
+   * Build update data object based on the provided updates
+   */
+  private buildUpdateData(
+    user: CurrentUser,
+    org: any,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+  ): any {
+    const updateData: any = {};
+
+    this.handleStatusUpdate(user, org, updates, updateData);
+    this.handleVerificationUpdate(user, org, updates, updateData);
+    this.handleTypeUpdate(user, org, updates, updateData);
+    this.handlePlanUpdate(user, org, updates, updateData);
+    this.handleFeaturesUpdate(user, org, updates, updateData);
+
+    return updateData;
+  }
+
+  /**
+   * Handle organization status changes (active/suspended)
+   */
+  private handleStatusUpdate(
+    user: CurrentUser,
+    org: any,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+    updateData: any,
+  ): void {
+    if (updates.status === undefined) return;
+
+    if (updates.status === 'suspended') {
+      if (!updates.suspensionReason) {
+        throw new BadRequestException('suspensionReason is required when suspending an organization');
+      }
+      if (org.suspendedAt) {
+        throw new BadRequestException('Organization is already suspended');
+      }
+      Object.assign(updateData, {
+        suspendedAt: new Date(),
+        suspensionReason: updates.suspensionReason,
+        isActive: false,
+      });
+      this.logger.log(
+        `Platform admin ${user.email} suspended organization ${org.id}. Reason: ${updates.suspensionReason}`,
+      );
+    } else if (updates.status === 'active') {
+      if (!org.suspendedAt) {
+        throw new BadRequestException('Organization is not suspended');
+      }
+      Object.assign(updateData, {
+        suspendedAt: null,
+        suspensionReason: null,
+        isActive: true,
+      });
+      this.logger.log(`Platform admin ${user.email} reactivated organization ${org.id}`);
+    }
+  }
+
+  /**
+   * Handle organization verification changes
+   */
+  private handleVerificationUpdate(
+    user: CurrentUser,
+    org: any,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+    updateData: any,
+  ): void {
+    if (updates.isVerified === undefined) return;
+
+    if (updates.isVerified) {
+      if (org.isVerified) {
+        throw new BadRequestException('Organization is already verified');
+      }
+      Object.assign(updateData, {
+        isVerified: true,
+        verifiedAt: new Date(),
+        verifiedBy: user.userId,
+      });
+      this.logger.log(`Platform admin ${user.email} verified organization ${org.id}`);
+    } else {
+      Object.assign(updateData, {
+        isVerified: false,
+        verifiedAt: null,
+        verifiedBy: null,
+      });
+      this.logger.log(`Platform admin ${user.email} unverified organization ${org.id}`);
+    }
+  }
+
+  /**
+   * Handle organization type changes
+   */
+  private handleTypeUpdate(
+    user: CurrentUser,
+    org: any,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+    updateData: any,
+  ): void {
+    if (updates.organizationType === undefined) return;
+
+    if (org.type === updates.organizationType) {
+      throw new BadRequestException('Organization already has this type');
+    }
+
+    const { allowedModules, features } = initializeOrganizationFeatures(
+      updates.organizationType,
+      org.plan,
+    );
+    const validFeatures = org.features.filter((f) => features.includes(f));
+
+    Object.assign(updateData, {
+      type: updates.organizationType,
+      allowedModules,
+      features: validFeatures.length > 0 ? validFeatures : features,
+    });
+
+    this.logger.log(
+      `Platform admin ${user.email} changed organization ${org.id} type from ${org.type} to ${updates.organizationType}`,
+    );
+  }
+
+  /**
+   * Handle organization plan updates
+   */
+  private handlePlanUpdate(
+    user: CurrentUser,
+    org: any,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+    updateData: any,
+  ): void {
+    if (updates.plan === undefined) return;
+
+    const { allowedModules, features } = initializeOrganizationFeatures(org.type, updates.plan);
+
+    Object.assign(updateData, {
+      plan: updates.plan,
+      allowedModules,
+      features,
+    });
+
+    this.logger.log(
+      `Platform admin ${user.email} updated organization ${org.id} plan to '${updates.plan}'`,
+    );
+  }
+
+  /**
+   * Handle feature toggles
+   */
+  private handleFeaturesUpdate(
+    user: CurrentUser,
+    org: any,
+    updates: UpdateOrganizationRequest['data']['attributes'],
+    updateData: any,
+  ): void {
+    if (updates.features === undefined) return;
+
+    const allowedFeatures = ORGANIZATION_FEATURES[org.type].modules;
+    const currentFeatures = org.features;
+    const newFeatures = [...currentFeatures];
+
+    for (const [feature, enabled] of Object.entries(updates.features)) {
+      if (!allowedFeatures.includes(feature)) {
+        throw new BadRequestException(
+          `Feature '${feature}' is not available for ${org.type} organizations`,
+        );
+      }
+
+      if (enabled && !currentFeatures.includes(feature)) {
+        newFeatures.push(feature);
+        this.logger.log(
+          `Platform admin ${user.email} enabled feature '${feature}' for organization ${org.id}`,
+        );
+      } else if (!enabled && currentFeatures.includes(feature)) {
+        const index = newFeatures.indexOf(feature);
+        if (index > -1) {
+          newFeatures.splice(index, 1);
+        }
+        this.logger.log(
+          `Platform admin ${user.email} disabled feature '${feature}' for organization ${org.id}`,
+        );
+      }
+    }
+
+    updateData.features = newFeatures;
+  }
 
   /**
    * Get all organizations (platform admin only)
@@ -97,286 +313,6 @@ export class PlatformAdminService {
     };
   }
 
-  /**
-   * Suspend an organization
-   */
-  async suspendOrganization(
-    user: CurrentUser,
-    orgId: string,
-    reason: string,
-  ) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (org.suspendedAt) {
-      throw new BadRequestException('Organization is already suspended');
-    }
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        suspendedAt: new Date(),
-        suspensionReason: reason,
-        isActive: false,
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} suspended organization ${orgId}. Reason: ${reason}`,
-    );
-
-    return this.formatOrganization(updated);
-  }
-
-  /**
-   * Reactivate a suspended organization
-   */
-  async reactivateOrganization(user: CurrentUser, orgId: string) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (!org.suspendedAt) {
-      throw new BadRequestException('Organization is not suspended');
-    }
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        suspendedAt: null,
-        suspensionReason: null,
-        isActive: true,
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} reactivated organization ${orgId}`,
-    );
-
-    return this.formatOrganization(updated);
-  }
-
-  /**
-   * Verify an organization
-   */
-  async verifyOrganization(user: CurrentUser, orgId: string) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (org.isVerified) {
-      throw new BadRequestException('Organization is already verified');
-    }
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        isVerified: true,
-        verifiedAt: new Date(),
-        verifiedBy: user.userId,
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} verified organization ${orgId}`,
-    );
-
-    return this.formatOrganization(updated);
-  }
-
-  /**
-   * Change organization type
-   */
-  async changeOrganizationType(
-    user: CurrentUser,
-    orgId: string,
-    newType: OrganizationType,
-  ) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (org.type === newType) {
-      throw new BadRequestException(
-        'Organization already has this type',
-      );
-    }
-
-    // Initialize features for new type
-    const { allowedModules, features } = initializeOrganizationFeatures(
-      newType,
-      org.plan,
-    );
-
-    // Filter existing features that are still valid
-    const validFeatures = org.features.filter((f) => features.includes(f));
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        type: newType,
-        allowedModules,
-        features: validFeatures.length > 0 ? validFeatures : features,
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} changed organization ${orgId} type from ${org.type} to ${newType}`,
-    );
-
-    return this.formatOrganization(updated);
-  }
-
-  // ============================================================================
-  // Feature Management
-  // ============================================================================
-
-  /**
-   * Enable a feature for an organization
-   */
-  async enableFeature(
-    user: CurrentUser,
-    orgId: string,
-    feature: string,
-  ) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    // Validate feature is allowed for org type
-    const allowedFeatures = ORGANIZATION_FEATURES[org.type].modules;
-    if (!allowedFeatures.includes(feature)) {
-      throw new BadRequestException(
-        `Feature '${feature}' is not available for ${org.type} organizations`,
-      );
-    }
-
-    if (org.features.includes(feature)) {
-      throw new BadRequestException('Feature is already enabled');
-    }
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        features: {
-          push: feature,
-        },
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} enabled feature '${feature}' for organization ${orgId}`,
-    );
-
-    return this.formatOrganization(updated);
-  }
-
-  /**
-   * Disable a feature for an organization
-   */
-  async disableFeature(
-    user: CurrentUser,
-    orgId: string,
-    feature: string,
-  ) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    if (!org.features.includes(feature)) {
-      throw new BadRequestException('Feature is not enabled');
-    }
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        features: org.features.filter((f) => f !== feature),
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} disabled feature '${feature}' for organization ${orgId}`,
-    );
-
-    return this.formatOrganization(updated);
-  }
-
-  /**
-   * Update organization plan
-   */
-  async updateOrganizationPlan(
-    user: CurrentUser,
-    orgId: string,
-    plan: string,
-  ) {
-    this.requirePlatformAdmin(user);
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    // Reinitialize features based on new plan and org type
-    const { allowedModules, features } = initializeOrganizationFeatures(
-      org.type,
-      plan,
-    );
-
-    const updated = await this.prisma.organization.update({
-      where: { id: orgId },
-      data: {
-        plan,
-        allowedModules,
-        features,
-      },
-    });
-
-    this.logger.log(
-      `Platform admin ${user.email} updated organization ${orgId} plan to '${plan}'`,
-    );
-
-    return this.formatOrganization(updated);
-  }
 
   // ============================================================================
   // System Analytics
