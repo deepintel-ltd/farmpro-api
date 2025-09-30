@@ -11,6 +11,19 @@ import { ordersAnalyticsContract } from '../../contracts/orders-analytics.contra
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { Request as ExpressRequest } from 'express';
 import { OrderType, OrderStatus } from '@prisma/client';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import {
+  RequireFeature,
+  RequirePermission,
+  MarketplaceAccess,
+} from '../common/decorators/authorization.decorators';
+import {
+  OrderOwnershipGuard,
+  OrderParticipantGuard,
+  OrderSupplierGuard,
+} from './guards';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -34,7 +47,8 @@ interface OrderMessagePathParams {
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('orders')
 export class OrdersController {
   private readonly logger = new Logger(OrdersController.name);
 
@@ -45,6 +59,7 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersCrudContract.getOrders)
+  @RequirePermission('orders', 'read')
   public getOrders(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -82,6 +97,8 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrders)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'read')
   public getMarketplaceOrders(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -106,6 +123,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrder)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'read')
   public getMarketplaceOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -131,6 +150,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMarketplaceContract.searchOrders)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'read')
   public searchOrders(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -155,6 +176,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMarketplaceContract.getOrderRecommendations)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'read')
   public getOrderRecommendations(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -183,6 +206,7 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersAnalyticsContract.getOrderAnalytics)
+  @RequirePermission('orders', 'read')
   public getOrderAnalytics(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -207,6 +231,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersAnalyticsContract.getOrderFinancialSummary)
+  @RequirePermission('orders', 'read')
   public getOrderFinancialSummary(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -231,6 +256,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersAnalyticsContract.getOrderPerformanceMetrics)
+  @RequirePermission('orders', 'read')
   public getOrderPerformanceMetrics(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -255,6 +281,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersAnalyticsContract.generateOrderReport)
+  @RequirePermission('orders', 'read')
   public generateOrderReport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -281,6 +308,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.getOrder)
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission('orders', 'read')
   public getOrder(@Request() req: AuthenticatedRequest): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(ordersCrudContract.getOrder, async ({ params }) => {
       try {
@@ -304,6 +333,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.createOrder)
+  @RequirePermission('orders', 'create')
   public createOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -331,6 +361,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.updateOrder)
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission('orders', 'update')
   public updateOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -360,6 +392,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.deleteOrder)
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission('orders', 'delete')
   public deleteOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -391,6 +425,9 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersCrudContract.publishOrder)
+  @UseGuards(OrderOwnershipGuard)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'update')
   public publishOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -420,6 +457,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.acceptOrder)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'update')
   public acceptOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -449,6 +488,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.rejectOrder)
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission('orders', 'update')
   public rejectOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -476,6 +517,9 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.counterOffer)
+  @UseGuards(OrderSupplierGuard)
+  @MarketplaceAccess()
+  @RequirePermission('orders', 'update')
   public counterOffer(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -503,6 +547,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.confirmOrder)
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission('orders', 'update')
   public confirmOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -532,6 +578,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.startFulfillment)
+  @UseGuards(OrderSupplierGuard)
+  @RequirePermission('orders', 'update')
   public startFulfillment(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -561,6 +609,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.completeOrder)
+  @UseGuards(OrderSupplierGuard)
+  @RequirePermission('orders', 'update')
   public completeOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -594,6 +644,8 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersCrudContract.getOrderItems)
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission('orders', 'read')
   public getOrderItems(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -619,6 +671,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.addOrderItem)
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission('orders', 'create')
   public addOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -650,6 +704,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.updateOrderItem)
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission('orders', 'update')
   public updateOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -686,6 +742,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersCrudContract.deleteOrderItem)
+  @UseGuards(OrderOwnershipGuard)
+  @RequirePermission('orders', 'delete')
   public deleteOrderItem(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -720,6 +778,8 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersMessagingContract.getOrderMessages)
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission('orders', 'read')
   public getOrderMessages(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -748,6 +808,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMessagingContract.sendOrderMessage)
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission('orders', 'create')
   public sendOrderMessage(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -777,6 +839,8 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMessagingContract.markMessageAsRead)
+  @UseGuards(OrderParticipantGuard)
+  @RequirePermission('orders', 'update')
   public markMessageAsRead(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {

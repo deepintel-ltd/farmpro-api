@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
@@ -132,7 +132,7 @@ export class OrdersService {
 
   async getOrder(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -157,11 +157,6 @@ export class OrdersService {
 
     if (!order) {
       throw new NotFoundException('Order not found');
-    }
-
-    // Check if user has access to this order
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
     }
 
     this.logger.log(`Successfully retrieved order ${orderId}`);
@@ -224,14 +219,10 @@ export class OrdersService {
 
   async updateOrder(user: CurrentUser, orderId: string, data: UpdateOrderRequest) {
     this.logger.log(`Updating order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check if user can update this order
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can update the order');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Only pending orders can be updated');
     }
@@ -288,14 +279,10 @@ export class OrdersService {
 
   async deleteOrder(user: CurrentUser, orderId: string) {
     this.logger.log(`Deleting order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check if user can delete this order
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can delete the order');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Only pending orders can be deleted');
     }
@@ -314,13 +301,10 @@ export class OrdersService {
 
   async publishOrder(user: CurrentUser, orderId: string) {
     this.logger.log(`Publishing order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can publish the order');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Only pending orders can be published');
     }
@@ -353,12 +337,12 @@ export class OrdersService {
 
   async acceptOrder(user: CurrentUser, orderId: string, data: AcceptOrderRequest) {
     this.logger.log(`Accepting order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check if user can accept this order (not the creator)
+
+    // Business logic validation
     if (order.createdById === user.userId) {
-      throw new ForbiddenException('Order creator cannot accept their own order');
+      throw new BadRequestException('Order creator cannot accept their own order');
     }
 
     if (order.status !== OrderStatus.CONFIRMED) {
@@ -398,13 +382,8 @@ export class OrdersService {
 
   async rejectOrder(user: CurrentUser, orderId: string, data: RejectOrderRequest) {
     this.logger.log(`Rejecting order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check if user can reject this order
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { reason, message } = data;
 
@@ -441,13 +420,6 @@ export class OrdersService {
 
   async getOrderItems(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting items for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const items = await this.prisma.orderItem.findMany({
       where: { orderId },
@@ -465,14 +437,10 @@ export class OrdersService {
 
   async addOrderItem(user: CurrentUser, orderId: string, data: CreateOrderItemRequest) {
     this.logger.log(`Adding item to order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check if user can add items (only creator and only if draft)
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can add items');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Items can only be added to pending orders');
     }
@@ -500,14 +468,10 @@ export class OrdersService {
 
   async updateOrderItem(user: CurrentUser, orderId: string, itemId: string, data: UpdateOrderItemRequest) {
     this.logger.log(`Updating item ${itemId} in order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check if user can update items
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can update items');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Items can only be updated in pending orders');
     }
@@ -543,14 +507,10 @@ export class OrdersService {
 
   async deleteOrderItem(user: CurrentUser, orderId: string, itemId: string) {
     this.logger.log(`Deleting item ${itemId} from order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check if user can delete items
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can delete items');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Items can only be deleted from pending orders');
     }
@@ -797,13 +757,6 @@ export class OrdersService {
     limit?: number;
   }) {
     this.logger.log(`Getting messages for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
@@ -835,13 +788,6 @@ export class OrdersService {
 
   async sendOrderMessage(user: CurrentUser, orderId: string, data: CreateOrderMessageRequest) {
     this.logger.log(`Sending message for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { content, type, attachments, isUrgent } = data;
 
@@ -867,13 +813,6 @@ export class OrdersService {
 
   async markMessageAsRead(user: CurrentUser, orderId: string, messageId: string) {
     this.logger.log(`Marking message ${messageId} as read for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     await this.prisma.message.update({
       where: { id: messageId },
@@ -1071,13 +1010,8 @@ export class OrdersService {
 
   async counterOffer(user: CurrentUser, orderId: string, data: CounterOfferRequest) {
     this.logger.log(`Making counter offer for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access - only supplier can make counter offers
-    if (order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Only supplier can make counter offers');
-    }
 
     const { message, changes, expiresAt } = data;
 
@@ -1111,13 +1045,10 @@ export class OrdersService {
 
   async confirmOrder(user: CurrentUser, orderId: string) {
     this.logger.log(`Confirming order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    if (order.createdById !== user.userId) {
-      throw new ForbiddenException('Only order creator can confirm the order');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException('Only pending orders can be confirmed');
     }
@@ -1149,13 +1080,10 @@ export class OrdersService {
 
   async startFulfillment(user: CurrentUser, orderId: string, data: StartFulfillmentRequest) {
     this.logger.log(`Starting fulfillment for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    if (order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Only supplier can start fulfillment');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.CONFIRMED) {
       throw new BadRequestException('Only confirmed orders can start fulfillment');
     }
@@ -1192,14 +1120,10 @@ export class OrdersService {
 
   async completeOrder(user: CurrentUser, orderId: string, data: CompleteOrderRequest) {
     this.logger.log(`Completing order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access - only supplier can complete orders
-    if (order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Only supplier can complete orders');
-    }
 
+    const order = await this.getOrderById(orderId);
+
+    // Business logic validation
     if (order.status !== OrderStatus.IN_TRANSIT) {
       throw new BadRequestException('Only orders in transit can be completed');
     }
@@ -1239,13 +1163,6 @@ export class OrdersService {
 
   async getOrderDocuments(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting documents for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const documents = await this.prisma.document.findMany({
       where: { orderId },
@@ -1262,13 +1179,6 @@ export class OrdersService {
 
   async uploadOrderDocument(user: CurrentUser, orderId: string, data: CreateOrderDocumentRequest) {
     this.logger.log(`Uploading document for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { type, name } = data;
 
@@ -1293,13 +1203,8 @@ export class OrdersService {
 
   async getOrderContract(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting contract for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     // Generate contract URL (this would be implemented by a contract service)
     const contractUrl = `/api/orders/${orderId}/contract/download`;
@@ -1324,13 +1229,8 @@ export class OrdersService {
 
   async signOrderContract(user: CurrentUser, orderId: string, data: ContractSignatureRequest) {
     this.logger.log(`Signing contract for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { signature, signedAt, ipAddress } = data;
 
@@ -1358,13 +1258,8 @@ export class OrdersService {
 
   async getOrderTimeline(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting timeline for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     // Get timeline events from order metadata and related records
     const timelineEvents = [
@@ -1416,13 +1311,8 @@ export class OrdersService {
 
   async getOrderTracking(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting tracking info for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const trackingInfo = {
       orderId,
@@ -1445,13 +1335,8 @@ export class OrdersService {
 
   async addStatusUpdate(user: CurrentUser, orderId: string, data: OrderStatusUpdateRequest) {
     this.logger.log(`Adding status update for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { status, message, location, estimatedCompletion, attachments } = data;
 
@@ -1496,13 +1381,6 @@ export class OrdersService {
 
   async createOrderDispute(user: CurrentUser, orderId: string, data: CreateOrderDisputeRequest) {
     this.logger.log(`Creating dispute for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { type, description, evidence, requestedResolution, severity } = data;
 
@@ -1526,13 +1404,6 @@ export class OrdersService {
 
   async getOrderDisputes(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting disputes for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     // Note: Dispute model would need to be defined in Prisma schema
     const disputes: any[] = [];
@@ -1545,13 +1416,6 @@ export class OrdersService {
 
   async respondToDispute(user: CurrentUser, orderId: string, disputeId: string, data: DisputeResponseRequest) {
     this.logger.log(`Responding to dispute ${disputeId} for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { response, evidence, proposedResolution } = data;
 
@@ -1575,13 +1439,6 @@ export class OrdersService {
 
   async resolveDispute(user: CurrentUser, orderId: string, disputeId: string, data: DisputeResolutionRequest) {
     this.logger.log(`Resolving dispute ${disputeId} for order ${orderId} for user: ${user.userId}`);
-    
-    const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const { resolution, compensation, terms } = data;
 
@@ -1609,13 +1466,8 @@ export class OrdersService {
 
   async getOrderBuyer(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting buyer for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     const buyer = await this.prisma.user.findFirst({
       where: { 
@@ -1636,13 +1488,8 @@ export class OrdersService {
 
   async getOrderSeller(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting seller for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     if (!order.supplierOrgId) {
       return { data: null };
@@ -1667,13 +1514,8 @@ export class OrdersService {
 
   async getOrderBuyerRelationship(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting buyer relationship for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     return {
       data: {
@@ -1689,13 +1531,8 @@ export class OrdersService {
 
   async getOrderSellerRelationship(user: CurrentUser, orderId: string) {
     this.logger.log(`Getting seller relationship for order ${orderId} for user: ${user.userId}`);
-    
+
     const order = await this.getOrderById(orderId);
-    
-    // Check access
-    if (order.buyerOrgId !== user.organizationId && order.supplierOrgId !== user.organizationId) {
-      throw new ForbiddenException('Access denied to this order');
-    }
 
     return {
       data: order.supplierOrgId ? {

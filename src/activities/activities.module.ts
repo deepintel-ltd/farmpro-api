@@ -13,6 +13,7 @@ import { MobileFieldController } from './mobile-field.controller';
 import { MobileFieldService } from './mobile-field.service';
 import { WeatherService } from './weather.service';
 import { JwtModule } from '@nestjs/jwt';
+import { ActivityAssignmentGuard } from './guards';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { JwtModule } from '@nestjs/jwt';
     ActivityUpdatesGateway,
     MobileFieldService,
     WeatherService,
+    ActivityAssignmentGuard,
   ],
   exports: [
     ActivitiesService,
@@ -47,6 +49,7 @@ import { JwtModule } from '@nestjs/jwt';
     ActivityUpdatesGateway,
     MobileFieldService,
     WeatherService,
+    ActivityAssignmentGuard,
   ],
 })
 export class ActivitiesModule {}
