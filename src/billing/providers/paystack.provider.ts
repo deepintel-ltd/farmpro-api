@@ -207,7 +207,7 @@ export class PaystackProvider {
   }): Promise<any> {
     this.logger.log(`Creating Paystack plan: ${data.name}`);
 
-    const plan = await this.request('POST', '/plan', {
+    const plan = await this.request<{ plan_code: string}>('POST', '/plan', {
       name: data.name,
       amount: data.amount,
       interval: data.interval,
@@ -379,7 +379,7 @@ export class PaystackProvider {
   }): Promise<any> {
     this.logger.log(`Creating refund for: ${data.transactionReference}`);
 
-    const refund = await this.request('POST', '/refund', {
+    const refund = await this.request<{ id: string }>('POST', '/refund', {
       transaction: data.transactionReference,
       amount: data.amount,
       merchant_note: data.merchantNote,
