@@ -41,6 +41,11 @@ describe('AuthService', () => {
     $transaction: jest.fn(),
   };
 
+  // Mock the AuthService methods that are called internally
+  const mockAuthService = {
+    getUserWithRoles: jest.fn(),
+  };
+
   const mockJwtService = {
     sign: jest.fn(),
     verify: jest.fn(),
@@ -53,6 +58,7 @@ describe('AuthService', () => {
   const mockEmailVerificationService = {
     sendEmailVerification: jest.fn(),
     sendWelcomeEmail: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
   };
 
   const mockBrevoService = {
@@ -124,7 +130,44 @@ describe('AuthService', () => {
         userRoles: [],
       };
 
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // Mock the getUserWithRoles call by mocking the Prisma calls it makes
+      const mockUserWithRoles = {
+        id: 'user-1',
+        email: registerDto.email,
+        name: registerDto.name,
+        phone: registerDto.phone,
+        organizationId: 'org-1',
+        isActive: true,
+        emailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        organization: {
+          id: 'org-1',
+          name: registerDto.organizationName,
+          type: registerDto.organizationType,
+          plan: 'basic',
+          features: ['farm_management'],
+          allowedModules: ['farm_management'],
+          isVerified: true,
+          isSuspended: false,
+        },
+        userRoles: [{
+          id: 'role-1',
+          role: {
+            id: 'role-1',
+            name: 'admin',
+            level: 100,
+            scope: 'ORGANIZATION',
+          },
+          isActive: true,
+        }],
+      };
+
+      // Mock the findUnique calls: first for existing user check (null), second for getUserWithRoles
+      mockPrismaService.user.findUnique
+        .mockResolvedValueOnce(null) // First call for existing user check
+        .mockResolvedValueOnce(mockUserWithRoles); // Second call for getUserWithRoles
+
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         return callback({
           organization: {
@@ -154,8 +197,9 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('user');
       expect(result).toHaveProperty('message');
       expect(result.user.email).toBe(registerDto.email);
-      expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
+      expect(mockPrismaService.user.findUnique).toHaveBeenNthCalledWith(1, {
         where: { email: registerDto.email },
+        select: { id: true },
       });
     });
 

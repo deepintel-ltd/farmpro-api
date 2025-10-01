@@ -113,7 +113,7 @@ describe('OrderOwnershipGuard', () => {
       const order = createMockOrder();
       mockRequest.user = createMockUser({ isPlatformAdmin: true });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       const result = await guard.canActivate(mockContext);
 
@@ -125,7 +125,7 @@ describe('OrderOwnershipGuard', () => {
       const order = createMockOrder({ createdById: 'user-1' });
       mockRequest.user = createMockUser({ userId: 'user-1' });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       const result = await guard.canActivate(mockContext);
 
@@ -137,7 +137,7 @@ describe('OrderOwnershipGuard', () => {
       const order = createMockOrder({ createdById: 'user-2' });
       mockRequest.user = createMockUser({ userId: 'user-1' });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new ForbiddenException('Only order creator can perform this action'),
@@ -161,21 +161,12 @@ describe('OrderOwnershipGuard', () => {
       const order = createMockOrder({ createdById: 'user-1' });
       mockRequest.user = createMockUser({ userId: 'user-1' });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       const result = await guard.canActivate(mockContext);
 
       expect(result).toBe(true);
-      expect(mockPrismaService.order.findUnique).toHaveBeenCalledWith({
-        where: { id: 'order-1' },
-        select: {
-          id: true,
-          buyerOrgId: true,
-          supplierOrgId: true,
-          createdById: true,
-          status: true,
-        },
-      });
+      expect(mockOrdersService.findOrderById).toHaveBeenCalledWith('order-1');
       expect(mockRequest.order).toEqual(order);
     });
   });
@@ -184,7 +175,7 @@ describe('OrderOwnershipGuard', () => {
     it('should handle database errors gracefully', async () => {
       mockRequest.user = createMockUser();
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockRejectedValue(new Error('Database error'));
+      mockOrdersService.findOrderById.mockRejectedValue(new Error('Database error'));
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow('Database error');
     });
@@ -211,7 +202,7 @@ describe('OrderOwnershipGuard', () => {
       const order = createMockOrder({ createdById: 'user-1' });
       mockRequest.user = createMockUser({ userId: null });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new ForbiddenException('Only order creator can perform this action'),
@@ -222,7 +213,7 @@ describe('OrderOwnershipGuard', () => {
       const order = createMockOrder({ createdById: null });
       mockRequest.user = createMockUser({ userId: 'user-1' });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new ForbiddenException('Only order creator can perform this action'),
@@ -239,7 +230,7 @@ describe('OrderOwnershipGuard', () => {
         email: 'admin@platform.com'
       });
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       const result = await guard.canActivate(mockContext);
 
@@ -252,7 +243,7 @@ describe('OrderOwnershipGuard', () => {
       mockRequest.user = createMockUser({ isPlatformAdmin: true });
       mockRequest.params.id = 'order-1';
       mockRequest.order = null; // No order in request
-      mockPrismaService.order.findUnique.mockResolvedValue(order);
+      mockOrdersService.findOrderById.mockResolvedValue(order);
 
       const result = await guard.canActivate(mockContext);
 

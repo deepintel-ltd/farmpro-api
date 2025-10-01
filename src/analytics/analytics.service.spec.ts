@@ -142,7 +142,7 @@ describe('AnalyticsService', () => {
     it('should return dashboard analytics data', async () => {
       const query: BaseAnalyticsQuery = {
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         includeInsights: true,
         useCache: true,
       };
@@ -152,7 +152,7 @@ describe('AnalyticsService', () => {
       expect(result).toBeDefined();
       expect(result.data.type).toBe('analytics_dashboard');
       expect(result.data.attributes.period).toBe('month');
-      expect(result.data.attributes.farmId).toBe('550e8400-e29b-41d4-a716-446655440002');
+      expect(result.data.attributes.farmId).toBe('clx1234567890123456789012');
       expect(result.data.attributes.metrics).toBeDefined();
       expect(result.data.attributes.charts).toBeDefined();
       expect(result.data.attributes.summary).toBeDefined();
@@ -189,7 +189,7 @@ describe('AnalyticsService', () => {
     it('should return financial analytics data', async () => {
       const query: FinancialQuery = {
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         includeInsights: true,
         useCache: true,
       };
@@ -209,7 +209,7 @@ describe('AnalyticsService', () => {
     it('should return activity analytics data', async () => {
       const query: ActivityQuery = {
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         activityType: 'PLANTING',
         includeEfficiency: true,
         includeCosts: true,
@@ -231,7 +231,7 @@ describe('AnalyticsService', () => {
     it('should return market analytics data', async () => {
       const query: MarketQuery = {
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         commodityId: 'test-commodity-id',
         includePredictions: true,
         useCache: true,
@@ -252,14 +252,14 @@ describe('AnalyticsService', () => {
     it('should return farm-to-market analytics data', async () => {
       const query: MarketQuery = {
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         useCache: true,
       };
 
       const result = await service.getFarmToMarketAnalytics(mockUser, query);
 
       expect(result).toBeDefined();
-      expect(result.data.type).toBe('analytics_farm_to_market');
+      expect(result.data.type).toBe('analytics_farm-to-market');
       expect(result.data.attributes.period).toBe('month');
       expect(result.data.attributes.metrics).toBeDefined();
       expect(result.data.attributes.charts).toBeDefined();
@@ -271,7 +271,7 @@ describe('AnalyticsService', () => {
     it('should return AI-powered insights', async () => {
       const query: BaseAnalyticsQuery = {
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         includeInsights: true,
         useCache: true,
       };
@@ -291,7 +291,7 @@ describe('AnalyticsService', () => {
         type: 'dashboard',
         format: 'csv',
         period: 'month',
-        farmId: '550e8400-e29b-41d4-a716-446655440002',
+        farmId: 'clx1234567890123456789012',
         includeCharts: false,
         includeInsights: true,
       };
@@ -310,7 +310,7 @@ describe('AnalyticsService', () => {
         title: 'Monthly Report',
         type: 'dashboard',
         period: 'month',
-        farmIds: ['550e8400-e29b-41d4-a716-446655440002'],
+        farmIds: ['clx1234567890123456789012'],
         commodities: ['test-commodity-id'],
         includeComparisons: true,
         includePredictions: false,
