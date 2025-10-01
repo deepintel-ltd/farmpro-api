@@ -18,6 +18,14 @@ export class ErrorResponseUtil {
    * Check if error is a not found error
    */
   static isNotFound(error: unknown): boolean {
+    // Check for NotFoundException instance
+    if (error && typeof error === 'object' && 'constructor' in error) {
+      const errorConstructor = (error as any).constructor;
+      if (errorConstructor && errorConstructor.name === 'NotFoundException') {
+        return true;
+      }
+    }
+    
     return error instanceof Error && 
            (error.message.includes('not found') || 
             error.message.includes('Not found') ||

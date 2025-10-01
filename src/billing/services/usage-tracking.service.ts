@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionService } from './subscription.service';
+import { createJsonApiResource } from '../../common/utils/json-api-response.util';
 
 @Injectable()
 export class UsageTrackingService {
@@ -24,7 +25,7 @@ export class UsageTrackingService {
       `Recording usage for ${organizationId}: ${featureName} (${quantity} ${unit || 'count'})`,
     );
 
-    const subscription = await this.subscriptionService.getCurrentSubscription(
+    const subscription = await this.subscriptionService['getCurrentSubscriptionInternal'](
       organizationId,
     );
 
@@ -49,15 +50,16 @@ export class UsageTrackingService {
   async getUsageStats(organizationId: string) {
     this.logger.log(`Fetching usage stats for organization: ${organizationId}`);
 
-    const subscription = await this.subscriptionService.getCurrentSubscription(
-      organizationId,
-    );
-    const limits = await this.subscriptionService.getSubscriptionLimits(
-      organizationId,
-    );
+    try {
+      const subscription = await this.subscriptionService['getCurrentSubscriptionInternal'](
+        organizationId,
+      );
+      const limits = await this.subscriptionService.getSubscriptionLimits(
+        organizationId,
+      );
 
-    const periodStart = subscription.currentPeriodStart;
-    const periodEnd = subscription.currentPeriodEnd;
+      const periodStart = subscription.currentPeriodStart;
+      const periodEnd = subscription.currentPeriodEnd;
 
     // Get current usage from the database
     const [userCount, farmCount, activityCount, listingCount] = await Promise.all([
@@ -124,13 +126,38 @@ export class UsageTrackingService {
       },
     };
 
-    return {
-      currentPeriod: {
-        start: periodStart.toISOString(),
-        end: periodEnd.toISOString(),
-      },
-      features,
-    };
+      return createJsonApiResource(
+        organizationId,
+        'usage-stats',
+        {
+          currentPeriod: {
+            start: periodStart.toISOString(),
+            end: periodEnd.toISOString(),
+          },
+          features,
+        }
+      );
+    } catch (error) {
+      // If no subscription exists, return empty usage stats
+      this.logger.warn(`No subscription found for organization: ${organizationId}`);
+      
+      return createJsonApiResource(
+        organizationId,
+        'usage-stats',
+        {
+          currentPeriod: {
+            start: new Date().toISOString(),
+            end: new Date().toISOString(),
+          },
+          features: {
+            users: { used: 0, limit: 0, unit: 'count', isUnlimited: false, percentageUsed: 0 },
+            farms: { used: 0, limit: 0, unit: 'count', isUnlimited: false, percentageUsed: 0 },
+            activities: { used: 0, limit: 0, unit: 'count', isUnlimited: false, percentageUsed: 0 },
+            listings: { used: 0, limit: 0, unit: 'count', isUnlimited: false, percentageUsed: 0 },
+          },
+        }
+      );
+    }
   }
 
   /**
@@ -146,7 +173,7 @@ export class UsageTrackingService {
       `Fetching ${featureName} usage for organization: ${organizationId}`,
     );
 
-    const subscription = await this.subscriptionService.getCurrentSubscription(
+    const subscription = await this.subscriptionService['getCurrentSubscriptionInternal'](
       organizationId,
     );
 
@@ -189,15 +216,19 @@ export class UsageTrackingService {
     );
     const limit = this.getFeatureLimit(featureName, limits);
 
-    return {
-      featureName,
-      totalUsage,
-      limit,
-      isUnlimited: limit === -1,
-      periodStart: periodStart.toISOString(),
-      periodEnd: periodEnd.toISOString(),
-      dailyUsage: dailyUsageArray,
-    };
+    return createJsonApiResource(
+      `${organizationId}-${featureName}`,
+      'usage-stats',
+      {
+        featureName,
+        totalUsage,
+        limit,
+        isUnlimited: limit === -1,
+        periodStart: periodStart.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+        dailyUsage: dailyUsageArray,
+      }
+    );
   }
 
   /**
@@ -209,7 +240,7 @@ export class UsageTrackingService {
     threshold: number = 0.8,
   ): Promise<boolean> {
     const stats = await this.getUsageStats(organizationId);
-    const featureStats = stats.features[feature];
+    const featureStats = (stats.data as any).attributes.features[feature];
 
     if (!featureStats || featureStats.isUnlimited) {
       return false;

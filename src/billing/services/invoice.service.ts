@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoiceStatus, Currency } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { createJsonApiCollection, createJsonApiResource } from '../../common/utils/json-api-response.util';
 
 @Injectable()
 export class InvoiceService {
@@ -25,10 +26,11 @@ export class InvoiceService {
     });
 
     if (!subscription) {
+      this.logger.warn(`No subscription found for organization: ${organizationId}`);
       return [];
     }
 
-    return this.prisma.invoice.findMany({
+    const invoices = await this.prisma.invoice.findMany({
       where: {
         subscriptionId: subscription.id,
         status: filters?.status,
@@ -44,6 +46,28 @@ export class InvoiceService {
         createdAt: 'desc',
       },
     });
+
+    this.logger.log(`Found ${invoices.length} invoices for subscription: ${subscription.id}`);
+
+    const invoiceResources = invoices.map(invoice => ({
+      id: invoice.id,
+      type: 'invoices',
+      attributes: {
+        ...invoice,
+        subtotal: invoice.subtotal.toFixed(2),
+        tax: invoice.tax.toFixed(2),
+        total: invoice.total.toFixed(2),
+        amountPaid: invoice.amountPaid.toFixed(2),
+        amountDue: invoice.amountDue.toFixed(2),
+        issuedAt: invoice.issuedAt?.toISOString() ?? null,
+        dueDate: invoice.dueDate?.toISOString() ?? null,
+        paidAt: invoice.paidAt?.toISOString() ?? null,
+        createdAt: invoice.createdAt.toISOString(),
+        updatedAt: invoice.updatedAt.toISOString(),
+      },
+    }));
+
+    return createJsonApiCollection(invoiceResources);
   }
 
   /**
@@ -73,7 +97,23 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    return invoice;
+    return createJsonApiResource(
+      invoice.id,
+      'invoices',
+      {
+        ...invoice,
+        subtotal: invoice.subtotal.toFixed(2),
+        tax: invoice.tax.toFixed(2),
+        total: invoice.total.toFixed(2),
+        amountPaid: invoice.amountPaid.toFixed(2),
+        amountDue: invoice.amountDue.toFixed(2),
+        issuedAt: invoice.issuedAt?.toISOString() ?? null,
+        dueDate: invoice.dueDate?.toISOString() ?? null,
+        paidAt: invoice.paidAt?.toISOString() ?? null,
+        createdAt: invoice.createdAt.toISOString(),
+        updatedAt: invoice.updatedAt.toISOString(),
+      }
+    );
   }
 
   /**
@@ -174,7 +214,26 @@ export class InvoiceService {
    * Get invoice PDF URL (placeholder for now)
    */
   async getInvoicePDF(invoiceId: string, organizationId: string) {
-    const invoice = await this.findOne(invoiceId, organizationId);
+    // Get raw invoice data for PDF generation
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        subscription: {
+          include: {
+            organization: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+    }
+
+    // Verify the invoice belongs to the organization
+    if (invoice.subscription.organizationId !== organizationId) {
+      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+    }
 
     // TODO: Implement PDF generation
     // For now, return a placeholder URL

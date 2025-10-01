@@ -2,6 +2,7 @@ import { Controller, Request, UseGuards } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { BillingService } from './billing.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PlatformAdminGuard } from '../common/guards/platform-admin.guard';
 import { billingContract } from '../../contracts/billing.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
@@ -496,6 +497,7 @@ export class BillingController {
   // ==========================================================================
 
   @TsRestHandler(billingContract.adminGetSubscriptions)
+  @UseGuards(PlatformAdminGuard)
   public adminGetSubscriptions(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.adminGetSubscriptions,
@@ -519,6 +521,7 @@ export class BillingController {
   }
 
   @TsRestHandler(billingContract.adminOverrideSubscription)
+  @UseGuards(PlatformAdminGuard)
   public adminOverrideSubscription(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.adminOverrideSubscription,
@@ -545,6 +548,7 @@ export class BillingController {
   }
 
   @TsRestHandler(billingContract.adminGetRevenue)
+  @UseGuards(PlatformAdminGuard)
   public adminGetRevenue(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.adminGetRevenue, async () => {
       try {

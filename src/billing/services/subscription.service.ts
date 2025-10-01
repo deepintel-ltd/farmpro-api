@@ -14,6 +14,7 @@ import {
   CancelSubscriptionDto,
 } from '../dto/subscription.dto';
 import { SubscriptionStatus, BillingInterval } from '@prisma/client';
+import { createJsonApiResource } from '../../common/utils/json-api-response.util';
 
 @Injectable()
 export class SubscriptionService {
@@ -26,10 +27,12 @@ export class SubscriptionService {
   ) {}
 
   /**
-   * Get current organization subscription
+   * Get current organization subscription (internal method)
    */
-  async getCurrentSubscription(organizationId: string) {
-    this.logger.log(`Fetching subscription for organization: ${organizationId}`);
+  private async getCurrentSubscriptionInternal(organizationId: string) {
+    this.logger.log(
+      `Fetching subscription for organization: ${organizationId}`,
+    );
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { organizationId },
@@ -49,13 +52,32 @@ export class SubscriptionService {
   }
 
   /**
+   * Get current organization subscription (JSON API format)
+   */
+  async getCurrentSubscription(organizationId: string) {
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
+
+    return createJsonApiResource(subscription.id, 'subscriptions', {
+      ...subscription,
+      currentPeriodStart: subscription.currentPeriodStart.toISOString(),
+      currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+      trialStart: subscription.trialStart?.toISOString() ?? null,
+      trialEnd: subscription.trialEnd?.toISOString() ?? null,
+      canceledAt: subscription.canceledAt?.toISOString() ?? null,
+      createdAt: subscription.createdAt.toISOString(),
+      updatedAt: subscription.updatedAt.toISOString(),
+    });
+  }
+
+  /**
    * Create a new subscription
    */
-  async createSubscription(
-    organizationId: string,
-    dto: CreateSubscriptionDto,
-  ) {
-    this.logger.log(`Creating subscription for organization: ${organizationId}`, dto);
+  async createSubscription(organizationId: string, dto: CreateSubscriptionDto) {
+    this.logger.log(
+      `Creating subscription for organization: ${organizationId}`,
+      dto,
+    );
 
     // Check if organization already has a subscription
     const existing = await this.prisma.subscription.findUnique({
@@ -69,7 +91,7 @@ export class SubscriptionService {
     }
 
     // Validate the plan
-    const plan = await this.planService.findOne(dto.planId);
+    const plan = await this.planService['findOneInternal'](dto.planId);
 
     // Calculate period dates
     const now = new Date();
@@ -98,7 +120,9 @@ export class SubscriptionService {
       data: {
         organizationId,
         planId: dto.planId,
-        status: isTrialing ? SubscriptionStatus.TRIALING : SubscriptionStatus.ACTIVE,
+        status: isTrialing
+          ? SubscriptionStatus.TRIALING
+          : SubscriptionStatus.ACTIVE,
         currency: dto.currency,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
@@ -116,21 +140,31 @@ export class SubscriptionService {
 
     this.logger.log(`Successfully created subscription: ${subscription.id}`);
 
-    return subscription;
+    return createJsonApiResource(subscription.id, 'subscriptions', {
+      ...subscription,
+      currentPeriodStart: subscription.currentPeriodStart.toISOString(),
+      currentPeriodEnd: subscription.currentPeriodEnd.toISOString(),
+      trialStart: subscription.trialStart?.toISOString() ?? null,
+      trialEnd: subscription.trialEnd?.toISOString() ?? null,
+      canceledAt: subscription.canceledAt?.toISOString() ?? null,
+      createdAt: subscription.createdAt.toISOString(),
+      updatedAt: subscription.updatedAt.toISOString(),
+    });
   }
 
   /**
    * Update subscription
    */
-  async updateSubscription(
-    organizationId: string,
-    dto: UpdateSubscriptionDto,
-  ) {
-    this.logger.log(`Updating subscription for organization: ${organizationId}`, dto);
+  async updateSubscription(organizationId: string, dto: UpdateSubscriptionDto) {
+    this.logger.log(
+      `Updating subscription for organization: ${organizationId}`,
+      dto,
+    );
 
-    const subscription = await this.getCurrentSubscription(organizationId);
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
 
-    return this.prisma.subscription.update({
+    const updatedSubscription = await this.prisma.subscription.update({
       where: { id: subscription.id },
       data: {
         autoRenew: dto.autoRenew,
@@ -141,6 +175,17 @@ export class SubscriptionService {
         paymentMethod: true,
       },
     });
+
+    return createJsonApiResource(updatedSubscription.id, 'subscriptions', {
+      ...updatedSubscription,
+      currentPeriodStart: updatedSubscription.currentPeriodStart.toISOString(),
+      currentPeriodEnd: updatedSubscription.currentPeriodEnd.toISOString(),
+      trialStart: updatedSubscription.trialStart?.toISOString() ?? null,
+      trialEnd: updatedSubscription.trialEnd?.toISOString() ?? null,
+      canceledAt: updatedSubscription.canceledAt?.toISOString() ?? null,
+      createdAt: updatedSubscription.createdAt.toISOString(),
+      updatedAt: updatedSubscription.updatedAt.toISOString(),
+    });
   }
 
   /**
@@ -149,14 +194,12 @@ export class SubscriptionService {
   async changePlan(organizationId: string, dto: ChangePlanDto) {
     this.logger.log(`Changing plan for organization: ${organizationId}`, dto);
 
-    const subscription = await this.getCurrentSubscription(organizationId);
-    const newPlan = await this.planService.findOne(dto.planId);
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
+    const newPlan = await this.planService['findOneInternal'](dto.planId);
 
     // Prevent downgrade to FREE from paid plans
-    if (
-      newPlan.tier === 'FREE' &&
-      subscription.plan.tier !== 'FREE'
-    ) {
+    if (newPlan.tier === 'FREE' && subscription.plan.tier !== 'FREE') {
       throw new BadRequestException(
         'Cannot downgrade to FREE plan. Please cancel your subscription instead.',
       );
@@ -192,21 +235,33 @@ export class SubscriptionService {
       },
     });
 
-    this.logger.log(`Successfully changed plan for subscription: ${subscription.id}`);
+    this.logger.log(
+      `Successfully changed plan for subscription: ${subscription.id}`,
+    );
 
-    return updatedSubscription;
+    return createJsonApiResource(updatedSubscription.id, 'subscriptions', {
+      ...updatedSubscription,
+      currentPeriodStart: updatedSubscription.currentPeriodStart.toISOString(),
+      currentPeriodEnd: updatedSubscription.currentPeriodEnd.toISOString(),
+      trialStart: updatedSubscription.trialStart?.toISOString() ?? null,
+      trialEnd: updatedSubscription.trialEnd?.toISOString() ?? null,
+      canceledAt: updatedSubscription.canceledAt?.toISOString() ?? null,
+      createdAt: updatedSubscription.createdAt.toISOString(),
+      updatedAt: updatedSubscription.updatedAt.toISOString(),
+    });
   }
 
   /**
    * Cancel subscription
    */
-  async cancelSubscription(
-    organizationId: string,
-    dto: CancelSubscriptionDto,
-  ) {
-    this.logger.log(`Canceling subscription for organization: ${organizationId}`, dto);
+  async cancelSubscription(organizationId: string, dto: CancelSubscriptionDto) {
+    this.logger.log(
+      `Canceling subscription for organization: ${organizationId}`,
+      dto,
+    );
 
-    const subscription = await this.getCurrentSubscription(organizationId);
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
 
     if (subscription.status === SubscriptionStatus.CANCELED) {
       throw new BadRequestException('Subscription is already canceled');
@@ -218,14 +273,15 @@ export class SubscriptionService {
       canceledAt: now,
     };
 
+    updateData.autoRenew = false;
+
     if (dto.immediate) {
       // Cancel immediately
       updateData.status = SubscriptionStatus.CANCELED;
       updateData.currentPeriodEnd = now;
+      updateData.cancelAtPeriodEnd = false;
     } else {
-      // Cancel at period end
       updateData.cancelAtPeriodEnd = true;
-      updateData.autoRenew = false;
     }
 
     const canceledSubscription = await this.prisma.subscription.update({
@@ -239,16 +295,29 @@ export class SubscriptionService {
 
     this.logger.log(`Successfully canceled subscription: ${subscription.id}`);
 
-    return canceledSubscription;
+    return createJsonApiResource(canceledSubscription.id, 'subscriptions', {
+      ...canceledSubscription,
+      currentPeriodStart: canceledSubscription.currentPeriodStart.toISOString(),
+      currentPeriodEnd: canceledSubscription.currentPeriodEnd.toISOString(),
+      trialStart: canceledSubscription.trialStart?.toISOString() ?? null,
+      trialEnd: canceledSubscription.trialEnd?.toISOString() ?? null,
+      canceledAt: canceledSubscription.canceledAt?.toISOString() ?? null,
+      cancelReason: canceledSubscription.cancelReason,
+      createdAt: canceledSubscription.createdAt.toISOString(),
+      updatedAt: canceledSubscription.updatedAt.toISOString(),
+    });
   }
 
   /**
    * Resume a canceled subscription
    */
   async resumeSubscription(organizationId: string) {
-    this.logger.log(`Resuming subscription for organization: ${organizationId}`);
+    this.logger.log(
+      `Resuming subscription for organization: ${organizationId}`,
+    );
 
-    const subscription = await this.getCurrentSubscription(organizationId);
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
 
     if (subscription.status === SubscriptionStatus.ACTIVE) {
       throw new BadRequestException('Subscription is already active');
@@ -277,7 +346,17 @@ export class SubscriptionService {
 
     this.logger.log(`Successfully resumed subscription: ${subscription.id}`);
 
-    return resumedSubscription;
+    return createJsonApiResource(resumedSubscription.id, 'subscriptions', {
+      ...resumedSubscription,
+      currentPeriodStart: resumedSubscription.currentPeriodStart.toISOString(),
+      currentPeriodEnd: resumedSubscription.currentPeriodEnd.toISOString(),
+      trialStart: resumedSubscription.trialStart?.toISOString() ?? null,
+      trialEnd: resumedSubscription.trialEnd?.toISOString() ?? null,
+      canceledAt: resumedSubscription.canceledAt?.toISOString() ?? null,
+      cancelReason: resumedSubscription.cancelReason,
+      createdAt: resumedSubscription.createdAt.toISOString(),
+      updatedAt: resumedSubscription.updatedAt.toISOString(),
+    });
   }
 
   /**
@@ -285,7 +364,8 @@ export class SubscriptionService {
    */
   async isActive(organizationId: string): Promise<boolean> {
     try {
-      const subscription = await this.getCurrentSubscription(organizationId);
+      const subscription =
+        await this.getCurrentSubscriptionInternal(organizationId);
       return (
         subscription.status === SubscriptionStatus.ACTIVE ||
         subscription.status === SubscriptionStatus.TRIALING
@@ -302,7 +382,8 @@ export class SubscriptionService {
     organizationId: string,
     feature: string,
   ): Promise<boolean> {
-    const subscription = await this.getCurrentSubscription(organizationId);
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
     return this.planService.checkFeatureAccess(subscription.planId, feature);
   }
 
@@ -310,7 +391,8 @@ export class SubscriptionService {
    * Get subscription limits
    */
   async getSubscriptionLimits(organizationId: string) {
-    const subscription = await this.getCurrentSubscription(organizationId);
+    const subscription =
+      await this.getCurrentSubscriptionInternal(organizationId);
     return this.planService.getPlanLimits(subscription.planId);
   }
 

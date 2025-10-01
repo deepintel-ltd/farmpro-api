@@ -25,7 +25,7 @@ import {
   AllQueryParams,
   CommonErrorResponses,
   CollectionErrorResponses,
-  UuidPathParam,
+  CuidPathParam,
 } from './common';
 
 const c = initContract();
@@ -55,7 +55,7 @@ export const billingContract = c.router({
   getPlan: {
     method: 'GET',
     path: '/billing/plans/:id',
-    pathParams: UuidPathParam('Plan'),
+    pathParams: CuidPathParam('Plan'),
     query: CommonQueryParams,
     responses: {
       200: SubscriptionPlanResourceSchema,
@@ -160,7 +160,7 @@ export const billingContract = c.router({
   getInvoice: {
     method: 'GET',
     path: '/billing/invoices/:id',
-    pathParams: UuidPathParam('Invoice'),
+    pathParams: CuidPathParam('Invoice'),
     query: CommonQueryParams,
     responses: {
       200: InvoiceResourceSchema,
@@ -173,7 +173,7 @@ export const billingContract = c.router({
   downloadInvoicePDF: {
     method: 'GET',
     path: '/billing/invoices/:id/pdf',
-    pathParams: UuidPathParam('Invoice'),
+    pathParams: CuidPathParam('Invoice'),
     responses: {
       200: z.object({
         url: z.string(),
@@ -187,7 +187,7 @@ export const billingContract = c.router({
   payInvoice: {
     method: 'POST',
     path: '/billing/invoices/:id/pay',
-    pathParams: UuidPathParam('Invoice'),
+    pathParams: CuidPathParam('Invoice'),
     body: PayInvoiceRequestSchema,
     responses: {
       200: PaymentResourceSchema,
@@ -228,7 +228,7 @@ export const billingContract = c.router({
   setDefaultPaymentMethod: {
     method: 'PATCH',
     path: '/billing/payment-methods/:id/default',
-    pathParams: UuidPathParam('PaymentMethod'),
+    pathParams: CuidPathParam('PaymentMethod'),
     body: z.object({}),
     responses: {
       200: PaymentMethodResourceSchema,
@@ -241,7 +241,7 @@ export const billingContract = c.router({
   deletePaymentMethod: {
     method: 'DELETE',
     path: '/billing/payment-methods/:id',
-    pathParams: UuidPathParam('PaymentMethod'),
+    pathParams: CuidPathParam('PaymentMethod'),
     body: z.object({}),
     responses: {
       204: z.object({}),
@@ -354,7 +354,7 @@ export const billingContract = c.router({
   adminOverrideSubscription: {
     method: 'POST',
     path: '/billing/admin/subscriptions/:id/override',
-    pathParams: UuidPathParam('Subscription'),
+    pathParams: CuidPathParam('Subscription'),
     body: z.object({
       data: z.object({
         type: z.literal('subscription-override'),

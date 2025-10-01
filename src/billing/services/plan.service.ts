@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscriptionTier, BillingInterval } from '@prisma/client';
+import { createJsonApiCollection, createJsonApiResource } from '../../common/utils/json-api-response.util';
 
 @Injectable()
 export class PlanService {
@@ -18,7 +19,7 @@ export class PlanService {
   }) {
     this.logger.log('Fetching all subscription plans', filters);
 
-    return this.prisma.subscriptionPlan.findMany({
+    const plans = await this.prisma.subscriptionPlan.findMany({
       where: {
         isActive: true,
         isPublic: filters?.isPublic ?? true,
@@ -30,12 +31,26 @@ export class PlanService {
         { billingInterval: 'asc' },
       ],
     });
+
+    return createJsonApiCollection(
+      plans.map(plan => ({
+        id: plan.id,
+        type: 'subscription-plans',
+        attributes: {
+          ...plan,
+          priceUSD: plan.priceUSD.toString(),
+          priceNGN: plan.priceNGN.toString(),
+          createdAt: plan.createdAt.toISOString(),
+          updatedAt: plan.updatedAt.toISOString(),
+        },
+      }))
+    );
   }
 
   /**
-   * Get a single subscription plan by ID
+   * Get a single subscription plan by ID (internal method)
    */
-  async findOne(id: string) {
+  private async findOneInternal(id: string) {
     this.logger.log(`Fetching subscription plan: ${id}`);
 
     const plan = await this.prisma.subscriptionPlan.findUnique({
@@ -47,6 +62,25 @@ export class PlanService {
     }
 
     return plan;
+  }
+
+  /**
+   * Get a single subscription plan by ID (JSON API format)
+   */
+  async findOne(id: string) {
+    const plan = await this.findOneInternal(id);
+
+    return createJsonApiResource(
+      plan.id,
+      'subscription-plans',
+      {
+        ...plan,
+        priceUSD: plan.priceUSD.toString(),
+        priceNGN: plan.priceNGN.toString(),
+        createdAt: plan.createdAt.toISOString(),
+        updatedAt: plan.updatedAt.toISOString(),
+      }
+    );
   }
 
   /**
@@ -76,7 +110,7 @@ export class PlanService {
    * Check if a plan allows a specific feature
    */
   async checkFeatureAccess(planId: string, feature: string): Promise<boolean> {
-    const plan = await this.findOne(planId);
+    const plan = await this.findOneInternal(planId);
 
     const featureMap: Record<string, boolean> = {
       advancedAnalytics: plan.hasAdvancedAnalytics,
@@ -94,7 +128,7 @@ export class PlanService {
    * Get plan limits
    */
   async getPlanLimits(planId: string) {
-    const plan = await this.findOne(planId);
+    const plan = await this.findOneInternal(planId);
 
     return {
       maxUsers: plan.maxUsers,

@@ -39,7 +39,8 @@ export class PaymentService {
   ) {
     this.logger.log(`Processing payment for invoice: ${invoiceId}`);
 
-    const invoice = await this.invoiceService.findOne(invoiceId, organizationId);
+    const invoiceResponse = await this.invoiceService.findOne(invoiceId, organizationId);
+    const invoice = (invoiceResponse.data as any).attributes;
 
     if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException('Invoice is already paid');
@@ -120,7 +121,11 @@ export class PaymentService {
   /**
    * Process payment via Paystack
    */
-  private async processPaystackPayment(invoice: any, paymentMethod: any) {
+  private async processPaystackPayment(invoice: any, paymentMethod: any): Promise<{
+    payment: any;
+    transaction: any;
+    status: string;
+  }> {
     this.logger.log(`Processing Paystack payment for invoice: ${invoice.id}`);
 
     try {

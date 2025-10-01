@@ -73,6 +73,7 @@ describe('Billing E2E Tests', () => {
       },
     });
 
+
     // Login to get access token
     const loginResponse = await testContext
       .request()
@@ -115,9 +116,9 @@ describe('Billing E2E Tests', () => {
         const response = await testContext
           .request()
           .get(`/billing/plans/${testPlan.id}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(200);
+          .set('Authorization', `Bearer ${accessToken}`);
 
+        expect(response.status).toBe(200);
         expect(response.body.data.type).toBe('subscription-plans');
         expect(response.body.data.id).toBe(testPlan.id);
         expect(response.body.data.attributes.name).toBe(testPlan.name);
@@ -144,7 +145,7 @@ describe('Billing E2E Tests', () => {
               planId: testPlan.id,
               currency: 'USD',
               billingInterval: 'MONTHLY',
-              paymentMethodId: 'pm_card_visa', // Mock payment method ID
+              // paymentMethodId is optional - will be null if not provided
             },
           },
         };
@@ -153,8 +154,9 @@ describe('Billing E2E Tests', () => {
           .request()
           .post('/billing/subscription')
           .set('Authorization', `Bearer ${accessToken}`)
-          .send(createSubData)
-          .expect(201);
+          .send(createSubData);
+
+        expect(response.status).toBe(201);
 
         expect(response.body.data.type).toBe('subscriptions');
         expect(response.body.data.attributes.planId).toBe(testPlan.id);
@@ -322,7 +324,7 @@ describe('Billing E2E Tests', () => {
             type: 'subscriptions',
             attributes: {
               cancelReason: 'No longer needed',
-              immediate: false,
+              immediate: true, // Cancel immediately
             },
           },
         };
@@ -335,6 +337,7 @@ describe('Billing E2E Tests', () => {
           .expect(200);
 
         expect(response.body.data.attributes.status).toBe('CANCELED');
+        expect(response.body.data.attributes.cancelAtPeriodEnd).toBe(false);
         expect(response.body.data.attributes.canceledAt).toBeDefined();
       });
     });
