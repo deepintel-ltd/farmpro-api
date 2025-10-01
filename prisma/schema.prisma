@@ -8,48 +8,48 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  phone     String?
-  avatar    String?
-  
+  id     String  @id @default(cuid())
+  email  String  @unique
+  name   String
+  phone  String?
+  avatar String?
+
   hashedPassword String?
-  googleId   String?  @unique
-  githubId   String?  @unique
-  
-  isActive      Boolean  @default(true)
-  emailVerified Boolean  @default(false)
+  googleId       String? @unique
+  githubId       String? @unique
+
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
   lastLoginAt   DateTime?
-  
-  refreshTokenHash String?
+
+  refreshTokenHash      String?
   refreshTokenExpiresAt DateTime?
-  
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+
   metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  userRoles            UserRole[]
-  createdActivities    FarmActivity[]      @relation("ActivityCreatedBy")
-  activityAssignments  ActivityAssignment[] @relation("ActivityAssignments")
-  assignedActivities   ActivityAssignment[] @relation("ActivityAssignedBy")
-  activityCostsCreated ActivityCost[]      @relation("ActivityCostCreatedBy")
-  activityCostsUpdated ActivityCost[]      @relation("ActivityCostUpdatedBy")
-  activityProgressLogs ActivityProgressLog[] @relation("ActivityProgressLogs")
-  activityNotes        ActivityNote[]        @relation("ActivityNotes")
-  observations         Observation[]
-  createdOrders        Order[]             @relation("OrderCreatedBy")
-  messages             Message[]
-  activities           Activity[]
+
+  userRoles             UserRole[]
+  createdActivities     FarmActivity[]         @relation("ActivityCreatedBy")
+  activityAssignments   ActivityAssignment[]   @relation("ActivityAssignments")
+  assignedActivities    ActivityAssignment[]   @relation("ActivityAssignedBy")
+  activityCostsCreated  ActivityCost[]         @relation("ActivityCostCreatedBy")
+  activityCostsUpdated  ActivityCost[]         @relation("ActivityCostUpdatedBy")
+  activityProgressLogs  ActivityProgressLog[]  @relation("ActivityProgressLogs")
+  activityNotes         ActivityNote[]         @relation("ActivityNotes")
+  observations          Observation[]
+  createdOrders         Order[]                @relation("OrderCreatedBy")
+  messages              Message[]
+  activities            Activity[]
   intelligenceResponses IntelligenceResponse[]
-  farmAnalyses         FarmAnalysis[]
-  marketAnalyses       MarketAnalysis[]
+  farmAnalyses          FarmAnalysis[]
+  marketAnalyses        MarketAnalysis[]
   activityOptimizations ActivityOptimization[]
-  emailVerifications   EmailVerification[]
-  priceAlerts          PriceAlert[]
+  emailVerifications    EmailVerification[]
+  priceAlerts           PriceAlert[]
 
   @@index([organizationId])
   @@index([email])
@@ -57,18 +57,18 @@ model User {
 }
 
 model EmailVerification {
-  id          String   @id @default(cuid())
-  token       String   @unique
-  tokenHash   String   @unique
+  id          String    @id @default(cuid())
+  token       String    @unique
+  tokenHash   String    @unique
   userId      String
   email       String
   expiresAt   DateTime
-  requestedAt DateTime @default(now())
-  isUsed      Boolean  @default(false)
+  requestedAt DateTime  @default(now())
+  isUsed      Boolean   @default(false)
   usedAt      DateTime?
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([tokenHash])
   @@index([expiresAt])
@@ -76,22 +76,22 @@ model EmailVerification {
 }
 
 model Role {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  level       Int      @default(0)
-  isActive    Boolean  @default(true)
-  isSystemRole Boolean @default(false)
-  isPlatformAdmin Boolean @default(false)
-  scope       RoleScope @default(ORGANIZATION)
+  level           Int       @default(0)
+  isActive        Boolean   @default(true)
+  isSystemRole    Boolean   @default(false)
+  isPlatformAdmin Boolean   @default(false)
+  scope           RoleScope @default(ORGANIZATION)
 
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   permissions RolePermission[]
   userRoles   UserRole[]
@@ -109,9 +109,9 @@ model Permission {
   action      String
   conditions  Json?
   description String?
-  
-  isSystemPermission Boolean @default(false)
-  createdAt DateTime @default(now())
+
+  isSystemPermission Boolean  @default(false)
+  createdAt          DateTime @default(now())
 
   rolePermissions RolePermission[]
 
@@ -124,8 +124,8 @@ model RolePermission {
   id           String @id @default(cuid())
   roleId       String
   permissionId String
-  
-  granted   Boolean @default(true)
+
+  granted    Boolean  @default(true)
   conditions Json?
   createdAt  DateTime @default(now())
 
@@ -137,13 +137,13 @@ model RolePermission {
 }
 
 model UserRole {
-  id      String @id @default(cuid())
-  userId  String
-  roleId  String
-  
-  farmId  String?
-  expiresAt DateTime?
-  isActive  Boolean   @default(true)
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  farmId     String?
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
   assignedBy String?
   assignedAt DateTime  @default(now())
   metadata   Json?
@@ -158,48 +158,50 @@ model UserRole {
 }
 
 model Organization {
-  id           String           @id @default(cuid())
-  name         String
-  type         OrganizationType
-  email        String?
-  phone        String?
-  address      Json?
-  taxId        String?
-  website      String?
-  description  String?
-  logo         String?
-  isVerified   Boolean          @default(false)
-  isActive     Boolean          @default(true)
+  id          String           @id @default(cuid())
+  name        String
+  type        OrganizationType
+  email       String?
+  phone       String?
+  address     Json?
+  taxId       String?
+  website     String?
+  description String?
+  logo        String?
+  isVerified  Boolean          @default(false)
+  isActive    Boolean          @default(true)
 
-  plan         String           @default("basic")
-  maxUsers     Int              @default(5)
-  maxFarms     Int              @default(1)
-  features     String[]
-  allowedModules String[]       @default([])
-  featureFlags Json?
-  allowCustomRoles Boolean @default(false)
+  plan             String   @default("basic")
+  maxUsers         Int      @default(5)
+  maxFarms         Int      @default(1)
+  features         String[]
+  allowedModules   String[] @default([])
+  featureFlags     Json?
+  allowCustomRoles Boolean  @default(false)
 
   suspendedAt      DateTime?
   suspensionReason String?
   verifiedAt       DateTime?
   verifiedBy       String?
 
-  metadata     Json?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users           User[]
-  roles           Role[]
-  farms           Farm[]
-  inventory       Inventory[]
-  transactions    Transaction[]
-  buyerOrders     Order[]         @relation("BuyerOrganization")
-  supplierOrders  Order[]         @relation("SupplierOrganization")
-  drivers         Driver[]
-  ratings         Rating[]        @relation("RatingGiven")
-  ratingsReceived Rating[]        @relation("RatingReceived")
+  users             User[]
+  roles             Role[]
+  farms             Farm[]
+  inventory         Inventory[]
+  transactions      Transaction[]
+  buyerOrders       Order[]              @relation("BuyerOrganization")
+  supplierOrders    Order[]              @relation("SupplierOrganization")
+  drivers           Driver[]
+  ratings           Rating[]             @relation("RatingGiven")
+  ratingsReceived   Rating[]             @relation("RatingReceived")
   activityTemplates ActivityTemplate[]
-  listings        MarketplaceListing[]
+  listings          MarketplaceListing[]
+  subscription      Subscription?
+  paymentMethods    PaymentMethod[]
 
   @@index([type])
   @@index([isActive, suspendedAt])
@@ -214,34 +216,34 @@ enum OrganizationType {
 }
 
 model Farm {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String
   name           String
   totalArea      Float
   location       Json?
-  timezone       String   @default("UTC")
-  isActive       Boolean  @default(true)
-  
-  cropTypes      String[]
-  establishedDate DateTime
-  certifications String[]
-  isPublic       Boolean  @default(false)
-  
-  metadata       Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  timezone       String  @default("UTC")
+  isActive       Boolean @default(true)
 
-  organization Organization    @relation(fields: [organizationId], references: [id])
-  areas        Area[]
-  seasons      Season[]
-  activities   FarmActivity[]
-  observations Observation[]
-  inventory    Inventory[]
-  sensors      Sensor[]
-  commodities  Commodity[]     @relation("FarmCommodities")
-  orders       Order[]         @relation("FarmOrders")
+  cropTypes       String[]
+  establishedDate DateTime
+  certifications  String[]
+  isPublic        Boolean  @default(false)
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization          Organization           @relation(fields: [organizationId], references: [id])
+  areas                 Area[]
+  seasons               Season[]
+  activities            FarmActivity[]
+  observations          Observation[]
+  inventory             Inventory[]
+  sensors               Sensor[]
+  commodities           Commodity[]            @relation("FarmCommodities")
+  orders                Order[]                @relation("FarmOrders")
   intelligenceResponses IntelligenceResponse[]
-  farmAnalyses         FarmAnalysis[]
+  farmAnalyses          FarmAnalysis[]
   activityOptimizations ActivityOptimization[]
 
   @@index([organizationId])
@@ -250,14 +252,14 @@ model Farm {
 }
 
 model Area {
-  id          String  @id @default(cuid())
-  farmId      String
-  name        String
-  size        Float
-  boundaries  Json?
-  isActive    Boolean @default(true)
-  metadata    Json?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  farmId     String
+  name       String
+  size       Float
+  boundaries Json?
+  isActive   Boolean  @default(true)
+  metadata   Json?
+  createdAt  DateTime @default(now())
 
   farm         Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
   cropCycles   CropCycle[]
@@ -270,15 +272,15 @@ model Area {
 }
 
 model Season {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   farmId    String
   name      String
   year      Int
   startDate DateTime
   endDate   DateTime?
-  isActive  Boolean  @default(true)
+  isActive  Boolean   @default(true)
   metadata  Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   farm       Farm        @relation(fields: [farmId], references: [id], onDelete: Cascade)
   cropCycles CropCycle[]
@@ -289,30 +291,30 @@ model Season {
 }
 
 model Commodity {
-  id          String @id @default(cuid())
-  name        String
-  category    String
-  variety     String?
-  qualityGrade String?
-  quantity    Float
-  unit        String
-  harvestDate DateTime?
+  id              String    @id @default(cuid())
+  name            String
+  category        String
+  variety         String?
+  qualityGrade    String?
+  quantity        Float
+  unit            String
+  harvestDate     DateTime?
   storageLocation String?
-  description String?
-  metadata    Json?
-  isActive    Boolean @default(true)
-  isGlobal    Boolean @default(true)
-  createdBy   String?
-  
-  farmId      String?
-  farm        Farm?   @relation("FarmCommodities", fields: [farmId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description     String?
+  metadata        Json?
+  isActive        Boolean   @default(true)
+  isGlobal        Boolean   @default(true)
+  createdBy       String?
 
-  cropCycles CropCycle[]
-  orderItems OrderItem[]
-  inventory  Inventory[]
+  farmId String?
+  farm   Farm?   @relation("FarmCommodities", fields: [farmId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cropCycles  CropCycle[]
+  orderItems  OrderItem[]
+  inventory   Inventory[]
   priceAlerts PriceAlert[]
 
   @@index([isGlobal, createdBy])
@@ -336,9 +338,9 @@ model CropCycle {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  season     Season        @relation(fields: [seasonId], references: [id])
-  area       Area          @relation(fields: [areaId], references: [id])
-  commodity  Commodity     @relation(fields: [commodityId], references: [id])
+  season     Season         @relation(fields: [seasonId], references: [id])
+  area       Area           @relation(fields: [areaId], references: [id])
+  commodity  Commodity      @relation(fields: [commodityId], references: [id])
   activities FarmActivity[]
   harvests   Harvest[]
 
@@ -347,10 +349,8 @@ model CropCycle {
   @@map("crop_cycles")
 }
 
-
-
 model FarmActivity {
-  id                String               @id @default(cuid())
+  id                String           @id @default(cuid())
   farmId            String
   areaId            String?
   cropCycleId       String?
@@ -360,20 +360,20 @@ model FarmActivity {
   scheduledAt       DateTime?
   completedAt       DateTime?
   startedAt         DateTime?
-  status            ActivityStatus       @default(PLANNED)
-  priority          ActivityPriority     @default(NORMAL)
-  cost              Float?               // Total cost calculated from cost entries
-  estimatedDuration Int?                 // in minutes
-  actualDuration    Int?                 // in minutes
+  status            ActivityStatus   @default(PLANNED)
+  priority          ActivityPriority @default(NORMAL)
+  cost              Float? // Total cost calculated from cost entries
+  estimatedDuration Int? // in minutes
+  actualDuration    Int? // in minutes
   createdById       String
   metadata          Json?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  farm         Farm                   @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  area         Area?                  @relation(fields: [areaId], references: [id])
-  cropCycle    CropCycle?             @relation(fields: [cropCycleId], references: [id])
-  createdBy    User                   @relation("ActivityCreatedBy", fields: [createdById], references: [id])
+  farm         Farm                  @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  area         Area?                 @relation(fields: [areaId], references: [id])
+  cropCycle    CropCycle?            @relation(fields: [cropCycleId], references: [id])
+  createdBy    User                  @relation("ActivityCreatedBy", fields: [createdById], references: [id])
   media        Media[]
   assignments  ActivityAssignment[]
   costs        ActivityCost[]
@@ -391,13 +391,13 @@ model FarmActivity {
 }
 
 model ActivityAssignment {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   activityId   String
   userId       String
   role         ActivityRole @default(ASSIGNED)
-  assignedAt   DateTime @default(now())
+  assignedAt   DateTime     @default(now())
   assignedById String
-  isActive     Boolean  @default(true)
+  isActive     Boolean      @default(true)
   metadata     Json?
 
   activity   FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
@@ -407,29 +407,29 @@ model ActivityAssignment {
   @@unique([activityId, userId])
   @@index([activityId])
   @@index([userId])
-  @@index([userId, isActive])  // For getUserActivities queries
-  @@index([activityId, isActive])  // For activity assignment lookups
+  @@index([userId, isActive]) // For getUserActivities queries
+  @@index([activityId, isActive]) // For activity assignment lookups
   @@map("activity_assignments")
 }
 
 model ActivityCost {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   activityId  String
   type        CostType
   description String
-  amount      Decimal   @db.Decimal(10,2)
-  quantity    Decimal?  @db.Decimal(8,2)
+  amount      Decimal  @db.Decimal(10, 2)
+  quantity    Decimal? @db.Decimal(8, 2)
   unit        String?
   receipt     String?
   vendor      String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
   createdById String
-  updatedAt   DateTime  @default(now()) @updatedAt
+  updatedAt   DateTime @default(now()) @updatedAt
   updatedById String?
 
-  activity   FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  createdBy  User         @relation("ActivityCostCreatedBy", fields: [createdById], references: [id])
-  updatedBy  User?        @relation("ActivityCostUpdatedBy", fields: [updatedById], references: [id])
+  activity  FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("ActivityCostCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?        @relation("ActivityCostUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([activityId])
   @@index([type])
@@ -441,7 +441,7 @@ model ActivityProgressLog {
   id              String   @id @default(cuid())
   activityId      String
   userId          String
-  percentComplete Int      // 0-100
+  percentComplete Int // 0-100
   notes           String?
   issues          String?
   location        Json?
@@ -457,16 +457,16 @@ model ActivityProgressLog {
 }
 
 model ActivityNote {
-  id         String       @id @default(cuid())
-  activityId String
-  userId     String
-  content    String
-  type       ActivityNoteType @default(GENERAL)
-  isPrivate  Boolean      @default(false)
-  attachments String[]    // Array of media file IDs
-  metadata   Json?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  id          String           @id @default(cuid())
+  activityId  String
+  userId      String
+  content     String
+  type        ActivityNoteType @default(GENERAL)
+  isPrivate   Boolean          @default(false)
+  attachments String[] // Array of media file IDs
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   activity FarmActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   user     User         @relation("ActivityNotes", fields: [userId], references: [id])
@@ -478,19 +478,19 @@ model ActivityNote {
 }
 
 model ActivityTemplate {
-  id               String   @id @default(cuid())
-  name             String
-  type             String
-  description      String
-  defaultDuration  Int
-  instructions     String
-  safetyNotes      String
-  applicableCrops  String[]
-  isSystem         Boolean  @default(false)
-  organizationId   String?
-  metadata         Json?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  type            String
+  description     String
+  defaultDuration Int
+  instructions    String
+  safetyNotes     String
+  applicableCrops String[]
+  isSystem        Boolean  @default(false)
+  organizationId  String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -517,27 +517,25 @@ model Harvest {
   @@map("harvests")
 }
 
-
-
 model Inventory {
-  id              String          @id @default(cuid())
-  organizationId  String
-  farmId          String?
-  commodityId     String
-  harvestId       String?
-  quantity        Float
-  unit            String
-  quality         String?
-  location        String?
-  status          InventoryStatus @default(AVAILABLE)
-  metadata        Json?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  organizationId String
+  farmId         String?
+  commodityId    String
+  harvestId      String?
+  quantity       Float
+  unit           String
+  quality        String?
+  location       String?
+  status         InventoryStatus @default(AVAILABLE)
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  farm         Farm?        @relation(fields: [farmId], references: [id])
-  commodity    Commodity    @relation(fields: [commodityId], references: [id])
-  harvest      Harvest?     @relation(fields: [harvestId], references: [id])
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  farm         Farm?                @relation(fields: [farmId], references: [id])
+  commodity    Commodity            @relation(fields: [commodityId], references: [id])
+  harvest      Harvest?             @relation(fields: [harvestId], references: [id])
   orderItems   OrderItem[]
   listings     MarketplaceListing[]
 
@@ -548,42 +546,42 @@ model Inventory {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  orderNumber     String      @unique
-  title           String
-  type            OrderType
-  status          OrderStatus @default(PENDING)
-  
-  commodityId     String
-  quantity        Float
-  pricePerUnit    Float
-  totalPrice      Float
-  deliveryDate    DateTime
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  title       String
+  type        OrderType
+  status      OrderStatus @default(PENDING)
+
+  commodityId      String
+  quantity         Float
+  pricePerUnit     Float
+  totalPrice       Float
+  deliveryDate     DateTime
   deliveryLocation String
-  terms           Json?
-  
-  totalAmount     Decimal?
-  currency        String      @default("USD")
-  
-  buyerOrgId      String
-  supplierOrgId   String?
-  createdById     String
-  farmId          String?
-  
+  terms            Json?
+
+  totalAmount Decimal?
+  currency    String   @default("USD")
+
+  buyerOrgId    String
+  supplierOrgId String?
+  createdById   String
+  farmId        String?
+
   deliveryAddress Json?
   metadata        Json?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  farm        Farm?         @relation("FarmOrders", fields: [farmId], references: [id])
-  buyerOrg    Organization  @relation("BuyerOrganization", fields: [buyerOrgId], references: [id])
-  supplierOrg Organization? @relation("SupplierOrganization", fields: [supplierOrgId], references: [id])
-  createdBy   User          @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  items       OrderItem[]
-  deliveries  Delivery[]
+  farm         Farm?         @relation("FarmOrders", fields: [farmId], references: [id])
+  buyerOrg     Organization  @relation("BuyerOrganization", fields: [buyerOrgId], references: [id])
+  supplierOrg  Organization? @relation("SupplierOrganization", fields: [supplierOrgId], references: [id])
+  createdBy    User          @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  items        OrderItem[]
+  deliveries   Delivery[]
   transactions Transaction[]
-  messages    Message[]
-  documents   Document[]
+  messages     Message[]
+  documents    Document[]
 
   @@index([buyerOrgId, status])
   @@index([supplierOrgId, status])
@@ -594,7 +592,7 @@ model Order {
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   orderId     String
   commodityId String
   inventoryId String?
@@ -611,8 +609,6 @@ model OrderItem {
   @@map("order_items")
 }
 
-
-
 model Delivery {
   id              String         @id @default(cuid())
   orderId         String
@@ -627,8 +623,8 @@ model Delivery {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  order  Order   @relation(fields: [orderId], references: [id])
-  driver Driver? @relation(fields: [driverId], references: [id])
+  order    Order            @relation(fields: [orderId], references: [id])
+  driver   Driver?          @relation(fields: [driverId], references: [id])
   tracking TrackingUpdate[]
 
   @@index([orderId])
@@ -692,8 +688,6 @@ model Transaction {
   @@map("transactions")
 }
 
-
-
 model SoilData {
   id         String   @id @default(cuid())
   areaId     String
@@ -709,17 +703,17 @@ model SoilData {
 }
 
 model Sensor {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   farmId      String
   name        String
   sensorType  String
   location    Json
-  isActive    Boolean    @default(true)
+  isActive    Boolean   @default(true)
   metadata    Json?
   lastReading DateTime?
-  createdAt   DateTime   @default(now())
+  createdAt   DateTime  @default(now())
 
-  farm     Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  farm     Farm            @relation(fields: [farmId], references: [id], onDelete: Cascade)
   readings SensorReading[]
 
   @@index([farmId, isActive])
@@ -756,9 +750,9 @@ model Observation {
   metadata    Json?
   createdAt   DateTime @default(now())
 
-  farm  Farm  @relation(fields: [farmId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
-  area  Area? @relation(fields: [areaId], references: [id])
+  farm  Farm    @relation(fields: [farmId], references: [id])
+  user  User    @relation(fields: [userId], references: [id])
+  area  Area?   @relation(fields: [areaId], references: [id])
   media Media[]
 
   @@index([farmId, isResolved])
@@ -767,7 +761,7 @@ model Observation {
 }
 
 model Media {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   farmActivityId String?
   observationId  String?
   orderId        String?
@@ -776,7 +770,7 @@ model Media {
   mimeType       String
   size           Int
   metadata       Json?
-  uploadedAt     DateTime  @default(now())
+  uploadedAt     DateTime @default(now())
 
   farmActivity FarmActivity? @relation(fields: [farmActivityId], references: [id])
   observation  Observation?  @relation(fields: [observationId], references: [id])
@@ -866,10 +860,10 @@ model Activity {
 }
 
 model Setting {
-  key       String @id
+  key       String   @id
   value     String
-  type      String @default("string")
-  scope     String @default("global")
+  type      String   @default("string")
+  scope     String   @default("global")
   scopeId   String?
   updatedAt DateTime @updatedAt
 
@@ -878,16 +872,16 @@ model Setting {
 }
 
 model IntelligenceResponse {
-  id             String   @id @default(cuid())
-  content        String
-  model          String
-  usage          Json     // { promptTokens, completionTokens, totalTokens }
-  userId         String
-  farmId         String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        String   @id @default(cuid())
+  content   String
+  model     String
+  usage     Json // { promptTokens, completionTokens, totalTokens }
+  userId    String
+  farmId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   farm Farm? @relation(fields: [farmId], references: [id], onDelete: SetNull)
 
   @@index([userId])
@@ -897,16 +891,16 @@ model IntelligenceResponse {
 }
 
 model FarmAnalysis {
-  id             String   @id @default(cuid())
-  farmId         String
-  analysisType   String
-  insights       String[] // Array of insights
+  id              String   @id @default(cuid())
+  farmId          String
+  analysisType    String
+  insights        String[] // Array of insights
   recommendations String[] // Array of recommendations
-  confidence     Float    // 0-1 confidence score
-  data           Json     // Analysis results data
-  userId         String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  confidence      Float // 0-1 confidence score
+  data            Json // Analysis results data
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -919,17 +913,17 @@ model FarmAnalysis {
 }
 
 model MarketAnalysis {
-  id             String   @id @default(cuid())
-  commodity      String
-  region         String?
-  analysisType   String
-  predictions    Json     // Array of predictions with dates and values
-  insights       String[] // Array of insights
+  id              String   @id @default(cuid())
+  commodity       String
+  region          String?
+  analysisType    String
+  predictions     Json // Array of predictions with dates and values
+  insights        String[] // Array of insights
   recommendations String[] // Array of recommendations
-  riskFactors    String[] // Array of risk factors
-  userId         String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  riskFactors     String[] // Array of risk factors
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -942,14 +936,14 @@ model MarketAnalysis {
 }
 
 model ActivityOptimization {
-  id             String   @id @default(cuid())
-  farmId         String
-  activityType   String
-  optimizedPlan  Json     // Optimized plan with schedule, costs, etc.
-  alternatives   Json     // Alternative approaches
-  userId         String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  farmId        String
+  activityType  String
+  optimizedPlan Json // Optimized plan with schedule, costs, etc.
+  alternatives  Json // Alternative approaches
+  userId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -962,7 +956,7 @@ model ActivityOptimization {
 }
 
 model MarketplaceListing {
-  id              String   @id @default(cuid())
+  id              String           @id @default(cuid())
   organizationId  String
   inventoryId     String
   title           String
@@ -978,13 +972,13 @@ model MarketplaceListing {
   deliveryOptions String[]
   deliveryRadius  Int?
   paymentTerms    String[]
-  isPublic        Boolean  @default(true)
+  isPublic        Boolean          @default(true)
   images          String[]
-  status          ListingStatus @default(ACTIVE)
-  views           Int      @default(0)
-  inquiries       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status          ListingStatus    @default(ACTIVE)
+  views           Int              @default(0)
+  inquiries       Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inventory    Inventory    @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
@@ -997,17 +991,17 @@ model MarketplaceListing {
 }
 
 model PriceAlert {
-  id             String   @id @default(cuid())
-  userId         String
-  commodityId    String?
-  commodityName  String
-  targetPrice    Float
-  condition      PriceAlertCondition
-  region         String?
-  isActive       Boolean  @default(true)
-  lastTriggered  DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String              @id @default(cuid())
+  userId        String
+  commodityId   String?
+  commodityName String
+  targetPrice   Float
+  condition     PriceAlertCondition
+  region        String?
+  isActive      Boolean             @default(true)
+  lastTriggered DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   commodity Commodity? @relation(fields: [commodityId], references: [id], onDelete: SetNull)
@@ -1016,6 +1010,240 @@ model PriceAlert {
   @@index([commodityId])
   @@index([isActive])
   @@map("price_alerts")
+}
+
+// =============================================================================
+// Billing Models
+// =============================================================================
+
+model SubscriptionPlan {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  tier        SubscriptionTier
+  description String?
+
+  // Pricing
+  priceUSD        Decimal         @db.Decimal(10, 2)
+  priceNGN        Decimal         @db.Decimal(10, 2)
+  billingInterval BillingInterval @default(MONTHLY)
+
+  // Feature Limits
+  maxUsers              Int @default(-1)
+  maxFarms              Int @default(-1)
+  maxActivitiesPerMonth Int @default(-1)
+  maxActiveListings     Int @default(-1)
+  storageGB             Int @default(1)
+  apiCallsPerDay        Int @default(100)
+
+  // Feature Flags
+  hasAdvancedAnalytics Boolean @default(false)
+  hasAIInsights        Boolean @default(false)
+  hasAPIAccess         Boolean @default(false)
+  hasCustomRoles       Boolean @default(false)
+  hasPrioritySupport   Boolean @default(false)
+  hasWhiteLabel        Boolean @default(false)
+
+  features Json?
+  isActive Boolean @default(true)
+  isPublic Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([tier])
+  @@index([isActive, isPublic])
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id             String @id @default(cuid())
+  organizationId String @unique
+  planId         String
+
+  status   SubscriptionStatus @default(ACTIVE)
+  currency Currency
+
+  // Billing
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  billingInterval    BillingInterval @default(MONTHLY)
+
+  // Trial
+  trialStart DateTime?
+  trialEnd   DateTime?
+  isTrialing Boolean   @default(false)
+
+  // Payment
+  autoRenew       Boolean @default(true)
+  paymentMethodId String?
+
+  // Cancellation
+  cancelAtPeriodEnd Boolean   @default(false)
+  canceledAt        DateTime?
+  cancelReason      String?
+
+  // External References
+  stripeCustomerId         String? @unique
+  stripeSubscriptionId     String? @unique
+  paystackCustomerCode     String? @unique
+  paystackSubscriptionCode String? @unique
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+  paymentMethod PaymentMethod?   @relation(fields: [paymentMethodId], references: [id])
+  invoices      Invoice[]
+  usageRecords  UsageRecord[]
+
+  @@index([organizationId])
+  @@index([planId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+  @@index([stripeCustomerId])
+  @@index([paystackCustomerCode])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String @id @default(cuid())
+  subscriptionId String
+  invoiceNumber  String @unique
+
+  status InvoiceStatus @default(DRAFT)
+
+  // Amounts
+  subtotal   Decimal  @db.Decimal(10, 2)
+  tax        Decimal  @default(0) @db.Decimal(10, 2)
+  total      Decimal  @db.Decimal(10, 2)
+  amountPaid Decimal  @default(0) @db.Decimal(10, 2)
+  amountDue  Decimal  @db.Decimal(10, 2)
+  currency   Currency
+
+  // Dates
+  issuedAt DateTime  @default(now())
+  dueDate  DateTime
+  paidAt   DateTime?
+
+  // Payment
+  paymentIntentId String?
+  paymentMethod   String?
+
+  // Line Items
+  lineItems Json // Array of invoice line items
+
+  // PDF
+  pdfUrl String?
+
+  // External References
+  stripeInvoiceId     String? @unique
+  paystackInvoiceCode String? @unique
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([invoiceNumber])
+  @@map("invoices")
+}
+
+model PaymentMethod {
+  id             String @id @default(cuid())
+  organizationId String
+
+  type     PaymentMethodType
+  provider PaymentProvider
+
+  // Card Details (tokenized)
+  cardLast4    String?
+  cardBrand    String?
+  cardExpMonth Int?
+  cardExpYear  Int?
+
+  // Bank Account
+  bankName     String?
+  accountLast4 String?
+
+  isDefault Boolean @default(false)
+
+  // External References
+  stripePaymentMethodId     String? @unique
+  paystackAuthorizationCode String? @unique
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@index([organizationId])
+  @@index([isDefault])
+  @@map("payment_methods")
+}
+
+model Payment {
+  id              String  @id @default(cuid())
+  invoiceId       String
+  paymentMethodId String?
+
+  amount   Decimal       @db.Decimal(10, 2)
+  currency Currency
+  status   PaymentStatus
+
+  provider PaymentProvider
+
+  // External References
+  stripePaymentIntentId String? @unique
+  paystackReference     String? @unique
+
+  failureReason String?
+  receiptUrl    String?
+
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([invoiceId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model UsageRecord {
+  id             String @id @default(cuid())
+  subscriptionId String
+
+  featureName String
+  quantity    Int
+  unit        String?
+
+  recordedAt  DateTime @default(now())
+  periodStart DateTime
+  periodEnd   DateTime
+
+  metadata Json?
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, featureName])
+  @@index([recordedAt])
+  @@index([periodStart, periodEnd])
+  @@map("usage_records")
 }
 
 enum CropStatus {
@@ -1142,4 +1370,62 @@ enum PriceAlertCondition {
   ABOVE
   BELOW
   EQUAL
+}
+
+// =============================================================================
+// Billing Enums
+// =============================================================================
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  PAUSED
+  INCOMPLETE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum Currency {
+  USD
+  NGN
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum PaymentMethodType {
+  CARD
+  BANK_ACCOUNT
+  MOBILE_MONEY
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYSTACK
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REFUNDED
 }

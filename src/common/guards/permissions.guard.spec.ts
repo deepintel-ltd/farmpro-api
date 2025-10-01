@@ -1,13 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { PermissionsGuard, REQUIRE_PERMISSION_KEY, REQUIRE_ROLE_KEY, REQUIRE_ROLE_LEVEL_KEY } from './permissions.guard';
+import { PermissionsGuard } from './permissions.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 describe('PermissionsGuard', () => {
   let guard: PermissionsGuard;
-  let reflector: Reflector;
-  let mockExecutionContext: ExecutionContext;
 
   const mockReflector = {
     getAllAndOverride: jest.fn(),

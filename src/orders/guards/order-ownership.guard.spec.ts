@@ -6,8 +6,6 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 describe('OrderOwnershipGuard', () => {
   let guard: OrderOwnershipGuard;
-  let prismaService: PrismaService;
-  let mockExecutionContext: ExecutionContext;
 
   const mockPrismaService = {
     order: {

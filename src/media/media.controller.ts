@@ -8,8 +8,6 @@ import { MediaService } from './media.service';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import {
   RequirePermission,
-  RequireCapability,
-  RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 
 @Controller()

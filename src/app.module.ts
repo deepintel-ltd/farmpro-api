@@ -22,6 +22,7 @@ import { BrevoModule } from '@/external-service/brevo/brevo.module';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
+import { BillingModule } from '@/billing/billing.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
     HealthModule,
     AppCacheModule,
     BrevoModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [

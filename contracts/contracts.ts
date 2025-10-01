@@ -18,6 +18,7 @@ import { organizationContract, type OrganizationContract } from './organizations
 import { analyticsContract, type AnalyticsContract } from './analytics.contract';
 import { marketContract, type MarketContract } from './market.contract';
 import { intelligenceContract, type IntelligenceContract } from './intelligence.contract';
+import { billingContract, type BillingContract } from './billing.contract';
 import { activitiesCrudContract } from './activities-crud.contract';
 import { activitiesExecutionContract } from './activities-execution.contract';
 import { activitiesTemplatesContract } from './activities-templates.contract';
@@ -60,6 +61,7 @@ export interface ApiContractDefinition {
   analytics: typeof analyticsContract;
   market: typeof marketContract;
   intelligence: typeof intelligenceContract;
+  billing: typeof billingContract;
   activitiesCrud: typeof activitiesCrudContract;
   activitiesExecution: typeof activitiesExecutionContract;
   activitiesTemplates: typeof activitiesTemplatesContract;
@@ -89,6 +91,7 @@ export const apiContract: ApiContractDefinition = c.router({
   analytics: analyticsContract,
   market: marketContract,
   intelligence: intelligenceContract,
+  billing: billingContract,
   activitiesCrud: activitiesCrudContract,
   activitiesExecution: activitiesExecutionContract,
   activitiesTemplates: activitiesTemplatesContract,
@@ -128,6 +131,7 @@ export type OrganizationEndpoints = ApiContractType['organizations'];
 export type AnalyticsEndpoints = ApiContractType['analytics'];
 export type MarketEndpoints = ApiContractType['market'];
 export type IntelligenceEndpoints = ApiContractType['intelligence'];
+export type BillingEndpoints = ApiContractType['billing'];
 export type MobileEndpoints = ApiContractType['mobile'];
 
 // Export contract type for use in NestJS controllers
@@ -173,6 +177,7 @@ export function getContractMetadata() {
       analytics: Object.keys(analyticsContract),
       market: Object.keys(marketContract),
       intelligence: Object.keys(intelligenceContract),
+      billing: Object.keys(billingContract),
       mobile: Object.keys(mobileFieldContract),
     },
   };
@@ -199,6 +204,7 @@ export {
   analyticsContract,
   marketContract,
   intelligenceContract,
+  billingContract,
   mobileFieldContract,
 };
 export type {
@@ -218,4 +224,5 @@ export type {
   AnalyticsContract,
   MarketContract,
   IntelligenceContract,
+  BillingContract,
 };

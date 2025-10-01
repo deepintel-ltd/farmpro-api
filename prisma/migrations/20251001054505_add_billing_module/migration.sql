@@ -40,6 +40,42 @@ CREATE TYPE "public"."ActivityNoteType" AS ENUM ('OBSERVATION', 'ISSUE', 'RECOMM
 -- CreateEnum
 CREATE TYPE "public"."CostType" AS ENUM ('LABOR', 'EQUIPMENT', 'MATERIAL', 'FUEL', 'OTHER');
 
+-- CreateEnum
+CREATE TYPE "public"."RoleScope" AS ENUM ('PLATFORM', 'ORGANIZATION', 'FARM');
+
+-- CreateEnum
+CREATE TYPE "public"."ListingStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'EXPIRED', 'SOLD');
+
+-- CreateEnum
+CREATE TYPE "public"."ListingPriceType" AS ENUM ('FIXED', 'NEGOTIABLE', 'AUCTION');
+
+-- CreateEnum
+CREATE TYPE "public"."PriceAlertCondition" AS ENUM ('ABOVE', 'BELOW', 'EQUAL');
+
+-- CreateEnum
+CREATE TYPE "public"."SubscriptionTier" AS ENUM ('FREE', 'BASIC', 'PRO', 'ENTERPRISE');
+
+-- CreateEnum
+CREATE TYPE "public"."SubscriptionStatus" AS ENUM ('ACTIVE', 'TRIALING', 'PAST_DUE', 'CANCELED', 'PAUSED', 'INCOMPLETE');
+
+-- CreateEnum
+CREATE TYPE "public"."BillingInterval" AS ENUM ('MONTHLY', 'YEARLY');
+
+-- CreateEnum
+CREATE TYPE "public"."Currency" AS ENUM ('USD', 'NGN');
+
+-- CreateEnum
+CREATE TYPE "public"."InvoiceStatus" AS ENUM ('DRAFT', 'OPEN', 'PAID', 'VOID', 'UNCOLLECTIBLE');
+
+-- CreateEnum
+CREATE TYPE "public"."PaymentMethodType" AS ENUM ('CARD', 'BANK_ACCOUNT', 'MOBILE_MONEY');
+
+-- CreateEnum
+CREATE TYPE "public"."PaymentProvider" AS ENUM ('STRIPE', 'PAYSTACK');
+
+-- CreateEnum
+CREATE TYPE "public"."PaymentStatus" AS ENUM ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELED', 'REFUNDED');
+
 -- CreateTable
 CREATE TABLE "public"."users" (
     "id" TEXT NOT NULL,
@@ -87,6 +123,8 @@ CREATE TABLE "public"."roles" (
     "level" INTEGER NOT NULL DEFAULT 0,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isSystemRole" BOOLEAN NOT NULL DEFAULT false,
+    "isPlatformAdmin" BOOLEAN NOT NULL DEFAULT false,
+    "scope" "public"."RoleScope" NOT NULL DEFAULT 'ORGANIZATION',
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -152,7 +190,13 @@ CREATE TABLE "public"."organizations" (
     "maxUsers" INTEGER NOT NULL DEFAULT 5,
     "maxFarms" INTEGER NOT NULL DEFAULT 1,
     "features" TEXT[],
+    "allowedModules" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "featureFlags" JSONB,
     "allowCustomRoles" BOOLEAN NOT NULL DEFAULT false,
+    "suspendedAt" TIMESTAMP(3),
+    "suspensionReason" TEXT,
+    "verifiedAt" TIMESTAMP(3),
+    "verifiedBy" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -707,6 +751,196 @@ CREATE TABLE "public"."activity_optimizations" (
     CONSTRAINT "activity_optimizations_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "public"."marketplace_listings" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "inventoryId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "quantity" DOUBLE PRECISION NOT NULL,
+    "unitPrice" DOUBLE PRECISION NOT NULL,
+    "priceType" "public"."ListingPriceType" NOT NULL DEFAULT 'FIXED',
+    "minQuantity" DOUBLE PRECISION,
+    "qualityGrade" TEXT,
+    "certifications" TEXT[],
+    "availableFrom" TIMESTAMP(3) NOT NULL,
+    "availableUntil" TIMESTAMP(3) NOT NULL,
+    "deliveryOptions" TEXT[],
+    "deliveryRadius" INTEGER,
+    "paymentTerms" TEXT[],
+    "isPublic" BOOLEAN NOT NULL DEFAULT true,
+    "images" TEXT[],
+    "status" "public"."ListingStatus" NOT NULL DEFAULT 'ACTIVE',
+    "views" INTEGER NOT NULL DEFAULT 0,
+    "inquiries" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "marketplace_listings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."price_alerts" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "commodityId" TEXT,
+    "commodityName" TEXT NOT NULL,
+    "targetPrice" DOUBLE PRECISION NOT NULL,
+    "condition" "public"."PriceAlertCondition" NOT NULL,
+    "region" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "lastTriggered" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "price_alerts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."subscription_plans" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "tier" "public"."SubscriptionTier" NOT NULL,
+    "description" TEXT,
+    "priceUSD" DECIMAL(10,2) NOT NULL,
+    "priceNGN" DECIMAL(10,2) NOT NULL,
+    "billingInterval" "public"."BillingInterval" NOT NULL DEFAULT 'MONTHLY',
+    "maxUsers" INTEGER NOT NULL DEFAULT -1,
+    "maxFarms" INTEGER NOT NULL DEFAULT -1,
+    "maxActivitiesPerMonth" INTEGER NOT NULL DEFAULT -1,
+    "maxActiveListings" INTEGER NOT NULL DEFAULT -1,
+    "storageGB" INTEGER NOT NULL DEFAULT 1,
+    "apiCallsPerDay" INTEGER NOT NULL DEFAULT 100,
+    "hasAdvancedAnalytics" BOOLEAN NOT NULL DEFAULT false,
+    "hasAIInsights" BOOLEAN NOT NULL DEFAULT false,
+    "hasAPIAccess" BOOLEAN NOT NULL DEFAULT false,
+    "hasCustomRoles" BOOLEAN NOT NULL DEFAULT false,
+    "hasPrioritySupport" BOOLEAN NOT NULL DEFAULT false,
+    "hasWhiteLabel" BOOLEAN NOT NULL DEFAULT false,
+    "features" JSONB,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "isPublic" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscription_plans_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."subscriptions" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "planId" TEXT NOT NULL,
+    "status" "public"."SubscriptionStatus" NOT NULL DEFAULT 'ACTIVE',
+    "currency" "public"."Currency" NOT NULL,
+    "currentPeriodStart" TIMESTAMP(3) NOT NULL,
+    "currentPeriodEnd" TIMESTAMP(3) NOT NULL,
+    "billingInterval" "public"."BillingInterval" NOT NULL DEFAULT 'MONTHLY',
+    "trialStart" TIMESTAMP(3),
+    "trialEnd" TIMESTAMP(3),
+    "isTrialing" BOOLEAN NOT NULL DEFAULT false,
+    "autoRenew" BOOLEAN NOT NULL DEFAULT true,
+    "paymentMethodId" TEXT,
+    "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
+    "canceledAt" TIMESTAMP(3),
+    "cancelReason" TEXT,
+    "stripeCustomerId" TEXT,
+    "stripeSubscriptionId" TEXT,
+    "paystackCustomerCode" TEXT,
+    "paystackSubscriptionCode" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."invoices" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "invoiceNumber" TEXT NOT NULL,
+    "status" "public"."InvoiceStatus" NOT NULL DEFAULT 'DRAFT',
+    "subtotal" DECIMAL(10,2) NOT NULL,
+    "tax" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "total" DECIMAL(10,2) NOT NULL,
+    "amountPaid" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "amountDue" DECIMAL(10,2) NOT NULL,
+    "currency" "public"."Currency" NOT NULL,
+    "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dueDate" TIMESTAMP(3) NOT NULL,
+    "paidAt" TIMESTAMP(3),
+    "paymentIntentId" TEXT,
+    "paymentMethod" TEXT,
+    "lineItems" JSONB NOT NULL,
+    "pdfUrl" TEXT,
+    "stripeInvoiceId" TEXT,
+    "paystackInvoiceCode" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "invoices_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."payment_methods" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "type" "public"."PaymentMethodType" NOT NULL,
+    "provider" "public"."PaymentProvider" NOT NULL,
+    "cardLast4" TEXT,
+    "cardBrand" TEXT,
+    "cardExpMonth" INTEGER,
+    "cardExpYear" INTEGER,
+    "bankName" TEXT,
+    "accountLast4" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "stripePaymentMethodId" TEXT,
+    "paystackAuthorizationCode" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "payment_methods_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."payments" (
+    "id" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
+    "paymentMethodId" TEXT,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "currency" "public"."Currency" NOT NULL,
+    "status" "public"."PaymentStatus" NOT NULL,
+    "provider" "public"."PaymentProvider" NOT NULL,
+    "stripePaymentIntentId" TEXT,
+    "paystackReference" TEXT,
+    "failureReason" TEXT,
+    "receiptUrl" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "payments_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."usage_records" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "featureName" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "unit" TEXT,
+    "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "periodStart" TIMESTAMP(3) NOT NULL,
+    "periodEnd" TIMESTAMP(3) NOT NULL,
+    "metadata" JSONB,
+
+    CONSTRAINT "usage_records_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "public"."users"("email");
 
@@ -741,6 +975,12 @@ CREATE INDEX "email_verifications_expiresAt_idx" ON "public"."email_verification
 CREATE INDEX "roles_organizationId_idx" ON "public"."roles"("organizationId");
 
 -- CreateIndex
+CREATE INDEX "roles_isPlatformAdmin_idx" ON "public"."roles"("isPlatformAdmin");
+
+-- CreateIndex
+CREATE INDEX "roles_scope_idx" ON "public"."roles"("scope");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "roles_name_organizationId_key" ON "public"."roles"("name", "organizationId");
 
 -- CreateIndex
@@ -760,6 +1000,12 @@ CREATE INDEX "user_roles_roleId_idx" ON "public"."user_roles"("roleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_roles_userId_roleId_farmId_key" ON "public"."user_roles"("userId", "roleId", "farmId");
+
+-- CreateIndex
+CREATE INDEX "organizations_type_idx" ON "public"."organizations"("type");
+
+-- CreateIndex
+CREATE INDEX "organizations_isActive_suspendedAt_idx" ON "public"."organizations"("isActive", "suspendedAt");
 
 -- CreateIndex
 CREATE INDEX "farms_organizationId_idx" ON "public"."farms"("organizationId");
@@ -1025,6 +1271,126 @@ CREATE INDEX "activity_optimizations_activityType_idx" ON "public"."activity_opt
 -- CreateIndex
 CREATE INDEX "activity_optimizations_createdAt_idx" ON "public"."activity_optimizations"("createdAt");
 
+-- CreateIndex
+CREATE INDEX "marketplace_listings_organizationId_idx" ON "public"."marketplace_listings"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "marketplace_listings_inventoryId_idx" ON "public"."marketplace_listings"("inventoryId");
+
+-- CreateIndex
+CREATE INDEX "marketplace_listings_status_idx" ON "public"."marketplace_listings"("status");
+
+-- CreateIndex
+CREATE INDEX "marketplace_listings_availableUntil_idx" ON "public"."marketplace_listings"("availableUntil");
+
+-- CreateIndex
+CREATE INDEX "price_alerts_userId_idx" ON "public"."price_alerts"("userId");
+
+-- CreateIndex
+CREATE INDEX "price_alerts_commodityId_idx" ON "public"."price_alerts"("commodityId");
+
+-- CreateIndex
+CREATE INDEX "price_alerts_isActive_idx" ON "public"."price_alerts"("isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscription_plans_name_key" ON "public"."subscription_plans"("name");
+
+-- CreateIndex
+CREATE INDEX "subscription_plans_tier_idx" ON "public"."subscription_plans"("tier");
+
+-- CreateIndex
+CREATE INDEX "subscription_plans_isActive_isPublic_idx" ON "public"."subscription_plans"("isActive", "isPublic");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_organizationId_key" ON "public"."subscriptions"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_stripeCustomerId_key" ON "public"."subscriptions"("stripeCustomerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_stripeSubscriptionId_key" ON "public"."subscriptions"("stripeSubscriptionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_paystackCustomerCode_key" ON "public"."subscriptions"("paystackCustomerCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriptions_paystackSubscriptionCode_key" ON "public"."subscriptions"("paystackSubscriptionCode");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_organizationId_idx" ON "public"."subscriptions"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_planId_idx" ON "public"."subscriptions"("planId");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_status_idx" ON "public"."subscriptions"("status");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "public"."subscriptions"("currentPeriodEnd");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_stripeCustomerId_idx" ON "public"."subscriptions"("stripeCustomerId");
+
+-- CreateIndex
+CREATE INDEX "subscriptions_paystackCustomerCode_idx" ON "public"."subscriptions"("paystackCustomerCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invoices_invoiceNumber_key" ON "public"."invoices"("invoiceNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invoices_stripeInvoiceId_key" ON "public"."invoices"("stripeInvoiceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invoices_paystackInvoiceCode_key" ON "public"."invoices"("paystackInvoiceCode");
+
+-- CreateIndex
+CREATE INDEX "invoices_subscriptionId_idx" ON "public"."invoices"("subscriptionId");
+
+-- CreateIndex
+CREATE INDEX "invoices_status_idx" ON "public"."invoices"("status");
+
+-- CreateIndex
+CREATE INDEX "invoices_dueDate_idx" ON "public"."invoices"("dueDate");
+
+-- CreateIndex
+CREATE INDEX "invoices_invoiceNumber_idx" ON "public"."invoices"("invoiceNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "payment_methods_stripePaymentMethodId_key" ON "public"."payment_methods"("stripePaymentMethodId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "payment_methods_paystackAuthorizationCode_key" ON "public"."payment_methods"("paystackAuthorizationCode");
+
+-- CreateIndex
+CREATE INDEX "payment_methods_organizationId_idx" ON "public"."payment_methods"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "payment_methods_isDefault_idx" ON "public"."payment_methods"("isDefault");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "payments_stripePaymentIntentId_key" ON "public"."payments"("stripePaymentIntentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "payments_paystackReference_key" ON "public"."payments"("paystackReference");
+
+-- CreateIndex
+CREATE INDEX "payments_invoiceId_idx" ON "public"."payments"("invoiceId");
+
+-- CreateIndex
+CREATE INDEX "payments_status_idx" ON "public"."payments"("status");
+
+-- CreateIndex
+CREATE INDEX "payments_createdAt_idx" ON "public"."payments"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "usage_records_subscriptionId_featureName_idx" ON "public"."usage_records"("subscriptionId", "featureName");
+
+-- CreateIndex
+CREATE INDEX "usage_records_recordedAt_idx" ON "public"."usage_records"("recordedAt");
+
+-- CreateIndex
+CREATE INDEX "usage_records_periodStart_periodEnd_idx" ON "public"."usage_records"("periodStart", "periodEnd");
+
 -- AddForeignKey
 ALTER TABLE "public"."users" ADD CONSTRAINT "users_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -1228,3 +1594,39 @@ ALTER TABLE "public"."activity_optimizations" ADD CONSTRAINT "activity_optimizat
 
 -- AddForeignKey
 ALTER TABLE "public"."activity_optimizations" ADD CONSTRAINT "activity_optimizations_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."marketplace_listings" ADD CONSTRAINT "marketplace_listings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."marketplace_listings" ADD CONSTRAINT "marketplace_listings_inventoryId_fkey" FOREIGN KEY ("inventoryId") REFERENCES "public"."inventory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."price_alerts" ADD CONSTRAINT "price_alerts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."price_alerts" ADD CONSTRAINT "price_alerts_commodityId_fkey" FOREIGN KEY ("commodityId") REFERENCES "public"."commodities"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_planId_fkey" FOREIGN KEY ("planId") REFERENCES "public"."subscription_plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "public"."payment_methods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."invoices" ADD CONSTRAINT "invoices_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "public"."subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."payment_methods" ADD CONSTRAINT "payment_methods_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."payments" ADD CONSTRAINT "payments_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "public"."invoices"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."payments" ADD CONSTRAINT "payments_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "public"."payment_methods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."usage_records" ADD CONSTRAINT "usage_records_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "public"."subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -16,7 +16,6 @@ import { organizationContract } from '../../contracts/organizations.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import {
   RequirePermission,
-  RequireCapability,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 

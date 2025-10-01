@@ -6,8 +6,6 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 describe('ActivityAssignmentGuard', () => {
   let guard: ActivityAssignmentGuard;
-  let prismaService: PrismaService;
-  let mockExecutionContext: ExecutionContext;
 
   const mockPrismaService = {
     farmActivity: {
@@ -68,7 +66,6 @@ describe('ActivityAssignmentGuard', () => {
     }).compile();
 
     guard = module.get<ActivityAssignmentGuard>(ActivityAssignmentGuard);
-    prismaService = module.get<PrismaService>(PrismaService);
 
     // Reset mocks
     jest.clearAllMocks();

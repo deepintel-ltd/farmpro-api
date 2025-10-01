@@ -17,7 +17,6 @@ import {
 import { AnalyticsService } from './analytics.service';
 import {
   RequirePermission,
-  RequireCapability,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 
