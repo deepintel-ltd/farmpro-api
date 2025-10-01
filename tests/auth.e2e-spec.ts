@@ -365,7 +365,7 @@ describe('Auth E2E Tests', () => {
     });
   });
 
-  describe('POST /auth/refresh', () => {
+  describe('POST /auth/refresh - Expired Token', () => {
     it('should fail to refresh with expired refresh token', async () => {
       // Create user and login
       const hashedPassword = await hash('RefreshPassword123!');
@@ -634,7 +634,7 @@ describe('Auth E2E Tests', () => {
           currentPassword: 'WrongPassword123!',
           newPassword: 'NewChangePassword123!'
         })
-        .expect(500);
+        .expect(400);
     });
 
     it('should fail without authentication', async () => {
@@ -708,8 +708,18 @@ describe('Auth E2E Tests', () => {
     });
 
     it('should invalidate expired token', async () => {
-      // Create an expired token (this would need to be implemented in the service)
-      const expiredToken = 'expired-token';
+      // Create an expired token by generating one with past expiration
+      const { JwtService } = require('@nestjs/jwt');
+      const jwtService = new JwtService({
+        secret: process.env.JWT_SECRET || 'test-secret',
+        signOptions: { expiresIn: '-1h' }, // Expired 1 hour ago
+      });
+
+      const expiredToken = jwtService.sign({
+        email: 'validatetest@example.com',
+        sub: 'some-user-id',
+        organizationId: 'some-org-id',
+      });
       
       await testContext
         .request()
@@ -788,6 +798,207 @@ describe('Auth E2E Tests', () => {
         .post('/auth/verify-email')
         .send({ token: verificationToken })
         .expect(401);
+    });
+  });
+
+  describe('POST /auth/complete-profile', () => {
+    let accessToken: string;
+    let incompleteUser: any;
+
+    beforeEach(async () => {
+      // Create OAuth user with incomplete profile
+      incompleteUser = await testContext.prisma.user.create({
+        data: {
+          email: 'oauthuser@example.com',
+          name: 'OAuth User',
+          avatar: 'https://example.com/avatar.jpg',
+          emailVerified: true,
+          isActive: true,
+          profileComplete: false,
+          authProvider: 'GOOGLE',
+          organizationId: null,
+        },
+      });
+
+      // Since OAuth users don't have passwords, we'll manually generate a token
+      // This would normally come from the OAuth callback
+      const { JwtService } = require('@nestjs/jwt');
+      const jwtService = new JwtService({
+        secret: process.env.JWT_SECRET || 'test-secret',
+        signOptions: { expiresIn: '1h' },
+      });
+
+      accessToken = jwtService.sign({
+        email: incompleteUser.email,
+        sub: incompleteUser.id,
+        organizationId: null,
+      });
+    });
+
+    it('should complete profile for OAuth user', async () => {
+      const completeProfileData = {
+        organizationName: 'OAuth Test Farm',
+        organizationType: 'FARM_OPERATION',
+        phone: '+1234567890',
+      };
+
+      const response = await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(completeProfileData)
+        .expect(200);
+
+      expect(response.body.data.type).toBe('auth');
+      expect(response.body.data.attributes.user.profileComplete).toBe(true);
+      expect(response.body.data.attributes.user.organizationId).toBeTruthy();
+      expect(response.body.data.attributes.user.organization).toBeDefined();
+      expect(response.body.data.attributes.user.organization.name).toBe('OAuth Test Farm');
+      expect(response.body.data.attributes.user.organization.type).toBe('FARM_OPERATION');
+      expect(response.body.data.attributes.user.phone).toBe('+1234567890');
+      expect(response.body.data.attributes.tokens.accessToken).toBeDefined();
+      expect(response.body.data.attributes.tokens.refreshToken).toBeDefined();
+
+      // Verify organization was created
+      const organization = await testContext.prisma.organization.findFirst({
+        where: { name: 'OAuth Test Farm' },
+      });
+      expect(organization).toBeDefined();
+      expect(organization?.type).toBe('FARM_OPERATION');
+
+      // Verify admin role was assigned
+      const userRoles = await testContext.prisma.userRole.findMany({
+        where: { userId: incompleteUser.id },
+        include: { role: true },
+      });
+      expect(userRoles).toHaveLength(1);
+      expect(userRoles[0].role.name).toBe('admin');
+
+      // Verify user was updated
+      const updatedUser = await testContext.prisma.user.findUnique({
+        where: { id: incompleteUser.id },
+      });
+      expect(updatedUser?.profileComplete).toBe(true);
+      expect(updatedUser?.organizationId).toBe(organization?.id);
+    });
+
+    it('should fail if profile already complete', async () => {
+      // First, complete the profile
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'First Org',
+          organizationType: 'FARM_OPERATION',
+        })
+        .expect(200);
+
+      // Try to complete again
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'Second Org',
+          organizationType: 'FARM_OPERATION',
+        })
+        .expect(409);
+    });
+
+    it('should fail if organization name already exists', async () => {
+      // Create organization with the name we'll try to use
+      await testContext.prisma.organization.create({
+        data: {
+          name: 'Existing Org',
+          type: 'FARM_OPERATION',
+          email: 'existing@example.com',
+          isActive: true,
+          plan: 'basic',
+          maxUsers: 5,
+          maxFarms: 1,
+        },
+      });
+
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'Existing Org',
+          organizationType: 'FARM_OPERATION',
+        })
+        .expect(409);
+    });
+
+    it('should fail with invalid organization type', async () => {
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'Test Farm',
+          organizationType: 'INVALID_TYPE',
+        })
+        .expect(422);
+    });
+
+    it('should fail without authentication', async () => {
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .send({
+          organizationName: 'Test Farm',
+          organizationType: 'FARM_OPERATION',
+        })
+        .expect(401);
+    });
+
+    it('should fail with missing organization name', async () => {
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationType: 'FARM_OPERATION',
+        })
+        .expect(400);
+    });
+
+    it('should complete profile without optional phone', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'No Phone Org',
+          organizationType: 'COMMODITY_TRADER',
+        })
+        .expect(200);
+
+      expect(response.body.data.attributes.user.phone).toBeNull();
+    });
+
+    it('should create organization with correct features based on type', async () => {
+      const response = await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'Features Test Org',
+          organizationType: 'LOGISTICS_PROVIDER',
+        })
+        .expect(200);
+
+      const organization = await testContext.prisma.organization.findFirst({
+        where: { name: 'Features Test Org' },
+      });
+
+      expect(organization).toBeDefined();
+      expect(organization?.type).toBe('LOGISTICS_PROVIDER');
+      expect(organization?.plan).toBe('basic');
+      expect(organization?.features).toBeDefined();
+      expect(organization?.allowedModules).toBeDefined();
     });
   });
 
@@ -881,6 +1092,92 @@ describe('Auth E2E Tests', () => {
         expect(response.status).toBe(200);
         expect(response.body.data.attributes.tokens.accessToken).toBeDefined();
       });
+    });
+
+    it('should complete full OAuth signup and profile completion flow', async () => {
+      // 1. Create OAuth user (simulating OAuth callback creating incomplete user)
+      const oauthUser = await testContext.prisma.user.create({
+        data: {
+          email: 'oauth-integration@example.com',
+          name: 'OAuth Integration User',
+          avatar: 'https://example.com/avatar.jpg',
+          emailVerified: true,
+          isActive: true,
+          profileComplete: false,
+          authProvider: 'GOOGLE',
+          organizationId: null,
+        },
+      });
+
+      // 2. Generate token (simulating OAuth callback)
+      const { JwtService } = require('@nestjs/jwt');
+      const jwtService = new JwtService({
+        secret: process.env.JWT_SECRET || 'test-secret',
+        signOptions: { expiresIn: '1h' },
+      });
+
+      const initialToken = jwtService.sign({
+        email: oauthUser.email,
+        sub: oauthUser.id,
+        organizationId: null,
+      });
+
+      // 3. Attempt to access protected endpoint (should work even with incomplete profile)
+      const meResponse = await testContext
+        .request()
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .expect(200);
+
+      expect(meResponse.body.data.attributes.profileComplete).toBe(false);
+      expect(meResponse.body.data.attributes.organizationId).toBeNull();
+
+      // 4. Complete profile
+      const completeResponse = await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${initialToken}`)
+        .send({
+          organizationName: 'OAuth Integration Org',
+          organizationType: 'INTEGRATED_FARM',
+          phone: '+1987654321',
+        })
+        .expect(200);
+
+      expect(completeResponse.body.data.attributes.user.profileComplete).toBe(true);
+      expect(completeResponse.body.data.attributes.user.organizationId).toBeTruthy();
+
+      const { accessToken } = completeResponse.body.data.attributes.tokens;
+
+      // 5. Verify updated token works and has complete profile
+      const updatedMeResponse = await testContext
+        .request()
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(updatedMeResponse.body.data.attributes.profileComplete).toBe(true);
+      expect(updatedMeResponse.body.data.attributes.organization).toBeDefined();
+      expect(updatedMeResponse.body.data.attributes.organization.name).toBe('OAuth Integration Org');
+
+      // 6. Verify cannot complete profile again
+      await testContext
+        .request()
+        .post('/auth/complete-profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          organizationName: 'Another Org',
+          organizationType: 'FARM_OPERATION',
+        })
+        .expect(409);
+
+      // 7. Verify user can logout
+      await testContext
+        .request()
+        .post('/auth/logout')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({})
+        .expect(200);
     });
   });
 });

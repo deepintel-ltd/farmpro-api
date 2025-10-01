@@ -51,6 +51,17 @@ export const ValidateTokenRequestSchema = z.object({
   token: z.string().min(1, 'Token is required'),
 });
 
+export const CompleteProfileRequestSchema = z.object({
+  organizationName: z.string().min(1, 'Organization name is required').max(100, 'Organization name too long'),
+  organizationType: z.enum([
+    'FARM_OPERATION',
+    'COMMODITY_TRADER',
+    'LOGISTICS_PROVIDER',
+    'INTEGRATED_FARM'
+  ], { errorMap: () => ({ message: 'Invalid organization type' }) }),
+  phone: z.string().optional(),
+});
+
 // =============================================================================
 // Authentication Response Schemas
 // =============================================================================
@@ -70,8 +81,10 @@ export const UserProfileSchema = z.object({
   avatar: z.string().nullable(),
   isActive: z.boolean(),
   emailVerified: z.boolean(),
+  profileComplete: z.boolean(),
+  authProvider: z.enum(['LOCAL', 'GOOGLE', 'GITHUB']).nullable(),
   lastLoginAt: z.string().datetime().nullable(),
-  organizationId: z.string(),
+  organizationId: z.string().nullable(),
   organization: z.object({
     id: z.string(),
     name: z.string(),
@@ -82,7 +95,7 @@ export const UserProfileSchema = z.object({
       'INTEGRATED_FARM'
     ]),
     isVerified: z.boolean(),
-  }),
+  }).nullable(),
   roles: z.array(z.object({
     id: z.string(),
     name: z.string(),
@@ -153,6 +166,7 @@ export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
 export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequestSchema>;
 export type VerifyEmailRequest = z.infer<typeof VerifyEmailRequestSchema>;
 export type ValidateTokenRequest = z.infer<typeof ValidateTokenRequestSchema>;
+export type CompleteProfileRequest = z.infer<typeof CompleteProfileRequestSchema>;
 
 export type TokenResponse = z.infer<typeof TokenResponseSchema>;
 export type UserProfile = z.infer<typeof UserProfileSchema>;

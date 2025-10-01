@@ -19,6 +19,7 @@ import {
   ChangePasswordDto,
   VerifyEmailDto,
   ValidateTokenDto,
+  CompleteProfileDto,
 } from './dto/auth.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -371,6 +372,90 @@ export class AuthController {
           badRequestCode: 'INVALID_CURRENT_PASSWORD',
           internalErrorMessage: 'Password change failed',
           internalErrorCode: 'CHANGE_PASSWORD_FAILED',
+        });
+      }
+    });
+  }
+
+  // =============================================================================
+  // OAuth Profile Completion
+  // =============================================================================
+
+  @ApiOperation({
+    summary: 'Complete OAuth user profile',
+    description: 'Complete profile setup for OAuth users who need to provide organization details. Creates organization and updates user profile.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile completed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                user: { type: 'object' },
+                tokens: {
+                  type: 'object',
+                  properties: {
+                    accessToken: { type: 'string' },
+                    refreshToken: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 409, description: 'Conflict - profile already complete or organization name exists' })
+  @ApiResponse({ status: 422, description: 'Validation error - invalid organization type' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(authContract.completeProfile)
+  public completeProfile(
+    @Body() body: CompleteProfileDto,
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.completeProfile, async () => {
+      try {
+        const result = await this.authService.completeProfile(
+          req.user.userId,
+          body,
+        );
+        this.logger.log(`Profile completed for user: ${req.user.userId}`);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: 'complete-profile',
+              type: 'auth',
+              attributes: result,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Profile completion failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        return ErrorResponseUtil.handleCommonError(error, {
+          conflictMessage: 'Profile already complete or organization name already exists',
+          conflictCode: 'PROFILE_COMPLETION_FAILED',
+          badRequestMessage: 'Invalid profile data',
+          badRequestCode: 'INVALID_PROFILE_DATA',
+          unauthorizedMessage: 'User not found or not authenticated',
+          unauthorizedCode: 'UNAUTHORIZED',
         });
       }
     });

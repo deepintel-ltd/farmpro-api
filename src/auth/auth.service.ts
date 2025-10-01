@@ -24,6 +24,7 @@ import {
   ChangePasswordDto,
   VerifyEmailDto,
   ValidateTokenDto,
+  CompleteProfileDto,
   LoginResponse,
   RegisterResponse,
   TokensResponse,
@@ -39,8 +40,10 @@ interface UserWithOrganizationAndRoles {
   avatar: string | null;
   emailVerified: boolean;
   isActive: boolean;
+  profileComplete: boolean;
+  authProvider: 'LOCAL' | 'GOOGLE' | 'GITHUB' | null;
   lastLoginAt: Date | null;
-  organizationId: string;
+  organizationId: string | null;
   metadata?: UserMetadata | null;
   createdAt: Date;
   updatedAt: Date;
@@ -50,7 +53,7 @@ interface UserWithOrganizationAndRoles {
     type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
     isVerified: boolean;
     plan: string;
-  };
+  } | null;
   userRoles?: Array<{
     role: {
       id: string;
@@ -126,6 +129,8 @@ export class AuthService {
           organizationId: organization.id,
           isActive: true,
           emailVerified: false,
+          profileComplete: true,
+          authProvider: 'LOCAL',
         },
         include: {
           organization: true,
@@ -789,15 +794,17 @@ export class AuthService {
       avatar: user.avatar,
       emailVerified: user.emailVerified,
       isActive: user.isActive,
-      lastLoginAt: user.lastLoginAt?.toISOString(),
+      profileComplete: user.profileComplete,
+      authProvider: user.authProvider,
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       organizationId: user.organizationId,
-      organization: {
+      organization: user.organization ? {
         id: user.organization.id,
         name: user.organization.name,
         type: user.organization.type,
         isVerified: user.organization.isVerified,
         plan: user.organization.plan,
-      },
+      } : null,
       roles: user.userRoles?.map((userRole) => ({
         id: userRole.role.id,
         name: userRole.role.name,
@@ -806,6 +813,141 @@ export class AuthService {
       metadata: user.metadata,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
+    };
+  }
+
+  async completeProfile(
+    userId: string,
+    completeProfileDto: CompleteProfileDto,
+  ): Promise<LoginResponse> {
+    const { organizationName, organizationType, phone } = completeProfileDto;
+
+    // Get current user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        profileComplete: true,
+        organizationId: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Validate: Check if profile already complete
+    if (user.profileComplete) {
+      throw new ConflictException('Profile already complete');
+    }
+
+    // Validate: Check if user already has organization
+    if (user.organizationId) {
+      throw new ConflictException('User already has an organization');
+    }
+
+    // Validate: Check if organization name already exists
+    const existingOrg = await this.prisma.organization.findFirst({
+      where: { name: organizationName },
+    });
+
+    if (existingOrg) {
+      throw new ConflictException('Organization name already exists');
+    }
+
+    // Create organization and update user in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Initialize organization features based on type and plan
+      const { allowedModules, features } = await import('@/common/config/organization-features.config').then(m =>
+        m.initializeOrganizationFeatures(organizationType, 'basic')
+      );
+
+      // Create organization
+      const organization = await tx.organization.create({
+        data: {
+          name: organizationName,
+          type: organizationType,
+          email: user.email,
+          isActive: true,
+          plan: 'basic',
+          maxUsers: 5,
+          maxFarms: 1,
+          features,
+          allowedModules,
+        },
+      });
+
+      // Create admin role for the organization
+      const adminRole = await tx.role.create({
+        data: {
+          name: 'admin',
+          description: 'Organization administrator',
+          organizationId: organization.id,
+          level: 100,
+          isActive: true,
+          isSystemRole: false,
+        },
+      });
+
+      // Assign admin role to user
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: adminRole.id,
+          isActive: true,
+        },
+      });
+
+      // Update user with organization and profile completion status
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: {
+          organizationId: organization.id,
+          phone: phone || null,
+          profileComplete: true,
+          updatedAt: new Date(),
+        },
+        include: {
+          organization: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
+            where: {
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      return updatedUser;
+    });
+
+    // Generate new tokens with updated user information
+    const tokens = await this.generateTokens(
+      result.id,
+      result.email,
+      result.organizationId!,
+    );
+
+    await this.updateRefreshToken(result.id, tokens.refreshToken);
+
+    // Format user response
+    const userResponse = this.formatUserResponse(result as UserWithOrganizationAndRoles);
+
+    // Send welcome email
+    await this.emailVerificationService.sendWelcomeEmail(
+      result.email,
+      result.name,
+      '', // lastName not available
+      organizationName
+    );
+
+    return {
+      tokens,
+      user: userResponse,
     };
   }
 

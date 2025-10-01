@@ -8,6 +8,7 @@ import {
   ChangePasswordRequestSchema,
   VerifyEmailRequestSchema,
   ValidateTokenRequestSchema,
+  CompleteProfileRequestSchema,
 } from '../../../contracts/auth.schemas';
 
 // Export DTOs based on contract schemas
@@ -19,6 +20,7 @@ export type ResetPasswordDto = z.infer<typeof ResetPasswordRequestSchema>;
 export type ChangePasswordDto = z.infer<typeof ChangePasswordRequestSchema>;
 export type VerifyEmailDto = z.infer<typeof VerifyEmailRequestSchema>;
 export type ValidateTokenDto = z.infer<typeof ValidateTokenRequestSchema>;
+export type CompleteProfileDto = z.infer<typeof CompleteProfileRequestSchema>;
 
 // Additional internal DTOs
 
@@ -34,19 +36,21 @@ export interface AuthUserResponse {
   id: string;
   email: string;
   name: string;
-  phone?: string;
-  avatar?: string;
+  phone?: string | null;
+  avatar?: string | null;
   emailVerified: boolean;
   isActive: boolean;
-  lastLoginAt?: string;
-  organizationId: string;
+  profileComplete: boolean;
+  authProvider: 'LOCAL' | 'GOOGLE' | 'GITHUB' | null;
+  lastLoginAt?: string | null;
+  organizationId: string | null;
   organization: {
     id: string;
     name: string;
     type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
     isVerified: boolean;
     plan: string;
-  };
+  } | null;
   roles: Array<{
     id: string;
     name: string;

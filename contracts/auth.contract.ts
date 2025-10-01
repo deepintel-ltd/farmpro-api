@@ -8,6 +8,7 @@ import {
   ChangePasswordRequestSchema,
   VerifyEmailRequestSchema,
   ValidateTokenRequestSchema,
+  CompleteProfileRequestSchema,
   AuthResourceSchema,
   AuthUserProfileResourceSchema,
   TokenResourceSchema,
@@ -231,6 +232,22 @@ export const authContract = c.router({
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Get current user profile',
+  },
+
+  completeProfile: {
+    method: 'POST',
+    path: '/auth/complete-profile',
+    body: CompleteProfileRequestSchema,
+    responses: {
+      200: AuthResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      409: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Complete OAuth user profile',
+    description: 'Complete profile setup for OAuth users who need to provide organization details. Creates organization and updates user profile.',
   },
 
   validateToken: {
