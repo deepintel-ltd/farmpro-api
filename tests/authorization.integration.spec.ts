@@ -361,13 +361,17 @@ describe('Authorization Integration Tests', () => {
       // Then test that they can start the activity
       const response = await testContext
         .request()
-        .post(`/activities/${testActivity.id}/start`)
+        .patch(`/activities/${testActivity.id}/status`)
         .set('Authorization', `Bearer ${farmUserToken}`)
         .send({
           data: {
-            type: 'activity-execution',
+            type: 'activities',
+            id: testActivity.id,
             attributes: {
-              notes: 'Starting activity',
+              status: 'IN_PROGRESS',
+              executionContext: {
+                startNotes: 'Starting activity',
+              },
             },
           },
         })
@@ -379,14 +383,17 @@ describe('Authorization Integration Tests', () => {
     it('should deny non-assigned users from working on activities', async () => {
       const response = await testContext
         .request()
-        .post(`/activities/${testActivity.id}/start`)
+        .patch(`/activities/${testActivity.id}/status`)
         .set('Authorization', `Bearer ${traderUserToken}`)
         .send({
           data: {
-            type: 'activity-execution',
+            type: 'activities',
+            id: testActivity.id,
             attributes: {
-              notes: 'Unauthorized start',
-            },
+              status: 'IN_PROGRESS',
+              executionContext: {
+                startNotes: 'Unauthorized start',
+              },
           },
         })
         .expect(403);

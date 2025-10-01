@@ -271,6 +271,37 @@ export const authContract = c.router({
     },
     summary: 'Revoke specific session',
   },
+
+  updateSession: {
+    method: 'PATCH',
+    path: '/auth/sessions/:sessionId',
+    pathParams: UuidPathParam('Session'),
+    body: z.object({
+      data: z.object({
+        type: z.literal('sessions'),
+        id: z.string(),
+        attributes: z.object({
+          status: z.enum(['active', 'revoked']),
+        }),
+      }),
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('sessions'),
+          id: z.string(),
+          attributes: z.object({
+            status: z.string(),
+            message: z.string(),
+          }),
+        }),
+      }),
+      401: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Update session status',
+  },
 });
 
 export type AuthContract = typeof authContract;

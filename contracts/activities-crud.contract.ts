@@ -65,7 +65,7 @@ export const activitiesCrudContract = c.router({
 
   // Update activity
   updateActivity: {
-    method: 'PUT',
+    method: 'PATCH',
     path: '/activities/:activityId',
     pathParams: z.object({
       activityId: z.string(),

@@ -198,7 +198,7 @@ describe('Platform Admin E2E Tests', () => {
     });
   });
 
-  describe('PATCH /platform-admin/organizations/:id (Consolidated Update)', () => {
+  describe('PATCH /platform-admin/organizations/:id (Update)', () => {
     describe('Status Management', () => {
       it('should suspend an organization successfully', async () => {
         const updateData = {
@@ -749,7 +749,7 @@ describe('Platform Admin E2E Tests', () => {
     it('should handle malformed JSON in request body', async () => {
       await testContext
         .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/suspend`)
+        .patch(`/platform-admin/organizations/${testOrganization.id}`)
         .set('Authorization', `Bearer ${platformAdminToken}`)
         .set('Content-Type', 'application/json')
         .send('{"invalid": json}')
@@ -759,7 +759,7 @@ describe('Platform Admin E2E Tests', () => {
     it('should handle missing required fields', async () => {
       await testContext
         .request()
-        .post(`/platform-admin/organizations/${testOrganization.id}/suspend`)
+        .patch(`/platform-admin/organizations/${testOrganization.id}`)
         .set('Authorization', `Bearer ${platformAdminToken}`)
         .send({})
         .expect(400);

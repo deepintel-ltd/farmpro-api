@@ -324,91 +324,23 @@ export class ActivitiesController {
     });
   }
 
-  // Activity Execution
-  @TsRestHandler(activitiesExecutionContract.startActivity)
+  @TsRestHandler(activitiesExecutionContract.updateActivityStatus)
   @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
   @UseGuards(ActivityAssignmentGuard)
-  public startActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesExecutionContract.startActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.startActivity(params.activityId, body, req.user.userId, req);
-      return { 
-        status: 200 as const, 
+  public updateActivityStatus(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesExecutionContract.updateActivityStatus, async ({ params, body }) => {
+      const result = await this.activitiesService.updateActivityStatus(
+        params.activityId,
+        body.data.attributes,
+        req.user.userId,
+        req
+      );
+      return {
+        status: 200 as const,
         body: formatActivityResponse(result as Activity)
       };
     });
   }
-
-  @TsRestHandler(activitiesExecutionContract.updateProgress)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
-  public updateProgress(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesExecutionContract.updateProgress, async ({ params, body }) => {
-      const result = await this.activitiesService.updateProgress(params.activityId, body, req.user.userId, req);
-      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
-    });
-  }
-
-  @TsRestHandler(activitiesExecutionContract.completeActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
-  public completeActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesExecutionContract.completeActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.completeActivity(params.activityId, body, req.user.userId, req);
-      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
-    });
-  }
-
-  @TsRestHandler(activitiesExecutionContract.completeHarvestActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
-  public completeHarvestActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesExecutionContract.completeHarvestActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.completeHarvestActivity(params.activityId, body, req.user.userId, req);
-      return { 
-        status: 200 as const, 
-        body: { 
-          data: {
-            activity: {
-              data: {
-                id: result.activity.id,
-                type: 'activities',
-                attributes: result.activity
-              }
-            },
-            harvest: {
-              ...result.harvest,
-              harvestDate: result.harvest.harvestDate instanceof Date 
-                ? result.harvest.harvestDate.toISOString() 
-                : result.harvest.harvestDate
-            },
-            inventory: result.inventory
-          }
-        } 
-      };
-    });
-  }
-
-  @TsRestHandler(activitiesExecutionContract.pauseActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
-  public pauseActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesExecutionContract.pauseActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.pauseActivity(params.activityId, body, req.user.userId, req);
-      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
-    });
-  }
-
-  @TsRestHandler(activitiesExecutionContract.resumeActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
-  public resumeActivity(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesExecutionContract.resumeActivity, async ({ params, body }) => {
-      const result = await this.activitiesService.resumeActivity(params.activityId, req.user.userId, body, req);
-      return { status: 200 as const, body: formatActivityResponse(result as Activity) };
-    });
-  }
-
-
 
   // Cost Management
   @TsRestHandler(activitiesCostsContract.getActivityCosts)

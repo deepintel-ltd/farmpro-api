@@ -3,13 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityAssignmentService } from './activity-assignment.service';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
 import { CostType, Prisma } from '@prisma/client';
+import { z } from 'zod';
+import {
+  UpdateActivityStatusRequestSchema,
+} from '../../contracts/activities.schemas';
 import {
   CreateActivityDto,
   UpdateActivityDto,
-  StartActivityDto,
-  UpdateProgressDto,
-  CompleteActivityDto,
-  PauseActivityDto,
   ActivityQueryOptions,
   CalendarEvent,
   CalendarQueryOptions,
@@ -308,15 +308,69 @@ export class ActivitiesService {
 
     // Authorization is now handled by guards and decorators in the controller
 
+    // Build update data object
+    const updateData: any = {
+      name: data.name,
+      description: data.description,
+      scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+      priority: data.priority,
+      estimatedDuration: data.estimatedDuration,
+      instructions: data.instructions,
+      estimatedCost: data.estimatedCost,
+      metadata: data.metadata,
+    };
+
+    // Handle status transitions
+    if (data.status) {
+      updateData.status = data.status;
+      
+      // Set timestamps based on status
+      const now = new Date();
+      switch (data.status) {
+        case 'IN_PROGRESS':
+          updateData.startedAt = now;
+          break;
+        case 'PAUSED':
+          // Keep existing startedAt if available
+          break;
+        case 'COMPLETED':
+          updateData.completedAt = data.completedAt ? new Date(data.completedAt) : now;
+          updateData.percentComplete = 100;
+          break;
+        case 'CANCELLED':
+          updateData.completedAt = now;
+          break;
+      }
+    }
+
+    // Handle execution fields
+    if (data.percentComplete !== undefined) {
+      updateData.percentComplete = data.percentComplete;
+    }
+    
+    if (data.actualResources) {
+      updateData.actualResources = data.actualResources;
+    }
+    
+    if (data.actualCost !== undefined) {
+      updateData.actualCost = data.actualCost;
+    }
+    
+    if (data.results) {
+      updateData.results = data.results;
+    }
+    
+    if (data.issues) {
+      updateData.issues = data.issues;
+    }
+    
+    if (data.recommendations) {
+      updateData.recommendations = data.recommendations;
+    }
+
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
-      data: {
-        name: data.name,
-        description: data.description,
-        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-        priority: data.priority,
-        estimatedDuration: data.estimatedDuration,
-      },
+      data: updateData,
       include: {
         farm: { select: { id: true, name: true } },
         area: { select: { id: true, name: true } },
@@ -393,7 +447,83 @@ export class ActivitiesService {
     // Activity deleted successfully
   }
 
-  async startActivity(activityId: string, data: StartActivityDto, userId: string, request: any) {
+  /**
+   * Update activity status (JSON:API compliant)
+   * Handles all status transitions: start, pause, resume, complete
+   */
+  async updateActivityStatus(
+    activityId: string,
+    updates: z.infer<typeof UpdateActivityStatusRequestSchema>['data']['attributes'],
+    userId: string,
+    request: any
+  ) {
+    const organizationId = this.getOrganizationIdFromRequest(request);
+
+    // Fetch activity
+    const activity = await this.prisma.farmActivity.findFirst({
+      where: {
+        id: activityId,
+        farm: { organizationId }
+      },
+      include: {
+        farm: { select: { organizationId: true } }
+      }
+    });
+
+    if (!activity) {
+      throw new NotFoundException(`Activity not found: ${activityId}`);
+    }
+
+    const context = updates.executionContext || {};
+
+    // Handle status transitions
+    switch (updates.status) {
+      case 'IN_PROGRESS':
+        // Start or Resume
+        if (activity.status === 'PAUSED') {
+          return this.resumeActivity(activityId, userId, { notes: context.progressNotes }, request);
+        } else {
+          return this.startActivity(activityId, {
+            location: context.location,
+            notes: context.startNotes,
+            actualResources: context.actualResources || []
+          }, userId, request);
+        }
+
+      case 'PAUSED':
+        return this.pauseActivity(activityId, {
+          reason: context.pauseReason || 'other',
+          notes: context.pauseNotes,
+          estimatedResumeTime: context.estimatedResumeTime
+        }, userId, request);
+
+      case 'COMPLETED':
+        return this.completeActivity(activityId, {
+          completedAt: context.completedAt,
+          actualDuration: context.actualDuration,
+          results: context.results,
+          actualCost: context.actualCost,
+          resourcesUsed: context.resourceUsage || [],
+          issues: context.issues,
+          recommendations: context.recommendations,
+          notes: context.progressNotes
+        }, userId, request);
+
+      default:
+        throw new BadRequestException(`Status transition to ${updates.status} not supported through this endpoint`);
+    }
+  }
+
+  async startActivity(
+    activityId: string,
+    data: {
+      location?: { lat?: number; lng?: number };
+      notes?: string;
+      actualResources?: Array<{ type?: string; quantity?: number; unit?: string; resourceId?: string }>;
+    },
+    userId: string,
+    request: any
+  ) {
     const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
@@ -458,7 +588,17 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async updateProgress(activityId: string, data: UpdateProgressDto, userId: string, request: any) {
+  async updateProgress(
+    activityId: string,
+    data: {
+      percentComplete: number;
+      notes?: string;
+      issues?: string;
+      resourceUsage?: Array<{ resourceId: string; quantity: number; unit?: string; cost?: number }>;
+    },
+    userId: string,
+    request: any
+  ) {
     const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
@@ -503,7 +643,26 @@ export class ActivitiesService {
     return this.formatActivityResponse(updated);
   }
 
-  async completeActivity(activityId: string, data: CompleteActivityDto, userId: string, request: any) {
+  async completeActivity(
+    activityId: string,
+    data: {
+      completedAt?: string;
+      actualDuration?: number;
+      results?: {
+        yieldAmount?: number;
+        yieldUnit?: string;
+        quality?: string;
+        observations?: string;
+      };
+      actualCost?: number;
+      resourcesUsed?: Array<{ resourceId?: string; quantity?: number; quantityUsed?: number; unit?: string; cost?: number }>;
+      issues?: string;
+      recommendations?: string;
+      notes?: string;
+    },
+    userId: string,
+    request: any
+  ) {
     const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 
@@ -748,7 +907,16 @@ export class ActivitiesService {
     };
   }
 
-  async pauseActivity(activityId: string, data: PauseActivityDto, userId: string, request: any) {
+  async pauseActivity(
+    activityId: string,
+    data: {
+      reason: 'WEATHER' | 'EQUIPMENT' | 'LABOR' | 'RESOURCES' | 'OTHER' | 'weather' | 'equipment' | 'labor' | 'resources' | 'other' | 'break';
+      notes?: string;
+      estimatedResumeTime?: string;
+    },
+    userId: string,
+    request: any
+  ) {
     const organizationId = this.getOrganizationIdFromRequest(request);
     const activity = await this.prisma.farmActivity.findFirst({
       where: { 

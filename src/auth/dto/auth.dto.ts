@@ -21,54 +21,6 @@ export type VerifyEmailDto = z.infer<typeof VerifyEmailRequestSchema>;
 export type ValidateTokenDto = z.infer<typeof ValidateTokenRequestSchema>;
 
 // Additional internal DTOs
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  organizationId: string;
-  sessionId?: string;
-  iat?: number;
-  exp?: number;
-}
-
-export interface RefreshTokenPayload {
-  sub: string;
-  sessionId: string;
-  tokenVersion: number;
-  iat?: number;
-  exp?: number;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: 'Bearer';
-}
-
-export interface UserSession {
-  id: string;
-  userId: string;
-  refreshTokenHash: string;
-  deviceInfo?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  expiresAt: Date;
-  lastActivity: Date;
-  isActive: boolean;
-  createdAt: Date;
-}
-
-export interface EmailVerificationToken {
-  userId: string;
-  token: string;
-  expiresAt: Date;
-}
-
-export interface PasswordResetToken {
-  userId: string;
-  token: string;
-  expiresAt: Date;
-}
 
 // Response DTOs
 export interface TokensResponse {
@@ -121,13 +73,4 @@ export interface SuccessMessageResponse {
   success: boolean;
 }
 
-export interface SessionResponse {
-  id: string;
-  deviceInfo?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  lastActivity: string;
-  createdAt: string;
-  isCurrent?: boolean;
-}
 

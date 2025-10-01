@@ -69,10 +69,10 @@ export const platformAdminContract = c.router({
   },
 
   /**
-   * Consolidated organization update endpoint (JSON:API compliant)
+   * Update organization endpoint (JSON:API compliant)
    * Replaces individual update endpoints for better API design
    */
-  updateOrganizationConsolidated: {
+  updateOrganization: {
     method: 'PATCH',
     path: '/platform-admin/organizations/:id',
     pathParams: OrganizationIdParam,
@@ -84,7 +84,7 @@ export const platformAdminContract = c.router({
       403: ErrorResponse,
       404: ErrorResponse,
     },
-    summary: 'Update organization (consolidated endpoint)',
+    summary: 'Update organization',
     description: 'Update organization status, verification, type, plan, and features in a single request. Follows JSON:API specification.',
   },
 

@@ -1,14 +1,13 @@
-import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
+import { Controller, UseGuards, Logger, Request, BadRequestException } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { InventoryService } from './inventory.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Secured } from '../common/decorators/secured.decorator';
 import { FEATURES, PERMISSIONS } from '../common/constants';
-import { FarmAccessGuard } from '../farms/guards/farm-access.guard';
 import { inventoryContract } from '../../contracts/inventory.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
-import {
+import { FarmAccessGuard } from '../farms/guards/farm-access.guard';import {
   RequirePermission,
   RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
@@ -241,105 +240,37 @@ export class InventoryController {
     );
   }
 
-  @TsRestHandler(inventoryContract.adjustInventory)
+
+
+
+  @TsRestHandler(inventoryContract.updateInventoryQuantity)
   @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
-  @RequireRoleLevel(50)
-  public adjustInventory(
+  public updateInventoryQuantity(
     @Request() req: AuthenticatedRequest,
   ) {
     return tsRestHandler(
-      inventoryContract.adjustInventory,
+      inventoryContract.updateInventoryQuantity,
       async ({ params, body }) => {
         try {
-          const result = await this.inventoryService.adjustQuantity(
-            req.user,
-            params.id,
-            body,
-          );
-          this.logger.log(
-            `Adjusted inventory item ${params.id} for user: ${req.user.userId}`,
-          );
+          const { adjustmentType, quantity, reason, orderId } = body.data.attributes;
+          
+          if (!adjustmentType) {
+            throw new BadRequestException('adjustmentType is required');
+          }
+          
+          if (quantity === undefined || quantity === null) {
+            throw new BadRequestException('quantity is required');
+          }
 
-          return {
-            status: 200 as const,
-            body: result,
-          };
-        } catch (error: unknown) {
-          this.logger.error(
-            `Adjust inventory failed for user ${req.user.userId}:`,
-            error,
-          );
-
-          return ErrorResponseUtil.handleCommonError(error, {
-            notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
-            badRequestMessage: 'Failed to adjust inventory',
-            badRequestCode: 'ADJUST_INVENTORY_FAILED',
-          });
-        }
-      },
-    );
-  }
-
-  @TsRestHandler(inventoryContract.reserveInventory)
-  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
-  public reserveInventory(
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return tsRestHandler(
-      inventoryContract.reserveInventory,
-      async ({ params, body }) => {
-        try {
-          const result = await this.inventoryService.reserveQuantity(
-            req.user,
-            params.id,
-            body,
-          );
-          this.logger.log(
-            `Reserved inventory item ${params.id} for user: ${req.user.userId}`,
-          );
-
-          return {
-            status: 200 as const,
-            body: result,
-          };
-        } catch (error: unknown) {
-          this.logger.error(
-            `Reserve inventory failed for user ${req.user.userId}:`,
-            error,
-          );
-
-          return ErrorResponseUtil.handleCommonError(error, {
-            notFoundMessage: 'Inventory item not found',
-            notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
-            badRequestMessage: 'Failed to reserve inventory',
-            badRequestCode: 'RESERVE_INVENTORY_FAILED',
-          });
-        }
-      },
-    );
-  }
-
-  @TsRestHandler(inventoryContract.releaseInventory)
-  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
-  public releaseInventory(
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return tsRestHandler(
-      inventoryContract.releaseInventory,
-      async ({ params, body }) => {
-        try {
-          const result = await this.inventoryService.releaseReservation(
+          const result = await this.inventoryService.updateInventoryQuantity(
             req.user,
             params.id,
             {
-              quantity: body.quantity || 0,
-              orderId: body.orderId || '',
-              reason: body.reason || 'order_cancelled',
+              adjustmentType,
+              quantity,
+              reason,
+              orderId,
             },
-          );
-          this.logger.log(
-            `Released inventory item ${params.id} for user: ${req.user.userId}`,
           );
 
           return {
@@ -347,22 +278,18 @@ export class InventoryController {
             body: result,
           };
         } catch (error: unknown) {
-          this.logger.error(
-            `Release inventory failed for user ${req.user.userId}:`,
-            error,
-          );
+          this.logger.error(`Quantity operation failed for user ${req.user.userId}:`, error);
 
           return ErrorResponseUtil.handleCommonError(error, {
             notFoundMessage: 'Inventory item not found',
             notFoundCode: 'INVENTORY_ITEM_NOT_FOUND',
-            badRequestMessage: 'Failed to release inventory',
-            badRequestCode: 'RELEASE_INVENTORY_FAILED',
+            badRequestMessage: 'Failed to perform quantity operation',
+            badRequestCode: 'QUANTITY_OPERATION_FAILED',
           });
         }
       },
     );
   }
-
   @TsRestHandler(inventoryContract.transferInventory)
   @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
@@ -638,82 +565,51 @@ export class InventoryController {
     );
   }
 
-  @TsRestHandler(inventoryContract.mergeBatches)
+
+
+  @TsRestHandler(inventoryContract.updateBatch)
   @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   @RequireRoleLevel(50)
-  public mergeBatches(
+  public updateBatch(
     @Request() req: AuthenticatedRequest,
   ) {
     return tsRestHandler(
-      inventoryContract.mergeBatches,
+      inventoryContract.updateBatch,
       async ({ params, body }) => {
         try {
-          await this.inventoryService.mergeBatches(
+          const { operation, sourceBatches, newBatchNumber, reason, splits } = body.data.attributes;
+          
+          if (!operation) {
+            throw new BadRequestException('operation is required');
+          }
+
+          const result = await this.inventoryService.updateBatch(
             req.user,
             params.batchNumber,
-            body,
-          );
-          this.logger.log(
-            `Merged batches for user: ${req.user.userId}`,
+            {
+              operation: operation as 'merge' | 'split',
+              sourceBatches,
+              newBatchNumber,
+              reason,
+              splits,
+            },
           );
 
           return {
             status: 200 as const,
-            body: { message: 'Batches merged successfully' },
+            body: result,
           };
         } catch (error: unknown) {
-          this.logger.error(
-            `Merge batches failed for user ${req.user.userId}:`,
-            error,
-          );
+          this.logger.error(`Batch operation failed for user ${req.user.userId}:`, error);
 
           return ErrorResponseUtil.handleCommonError(error, {
-            badRequestMessage: 'Failed to merge batches',
-            badRequestCode: 'MERGE_BATCHES_FAILED',
+            badRequestMessage: 'Failed to perform batch operation',
+            badRequestCode: 'BATCH_OPERATION_FAILED',
           });
         }
       },
     );
   }
-
-  @TsRestHandler(inventoryContract.splitBatch)
-  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
-  @RequireRoleLevel(50)
-  public splitBatch(
-    @Request() req: AuthenticatedRequest,
-  ) {
-    return tsRestHandler(
-      inventoryContract.splitBatch,
-      async ({ params, body }) => {
-        try {
-          await this.inventoryService.splitBatch(
-            req.user,
-            params.batchNumber,
-            body,
-          );
-          this.logger.log(
-            `Split batch ${params.batchNumber} for user: ${req.user.userId}`,
-          );
-
-          return {
-            status: 200 as const,
-            body: { message: 'Batch split successfully' },
-          };
-        } catch (error: unknown) {
-          this.logger.error(
-            `Split batch failed for user ${req.user.userId}:`,
-            error,
-          );
-
-          return ErrorResponseUtil.handleCommonError(error, {
-            badRequestMessage: 'Failed to split batch',
-            badRequestCode: 'SPLIT_BATCH_FAILED',
-          });
-        }
-      },
-    );
-  }
-
   // =============================================================================
   // Traceability & Compliance
   // =============================================================================
@@ -760,6 +656,8 @@ export class InventoryController {
   // Facility Management
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getFacilities)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getFacilities(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -802,6 +700,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.getFacility)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getFacility(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -838,6 +738,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.logFacilityConditions)
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   public logFacilityConditions(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -879,6 +781,8 @@ export class InventoryController {
   // Storage Optimization
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getStorageOptimization)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getStorageOptimization(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -917,6 +821,8 @@ export class InventoryController {
   // Valuation & Cost Management
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getInventoryValuation)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getInventoryValuation(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -951,6 +857,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.getCostBasis)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getCostBasis(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -987,6 +895,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.updateCostBasis)
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   public updateCostBasis(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1028,6 +938,8 @@ export class InventoryController {
   // Reporting & Analytics
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getAgingReport)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getAgingReport(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1062,6 +974,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.getDemandForecast)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getDemandForecast(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1096,6 +1010,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.getReorderPoints)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getReorderPoints(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1130,6 +1046,8 @@ export class InventoryController {
     );
   }
 
+  @TsRestHandler(inventoryContract.generateReplenishmentPlan)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public generateReplenishmentPlan(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1168,6 +1086,8 @@ export class InventoryController {
   // Alert Management
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.configureAlerts)
+  @RequirePermission(...PERMISSIONS.INVENTORY.UPDATE)
   public configureAlerts(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1206,6 +1126,8 @@ export class InventoryController {
   // Waste Analysis
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.getWasteAnalysis)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public getWasteAnalysis(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -1244,6 +1166,8 @@ export class InventoryController {
   // Report Generation
   // =============================================================================
 
+  @TsRestHandler(inventoryContract.generateReports)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
   public generateReports(
     @Request() req: AuthenticatedRequest,
   ) {

@@ -978,6 +978,7 @@ export class MarketService {
     if (attrs.paymentTerms !== undefined) updateData.paymentTerms = attrs.paymentTerms;
     if (attrs.isPublic !== undefined) updateData.isPublic = attrs.isPublic;
     if (attrs.images !== undefined) updateData.images = attrs.images;
+    if (attrs.status !== undefined) updateData.status = attrs.status.toUpperCase();
 
     const listing = await this.prisma.marketplaceListing.update({
       where: { id: listingId },

@@ -174,37 +174,88 @@ export const UpdateActivityRequestSchema = z.object({
   instructions: z.string().optional(),
   estimatedCost: z.number().nonnegative().optional(),
   metadata: z.any().nullable().optional(),
-});
-
-// Activity Execution
-export const StartActivityRequestSchema = z.object({
+  // Status transitions
+  status: ActivityStatusEnum.optional(),
+  // Execution fields
   location: LocationSchema.optional(),
   notes: z.string().optional(),
-  actualResources: z.array(ResourceSchema).default([]),
-});
-
-export const UpdateProgressRequestSchema = z.object({
-  percentComplete: z.number().min(0).max(100),
-  notes: z.string().optional(),
+  actualResources: z.array(ResourceSchema).optional(),
+  percentComplete: z.number().min(0).max(100).optional(),
   issues: z.string().optional(),
-  resourceUsage: z.array(ResourceUsageSchema).default([]),
-});
-
-export const CompleteActivityRequestSchema = z.object({
+  resourceUsage: z.array(ResourceUsageSchema).optional(),
   completedAt: z.string().datetime().optional(),
-  actualDuration: z.number().positive().optional(),
-  results: ActivityResultsSchema.optional(),
   actualCost: z.number().nonnegative().optional(),
-  resourcesUsed: z.array(ResourceUsageSchema).default([]),
-  issues: z.string().optional(),
+  results: z.object({
+    quality: z.enum(['excellent', 'good', 'fair', 'poor']).optional(),
+    quantityAchieved: z.number().optional(),
+    notes: z.string().optional(),
+  }).optional(),
   recommendations: z.string().optional(),
-  notes: z.string().optional(),
 });
 
-export const PauseActivityRequestSchema = z.object({
-  reason: PauseReasonEnum,
-  notes: z.string().optional(),
-  estimatedResumeTime: z.string().datetime().optional(),
+// JSON:API activity status update schema
+export const UpdateActivityStatusRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('activities'),
+    id: z.string(),
+    attributes: z.object({
+      // Basic updates
+      name: z.string().min(1).max(255).optional(),
+      description: z.string().optional(),
+      scheduledAt: z.string().datetime().optional(),
+      priority: ActivityPriorityEnum.optional(),
+      estimatedDuration: z.number().positive().optional(),
+      assignedTo: z.array(z.string()).optional(),
+      instructions: z.string().optional(),
+      estimatedCost: z.number().nonnegative().optional(),
+      metadata: z.any().nullable().optional(),
+
+      // Status transitions (replaces start/pause/resume/complete endpoints)
+      status: ActivityStatusEnum.optional(),
+
+      // Execution context (used when changing status)
+      executionContext: z.object({
+        // For IN_PROGRESS (start)
+        location: LocationSchema.optional(),
+        startNotes: z.string().optional(),
+        actualResources: z.array(ResourceSchema).optional(),
+
+        // For PAUSED
+        pauseReason: PauseReasonEnum.optional(),
+        pauseNotes: z.string().optional(),
+        estimatedResumeTime: z.string().datetime().optional(),
+
+        // For progress updates
+        percentComplete: z.number().min(0).max(100).optional(),
+        progressNotes: z.string().optional(),
+        issues: z.string().optional(),
+        resourceUsage: z.array(ResourceUsageSchema).optional(),
+
+        // For COMPLETED
+        completedAt: z.string().datetime().optional(),
+        actualDuration: z.number().positive().optional(),
+        actualCost: z.number().nonnegative().optional(),
+        results: z.object({
+          quality: QualityEnum.optional(),
+          quantityAchieved: z.number().optional(),
+          notes: z.string().optional(),
+        }).optional(),
+        recommendations: z.string().optional(),
+      }).optional(),
+    }).refine(
+      (data) => {
+        // Validation: If status is PAUSED, pauseReason is required in executionContext
+        if (data.status === 'PAUSED' && (!data.executionContext || !data.executionContext.pauseReason)) {
+          return false;
+        }
+        return true;
+      },
+      {
+        message: 'pauseReason is required when status is PAUSED',
+        path: ['executionContext', 'pauseReason'],
+      }
+    ),
+  }),
 });
 
 // Activity Templates

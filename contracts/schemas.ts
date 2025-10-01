@@ -70,7 +70,12 @@ export const InventorySchema = z.object({
     grade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
     moisture: z.number().optional(),
     specifications: z.record(z.string(), z.any()).optional(),
-    certifications: z.array(z.string()).optional()
+    certifications: z.array(z.string()).optional(),
+    // Quality grade update fields
+    gradeReason: z.enum(['retest', 'deterioration', 'upgrade', 'market_demand']).optional(),
+    gradeEvidence: z.array(z.string()).optional(),
+    gradeAssessedBy: z.string().optional(),
+    certifiedGrade: z.string().optional(),
   }),
   location: z.object({
     facility: z.string().min(1, 'Facility is required'),
@@ -556,20 +561,6 @@ export const UpdateInventoryRequestSchema = JsonApiUpdateRequestSchema(Inventory
 
 
 // Inventory-specific request schemas
-export const InventoryAdjustmentRequestSchema = z.object({
-  adjustment: z.number(),
-  reason: z.enum(['damage', 'spoilage', 'theft', 'count_error', 'consumption', 'sale', 'transfer']),
-  notes: z.string().optional(),
-  evidence: z.array(z.string()).optional(),
-  approvedBy: z.string().uuid().optional()
-});
-
-export const InventoryReservationRequestSchema = z.object({
-  quantity: z.number().positive(),
-  orderId: z.string().uuid(),
-  reservedUntil: z.string().datetime(),
-  notes: z.string().optional()
-});
 
 export const InventoryTransferRequestSchema = z.object({
   fromInventoryId: z.string().uuid(),
@@ -683,8 +674,6 @@ export type CreateUserRequest = z.infer<typeof CreateUserRequestSchema>;
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
 export type CreateInventoryRequest = z.infer<typeof CreateInventoryRequestSchema>;
 export type UpdateInventoryRequest = z.infer<typeof UpdateInventoryRequestSchema>;
-export type InventoryAdjustmentRequest = z.infer<typeof InventoryAdjustmentRequestSchema>;
-export type InventoryReservationRequest = z.infer<typeof InventoryReservationRequestSchema>;
 export type InventoryTransferRequest = z.infer<typeof InventoryTransferRequestSchema>;
 export type InventoryQualityTestRequest = z.infer<typeof InventoryQualityTestRequestSchema>;
 

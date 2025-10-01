@@ -398,6 +398,41 @@ export class UsersController {
     });
   }
 
+  @TsRestHandler(userContract.updateUser)
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequireRoleLevel(50)
+  public updateUser(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') userId: string,
+    @Body() body: any,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(userContract.updateUser, async () => {
+      try {
+        this.logger.log(`User update requested by: ${req.user.userId} for user: ${userId}`);
+        const updatedUser = await this.usersService.updateUser(req.user, userId,body.data.attributes);
+
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              id: updatedUser.id,
+              type: 'users',
+              attributes: updatedUser,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Update user failed:', error);
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'User not found',
+          notFoundCode: 'USER_NOT_FOUND',
+          badRequestMessage: 'Failed to update user',
+          badRequestCode: 'UPDATE_USER_FAILED',
+        });
+      }
+    });
+  }
+
   @TsRestHandler(userContract.activateUser)
   @RequirePermission(...PERMISSIONS.USERS.UPDATE)
   @RequireRoleLevel(50)

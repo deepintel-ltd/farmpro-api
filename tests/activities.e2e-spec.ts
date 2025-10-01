@@ -492,23 +492,32 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('POST /activities/:activityId/start', () => {
+    describe('PATCH /activities/:activityId/status (Start)', () => {
       it('should start activity successfully', async () => {
         const startData = {
-          notes: 'Starting the planting activity',
-          actualResources: [
-            {
-              type: 'equipment',
-              resourceId: 'tractor-001',
-              quantity: 1,
-              unit: 'unit'
+          data: {
+            type: 'activities',
+            id: testActivity.id,
+            attributes: {
+              status: 'IN_PROGRESS',
+              executionContext: {
+                startNotes: 'Starting the planting activity',
+                actualResources: [
+                  {
+                    type: 'equipment',
+                    resourceId: 'tractor-001',
+                    quantity: 1,
+                    unit: 'unit'
+                  }
+                ]
+              }
             }
-          ]
+          }
         };
 
         const response = await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(startData)
           .expect(200);
@@ -522,26 +531,53 @@ describe('Activities E2E Tests', () => {
         // First start
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting' }
+              }
+            }
+          })
           .expect(200);
 
         // Try to start again
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting again' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting again' }
+              }
+            }
+          })
           .expect(400);
       });
 
       it('should fail to start non-existent activity', async () => {
         await testContext
           .request()
-          .post('/activities/non-existent-id/start')
+          .patch('/activities/non-existent-id/status')
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting' })
+          .send({
+            data: {
+              type: 'activities',
+              id: 'non-existent-id',
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting' }
+              }
+            }
+          })
           .expect(404);
       });
     });
@@ -551,9 +587,18 @@ describe('Activities E2E Tests', () => {
         // Start the activity first
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting' }
+              }
+            }
+          })
           .expect(200);
       });
 
@@ -596,27 +641,45 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('POST /activities/:activityId/pause', () => {
+    describe('PATCH /activities/:activityId/status (Pause)', () => {
       beforeEach(async () => {
         // Start the activity first
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting' }
+              }
+            }
+          })
           .expect(200);
       });
 
       it('should pause activity successfully', async () => {
         const pauseData = {
-          reason: 'weather',
-          notes: 'Pausing due to rain',
-          estimatedResumeTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() // 2 hours from now
+          data: {
+            type: 'activities',
+            id: testActivity.id,
+            attributes: {
+              status: 'PAUSED',
+              executionContext: {
+                pauseReason: 'weather',
+                pauseNotes: 'Pausing due to rain',
+                estimatedResumeTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+              }
+            }
+          }
         };
 
         const response = await testContext
           .request()
-          .post(`/activities/${testActivity.id}/pause`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(pauseData)
           .expect(200);
@@ -640,45 +703,84 @@ describe('Activities E2E Tests', () => {
         });
 
         const pauseData = {
-          reason: 'weather',
-          notes: 'Pausing'
+          data: {
+            type: 'activities',
+            id: newActivity.id,
+            attributes: {
+              status: 'PAUSED',
+              executionContext: {
+                pauseReason: 'weather',
+                pauseNotes: 'Pausing'
+              }
+            }
+          }
         };
 
         await testContext
           .request()
-          .post(`/activities/${newActivity.id}/pause`)
+          .patch(`/activities/${newActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(pauseData)
           .expect(400);
       });
     });
 
-    describe('POST /activities/:activityId/resume', () => {
+    describe('PATCH /activities/:activityId/status (Resume)', () => {
       beforeEach(async () => {
         // Start and pause the activity
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting' }
+              }
+            }
+          })
           .expect(200);
 
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/pause`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ reason: 'weather', notes: 'Pausing' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'PAUSED',
+                executionContext: {
+                  pauseReason: 'weather',
+                  pauseNotes: 'Pausing'
+                }
+              }
+            }
+          })
           .expect(200);
       });
 
       it('should resume activity successfully', async () => {
         const resumeData = {
-          notes: 'Resuming after weather delay'
+          data: {
+            type: 'activities',
+            id: testActivity.id,
+            attributes: {
+              status: 'IN_PROGRESS',
+              executionContext: {
+                progressNotes: 'Resuming after weather delay'
+              }
+            }
+          }
         };
 
         const response = await testContext
           .request()
-          .post(`/activities/${testActivity.id}/resume`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(resumeData)
           .expect(200);
@@ -702,46 +804,73 @@ describe('Activities E2E Tests', () => {
         });
 
         const resumeData = {
-          notes: 'Resuming'
+          data: {
+            type: 'activities',
+            id: newActivity.id,
+            attributes: {
+              status: 'IN_PROGRESS',
+              executionContext: {
+                progressNotes: 'Resuming'
+              }
+            }
+          }
         };
 
         await testContext
           .request()
-          .post(`/activities/${newActivity.id}/resume`)
+          .patch(`/activities/${newActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(resumeData)
           .expect(400);
       });
     });
 
-    describe('POST /activities/:activityId/complete', () => {
+    describe('PATCH /activities/:activityId/status (Complete)', () => {
       beforeEach(async () => {
         // Start the activity first
         await testContext
           .request()
-          .post(`/activities/${testActivity.id}/start`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
-          .send({ notes: 'Starting' })
+          .send({
+            data: {
+              type: 'activities',
+              id: testActivity.id,
+              attributes: {
+                status: 'IN_PROGRESS',
+                executionContext: { startNotes: 'Starting' }
+              }
+            }
+          })
           .expect(200);
       });
 
       it('should complete activity successfully', async () => {
         const completeData = {
-          actualDuration: 110, // 1 hour 50 minutes
-          actualCost: 95.00,
-          results: {
-            quality: 'good',
-            quantityAchieved: 100,
-            notes: 'Successfully completed planting'
-          },
-          issues: 'Minor equipment delay',
-          recommendations: 'Consider using newer equipment next time',
-          notes: 'Activity completed successfully'
+          data: {
+            type: 'activities',
+            id: testActivity.id,
+            attributes: {
+              status: 'COMPLETED',
+              executionContext: {
+                actualDuration: 110,
+                actualCost: 95.00,
+                results: {
+                  quality: 'good',
+                  quantityAchieved: 100,
+                  observations: 'Successfully completed planting'
+                },
+                issues: 'Minor equipment delay',
+                recommendations: 'Consider using newer equipment next time',
+                progressNotes: 'Activity completed successfully'
+              }
+            }
+          }
         };
 
         const response = await testContext
           .request()
-          .post(`/activities/${testActivity.id}/complete`)
+          .patch(`/activities/${testActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(completeData)
           .expect(200);
@@ -769,13 +898,22 @@ describe('Activities E2E Tests', () => {
         });
 
         const completeData = {
-          actualDuration: 120,
-          notes: 'Completing'
+          data: {
+            type: 'activities',
+            id: newActivity.id,
+            attributes: {
+              status: 'COMPLETED',
+              executionContext: {
+                actualDuration: 120,
+                progressNotes: 'Completing'
+              }
+            }
+          }
         };
 
         await testContext
           .request()
-          .post(`/activities/${newActivity.id}/complete`)
+          .patch(`/activities/${newActivity.id}/status`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(completeData)
           .expect(400);
@@ -1535,9 +1673,18 @@ describe('Activities E2E Tests', () => {
       // 2. Start activity
       await testContext
         .request()
-        .post(`/activities/${activityId}/start`)
+        .patch(`/activities/${activityId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ notes: 'Starting lifecycle test' })
+        .send({
+          data: {
+            type: 'activities',
+            id: activityId,
+            attributes: {
+              status: 'IN_PROGRESS',
+              executionContext: { startNotes: 'Starting lifecycle test' }
+            }
+          }
+        })
         .expect(200);
 
       // 3. Update progress
@@ -1550,19 +1697,28 @@ describe('Activities E2E Tests', () => {
 
       // 4. Complete activity
       const completeData = {
-        actualDuration: 110,
-        actualCost: 95.00,
-        results: {
-          quality: 'good',
-          quantityAchieved: 100,
-          notes: 'Lifecycle test completed'
-        },
-        notes: 'Full lifecycle completed successfully'
+        data: {
+          type: 'activities',
+          id: activityId,
+          attributes: {
+            status: 'COMPLETED',
+            executionContext: {
+              actualDuration: 110,
+              actualCost: 95.00,
+              results: {
+                quality: 'good',
+                quantityAchieved: 100,
+                observations: 'Lifecycle test completed'
+              },
+              progressNotes: 'Full lifecycle completed successfully'
+            }
+          }
+        }
       };
 
       await testContext
         .request()
-        .post(`/activities/${activityId}/complete`)
+        .patch(`/activities/${activityId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(completeData)
         .expect(200);
@@ -1602,33 +1758,77 @@ describe('Activities E2E Tests', () => {
       // Start
       await testContext
         .request()
-        .post(`/activities/${activityId}/start`)
+        .patch(`/activities/${activityId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ notes: 'Starting' })
+        .send({
+          data: {
+            type: 'activities',
+            id: activityId,
+            attributes: {
+              status: 'IN_PROGRESS',
+              executionContext: { startNotes: 'Starting' }
+            }
+          }
+        })
         .expect(200);
 
       // Pause
       await testContext
         .request()
-        .post(`/activities/${activityId}/pause`)
+        .patch(`/activities/${activityId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ reason: 'weather', notes: 'Pausing due to rain' })
+        .send({
+          data: {
+            type: 'activities',
+            id: activityId,
+            attributes: {
+              status: 'PAUSED',
+              executionContext: {
+                pauseReason: 'weather',
+                pauseNotes: 'Pausing due to rain'
+              }
+            }
+          }
+        })
         .expect(200);
 
       // Resume
       await testContext
         .request()
-        .post(`/activities/${activityId}/resume`)
+        .patch(`/activities/${activityId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ notes: 'Resuming after weather delay' })
+        .send({
+          data: {
+            type: 'activities',
+            id: activityId,
+            attributes: {
+              status: 'IN_PROGRESS',
+              executionContext: {
+                progressNotes: 'Resuming after weather delay'
+              }
+            }
+          }
+        })
         .expect(200);
 
       // Complete
       await testContext
         .request()
-        .post(`/activities/${activityId}/complete`)
+        .patch(`/activities/${activityId}/status`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ actualDuration: 120, notes: 'Completed with pause/resume' })
+        .send({
+          data: {
+            type: 'activities',
+            id: activityId,
+            attributes: {
+              status: 'COMPLETED',
+              executionContext: {
+                actualDuration: 120,
+                progressNotes: 'Completed with pause/resume'
+              }
+            }
+          }
+        })
         .expect(200);
 
       // Verify final state

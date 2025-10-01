@@ -46,13 +46,13 @@ export class PlatformAdminController {
   }
 
   /**
-   * Consolidated organization update endpoint
+   * Update organization endpoint
    */
-  @TsRestHandler(platformAdminContract.updateOrganizationConsolidated)
-  async updateOrganizationConsolidated(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(platformAdminContract.updateOrganizationConsolidated, async ({ params, body }) => {
+  @TsRestHandler(platformAdminContract.updateOrganization)
+  async updateOrganization(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(platformAdminContract.updateOrganization, async ({ params, body }) => {
       try {
-        const result = await this.platformAdminService.updateOrganizationConsolidated(
+        const result = await this.platformAdminService.updateOrganization(
           req.user,
           params.id,
           body.data.attributes,

@@ -49,10 +49,10 @@ export class PlatformAdminService {
   // ============================================================================
 
   /**
-   * Consolidated update organization method (JSON:API compliant)
+   * Update organization method (JSON:API compliant)
    * Handles status, verification, type, plan, and feature updates in one endpoint
    */
-  async updateOrganizationConsolidated(
+  async updateOrganization(
     user: CurrentUser,
     orgId: string,
     updates: UpdateOrganizationRequest['data']['attributes'],

@@ -2,19 +2,11 @@ import { z } from 'zod';
 import {
   CreateActivityRequestSchema,
   UpdateActivityRequestSchema,
-  StartActivityRequestSchema,
-  UpdateProgressRequestSchema,
-  CompleteActivityRequestSchema,
-  PauseActivityRequestSchema,
 } from '../../../contracts/activities.schemas';
 
 // Core DTOs
 export type CreateActivityDto = z.infer<typeof CreateActivityRequestSchema>;
 export type UpdateActivityDto = z.infer<typeof UpdateActivityRequestSchema>;
-export type StartActivityDto = z.infer<typeof StartActivityRequestSchema>;
-export type UpdateProgressDto = z.infer<typeof UpdateProgressRequestSchema>;
-export type CompleteActivityDto = z.infer<typeof CompleteActivityRequestSchema>;
-export type PauseActivityDto = z.infer<typeof PauseActivityRequestSchema>;
 
 // Query interfaces
 export interface ActivityQueryOptions {
@@ -83,65 +75,9 @@ export interface ConflictCheckQueryOptions {
   endTime: string;
 }
 
-export interface BulkScheduleRequestOptions {
-  activities: Array<{
-    templateId: string;
-    scheduledAt: string;
-    farmId: string;
-    areaId?: string;
-    customizations?: any;
-  }>;
-  resolveConflicts?: 'auto' | 'manual';
-}
-
 export interface WorkloadQueryOptions {
   farmId: string;
   startDate: string;
   endDate: string;
   userId?: string;
-}
-
-// Bulk operation DTOs
-export interface BulkCreateActivityDto {
-  activities: Array<{
-    name: string;
-    description?: string;
-    farmId: string;
-    type: string;
-    scheduledAt?: string;
-    assignedTo?: string[];
-  }>;
-}
-
-export interface BulkUpdateActivityDto {
-  activities: Array<{
-    id: string;
-    updates: {
-      name?: string;
-      description?: string;
-      status?: string;
-      priority?: string;
-    };
-  }>;
-}
-
-export interface BulkDeleteActivityDto {
-  activityIds: string[];
-  reason?: string;
-}
-
-export interface BulkStatusUpdateDto {
-  updates: Array<{
-    activityId: string;
-    status: string;
-    reason?: string;
-  }>;
-}
-
-export interface BulkAssignActivityDto {
-  assignments: Array<{
-    activityId: string;
-    assignedTo: string[];
-    reassignReason?: string;
-  }>;
 }

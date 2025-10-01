@@ -11,8 +11,6 @@ import { Prisma, InventoryStatus } from '@prisma/client';
 import {
   CreateInventoryDto,
   UpdateInventoryDto,
-  InventoryAdjustmentDto,
-  InventoryReservationDto,
   InventoryTransferDto,
   InventoryQualityTestDto,
 } from './dto/inventory.dto';
@@ -258,10 +256,30 @@ export class InventoryService {
     if (updateDto.status !== undefined)
       updateData.status = updateDto.status as InventoryStatus;
     if (updateDto.quality !== undefined) {
-      updateData.quality =
-        typeof updateDto.quality === 'object'
-          ? updateDto.quality.grade
-          : updateDto.quality;
+      if (typeof updateDto.quality === 'object') {
+        updateData.quality = updateDto.quality.grade;
+        // Handle additional quality grade fields in metadata
+        const qualityMetadata = {
+          gradeReason: updateDto.quality.gradeReason,
+          gradeEvidence: updateDto.quality.gradeEvidence,
+          gradeAssessedBy: updateDto.quality.gradeAssessedBy,
+          certifiedGrade: updateDto.quality.certifiedGrade,
+        };
+        
+        // Filter out undefined values
+        const filteredQualityMetadata = Object.fromEntries(
+          Object.entries(qualityMetadata).filter(([, value]) => value !== undefined)
+        );
+        
+        if (Object.keys(filteredQualityMetadata).length > 0) {
+          updateData.metadata = {
+            ...((existingItem.metadata as object) || {}),
+            quality: filteredQualityMetadata,
+          };
+        }
+      } else {
+        updateData.quality = updateDto.quality;
+      }
     }
     if (updateDto.location !== undefined) {
       updateData.location =
@@ -453,7 +471,11 @@ export class InventoryService {
   async adjustQuantity(
     user: CurrentUser,
     inventoryId: string,
-    adjustmentDto: InventoryAdjustmentDto,
+    adjustmentDto: {
+      adjustment: number;
+      reason: string;
+      notes?: string;
+    },
   ) {
     this.logger.log(
       `Adjusting inventory ${inventoryId} for user: ${user.userId}`,
@@ -502,7 +524,12 @@ export class InventoryService {
   async reserveQuantity(
     user: CurrentUser,
     inventoryId: string,
-    reservationDto: InventoryReservationDto,
+    reservationDto: {
+      quantity: number;
+      orderId: string;
+      reservedUntil: string;
+      notes?: string;
+    },
   ) {
     this.logger.log(
       `Reserving inventory ${inventoryId} for user: ${user.userId}`,
@@ -2757,5 +2784,109 @@ export class InventoryService {
       groups[commodity].count += 1;
     });
     return Object.values(groups);
+  }
+
+  // =============================================================================
+  // Quantity Management Operations
+  // =============================================================================
+
+  async updateInventoryQuantity(
+    user: CurrentUser,
+    inventoryId: string,
+    quantityData: {
+      adjustmentType: 'adjust' | 'reserve' | 'release';
+      quantity: number;
+      reason?: string;
+      orderId?: string;
+    },
+  ) {
+    this.logger.log(
+      `Updating inventory quantity for item ${inventoryId} for user: ${user.userId}`,
+    );
+
+    const { adjustmentType, quantity, reason, orderId } = quantityData;
+
+    let result;
+    if (adjustmentType === 'adjust') {
+      result = await this.adjustQuantity(user, inventoryId, {
+        adjustment: quantity,
+        reason: 'transfer', // Default to transfer for manual adjustments
+        notes: reason,
+      });
+      this.logger.log(`Adjusted inventory item ${inventoryId} for user: ${user.userId}`);
+    } else if (adjustmentType === 'reserve') {
+      result = await this.reserveQuantity(user, inventoryId, {
+        quantity,
+        orderId: orderId!,
+        reservedUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        notes: reason,
+      });
+      this.logger.log(`Reserved inventory item ${inventoryId} for user: ${user.userId}`);
+    } else if (adjustmentType === 'release') {
+      result = await this.releaseReservation(user, inventoryId, {
+        quantity,
+        orderId: orderId!,
+        reason: 'order_cancelled' as const,
+      });
+      this.logger.log(`Released inventory item ${inventoryId} for user: ${user.userId}`);
+    } else {
+      throw new BadRequestException('Invalid adjustment type');
+    }
+
+    return result;
+  }
+
+  async updateBatch(
+    user: CurrentUser,
+    batchNumber: string,
+    batchData: {
+      operation: 'merge' | 'split';
+      sourceBatches?: string[];
+      newBatchNumber?: string;
+      reason?: string;
+      splits?: any[];
+    },
+  ) {
+    this.logger.log(
+      `Updating batch ${batchNumber} for user: ${user.userId}`,
+    );
+
+    const { operation, sourceBatches, newBatchNumber, reason, splits } = batchData;
+
+    if (operation === 'merge') {
+      await this.mergeBatches(user, batchNumber, {
+        sourceBatches: sourceBatches!,
+        newBatchNumber: newBatchNumber!,
+        reason: reason!,
+      });
+      this.logger.log(`Merged batches for user: ${user.userId}`);
+
+      return {
+        data: {
+          type: 'batch-operations' as const,
+          attributes: {
+            message: 'Batches merged successfully',
+            success: true,
+            operation: 'merge',
+          },
+        },
+      };
+    } else if (operation === 'split') {
+      await this.splitBatch(user, batchNumber, { splits: splits! });
+      this.logger.log(`Split batch ${batchNumber} for user: ${user.userId}`);
+
+      return {
+        data: {
+          type: 'batch-operations' as const,
+          attributes: {
+            message: 'Batch split successfully',
+            success: true,
+            operation: 'split',
+          },
+        },
+      };
+    } else {
+      throw new BadRequestException('Invalid operation type');
+    }
   }
 }

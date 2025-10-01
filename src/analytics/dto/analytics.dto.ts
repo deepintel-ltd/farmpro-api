@@ -21,23 +21,4 @@ export type {
 // =============================================================================
 // Service Layer DTOs - Internal Use Only
 // =============================================================================
-
-export interface AnalyticsServiceConfig {
-  enableCaching: boolean;
-  cacheTTL: number;
-  enableInsights: boolean;
-  enablePredictions: boolean;
-}
-
-export interface AnalyticsQueryContext {
-  userId: string;
-  organizationId: string;
-  farmId?: string;
-  permissions: string[];
-}
-
-export interface AnalyticsCacheConfig {
-  key: string;
-  ttl: number;
-  tags?: string[];
-}
+// Note: Internal DTOs are defined inline in services as needed

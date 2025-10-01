@@ -264,15 +264,30 @@ export class UsersService {
     return profile;
   }
 
-  async activateUser(currentUser: CurrentUser, userId: string) {
-    this.logger.log(`User activation requested by: ${currentUser.userId} for user: ${userId}`);
+  async updateUser(currentUser: CurrentUser, userId: string, data: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    isActive?: boolean;
+    metadata?: any;
+  }) {
+    this.logger.log(`User update requested by: ${currentUser.userId} for user: ${userId}`, { 
+      fields: Object.keys(data).filter(key => data[key] !== undefined) 
+    });
     
     // Authorization is now handled by guards and decorators
     await this.checkSameOrganization(currentUser, userId);
 
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { isActive: true },
+      data: {
+        name: data.firstName && data.lastName ? `${data.firstName} ${data.lastName}` : undefined,
+        email: data.email,
+        phone: data.phone,
+        isActive: data.isActive,
+        metadata: data.metadata,
+      },
       include: {
         organization: { select: { id: true, name: true } },
         userRoles: {
@@ -288,7 +303,7 @@ export class UsersService {
       },
     });
 
-    this.logger.log(`Successfully activated user: ${userId} by admin: ${currentUser.userId}`);
+    this.logger.log(`Successfully updated user: ${userId}`);
 
     return {
       id: user.id,
@@ -307,6 +322,13 @@ export class UsersService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  async activateUser(currentUser: CurrentUser, userId: string) {
+    this.logger.log(`User activation requested by: ${currentUser.userId} for user: ${userId}`);
+    
+    // Use the consolidated updateUser method
+    return this.updateUser(currentUser, userId, { isActive: true });
   }
 
   // =============================================================================

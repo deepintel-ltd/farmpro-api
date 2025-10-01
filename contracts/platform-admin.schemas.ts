@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Request Schemas
 
-// Consolidated organization update schema following JSON:API specification
+// Organization update schema following JSON:API specification
 export const UpdateOrganizationRequestSchema = z.object({
   data: z.object({
     type: z.literal('organizations'),

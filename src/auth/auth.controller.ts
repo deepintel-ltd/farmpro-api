@@ -624,4 +624,55 @@ export class AuthController {
       }
     });
   }
+
+  @UseGuards(JwtAuthGuard)
+  @TsRestHandler(authContract.updateSession)
+  public updateSession(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.updateSession, async ({ params, body }) => {
+      try {
+        const { status } = body.data.attributes;
+        
+        if (status === 'revoked') {
+          await this.authService.revokeSession(req.user.userId, params.sessionId);
+          this.logger.log(`Session ${params.sessionId} revoked for user: ${req.user.userId}`);
+          
+          return {
+            status: 200 as const,
+            body: {
+              data: {
+                type: 'sessions' as const,
+                id: params.sessionId,
+                attributes: {
+                  status: 'revoked',
+                  message: 'Session revoked successfully',
+                },
+              },
+            },
+          };
+        } else if (status === 'active') {
+          // For now, we don't support reactivating sessions
+          // This could be implemented if needed
+          throw new Error('Session reactivation not supported');
+        } else {
+          throw new Error('Invalid session status');
+        }
+      } catch (error: unknown) {
+        this.logger.error(
+          `Update session failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Session not found',
+          notFoundCode: 'SESSION_NOT_FOUND',
+          badRequestMessage: 'Invalid session status or session ID',
+          badRequestCode: 'INVALID_SESSION_STATUS',
+          internalErrorMessage: 'Update session failed',
+          internalErrorCode: 'UPDATE_SESSION_FAILED',
+        });
+      }
+    });
+  }
 }

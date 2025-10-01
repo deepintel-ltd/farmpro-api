@@ -547,6 +547,7 @@ export const UpdateListingRequestSchema = z.object({
       paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])).optional(),
       isPublic: z.boolean().optional(),
       images: z.array(z.string().url()).optional(),
+      status: z.enum(['active', 'inactive', 'expired', 'sold']).optional(),
     }),
   }),
 });

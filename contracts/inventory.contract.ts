@@ -6,8 +6,6 @@ import {
   CreateInventoryRequestSchema,
   UpdateInventoryRequestSchema,
   InventoryMovementCollectionSchema,
-  InventoryAdjustmentRequestSchema,
-  InventoryReservationRequestSchema,
   InventoryTransferRequestSchema,
   InventoryQualityTestRequestSchema,
   InventoryQualityTestCollectionSchema,
@@ -121,47 +119,28 @@ export const inventoryContract = c.router({
     summary: 'Get inventory movement history',
   },
 
-  // Adjust inventory quantity
-  adjustInventory: {
-    method: 'POST',
-    path: '/api/inventory/:id/adjust',
-    pathParams: UuidPathParam('Inventory'),
-    body: InventoryAdjustmentRequestSchema,
-    responses: {
-      200: InventoryResourceSchema,
-      ...CommonErrorResponses,
-    },
-    summary: 'Adjust inventory quantity',
-  },
 
-  // Reserve inventory
-  reserveInventory: {
-    method: 'POST',
-    path: '/api/inventory/:id/reserve',
-    pathParams: UuidPathParam('Inventory'),
-    body: InventoryReservationRequestSchema,
-    responses: {
-      200: InventoryResourceSchema,
-      ...CommonErrorResponses,
-    },
-    summary: 'Reserve inventory for order',
-  },
-
-  // Release inventory reservation
-  releaseInventory: {
-    method: 'POST',
-    path: '/api/inventory/:id/release',
+  // Quantity operations
+  updateInventoryQuantity: {
+    method: 'PATCH',
+    path: '/api/inventory/:id/quantity',
     pathParams: UuidPathParam('Inventory'),
     body: z.object({
-      quantity: z.number().positive(),
-      orderId: z.string().uuid(),
-      reason: z.enum(['order_cancelled', 'order_changed', 'expired']),
+      data: z.object({
+        type: z.literal('inventory-adjustments'),
+        attributes: z.object({
+          adjustmentType: z.enum(['adjust', 'reserve', 'release']),
+          quantity: z.number().positive(),
+          reason: z.string().optional(),
+          orderId: z.string().uuid().optional(),
+        }),
+      }),
     }),
     responses: {
       200: InventoryResourceSchema,
       ...CommonErrorResponses,
     },
-    summary: 'Release inventory reservation',
+    summary: 'Update inventory quantity (adjust/reserve/release)',
   },
 
   // Transfer inventory
@@ -291,48 +270,50 @@ export const inventoryContract = c.router({
     summary: 'Get all inventory items in a batch',
   },
 
-  // Merge batches
-  mergeBatches: {
-    method: 'POST',
-    path: '/api/inventory/batches/:batchNumber/merge',
-    pathParams: z.object({
-      batchNumber: z.string(),
-    }),
-    body: z.object({
-      sourceBatches: z.array(z.string()),
-      newBatchNumber: z.string(),
-      reason: z.string(),
-    }),
-    responses: {
-      200: z.object({ message: z.string() }),
-      ...CommonErrorResponses,
-    },
-    summary: 'Merge multiple batches',
-  },
 
-  // Split batch
-  splitBatch: {
-    method: 'POST',
-    path: '/api/inventory/batches/:batchNumber/split',
+  // Batch operations
+  updateBatch: {
+    method: 'PATCH',
+    path: '/api/inventory/batches/:batchNumber',
     pathParams: z.object({
       batchNumber: z.string(),
     }),
     body: z.object({
-      splits: z.array(z.object({
-        quantity: z.number().positive(),
-        newBatchNumber: z.string(),
-        location: z.object({
-          facility: z.string(),
-          section: z.string().optional(),
+      data: z.object({
+        type: z.literal('batch-operations'),
+        attributes: z.object({
+          operation: z.enum(['merge', 'split']),
+          // For merge operations
+          sourceBatches: z.array(z.string()).optional(),
+          newBatchNumber: z.string().optional(),
+          reason: z.string().optional(),
+          // For split operations
+          splits: z.array(z.object({
+            quantity: z.number().positive(),
+            newBatchNumber: z.string(),
+            location: z.object({
+              facility: z.string(),
+              section: z.string().optional(),
+            }),
+            notes: z.string().optional(),
+          })).optional(),
         }),
-        notes: z.string().optional(),
-      })),
+      }),
     }),
     responses: {
-      200: z.object({ message: z.string() }),
+      200: z.object({
+        data: z.object({
+          type: z.literal('batch-operations'),
+          attributes: z.object({
+            message: z.string(),
+            success: z.boolean(),
+            operation: z.string(),
+          }),
+        }),
+      }),
       ...CommonErrorResponses,
     },
-    summary: 'Split batch into smaller lots',
+    summary: 'Update batch (merge/split)',
   },
 
   // Get traceability
