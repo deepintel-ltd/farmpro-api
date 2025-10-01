@@ -15,9 +15,7 @@ export class StripeProvider {
       this.logger.warn('STRIPE_SECRET_KEY not configured');
     }
 
-    this.stripe = new Stripe(apiKey || 'sk_test_placeholder', {
-      apiVersion: '2024-12-18.acacia',
-    });
+    this.stripe = new Stripe(apiKey || 'sk_test_placeholder');
   }
 
   /**
