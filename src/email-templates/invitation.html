@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're Invited to Join FarmPro</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo-subtitle {
+            color: #e9d5ff;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .hero-section {
+            background: linear-gradient(to bottom, #faf5ff 0%, #ffffff 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .hero-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0 0 15px 0;
+        }
+        
+        .hero-subtitle {
+            font-size: 18px;
+            color: #6b7280;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+        }
+        
+        .message {
+            color: #4b5563;
+            font-size: 16px;
+            margin: 0 0 25px 0;
+        }
+        
+        .invitation-details {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .invitation-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            color: #1e293b;
+            font-size: 14px;
+        }
+        
+        .role-badge {
+            background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+            color: #ffffff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .cta-box {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .cta-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #065f46;
+            margin: 0 0 20px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
+        }
+        
+        .message-box {
+            background-color: #f8fafc;
+            border-left: 4px solid #7c3aed;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+        
+        .message-box.hidden {
+            display: none;
+        }
+        
+        .message-box p {
+            margin: 0;
+            color: #1e293b;
+            font-size: 14px;
+            font-style: italic;
+        }
+        
+        .message-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .benefits-section {
+            margin: 30px 0;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #7c3aed;
+        }
+        
+        .benefit-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #e9d5ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .benefit-text {
+            color: #4b5563;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 14px;
+        }
+        
+        .warning-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box p {
+            margin: 0;
+            color: #92400e;
+            font-size: 14px;
+        }
+        
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .footer-text {
+            color: #6b7280;
+            font-size: 14px;
+            margin: 0 0 10px 0;
+        }
+        
+        .footer-links {
+            margin: 20px 0;
+        }
+        
+        .footer-link {
+            color: #7c3aed;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 14px;
+        }
+        
+        .copyright {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        
+        .url-fallback {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #374151;
+            word-break: break-all;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .hero-section {
+                padding: 30px 20px;
+            }
+            
+            .hero-title {
+                font-size: 24px;
+            }
+            
+            .hero-subtitle {
+                font-size: 16px;
+            }
+            
+            .cta-button {
+                padding: 14px 30px;
+                font-size: 15px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .benefit-item {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="logo">🌾 FarmPro</h1>
+            <p class="logo-subtitle">Integrated Farm-to-Market Platform</p>
+        </div>
+        
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <div class="hero-icon">🎉</div>
+            <h1 class="hero-title">You're Invited!</h1>
+            <p class="hero-subtitle">Join {{companyName}} on FarmPro</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="greeting">Hello {{name}}!</h2>
+            
+            <p class="message">
+                <strong>{{inviterName}}</strong> has invited you to join <strong>{{companyName}}</strong> on FarmPro, the leading platform for agricultural management and marketplace operations.
+            </p>
+            
+            <!-- Invitation Details -->
+            <div class="invitation-details">
+                <p class="invitation-title">📋 Invitation Details</p>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Company:</span>
+                    <span class="detail-value">{{companyName}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Role:</span>
+                    <span class="detail-value">
+                        <span class="role-badge">{{roleName}}</span>
+                    </span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Invited by:</span>
+                    <span class="detail-value">{{inviterName}}</span>
+                </div>
+            </div>
+            
+            <!-- Personal Message -->
+            <div class="message-box {{message ? '' : 'hidden'}}">
+                <p class="message-label">Personal Message from {{inviterName}}:</p>
+                <p>{{message}}</p>
+            </div>
+            
+            <!-- CTA Box -->
+            <div class="cta-box">
+                <p class="cta-title">Ready to join the team?</p>
+                <a href="{{invitationUrl}}" class="cta-button">Accept Invitation</a>
+            </div>
+            
+            <div class="info-box">
+                <p>
+                    <strong>🔗 Can't click the button?</strong> Copy and paste this link into your browser:
+                </p>
+                <div class="url-fallback">{{invitationUrl}}</div>
+            </div>
+            
+            <!-- Benefits Section -->
+            <h3 style="color: #1f2937; font-size: 18px; margin: 30px 0 15px 0;">🌟 What you'll get with FarmPro:</h3>
+            
+            <div class="benefits-section">
+                <div class="benefit-item">
+                    <div class="benefit-icon">🚜</div>
+                    <p class="benefit-text">Access to comprehensive farm management tools and analytics</p>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">👥</div>
+                    <p class="benefit-text">Collaborate with your team on activities, inventory, and projects</p>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">🛒</div>
+                    <p class="benefit-text">Connect with buyers and suppliers in the marketplace</p>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">📊</div>
+                    <p class="benefit-text">Track performance and profitability with detailed reports</p>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">📱</div>
+                    <p class="benefit-text">Mobile access for field work and real-time updates</p>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-icon">🔒</div>
+                    <p class="benefit-text">Secure, role-based access tailored to your responsibilities</p>
+                </div>
+            </div>
+            
+            <div class="warning-box">
+                <p>
+                    <strong>⏰ Important:</strong> This invitation will expire in 7 days. If you don't have a FarmPro account yet, you'll be able to create one during the acceptance process.
+                </p>
+            </div>
+            
+            <p class="message">
+                We're excited to have you join the {{companyName}} team on FarmPro! If you have any questions about this invitation or need assistance getting started, please don't hesitate to reach out.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                <strong>Questions about this invitation?</strong><br>
+                Contact {{inviterName}} or our support team!
+            </p>
+            
+            <div class="footer-links">
+                <a href="https://farmpro.app/support" class="footer-link">Support Center</a>
+                <a href="https://farmpro.app/docs" class="footer-link">Documentation</a>
+                <a href="https://farmpro.app/contact" class="footer-link">Contact Us</a>
+            </div>
+            
+            <p class="copyright">
+                © {{year}} FarmPro. All rights reserved.<br>
+                {{organizationAddress}}
+            </p>
+            
+            <p class="footer-text" style="margin-top: 20px; font-size: 12px;">
+                You received this email because {{inviterName}} invited you to join {{companyName}} on FarmPro.<br>
+                If you weren't expecting this invitation, you can safely ignore this email.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
