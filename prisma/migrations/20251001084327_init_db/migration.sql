@@ -193,6 +193,7 @@ CREATE TABLE "public"."organizations" (
     "allowedModules" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "featureFlags" JSONB,
     "allowCustomRoles" BOOLEAN NOT NULL DEFAULT false,
+    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
     "suspendedAt" TIMESTAMP(3),
     "suspensionReason" TEXT,
     "verifiedAt" TIMESTAMP(3),
@@ -430,6 +431,7 @@ CREATE TABLE "public"."inventory" (
     "quality" TEXT,
     "location" TEXT,
     "status" "public"."InventoryStatus" NOT NULL DEFAULT 'AVAILABLE',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -452,7 +454,7 @@ CREATE TABLE "public"."orders" (
     "deliveryLocation" TEXT NOT NULL,
     "terms" JSONB,
     "totalAmount" DECIMAL(65,30),
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
     "buyerOrgId" TEXT NOT NULL,
     "supplierOrgId" TEXT,
     "createdById" TEXT NOT NULL,
@@ -532,7 +534,7 @@ CREATE TABLE "public"."transactions" (
     "farmId" TEXT,
     "type" "public"."TransactionType" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
     "status" "public"."TransactionStatus" NOT NULL,
     "description" TEXT NOT NULL,
     "reference" TEXT,
@@ -772,6 +774,7 @@ CREATE TABLE "public"."marketplace_listings" (
     "isPublic" BOOLEAN NOT NULL DEFAULT true,
     "images" TEXT[],
     "status" "public"."ListingStatus" NOT NULL DEFAULT 'ACTIVE',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
     "views" INTEGER NOT NULL DEFAULT 0,
     "inquiries" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1006,6 +1009,9 @@ CREATE INDEX "organizations_type_idx" ON "public"."organizations"("type");
 
 -- CreateIndex
 CREATE INDEX "organizations_isActive_suspendedAt_idx" ON "public"."organizations"("isActive", "suspendedAt");
+
+-- CreateIndex
+CREATE INDEX "organizations_currency_idx" ON "public"."organizations"("currency");
 
 -- CreateIndex
 CREATE INDEX "farms_organizationId_idx" ON "public"."farms"("organizationId");
