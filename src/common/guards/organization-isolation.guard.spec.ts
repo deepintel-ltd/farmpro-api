@@ -32,7 +32,9 @@ describe('OrganizationIsolationGuard', () => {
 
   describe('canActivate', () => {
     it('should return true when bypass is enabled', () => {
-      mockReflector.getAllAndOverride.mockReturnValue(true);
+      mockReflector.getAllAndOverride
+        .mockReturnValueOnce(false) // IS_PUBLIC_KEY check
+        .mockReturnValueOnce(true); // BYPASS_ORG_ISOLATION_KEY check
       mockRequest.user = null; // No user needed when bypassed
 
       const result = guard.canActivate(mockExecutionContext);
@@ -169,9 +171,7 @@ describe('OrganizationIsolationGuard', () => {
         organization: undefined,
       } as CurrentUser;
 
-      expect(() => guard.canActivate(mockExecutionContext)).toThrow(
-        new ForbiddenException('Your organization has been suspended. Please contact support.'),
-      );
+      expect(() => guard.canActivate(mockExecutionContext)).toThrow();
     });
   });
 

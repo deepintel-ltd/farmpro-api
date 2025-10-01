@@ -269,7 +269,10 @@ export function createJsonApiErrorResponse(
  */
 export function getResourceType(resource: string | (() => any)): string {
   if (typeof resource === 'string') {
-    return resource.toLowerCase();
+    return resource
+      .replace(/([A-Z])/g, '-$1')
+      .toLowerCase()
+      .substring(1) + 's';
   }
 
   const className = resource.name;

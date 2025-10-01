@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { PermissionsGuard } from './permissions.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 
 describe('PermissionsGuard', () => {
   let guard: PermissionsGuard;
@@ -26,20 +27,25 @@ describe('PermissionsGuard', () => {
   const createMockUser = (overrides: Partial<CurrentUser> = {}): CurrentUser => ({
     userId: 'user-1',
     email: 'user@example.com',
+    name: 'Test User',
     organizationId: 'org-1',
     isPlatformAdmin: false,
     permissions: ['farm_management:read', 'farm_management:create'],
     roles: [
-      { name: 'Farm Manager', level: 50 },
-      { name: 'Field Worker', level: 20 },
+      { id: 'role-1', name: 'Farm Manager', level: 50, scope: 'FARM' as any, farmId: 'farm-1' },
+      { id: 'role-2', name: 'Field Worker', level: 20, scope: 'FARM' as any, farmId: 'farm-1' },
     ],
     organization: {
       id: 'org-1',
-      type: 'FARM',
+      name: 'Test Organization',
+      type: 'FARM_OPERATION' as any,
+      plan: 'basic',
+      isVerified: true,
       isSuspended: false,
       allowedModules: ['farm_management'],
       features: ['farm_management'],
     },
+    capabilities: ['basic'],
     ...overrides,
   } as CurrentUser);
 
@@ -58,6 +64,7 @@ describe('PermissionsGuard', () => {
 
     // Reset mocks
     jest.clearAllMocks();
+    mockReflector.getAllAndOverride.mockReset();
     mockRequest.user = null;
   });
 
@@ -108,8 +115,10 @@ describe('PermissionsGuard', () => {
       it('should throw ForbiddenException when user lacks required permission', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce({ resource: 'admin', action: 'delete' })
-          .mockReturnValue(undefined);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce({ resource: 'admin', action: 'delete' }) // REQUIRE_PERMISSION_KEY
+          .mockReturnValue(undefined) // REQUIRE_ROLE_KEY
+          .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException('You do not have permission to delete admin'),
@@ -121,8 +130,10 @@ describe('PermissionsGuard', () => {
           permissions: ['Farm_Management:Read'], // Different case
         });
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce({ resource: 'farm_management', action: 'read' })
-          .mockReturnValue(undefined);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce({ resource: 'farm_management', action: 'read' }) // REQUIRE_PERMISSION_KEY
+          .mockReturnValue(undefined) // REQUIRE_ROLE_KEY
+          .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException('You do not have permission to read farm_management'),
@@ -134,9 +145,10 @@ describe('PermissionsGuard', () => {
       it('should return true when user has required role', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce({ roleName: 'Farm Manager' })
-          .mockReturnValue(undefined);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce({ roleName: 'Farm Manager' }) // REQUIRE_ROLE_KEY
+          .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
         const result = guard.canActivate(mockContext);
 
@@ -164,9 +176,10 @@ describe('PermissionsGuard', () => {
           roles: [], // No roles
         });
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce({ roleName: 'Admin', allowPlatformAdmin: false })
-          .mockReturnValue(undefined);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce({ roleName: 'Admin', allowPlatformAdmin: false }) // REQUIRE_ROLE_KEY
+          .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException("You must have the 'Admin' role to access this resource"),
@@ -176,9 +189,10 @@ describe('PermissionsGuard', () => {
       it('should throw ForbiddenException when user lacks required role', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce({ roleName: 'Admin' })
-          .mockReturnValue(undefined);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce({ roleName: 'Admin' }) // REQUIRE_ROLE_KEY
+          .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException("You must have the 'Admin' role to access this resource"),

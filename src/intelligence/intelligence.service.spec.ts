@@ -327,7 +327,7 @@ describe('IntelligenceService', () => {
         id: 'response-123',
         content: 'Test response',
         model: 'gpt-3.5-turbo',
-        usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+        usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
         createdAt: new Date(),
         userId: 'user-123',
         farmId: 'farm-123',
@@ -337,7 +337,15 @@ describe('IntelligenceService', () => {
 
       const result = await service.getIntelligenceResponse('response-123');
 
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual({
+        id: 'response-123',
+        content: 'Test response',
+        model: 'gpt-3.5-turbo',
+        usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+        createdAt: mockResponse.createdAt,
+        userId: 'user-123',
+        farmId: 'farm-123',
+      });
     });
 
     it('should throw NotFoundException when response does not exist', async () => {
@@ -354,7 +362,7 @@ describe('IntelligenceService', () => {
           id: 'response-1',
           content: 'Response 1',
           model: 'gpt-3.5-turbo',
-          usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
           createdAt: new Date(),
           userId: 'user-123',
         },
@@ -362,7 +370,7 @@ describe('IntelligenceService', () => {
           id: 'response-2',
           content: 'Response 2',
           model: 'gpt-4',
-          usage: { promptTokens: 15, completionTokens: 25, totalTokens: 40 },
+          usage: { prompt_tokens: 15, completion_tokens: 25, total_tokens: 40 },
           createdAt: new Date(),
           userId: 'user-123',
         },
@@ -380,7 +388,24 @@ describe('IntelligenceService', () => {
       const result = await service.listIntelligenceHistory(query);
 
       expect(result).toMatchObject({
-        data: mockResponses,
+        data: [
+          {
+            id: 'response-1',
+            content: 'Response 1',
+            model: 'gpt-3.5-turbo',
+            usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
+            createdAt: mockResponses[0].createdAt,
+            userId: 'user-123',
+          },
+          {
+            id: 'response-2',
+            content: 'Response 2',
+            model: 'gpt-4',
+            usage: { promptTokens: 15, completionTokens: 25, totalTokens: 40 },
+            createdAt: mockResponses[1].createdAt,
+            userId: 'user-123',
+          },
+        ],
         pagination: {
           page: 1,
           limit: 20,

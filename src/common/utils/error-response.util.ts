@@ -36,14 +36,15 @@ export class ErrorResponseUtil {
    * Check if error is a validation/bad request error
    */
   static isBadRequest(error: unknown): boolean {
-    return error instanceof Error && 
-           (error.message.includes('validation') || 
-            error.message.includes('required') ||
-            error.message.includes('cannot be empty') ||
-            error.message.includes('is required') ||
-            error.message.includes('cannot be deleted') ||
-            (error.message.includes('invalid') && !error.message.includes('token')) ||
-            (error.message.includes('Invalid') && !error.message.includes('token')));
+    if (!(error instanceof Error)) return false;
+    
+    const message = error.message.toLowerCase();
+    return message.includes('validation') || 
+           message.includes('required') ||
+           message.includes('cannot be empty') ||
+           message.includes('is required') ||
+           message.includes('cannot be deleted') ||
+           (message.includes('invalid') && !message.includes('token'));
   }
 
   /**

@@ -84,14 +84,30 @@ describe('Core Resource Schemas', () => {
   describe('OrderSchema', () => {
     it('should validate a valid order object', () => {
       const validOrder = {
-        orderType: 'buy' as const,
+        type: 'BUY' as const,
+        title: 'Wheat Purchase Order',
         commodityId: '123e4567-e89b-12d3-a456-426614174000',
         quantity: 500,
         pricePerUnit: 5.50,
         totalPrice: 2750,
         deliveryDate: '2023-12-01T00:00:00.000Z',
         deliveryLocation: 'Warehouse District, City',
-        status: 'pending' as const,
+        status: 'PENDING' as const,
+        deliveryAddress: {
+          street: '123 Main St',
+          city: 'City',
+          state: 'State',
+          zip: '12345',
+          country: 'Country'
+        },
+        items: [
+          {
+            commodityId: 'clx1234567890123456789012',
+            quantity: 500,
+            pricePerUnit: 5.50,
+            unit: 'bushels'
+          }
+        ],
         terms: {
           paymentMethod: 'escrow' as const,
           deliveryTerms: 'FOB destination',
@@ -105,14 +121,30 @@ describe('Core Resource Schemas', () => {
 
     it('should reject order with invalid UUID', () => {
       const invalidOrder = {
-        orderType: 'buy',
+        type: 'BUY',
+        title: 'Test Order',
         commodityId: 'invalid-uuid',
         quantity: 500,
         pricePerUnit: 5.50,
         totalPrice: 2750,
         deliveryDate: '2023-12-01T00:00:00.000Z',
         deliveryLocation: 'Warehouse District',
-        status: 'pending',
+        status: 'PENDING',
+        deliveryAddress: {
+          street: '123 Main St',
+          city: 'City',
+          state: 'State',
+          zip: '12345',
+          country: 'Country'
+        },
+        items: [
+          {
+            commodityId: 'invalid-uuid',
+            quantity: 500,
+            pricePerUnit: 5.50,
+            unit: 'bushels'
+          }
+        ],
         terms: {
           paymentMethod: 'escrow',
           deliveryTerms: 'FOB destination'

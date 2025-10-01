@@ -49,7 +49,7 @@ describe('IntelligenceController', () => {
   describe('generateResponse', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockBody = {
@@ -89,7 +89,7 @@ describe('IntelligenceController', () => {
   describe('analyzeFarm', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockBody = {
@@ -156,7 +156,7 @@ describe('IntelligenceController', () => {
   describe('listFarmAnalyses', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockQuery = {
@@ -194,7 +194,7 @@ describe('IntelligenceController', () => {
   describe('analyzeMarket', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockBody = {
@@ -264,7 +264,7 @@ describe('IntelligenceController', () => {
   describe('listMarketAnalyses', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockQuery = {
@@ -302,7 +302,7 @@ describe('IntelligenceController', () => {
   describe('optimizeActivity', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockBody = {
@@ -382,7 +382,7 @@ describe('IntelligenceController', () => {
   describe('listActivityOptimizations', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockQuery = {
@@ -420,7 +420,7 @@ describe('IntelligenceController', () => {
   describe('getIntelligenceHistory', () => {
     it('should call intelligence service with user ID from request', async () => {
       const mockRequest = {
-        user: { id: 'user-123' },
+        user: { userId: 'user-123' },
       };
 
       const mockQuery = {

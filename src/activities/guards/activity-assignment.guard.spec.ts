@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ActivityAssignmentGuard } from './activity-assignment.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
@@ -103,7 +103,7 @@ describe('ActivityAssignmentGuard', () => {
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(null);
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
-        new ForbiddenException('Activity not found'),
+        new NotFoundException('Activity not found'),
       );
     });
 
