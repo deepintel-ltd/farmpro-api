@@ -48,7 +48,7 @@ describe('Authorization Performance Tests', () => {
     // Login to get access token
     const loginResponse = await testContext
       .request()
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({
         email: 'perfuser@test.com',
         password: 'TestPassword123!'
@@ -59,7 +59,7 @@ describe('Authorization Performance Tests', () => {
     
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
-  });
+  }, 15000);
 
   describe('Guard Execution Performance', () => {
     it('should execute OrganizationIsolationGuard within acceptable time', async () => {
@@ -69,7 +69,7 @@ describe('Authorization Performance Tests', () => {
       for (let i = 0; i < iterations; i++) {
         await testContext
           .request()
-          .get('/farms')
+          .get('/api/farms')
           .set('Authorization', `Bearer ${testToken}`)
           .expect(200);
       }
@@ -112,7 +112,7 @@ describe('Authorization Performance Tests', () => {
       for (let i = 0; i < iterations; i++) {
         await testContext
           .request()
-          .get('/farms')
+          .get('/api/farms')
           .set('Authorization', `Bearer ${testToken}`)
           .expect(200);
       }
@@ -211,7 +211,7 @@ describe('Authorization Performance Tests', () => {
       const promises = Array.from({ length: concurrentRequests }, () =>
         testContext
           .request()
-          .get('/farms')
+          .get('/api/farms')
           .set('Authorization', `Bearer ${testToken}`)
           .expect(200)
       );
@@ -235,7 +235,7 @@ describe('Authorization Performance Tests', () => {
       
       const response = await testContext
         .request()
-        .get('/farms')
+        .get('/api/farms')
         .set('Authorization', `Bearer ${testToken}`)
         .expect(200);
 
@@ -256,7 +256,7 @@ describe('Authorization Performance Tests', () => {
       for (let i = 0; i < iterations; i++) {
         await testContext
           .request()
-          .get('/farms')
+          .get('/api/farms')
           .set('Authorization', `Bearer ${testToken}`)
           .expect(200);
       }
@@ -280,7 +280,7 @@ describe('Authorization Performance Tests', () => {
       for (let i = 0; i < iterations; i++) {
         await testContext
           .request()
-          .get('/farms')
+          .get('/api/farms')
           .set('Authorization', `Bearer ${testToken}`)
           .expect(200);
       }
@@ -308,7 +308,7 @@ describe('Authorization Performance Tests', () => {
       for (let i = 0; i < iterations; i++) {
         await testContext
           .request()
-          .get('/market/listings') // This should fail for FARM organization
+          .get('/api/market/listings') // This should fail for FARM organization
           .set('Authorization', `Bearer ${testToken}`)
           .expect(403);
       }
@@ -330,7 +330,7 @@ describe('Authorization Performance Tests', () => {
       for (let i = 0; i < iterations; i++) {
         await testContext
           .request()
-          .get('/farms')
+          .get('/api/farms')
           .set('Authorization', 'Bearer invalid-token')
           .expect(401);
       }

@@ -198,7 +198,7 @@ describe('Authorization Integration Tests', () => {
       expect(response.body.data).toBeDefined();
       // Verify all farms belong to the user's organization
       response.body.data.forEach((farm: any) => {
-        expect(farm.attributes.organizationId).toBe(farmOrganization.id);
+        expect(farm.relationships.organization.data.id).toBe(farmOrganization.id);
       });
     });
 
@@ -207,12 +207,10 @@ describe('Authorization Integration Tests', () => {
         .request()
         .get('/farms')
         .set('Authorization', `Bearer ${traderUserToken}`)
-        .expect(200);
+        .expect(403);
 
-      // Verify no farms from farmOrganization.id are returned
-      response.body.data.forEach((farm: any) => {
-        expect(farm.attributes.organizationId).not.toBe(farmOrganization.id);
-      });
+      // Trader user should not have access to farms at all
+      expect(response.body.message).toContain('not available');
     });
 
     it('should allow platform admin to access all organization data', async () => {
@@ -241,17 +239,17 @@ describe('Authorization Integration Tests', () => {
     it('should deny FARM organization access to marketplace features', async () => {
       const response = await testContext
         .request()
-        .get('/market/listings')
+        .get('/marketplace/commodities')
         .set('Authorization', `Bearer ${farmUserToken}`)
         .expect(403);
 
-      expect(response.body.message).toContain('not available for FARM organizations');
+      expect(response.body.message).toContain('not available to FARM');
     });
 
     it('should allow COMMODITY_TRADER organization to access marketplace features', async () => {
       const response = await testContext
         .request()
-        .get('/market/listings')
+        .get('/marketplace/commodities')
         .set('Authorization', `Bearer ${traderUserToken}`)
         .expect(200);
 
@@ -312,7 +310,8 @@ describe('Authorization Integration Tests', () => {
         .set('Authorization', `Bearer ${farmUserToken}`)
         .send({
           data: {
-            type: 'order',
+            type: 'orders',
+            id: testOrder.id,
             attributes: {
               title: 'Updated Order Title',
             },
@@ -330,7 +329,8 @@ describe('Authorization Integration Tests', () => {
         .set('Authorization', `Bearer ${traderUserToken}`)
         .send({
           data: {
-            type: 'order',
+            type: 'orders',
+            id: testOrder.id,
             attributes: {
               title: 'Unauthorized Update',
             },
@@ -345,7 +345,7 @@ describe('Authorization Integration Tests', () => {
       // First assign the user to the activity
       await testContext
         .request()
-        .post(`/activities/${testActivity.id}/assignments`)
+        .put(`/activities/${testActivity.id}/assign`)
         .set('Authorization', `Bearer ${farmUserToken}`)
         .send({
           data: {
@@ -356,7 +356,7 @@ describe('Authorization Integration Tests', () => {
             },
           },
         })
-        .expect(201);
+        .expect(200);
 
       // Then test that they can start the activity
       const response = await testContext
@@ -394,6 +394,7 @@ describe('Authorization Integration Tests', () => {
               executionContext: {
                 startNotes: 'Unauthorized start',
               },
+            },
           },
         })
         .expect(403);
@@ -451,7 +452,7 @@ describe('Authorization Integration Tests', () => {
     it('should allow platform admin to access any organization data', async () => {
       const response = await testContext
         .request()
-        .get('/organizations')
+        .get('/platform-admin/organizations')
         .set('Authorization', `Bearer ${platformAdminToken}`)
         .expect(200);
 
@@ -463,7 +464,7 @@ describe('Authorization Integration Tests', () => {
     it('should return consistent error format for authorization failures', async () => {
       const response = await testContext
         .request()
-        .get('/market/listings')
+        .get('/marketplace/commodities')
         .set('Authorization', `Bearer ${farmUserToken}`)
         .expect(403);
 

@@ -1,9 +1,9 @@
-module.exports = {
+export default {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.(t|j)s$': ['ts-jest', { useESM: true }],
   },
   collectCoverageFrom: [
     'src/**/*.(t|j)s',
@@ -14,4 +14,5 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@contracts/(.*)$': '<rootDir>/contracts/$1',
   },
+  extensionsToTreatAsEsm: ['.ts'],
 };

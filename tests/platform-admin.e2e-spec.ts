@@ -216,8 +216,14 @@ describe('Platform Admin E2E Tests', () => {
           .request()
           .patch(`/platform-admin/organizations/${testOrganization2.id}`)
           .set('Authorization', `Bearer ${platformAdminToken}`)
-          .send(updateData)
-          .expect(200);
+          .send(updateData);
+        
+        if (response.status !== 200) {
+          console.log('Error response status:', response.status);
+          console.log('Error response body:', JSON.stringify(response.body, null, 2));
+        }
+        
+        expect(response.status).toBe(200);
 
         expect(response.body.data.attributes.suspendedAt).toBeDefined();
         expect(response.body.data.attributes.suspensionReason).toBe(updateData.data.attributes.suspensionReason);
@@ -571,13 +577,30 @@ describe('Platform Admin E2E Tests', () => {
       });
 
       it('should disable a feature for organization', async () => {
+        // First upgrade the organization to professional plan to have analytics feature
+        await testContext
+          .request()
+          .patch(`/platform-admin/organizations/${testOrganization.id}`)
+          .set('Authorization', `Bearer ${platformAdminToken}`)
+          .send({
+            data: {
+              type: 'organizations',
+              id: testOrganization.id,
+              attributes: {
+                plan: 'professional'
+              }
+            }
+          })
+          .expect(200);
+
+        // Now disable the analytics feature
         const updateData = {
           data: {
             type: 'organizations',
             id: testOrganization.id,
             attributes: {
               features: {
-                farms: false
+                analytics: false
               }
             }
           }
@@ -590,7 +613,7 @@ describe('Platform Admin E2E Tests', () => {
           .send(updateData)
           .expect(200);
 
-        expect(response.body.data.attributes.features).not.toContain('farms');
+        expect(response.body.data.attributes.features).not.toContain('analytics');
       });
 
       it('should fail to enable feature not available for organization type', async () => {

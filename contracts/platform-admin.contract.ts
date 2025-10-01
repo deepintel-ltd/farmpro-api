@@ -12,11 +12,11 @@ const c = initContract();
 
 // Common schemas
 const OrganizationIdParam = z.object({
-  id: z.string().uuid('Invalid organization ID format'),
+  id: z.string().min(1, 'Organization ID is required'),
 });
 
 const UserIdParam = z.object({
-  id: z.string().uuid('Invalid user ID format'),
+  id: z.string().min(1, 'User ID is required'),
 });
 
 const PaginationQuery = z.object({

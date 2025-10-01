@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   displayName: 'E2E Tests',
   testEnvironment: 'node',
   testMatch: ['**/*.e2e-spec.ts'],
