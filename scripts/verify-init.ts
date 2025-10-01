@@ -93,7 +93,7 @@ async function verifyInitialization() {
 }
 
 // Run verification if this script is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   verifyInitialization();
 }
 
