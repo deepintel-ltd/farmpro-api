@@ -28,17 +28,28 @@ describe('ActivityAssignmentGuard', () => {
   const createMockUser = (overrides: Partial<CurrentUser> = {}): CurrentUser => ({
     userId: 'user-1',
     email: 'user@example.com',
+    name: 'Test User',
     organizationId: 'org-1',
     isPlatformAdmin: false,
     permissions: [],
-    roles: [{ name: 'Field Worker', level: 20 }],
+    roles: [{ 
+      id: 'role-1',
+      name: 'Field Worker', 
+      level: 20,
+      scope: 'FARM' as any,
+      farmId: 'farm-1'
+    }],
     organization: {
       id: 'org-1',
-      type: 'FARM',
-      isSuspended: false,
-      allowedModules: ['farm_management'],
+      name: 'Test Farm',
+      type: 'FARM' as any,
+      plan: 'basic',
       features: ['farm_management'],
+      allowedModules: ['farm_management'],
+      isVerified: true,
+      isSuspended: false,
     },
+    capabilities: [],
     ...overrides,
   } as CurrentUser);
 
@@ -157,7 +168,7 @@ describe('ActivityAssignmentGuard', () => {
       });
       mockRequest.user = createMockUser({
         userId: 'user-1',
-        roles: [{ name: 'Manager', level: 50 }],
+        roles: [{ id: 'role-2', name: 'Manager', level: 50, scope: 'FARM' as any, farmId: 'farm-1' }],
       });
       mockRequest.params.id = 'activity-1';
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(activity);
@@ -175,7 +186,7 @@ describe('ActivityAssignmentGuard', () => {
       });
       mockRequest.user = createMockUser({
         userId: 'user-1',
-        roles: [{ name: 'Field Worker', level: 20 }], // Low level role
+        roles: [{ id: 'role-1', name: 'Field Worker', level: 20, scope: 'FARM' as any, farmId: 'farm-1' }], // Low level role
       });
       mockRequest.params.id = 'activity-1';
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(activity);
@@ -247,7 +258,7 @@ describe('ActivityAssignmentGuard', () => {
       });
       mockRequest.user = createMockUser({
         userId: 'user-1',
-        roles: [{ name: 'Manager', level: 50 }], // Manager role allows access
+        roles: [{ id: 'role-2', name: 'Manager', level: 50, scope: 'FARM' as any, farmId: 'farm-1' }], // Manager role allows access
       });
       mockRequest.params.id = 'activity-1';
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(activity);
@@ -266,7 +277,7 @@ describe('ActivityAssignmentGuard', () => {
       });
       mockRequest.user = createMockUser({
         userId: 'user-1',
-        roles: [{ name: 'Manager', level: 50 }], // Exactly 50
+        roles: [{ id: 'role-2', name: 'Manager', level: 50, scope: 'FARM' as any, farmId: 'farm-1' }], // Exactly 50
       });
       mockRequest.params.id = 'activity-1';
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(activity);
@@ -283,7 +294,7 @@ describe('ActivityAssignmentGuard', () => {
       });
       mockRequest.user = createMockUser({
         userId: 'user-1',
-        roles: [{ name: 'Admin', level: 80 }], // Above 50
+        roles: [{ id: 'role-3', name: 'Admin', level: 80, scope: 'FARM' as any, farmId: 'farm-1' }], // Above 50
       });
       mockRequest.params.id = 'activity-1';
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(activity);
@@ -300,7 +311,7 @@ describe('ActivityAssignmentGuard', () => {
       });
       mockRequest.user = createMockUser({
         userId: 'user-1',
-        roles: [{ name: 'Field Worker', level: 20 }], // Below 50
+        roles: [{ id: 'role-1', name: 'Field Worker', level: 20, scope: 'FARM' as any, farmId: 'farm-1' }], // Below 50
       });
       mockRequest.params.id = 'activity-1';
       mockPrismaService.farmActivity.findUnique.mockResolvedValue(activity);
@@ -318,9 +329,9 @@ describe('ActivityAssignmentGuard', () => {
       mockRequest.user = createMockUser({
         userId: 'user-1',
         roles: [
-          { name: 'Field Worker', level: 20 },
-          { name: 'Manager', level: 50 },
-          { name: 'Supervisor', level: 30 },
+          { id: 'role-1', name: 'Field Worker', level: 20, scope: 'FARM' as any, farmId: 'farm-1' },
+          { id: 'role-2', name: 'Manager', level: 50, scope: 'FARM' as any, farmId: 'farm-1' },
+          { id: 'role-4', name: 'Supervisor', level: 30, scope: 'FARM' as any, farmId: 'farm-1' },
         ],
       });
       mockRequest.params.id = 'activity-1';

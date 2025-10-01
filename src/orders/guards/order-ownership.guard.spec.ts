@@ -63,7 +63,6 @@ describe('OrderOwnershipGuard', () => {
     }).compile();
 
     guard = module.get<OrderOwnershipGuard>(OrderOwnershipGuard);
-    prismaService = module.get<PrismaService>(PrismaService);
 
     // Reset mocks
     jest.clearAllMocks();
@@ -183,7 +182,7 @@ describe('OrderOwnershipGuard', () => {
 
     it('should handle undefined order ID in params', async () => {
       mockRequest.user = createMockUser();
-      mockRequest.params = {}; // No id property
+      mockRequest.params = { id: undefined as any }; // No id property
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new ForbiddenException('Order ID is required'),

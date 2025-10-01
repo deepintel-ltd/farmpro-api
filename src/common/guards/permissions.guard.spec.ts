@@ -55,7 +55,6 @@ describe('PermissionsGuard', () => {
     }).compile();
 
     guard = module.get<PermissionsGuard>(PermissionsGuard);
-    reflector = module.get<Reflector>(Reflector);
 
     // Reset mocks
     jest.clearAllMocks();

@@ -77,7 +77,7 @@ describe('ZodValidationPipe', () => {
       const nestedSchema = z.object({
         user: z.object({
           profile: z.object({
-            email: z.email(),
+            email: z.string().email(),
           }),
         }),
       });

@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailVerificationService } from './email-verification.service';
+import { BrevoService } from '../external-service/brevo/brevo.service';
 import { OrganizationType } from '@prisma/client';
 
 // Mock argon2
@@ -48,6 +50,15 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
 
+  const mockEmailVerificationService = {
+    sendEmailVerification: jest.fn(),
+    sendWelcomeEmail: jest.fn(),
+  };
+
+  const mockBrevoService = {
+    sendNewUserNotification: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,6 +74,14 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: EmailVerificationService,
+          useValue: mockEmailVerificationService,
+        },
+        {
+          provide: BrevoService,
+          useValue: mockBrevoService,
         },
       ],
     }).compile();
