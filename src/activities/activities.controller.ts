@@ -267,6 +267,153 @@ export class ActivitiesController {
     });
   }
 
+  @TsRestHandler(activitiesSchedulingContract.bulkCreate)
+  @RequirePermission(...PERMISSIONS.ACTIVITIES.CREATE)
+  @RequireRoleLevel(50)
+  public bulkCreate(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesSchedulingContract.bulkCreate, async ({ body }) => {
+      const result = await this.activitiesService.bulkCreateActivities(
+        body.activities as Array<{
+          name: string;
+          description?: string;
+          type: string;
+          priority: string;
+          scheduledAt: string;
+          estimatedDuration?: number;
+          farmId: string;
+          areaId?: string;
+          assignedTo?: string;
+          metadata?: any;
+        }>,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { 
+        status: 201 as const, 
+        body: { 
+          data: {
+            id: 'bulk-create',
+            type: 'bulk-create',
+            attributes: result
+          }
+        } 
+      };
+    });
+  }
+
+  @TsRestHandler(activitiesSchedulingContract.bulkUpdate)
+  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
+  @RequireRoleLevel(50)
+  public bulkUpdate(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesSchedulingContract.bulkUpdate, async ({ body }) => {
+      const result = await this.activitiesService.bulkUpdateActivities(
+        body.activities as Array<{
+          id: string;
+          updates: {
+            name?: string;
+            description?: string;
+            priority?: string;
+            scheduledAt?: string;
+            estimatedDuration?: number;
+            status?: string;
+            metadata?: any;
+          };
+        }>,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: {
+            id: 'bulk-update',
+            type: 'bulk-update',
+            attributes: result
+          }
+        } 
+      };
+    });
+  }
+
+  @TsRestHandler(activitiesSchedulingContract.bulkDelete)
+  @RequirePermission(...PERMISSIONS.ACTIVITIES.DELETE)
+  @RequireRoleLevel(50)
+  public bulkDelete(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesSchedulingContract.bulkDelete, async ({ body }) => {
+      const result = await this.activitiesService.bulkDeleteActivities(
+        body.activityIds as string[],
+        body.reason || 'Bulk deletion',
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: {
+            id: 'bulk-delete',
+            type: 'bulk-delete',
+            attributes: result
+          }
+        } 
+      };
+    });
+  }
+
+  @TsRestHandler(activitiesSchedulingContract.bulkAssign)
+  @RequirePermission(...PERMISSIONS.ACTIVITIES.ASSIGN)
+  @RequireRoleLevel(40)
+  public bulkAssign(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesSchedulingContract.bulkAssign, async ({ body }) => {
+      const result = await this.activitiesService.bulkAssignActivities(
+        body.assignments as Array<{
+          activityId: string;
+          userId: string;
+          role?: 'PRIMARY' | 'SUPPORT';
+        }>,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: {
+            id: 'bulk-assign',
+            type: 'bulk-assign',
+            attributes: result
+          }
+        } 
+      };
+    });
+  }
+
+  @TsRestHandler(activitiesSchedulingContract.bulkStatusUpdate)
+  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
+  @RequireRoleLevel(50)
+  public bulkStatusUpdate(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(activitiesSchedulingContract.bulkStatusUpdate, async ({ body }) => {
+      const result = await this.activitiesService.bulkUpdateActivityStatus(
+        body.updates as Array<{
+          activityId: string;
+          status: string;
+          reason?: string;
+          notes?: string;
+        }>,
+        req.user.organizationId,
+        req.user.userId
+      );
+      return { 
+        status: 200 as const, 
+        body: { 
+          data: {
+            id: 'bulk-status-update',
+            type: 'bulk-status-update',
+            attributes: result
+          }
+        } 
+      };
+    });
+  }
+
   @TsRestHandler(activitiesCrudContract.getActivity)
   @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
   public getActivity(@Request() req: AuthenticatedRequest) {
@@ -573,151 +720,4 @@ export class ActivitiesController {
     });
   }
 
-  // Bulk Operations
-  @TsRestHandler(activitiesSchedulingContract.bulkCreate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.CREATE)
-  @RequireRoleLevel(50)
-  public bulkCreate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesSchedulingContract.bulkCreate, async ({ body }) => {
-      const result = await this.activitiesService.bulkCreateActivities(
-        body.activities as Array<{
-          name: string;
-          description?: string;
-          type: string;
-          priority: string;
-          scheduledAt: string;
-          estimatedDuration?: number;
-          farmId: string;
-          areaId?: string;
-          assignedTo?: string;
-          metadata?: any;
-        }>,
-        req.user.organizationId,
-        req.user.userId
-      );
-      return { 
-        status: 201 as const, 
-        body: { 
-          data: {
-            id: 'bulk-create',
-            type: 'bulk-create',
-            attributes: result
-          }
-        } 
-      };
-    });
-  }
-
-  @TsRestHandler(activitiesSchedulingContract.bulkUpdate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @RequireRoleLevel(50)
-  public bulkUpdate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesSchedulingContract.bulkUpdate, async ({ body }) => {
-      const result = await this.activitiesService.bulkUpdateActivities(
-        body.activities as Array<{
-          id: string;
-          updates: {
-            name?: string;
-            description?: string;
-            priority?: string;
-            scheduledAt?: string;
-            estimatedDuration?: number;
-            status?: string;
-            metadata?: any;
-          };
-        }>,
-        req.user.organizationId,
-        req.user.userId
-      );
-      return { 
-        status: 200 as const, 
-        body: { 
-          data: {
-            id: 'bulk-update',
-            type: 'bulk-update',
-            attributes: result
-          }
-        } 
-      };
-    });
-  }
-
-  @TsRestHandler(activitiesSchedulingContract.bulkDelete)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.DELETE)
-  @RequireRoleLevel(50)
-  public bulkDelete(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesSchedulingContract.bulkDelete, async ({ body }) => {
-      const result = await this.activitiesService.bulkDeleteActivities(
-        body.activityIds as string[],
-        body.reason || 'Bulk deletion',
-        req.user.organizationId,
-        req.user.userId
-      );
-      return { 
-        status: 200 as const, 
-        body: { 
-          data: {
-            id: 'bulk-delete',
-            type: 'bulk-delete',
-            attributes: result
-          }
-        } 
-      };
-    });
-  }
-
-  @TsRestHandler(activitiesSchedulingContract.bulkAssign)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.ASSIGN)
-  @RequireRoleLevel(40)
-  public bulkAssign(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesSchedulingContract.bulkAssign, async ({ body }) => {
-      const result = await this.activitiesService.bulkAssignActivities(
-        body.assignments as Array<{
-          activityId: string;
-          userId: string;
-          role?: 'PRIMARY' | 'SUPPORT';
-        }>,
-        req.user.organizationId,
-        req.user.userId
-      );
-      return { 
-        status: 200 as const, 
-        body: { 
-          data: {
-            id: 'bulk-assign',
-            type: 'bulk-assign',
-            attributes: result
-          }
-        } 
-      };
-    });
-  }
-
-  @TsRestHandler(activitiesSchedulingContract.bulkStatusUpdate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @RequireRoleLevel(50)
-  public bulkStatusUpdate(@Request() req: AuthenticatedRequest) {
-    return tsRestHandler(activitiesSchedulingContract.bulkStatusUpdate, async ({ body }) => {
-      const result = await this.activitiesService.bulkUpdateActivityStatus(
-        body.updates as Array<{
-          activityId: string;
-          status: string;
-          reason?: string;
-          notes?: string;
-        }>,
-        req.user.organizationId,
-        req.user.userId
-      );
-      return { 
-        status: 200 as const, 
-        body: { 
-          data: {
-            id: 'bulk-status-update',
-            type: 'bulk-status-update',
-            attributes: result
-          }
-        } 
-      };
-    });
-  }
 }
