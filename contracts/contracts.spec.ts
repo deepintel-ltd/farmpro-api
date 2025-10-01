@@ -123,7 +123,7 @@ describe('API Contracts', () => {
 
     it('should validate path parameters', () => {
       const validPathParams = {
-        id: '123e4567-e89b-12d3-a456-426614174000'
+        id: 'clx1234567890123456789012'
       };
 
       const pathSchema = apiContract.farms.getFarm.pathParams;
@@ -131,9 +131,9 @@ describe('API Contracts', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should reject invalid UUID in path parameters', () => {
+    it('should reject invalid CUID in path parameters', () => {
       const invalidPathParams = {
-        id: 'not-a-uuid'
+        id: 'not-a-cuid'
       };
 
       const pathSchema = apiContract.farms.getFarm.pathParams;

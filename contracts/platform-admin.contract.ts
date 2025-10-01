@@ -130,3 +130,5 @@ export const platformAdminContract = c.router({
     description: 'Retrieve detailed information about a specific user, including their roles and permissions across all organizations.',
   },
 });
+
+export type PlatformAdminContract = typeof platformAdminContract;

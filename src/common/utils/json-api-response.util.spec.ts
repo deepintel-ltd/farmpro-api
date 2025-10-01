@@ -204,7 +204,7 @@ describe('JsonApiResponseUtil', () => {
 
   describe('getResourceType', () => {
     it('should convert string to lowercase', () => {
-      expect(getResourceType('Farm')).toBe('farm');
+      expect(getResourceType('Farm')).toBe('farms');
     });
 
     it('should convert class name to pluralized kebab-case', () => {

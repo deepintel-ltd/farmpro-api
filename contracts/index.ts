@@ -26,6 +26,8 @@ export type {
   AnalyticsEndpoints,
   MarketEndpoints,
   IntelligenceEndpoints,
+  BillingEndpoints,
+  PlatformAdminEndpoints,
   MobileEndpoints
 } from './contracts';
 
@@ -62,6 +64,12 @@ export type { MarketContract } from './market.contract';
 
 export { intelligenceContract } from './intelligence.contract';
 export type { IntelligenceContract } from './intelligence.contract';
+
+export { billingContract } from './billing.contract';
+export type { BillingContract } from './billing.contract';
+
+export { platformAdminContract } from './platform-admin.contract';
+export type { PlatformAdminContract } from './platform-admin.contract';
 
 export { mobileFieldContract } from './mobile-field.contract';
 

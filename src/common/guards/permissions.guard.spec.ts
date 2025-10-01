@@ -202,9 +202,10 @@ describe('PermissionsGuard', () => {
       it('should handle case-insensitive role matching', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce({ roleName: 'farm manager' }) // lowercase
-          .mockReturnValue(undefined);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce({ roleName: 'farm manager' }) // REQUIRE_ROLE_KEY - lowercase
+          .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
         const result = guard.canActivate(mockContext);
 
@@ -216,9 +217,10 @@ describe('PermissionsGuard', () => {
       it('should return true when user has sufficient role level', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce(undefined) // no role required
-          .mockReturnValueOnce(30); // required level
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_ROLE_KEY
+          .mockReturnValueOnce(30); // REQUIRE_ROLE_LEVEL_KEY
 
         const result = guard.canActivate(mockContext);
 
@@ -243,9 +245,10 @@ describe('PermissionsGuard', () => {
       it('should throw ForbiddenException when user role level is insufficient', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce(undefined) // no role required
-          .mockReturnValueOnce(80); // required level higher than user's max (50)
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_ROLE_KEY
+          .mockReturnValueOnce(80); // REQUIRE_ROLE_LEVEL_KEY - higher than user's max (50)
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException('Your role level is insufficient to access this resource'),
@@ -257,9 +260,10 @@ describe('PermissionsGuard', () => {
           roles: [],
         });
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce(undefined) // no permission required
-          .mockReturnValueOnce(undefined) // no role required
-          .mockReturnValueOnce(10); // required level
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_ROLE_KEY
+          .mockReturnValueOnce(10); // REQUIRE_ROLE_LEVEL_KEY
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException('Your role level is insufficient to access this resource'),
@@ -271,9 +275,10 @@ describe('PermissionsGuard', () => {
       it('should pass when all requirements are met', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce({ resource: 'farm_management', action: 'read' })
-          .mockReturnValueOnce({ roleName: 'Farm Manager' })
-          .mockReturnValueOnce(30);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce({ resource: 'farm_management', action: 'read' }) // REQUIRE_PERMISSION_KEY
+          .mockReturnValueOnce({ roleName: 'Farm Manager' }) // REQUIRE_ROLE_KEY
+          .mockReturnValueOnce(30); // REQUIRE_ROLE_LEVEL_KEY
 
         const result = guard.canActivate(mockContext);
 
@@ -283,9 +288,10 @@ describe('PermissionsGuard', () => {
       it('should fail when any requirement is not met', () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce({ resource: 'admin', action: 'delete' }) // user doesn't have this permission
-          .mockReturnValueOnce({ roleName: 'Farm Manager' })
-          .mockReturnValueOnce(30);
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce({ resource: 'admin', action: 'delete' }) // REQUIRE_PERMISSION_KEY - user doesn't have this permission
+          .mockReturnValueOnce({ roleName: 'Farm Manager' }) // REQUIRE_ROLE_KEY
+          .mockReturnValueOnce(30); // REQUIRE_ROLE_LEVEL_KEY
 
         expect(() => guard.canActivate(mockContext)).toThrow(
           new ForbiddenException('You do not have permission to delete admin'),
@@ -298,8 +304,10 @@ describe('PermissionsGuard', () => {
     it('should handle empty permissions array', () => {
       mockRequest.user = createMockUser({ permissions: [] });
       mockReflector.getAllAndOverride
-        .mockReturnValueOnce({ resource: 'farm_management', action: 'read' })
-        .mockReturnValue(undefined);
+        .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+        .mockReturnValueOnce({ resource: 'farm_management', action: 'read' }) // REQUIRE_PERMISSION_KEY
+        .mockReturnValue(undefined) // REQUIRE_ROLE_KEY
+        .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
       expect(() => guard.canActivate(mockContext)).toThrow(
         new ForbiddenException('You do not have permission to read farm_management'),
@@ -309,9 +317,10 @@ describe('PermissionsGuard', () => {
     it('should handle empty roles array', () => {
       mockRequest.user = createMockUser({ roles: [] });
       mockReflector.getAllAndOverride
-        .mockReturnValueOnce(undefined)
-        .mockReturnValueOnce({ roleName: 'Farm Manager' })
-        .mockReturnValue(undefined);
+        .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+        .mockReturnValueOnce(undefined) // REQUIRE_PERMISSION_KEY
+        .mockReturnValueOnce({ roleName: 'Farm Manager' }) // REQUIRE_ROLE_KEY
+        .mockReturnValue(undefined); // REQUIRE_ROLE_LEVEL_KEY
 
       expect(() => guard.canActivate(mockContext)).toThrow(
         new ForbiddenException("You must have the 'Farm Manager' role to access this resource"),
