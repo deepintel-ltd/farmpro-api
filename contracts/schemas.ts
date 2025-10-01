@@ -725,6 +725,7 @@ export const OrganizationSchema = z.object({
   maxUsers: z.number().positive().optional(),
   maxFarms: z.number().positive().optional(),
   features: z.array(z.string()).optional(),
+  currency: z.enum(['USD', 'NGN']).default('NGN'),
   logo: z.string().url().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()
@@ -744,7 +745,7 @@ export const OrganizationSettingsSchema = z.object({
     requireNumbers: z.boolean()
   }).optional(),
   defaultTimezone: z.string().default('UTC'),
-  defaultCurrency: z.string().length(3).default('USD'),
+  defaultCurrency: z.enum(['USD', 'NGN']).default('NGN'),
   features: z.array(z.string()).optional(),
   integrations: z.record(z.string(), z.any()).optional(),
   notifications: z.object({

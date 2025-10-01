@@ -4,8 +4,11 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   OrderType, 
   OrderStatus,
-  Prisma 
+  Prisma,
+  Currency
 } from '@prisma/client';
+import { CurrencyAwareService } from '../common/services/currency-aware.service';
+import { CurrencyService } from '../common/services/currency.service';
 import { z } from 'zod';
 import {
   CreateOrderRequestSchema,
@@ -55,10 +58,12 @@ type OrderStatusUpdateRequest = z.infer<typeof OrderStatusUpdateRequestSchema>;
 type ContractSignatureRequest = z.infer<typeof ContractSignatureRequestSchema>;
 
 @Injectable()
-export class OrdersService {
+export class OrdersService extends CurrencyAwareService {
   private readonly logger = new Logger(OrdersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(prisma: PrismaService, currencyService: CurrencyService) {
+    super(prisma, currencyService);
+  }
 
   // =============================================================================
   // Order CRUD Operations
@@ -183,6 +188,7 @@ export class OrdersService {
     const primaryItem = items[0];
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
     const averagePricePerUnit = totalPrice / totalQuantity;
+    const organizationCurrency = await this.getOrganizationCurrency(user.organizationId);
 
     const order = await this.prisma.order.create({
       data: {
@@ -197,6 +203,7 @@ export class OrdersService {
         deliveryLocation: deliveryAddress.street,
         deliveryAddress: deliveryAddress as any,
         totalPrice,
+        currency: organizationCurrency,
         buyerOrgId: user.organizationId,
         createdById: user.userId,
         terms: { paymentTerms, specialInstructions },

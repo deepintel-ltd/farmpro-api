@@ -12,6 +12,7 @@ export const MarketplaceCommoditySchema = z.object({
   qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
   pricePerUnit: z.number().positive(),
   unit: z.string(),
+  currency: z.enum(['USD', 'NGN']).default('NGN'),
   availableQuantity: z.number().positive(),
   location: z.object({
     latitude: z.number(),
@@ -483,6 +484,7 @@ export const MarketplaceListingSchema = z.object({
   quantity: z.number().positive(),
   unitPrice: z.number().positive(),
   priceType: z.enum(['fixed', 'negotiable', 'auction']),
+  currency: z.enum(['USD', 'NGN']).default('NGN'),
   minQuantity: z.number().positive().optional(),
   qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
   certifications: z.array(z.string()).optional(),

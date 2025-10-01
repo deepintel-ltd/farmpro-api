@@ -138,6 +138,7 @@ export const OrderSchema = z.object({
   sellerId: z.string().uuid().optional(),
   buyerOrgId: z.string().uuid().optional(),
   supplierOrgId: z.string().uuid().optional(),
+  currency: z.enum(['USD', 'NGN']).default('NGN'),
   
   // Timestamps
   createdAt: z.string().datetime().optional(),

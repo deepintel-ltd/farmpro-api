@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrencyAwareService } from '../common/services/currency-aware.service';
+import { CurrencyService } from '../common/services/currency.service';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
@@ -38,10 +40,12 @@ interface PaginationOptions {
 }
 
 @Injectable()
-export class MarketService {
+export class MarketService extends CurrencyAwareService {
   private readonly logger = new Logger(MarketService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(prisma: PrismaService, currencyService: CurrencyService) {
+    super(prisma, currencyService);
+  }
 
   // =============================================================================
   // Market Discovery & Browse

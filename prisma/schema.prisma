@@ -178,6 +178,7 @@ model Organization {
   allowedModules   String[] @default([])
   featureFlags     Json?
   allowCustomRoles Boolean  @default(false)
+  currency         Currency @default(NGN)
 
   suspendedAt      DateTime?
   suspensionReason String?
@@ -205,6 +206,7 @@ model Organization {
 
   @@index([type])
   @@index([isActive, suspendedAt])
+  @@index([currency])
   @@map("organizations")
 }
 
@@ -528,6 +530,7 @@ model Inventory {
   quality        String?
   location       String?
   status         InventoryStatus @default(AVAILABLE)
+  currency       Currency        @default(NGN)
   metadata       Json?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -561,7 +564,7 @@ model Order {
   terms            Json?
 
   totalAmount Decimal?
-  currency    String   @default("USD")
+  currency    Currency @default(NGN)
 
   buyerOrgId    String
   supplierOrgId String?
@@ -671,7 +674,7 @@ model Transaction {
   farmId         String?
   type           TransactionType
   amount         Decimal
-  currency       String            @default("USD")
+  currency       Currency          @default(NGN)
   status         TransactionStatus
   description    String
   reference      String?
@@ -975,6 +978,7 @@ model MarketplaceListing {
   isPublic        Boolean          @default(true)
   images          String[]
   status          ListingStatus    @default(ACTIVE)
+  currency        Currency         @default(NGN)
   views           Int              @default(0)
   inquiries       Int              @default(0)
   createdAt       DateTime         @default(now())

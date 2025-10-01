@@ -4,6 +4,8 @@ import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
 import { JobQueueService } from '../common/services/job-queue.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrencyAwareService } from '../common/services/currency-aware.service';
+import { CurrencyService } from '../common/services/currency.service';
 import { 
   BaseAnalyticsQuery,
   FinancialQuery,
@@ -25,15 +27,18 @@ import {
 import { TransactionType, ActivityType, CropStatus, ActivityStatus } from '@prisma/client';
 
 @Injectable()
-export class AnalyticsService {
+export class AnalyticsService extends CurrencyAwareService {
   private readonly logger = new Logger(AnalyticsService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    prisma: PrismaService,
     private readonly cacheService: CacheService,
     private readonly intelligenceService: IntelligenceService,
     private readonly jobQueueService: JobQueueService,
-  ) {}
+    currencyService: CurrencyService,
+  ) {
+    super(prisma, currencyService);
+  }
 
   /**
    * Get dashboard analytics with key performance indicators

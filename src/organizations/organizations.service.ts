@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Currency } from '@prisma/client';
+import { CurrencyService } from '../common/services/currency.service';
 import {
   CreateOrganizationRequest,
   UpdateOrganizationRequest,
@@ -17,7 +18,10 @@ import {
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly currencyService: CurrencyService,
+  ) {}
 
   // =============================================================================
   // Helper Methods
@@ -2011,5 +2015,127 @@ export class OrganizationsService {
         },
       },
     };
+  }
+
+  // =============================================================================
+  // Currency Management
+  // =============================================================================
+
+  /**
+   * Get organization currency
+   */
+  async getCurrency(organizationId: string): Promise<Currency> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { currency: true },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organization ${organizationId} not found`);
+    }
+
+    return organization.currency;
+  }
+
+  /**
+   * Update organization currency
+   */
+  async updateCurrency(organizationId: string, currency: Currency): Promise<{ data: { currency: Currency } }> {
+    // Validate currency
+    if (!this.currencyService.isSupportedCurrency(currency)) {
+      throw new BadRequestException(`Unsupported currency: ${currency}`);
+    }
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organization ${organizationId} not found`);
+    }
+
+    // Update organization currency
+    const updatedOrganization = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: { currency },
+      select: { currency: true },
+    });
+
+    this.logger.log(`Updated organization ${organizationId} currency to ${currency}`);
+
+    return {
+      data: {
+        currency: updatedOrganization.currency,
+      },
+    };
+  }
+
+  /**
+   * Get currency info for organization
+   */
+  async getCurrencyInfo(organizationId: string) {
+    const currency = await this.getCurrency(organizationId);
+    return this.currencyService.getCurrencyInfo(currency);
+  }
+
+  /**
+   * Get supported currencies
+   */
+  getSupportedCurrencies(): Currency[] {
+    return this.currencyService.getSupportedCurrencies();
+  }
+
+  /**
+   * Convert amount to organization currency
+   */
+  async convertToOrganizationCurrency(
+    amount: number,
+    fromCurrency: Currency,
+    organizationId: string,
+  ): Promise<number> {
+    const organizationCurrency = await this.getCurrency(organizationId);
+    
+    if (fromCurrency === organizationCurrency) {
+      return amount;
+    }
+
+    const conversion = this.currencyService.convertAmount(
+      amount,
+      fromCurrency,
+      organizationCurrency,
+    );
+
+    return conversion.convertedAmount;
+  }
+
+  /**
+   * Convert amount from organization currency to target currency
+   */
+  async convertFromOrganizationCurrency(
+    amount: number,
+    organizationId: string,
+    toCurrency: Currency,
+  ): Promise<number> {
+    const organizationCurrency = await this.getCurrency(organizationId);
+    
+    if (organizationCurrency === toCurrency) {
+      return amount;
+    }
+
+    const conversion = this.currencyService.convertAmount(
+      amount,
+      organizationCurrency,
+      toCurrency,
+    );
+
+    return conversion.convertedAmount;
+  }
+
+  /**
+   * Format amount in organization currency
+   */
+  async formatOrganizationAmount(amount: number, organizationId: string): Promise<string> {
+    const organizationCurrency = await this.getCurrency(organizationId);
+    return this.currencyService.formatAmount(amount, organizationCurrency);
   }
 }
