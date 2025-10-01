@@ -31,38 +31,6 @@ export interface EmailParams {
   textContent?: string; // Plain text fallback
 }
 
-/**
- * Email template parameters with strong typing
- */
-export interface VerificationEmailParams {
-  verificationUrl: string;
-  verificationToken: string;
-  name: string;
-  organizationAddress?: string;
-  unsubscribeUrl?: string;
-}
-
-export interface WelcomeEmailParams {
-  loginUrl: string;
-  name: string;
-  organizationAddress?: string;
-}
-
-export interface PasswordResetEmailParams {
-  resetUrl: string;
-  name: string;
-  organizationAddress?: string;
-}
-
-export interface InvitationEmailParams {
-  invitationUrl: string;
-  name: string;
-  companyName: string;
-  inviterName: string;
-  roleName: string;
-  message?: string;
-  organizationAddress?: string;
-}
 
 @Injectable()
 export class BrevoService {
@@ -492,6 +460,11 @@ export class BrevoService {
       companyName?: string;
       userEmail?: string;
       userRole?: string;
+      totalUsers?: number;
+      activeUsers?: number;
+      newRegistrations?: number;
+      companyUsers?: number;
+      registrationDate?: string;
     } = {}
   ): Promise<void> {
     try {
@@ -508,6 +481,11 @@ export class BrevoService {
         userName,
         userEmail: userData.userEmail ?? '',
         userRole: userData.userRole ?? 'Team Member',
+        totalUsers: (userData.totalUsers ?? 0).toString(),
+        activeUsers: (userData.activeUsers ?? 0).toString(),
+        newRegistrations: (userData.newRegistrations ?? 0).toString(),
+        companyUsers: (userData.companyUsers ?? 0).toString(),
+        registrationDate: userData.registrationDate ?? new Date().toLocaleDateString(),
         organizationAddress: this.getOrganizationAddress(),
         year: new Date().getFullYear().toString(),
       };

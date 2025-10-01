@@ -44,7 +44,7 @@ export class EmailVerificationService {
       const verificationUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
 
       // Send verification email
-      await this.brevoService.sendEmailVerification(email, verificationUrl, {
+      await this.brevoService.sendEmailVerification(email, verificationToken, verificationUrl, {
         firstName: firstName ?? 'User',
       });
 

@@ -5,11 +5,13 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/prisma/prisma.service';
 import { EmailVerificationService } from '@/auth/email-verification.service';
+import { BrevoService } from '@/external-service/brevo/brevo.service';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
 import { UserMetadata } from './types/user-metadata.types';
@@ -60,6 +62,7 @@ interface UserWithOrganizationAndRoles {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly JWT_EXPIRES_IN: number;
   private readonly REFRESH_TOKEN_EXPIRES_IN_MS: number;
   private readonly PASSWORD_RESET_EXPIRES_IN_MS: number;
@@ -69,6 +72,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailVerificationService: EmailVerificationService,
+    private readonly brevoService: BrevoService,
   ) {
     this.JWT_EXPIRES_IN = this.configService.get<number>(
       'JWT_EXPIRES_IN_SECONDS',
@@ -178,6 +182,9 @@ export class AuthService {
       '', // lastName not available in this context
       organizationName
     );
+
+    // Send new user notification to organization admins
+    await this.sendNewUserNotification(result.id, result.organizationId);
 
     return {
       tokens,
@@ -800,5 +807,107 @@ export class AuthService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Send new user notification to organization admins
+   */
+  private async sendNewUserNotification(userId: string, organizationId: string): Promise<void> {
+    try {
+      // Get user details
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      });
+
+      if (!user) return;
+
+      // Get organization details
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          name: true,
+        },
+      });
+
+      if (!organization) return;
+
+      // Get admin users separately
+      const adminUsers = await this.prisma.user.findMany({
+        where: {
+          organizationId,
+          userRoles: {
+            some: {
+              role: {
+                name: { in: ['admin', 'Organization Owner'] },
+                isActive: true,
+              },
+              isActive: true,
+            },
+          },
+        },
+        select: {
+          email: true,
+          name: true,
+        },
+      });
+
+      // Get user statistics
+      const totalUsers = await this.prisma.user.count({
+        where: { organizationId },
+      });
+
+      const activeUsers = await this.prisma.user.count({
+        where: {
+          organizationId,
+          lastLoginAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+          },
+        },
+      });
+
+      const newRegistrations = await this.prisma.user.count({
+        where: {
+          organizationId,
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          },
+        },
+      });
+
+      const companyUsers = await this.prisma.user.count({
+        where: { organizationId },
+      });
+
+      // Send notification to all admin users
+      for (const admin of adminUsers) {
+        await this.brevoService.sendNewUserNotification(admin.email, {
+          firstName: user.name.split(' ')[0],
+          lastName: user.name.split(' ').slice(1).join(' ') || '',
+          companyName: organization.name,
+          userEmail: user.email,
+          userRole: 'Team Member', // Default role for new users
+          totalUsers,
+          activeUsers,
+          newRegistrations,
+          companyUsers,
+          registrationDate: user.createdAt.toLocaleDateString(),
+        });
+      }
+
+      this.logger.log(`New user notification sent for user ${userId} to ${adminUsers.length} admins`);
+    } catch (error) {
+      this.logger.error(
+        'Failed to send new user notification',
+        (error as Error).stack,
+        `AuthService.sendNewUserNotification - userId: ${userId}, organizationId: ${organizationId}`
+      );
+      // Don't throw - allow registration to continue
+    }
   }
 }

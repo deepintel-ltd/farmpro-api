@@ -83,8 +83,9 @@ describe('EmailVerificationService', () => {
 
       expect(mockBrevoService.sendEmailVerification).toHaveBeenCalledWith(
         'test@example.com',
-        expect.stringContaining('verify-email?token='),
-        { firstName: 'John' }
+        expect.any(String), // token
+        expect.stringContaining('verify-email?token='), // verificationUrl
+        { firstName: 'John' } // userData
       );
     });
 
