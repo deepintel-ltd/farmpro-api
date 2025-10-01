@@ -337,7 +337,7 @@ describe('Activities E2E Tests', () => {
     });
   });
 
-  describe('PUT /activities/:activityId', () => {
+  describe('PATCH /activities/:activityId', () => {
     let testActivity: any;
 
     beforeEach(async () => {
@@ -367,7 +367,7 @@ describe('Activities E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .put(`/activities/${testActivity.id}`)
+        .patch(`/activities/${testActivity.id}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(200);
@@ -399,7 +399,7 @@ describe('Activities E2E Tests', () => {
 
       await testContext
         .request()
-        .put(`/activities/${testActivity.id}`)
+        .patch(`/activities/${testActivity.id}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(invalidData)
         .expect(400);
@@ -412,7 +412,7 @@ describe('Activities E2E Tests', () => {
 
       await testContext
         .request()
-        .put(`/activities/${testActivity.id}`)
+        .patch(`/activities/${testActivity.id}`)
         .send(updateData)
         .expect(401);
     });
@@ -1210,7 +1210,7 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('POST /activities/bulk-update', () => {
+    describe('PATCH /activities/bulk-update', () => {
       let testActivities: any[];
 
       beforeEach(async () => {
