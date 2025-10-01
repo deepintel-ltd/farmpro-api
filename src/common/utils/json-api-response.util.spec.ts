@@ -208,13 +208,11 @@ describe('JsonApiResponseUtil', () => {
     });
 
     it('should convert class name to pluralized kebab-case', () => {
-      class FarmResource {}
-      expect(getResourceType(FarmResource)).toBe('farm-resources');
+      expect(getResourceType('FarmResource')).toBe('farm-resources');
     });
 
     it('should handle PascalCase class names', () => {
-      class CommodityOrder {}
-      expect(getResourceType(CommodityOrder)).toBe('commodity-orders');
+      expect(getResourceType('CommodityOrder')).toBe('commodity-orders');
     });
   });
 

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrderOwnershipGuard } from './order-ownership.guard';
 import { PrismaService } from '@/prisma/prisma.service';
+import { OrdersService } from '../orders.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 describe('OrderOwnershipGuard', () => {
@@ -11,6 +12,10 @@ describe('OrderOwnershipGuard', () => {
     order: {
       findUnique: jest.fn(),
     },
+  };
+
+  const mockOrdersService = {
+    findOrderById: jest.fn(),
   };
 
   const mockRequest = {
@@ -58,6 +63,10 @@ describe('OrderOwnershipGuard', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: OrdersService,
+          useValue: mockOrdersService,
         },
       ],
     }).compile();

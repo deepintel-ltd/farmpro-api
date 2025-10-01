@@ -3,6 +3,8 @@ import { AnalyticsService } from './analytics.service';
 import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { JobQueueService } from '../common/services/job-queue.service';
+import { CurrencyService } from '../common/services/currency.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { 
   BaseAnalyticsQuery, 
@@ -20,7 +22,27 @@ describe('AnalyticsService', () => {
   const mockUser: CurrentUser = {
     userId: '550e8400-e29b-41d4-a716-446655440000',
     email: 'test@example.com',
+    name: 'Test User',
     organizationId: '550e8400-e29b-41d4-a716-446655440001',
+    isPlatformAdmin: false,
+    roles: [{
+      id: 'role-1',
+      name: 'Analyst',
+      level: 50,
+      scope: 'ORGANIZATION' as any,
+    }],
+    organization: {
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      name: 'Test Organization',
+      type: 'FARM' as any,
+      plan: 'basic',
+      features: ['analytics'],
+      allowedModules: ['analytics'],
+      isVerified: true,
+      isSuspended: false,
+    },
+    permissions: ['analytics:read'],
+    capabilities: ['analytics'],
   };
 
   const mockPrismaService = {
@@ -90,6 +112,20 @@ describe('AnalyticsService', () => {
               confidence: 0.8,
               model: 'gpt-4',
             }),
+          },
+        },
+        {
+          provide: JobQueueService,
+          useValue: {
+            addJob: jest.fn(),
+            processJob: jest.fn(),
+          },
+        },
+        {
+          provide: CurrencyService,
+          useValue: {
+            convertCurrency: jest.fn().mockResolvedValue(1000),
+            getExchangeRate: jest.fn().mockResolvedValue(1.0),
           },
         },
       ],
