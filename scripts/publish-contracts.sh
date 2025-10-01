@@ -68,9 +68,9 @@ validate_contracts() {
     print_color $GREEN "Contracts validation passed ✓"
 }
 
-# Function to publish to GitHub
+# Function to publish to GitHub (for git tagging only)
 publish_to_github() {
-    print_color $CYAN "Publishing to GitHub..."
+    print_color $CYAN "Creating GitHub release tag..."
     
     # Get version from contracts package.json
     local version=$(node -p "require('./contracts/package.json').version")
@@ -88,21 +88,24 @@ publish_to_github() {
     git push origin main
     git push origin "contracts-v$version"
     
-    print_color $GREEN "Published to GitHub successfully ✓"
+    print_color $GREEN "GitHub release tag created successfully ✓"
     print_color $GREEN "Tag: contracts-v$version"
+    print_color $YELLOW "Note: Package is published to NPM registry only"
 }
 
 # Function to publish to NPM
 publish_to_npm() {
-    print_color $CYAN "Publishing to NPM..."
+    print_color $CYAN "Publishing to NPM registry..."
     
     local package_name=$(node -p "require('./contracts/package.json').name")
-    print_color $BLUE "Publishing $package_name to NPM..."
+    print_color $BLUE "Publishing $package_name to NPM registry..."
     
-    run_command "npm run contracts:publish"
+    # Ensure we're using NPM registry
+    run_command "cd contracts && npm publish --registry https://registry.npmjs.org/ --access public"
     
-    print_color $GREEN "Published to NPM successfully ✓"
+    print_color $GREEN "Published to NPM registry successfully ✓"
     print_color $GREEN "Package: $package_name"
+    print_color $GREEN "Registry: https://registry.npmjs.org/"
 }
 
 # Main function
@@ -139,24 +142,26 @@ main() {
             publish_to_npm
             ;;
         "all")
-            print_color $CYAN "Publishing to both GitHub and NPM..."
+            print_color $CYAN "Publishing to NPM registry with GitHub release tag..."
             check_git_status
             local new_version=$(update_version ${2:-patch})
             build_contracts
             validate_contracts
-            publish_to_github
             publish_to_npm
-            print_color $GREEN "🎉 Successfully published contracts v$new_version!"
+            publish_to_github
+            print_color $GREEN "🎉 Successfully published contracts v$new_version to NPM!"
+            print_color $GREEN "📦 NPM Package: https://www.npmjs.com/package/@deepintel-ltd/farmpro-api-contracts"
             ;;
         "help"|*)
             print_color $MAGENTA "Available commands:"
             print_color $BLUE "  build     - Build contracts package only"
             print_color $BLUE "  validate  - Validate contracts package only"
             print_color $BLUE "  version   - Update version (patch|minor|major)"
-            print_color $BLUE "  github    - Publish to GitHub (create tag and push)"
-            print_color $BLUE "  npm       - Publish to NPM registry"
-            print_color $BLUE "  all       - Full publish (version + build + validate + github + npm)"
+            print_color $BLUE "  github    - Create GitHub release tag only"
+            print_color $BLUE "  npm       - Publish to NPM registry only"
+            print_color $BLUE "  all       - Full publish (NPM + GitHub tag)"
             print_color $BLUE "  help      - Show this help message"
+            print_color $YELLOW "Note: Package is published to NPM registry only"
             print_color $MAGENTA "Examples:"
             print_color $CYAN "  ./scripts/publish-contracts.sh build"
             print_color $CYAN "  ./scripts/publish-contracts.sh version minor"

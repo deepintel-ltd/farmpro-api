@@ -2,7 +2,12 @@
 
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Colors for console output
 const colors = {
@@ -92,7 +97,7 @@ function validateContracts() {
 }
 
 function publishToGitHub() {
-  log('Publishing to GitHub...', 'cyan');
+  log('Creating GitHub release tag...', 'cyan');
   
   // First, commit the version changes
   log('Committing version changes...', 'blue');
@@ -111,22 +116,24 @@ function publishToGitHub() {
   execCommand('git push origin main');
   execCommand(`git push origin contracts-v${version}`);
   
-  log('Published to GitHub successfully ✓', 'green');
+  log('GitHub release tag created successfully ✓', 'green');
   log(`Tag: contracts-v${version}`, 'green');
+  log('Note: Package is published to NPM registry only', 'yellow');
 }
 
 function publishToNPM() {
-  log('Publishing to NPM...', 'cyan');
+  log('Publishing to NPM registry...', 'cyan');
   
   const contractsDir = join(__dirname, '..', 'contracts');
   const packageJson = JSON.parse(readFileSync(join(contractsDir, 'package.json'), 'utf8'));
   const packageName = packageJson.name;
   
-  log(`Publishing ${packageName} to NPM...`, 'blue');
-  execCommand('npm run contracts:publish');
+  log(`Publishing ${packageName} to NPM registry...`, 'blue');
+  execCommand(`cd contracts && npm publish --registry https://registry.npmjs.org/ --access public`);
   
-  log('Published to NPM successfully ✓', 'green');
+  log('Published to NPM registry successfully ✓', 'green');
   log(`Package: ${packageName}`, 'green');
+  log('Registry: https://registry.npmjs.org/', 'green');
 }
 
 function main() {
@@ -154,7 +161,7 @@ function main() {
     }
       
     case 'github':
-      log('Publishing to GitHub only...', 'cyan');
+      log('Creating GitHub release tag only...', 'cyan');
       checkGitStatus();
       buildContracts();
       validateContracts();
@@ -162,21 +169,22 @@ function main() {
       break;
       
     case 'npm':
-      log('Publishing to NPM only...', 'cyan');
+      log('Publishing to NPM registry only...', 'cyan');
       buildContracts();
       validateContracts();
       publishToNPM();
       break;
       
     case 'all': {
-      log('Publishing to both GitHub and NPM...', 'cyan');
+      log('Publishing to NPM registry with GitHub release tag...', 'cyan');
       checkGitStatus();
       const newVersion = updateContractsVersion(args[1] ?? 'patch');
       buildContracts();
       validateContracts();
-      publishToGitHub();
       publishToNPM();
-      log(`\n🎉 Successfully published contracts v${newVersion}!`, 'green');
+      publishToGitHub();
+      log(`\n🎉 Successfully published contracts v${newVersion} to NPM!`, 'green');
+      log('📦 NPM Package: https://www.npmjs.com/package/@deepintel-ltd/farmpro-api-contracts', 'green');
       break;
     }
       
@@ -186,10 +194,11 @@ function main() {
       log('  build     - Build contracts package only', 'blue');
       log('  validate  - Validate contracts package only', 'blue');
       log('  version   - Update version (patch|minor|major)', 'blue');
-      log('  github    - Publish to GitHub (create tag and push)', 'blue');
-      log('  npm       - Publish to NPM registry', 'blue');
-      log('  all       - Full publish (version + build + validate + github + npm)', 'blue');
+      log('  github    - Create GitHub release tag only', 'blue');
+      log('  npm       - Publish to NPM registry only', 'blue');
+      log('  all       - Full publish (NPM + GitHub tag)', 'blue');
       log('  help      - Show this help message', 'blue');
+      log('\nNote: Package is published to NPM registry only', 'yellow');
       log('\nExamples:', 'bright');
       log('  node scripts/publish-contracts.js build', 'cyan');
       log('  node scripts/publish-contracts.js version minor', 'cyan');

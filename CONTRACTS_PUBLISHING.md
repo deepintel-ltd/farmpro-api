@@ -1,6 +1,8 @@
 # 📦 Contracts Publishing Guide
 
-This guide explains how to build, validate, and publish the FarmPro API contracts package from the main repository without needing to `cd` into the contracts folder.
+This guide explains how to build, validate, and publish the FarmPro API contracts package to the **NPM registry only** from the main repository without needing to `cd` into the contracts folder.
+
+> **Note**: This package is published to NPM registry only. GitHub Packages version is deprecated.
 
 ## 🚀 Quick Start
 
@@ -13,13 +15,13 @@ npm run contracts:build
 # Validate contracts
 npm run contracts:validate
 
-# Publish to GitHub (creates tag and pushes)
+# Create GitHub release tag (for version tracking)
 npm run contracts:publish:github
 
-# Publish to NPM
+# Publish to NPM registry
 npm run contracts:publish:npm
 
-# Full publish (version bump + build + validate + github + npm)
+# Full publish (NPM + GitHub tag)
 npm run contracts:publish:all
 ```
 
