@@ -582,7 +582,7 @@ describe('Activities E2E Tests', () => {
       });
     });
 
-    describe('PUT /activities/:activityId/progress', () => {
+    describe('PATCH /activities/:activityId (Progress Update)', () => {
       beforeEach(async () => {
         // Start the activity first
         await testContext
@@ -618,7 +618,7 @@ describe('Activities E2E Tests', () => {
 
         const response = await testContext
           .request()
-          .put(`/activities/${testActivity.id}/progress`)
+          .patch(`/activities/${testActivity.id}`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(progressData)
           .expect(200);
@@ -634,7 +634,7 @@ describe('Activities E2E Tests', () => {
 
         await testContext
           .request()
-          .put(`/activities/${testActivity.id}/progress`)
+          .patch(`/activities/${testActivity.id}`)
           .set('Authorization', `Bearer ${accessToken}`)
           .send(progressData)
           .expect(400);
@@ -1690,7 +1690,7 @@ describe('Activities E2E Tests', () => {
       // 3. Update progress
       await testContext
         .request()
-        .put(`/activities/${activityId}/progress`)
+        .patch(`/activities/${activityId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ percentComplete: 50, notes: 'Half way through' })
         .expect(200);

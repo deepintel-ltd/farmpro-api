@@ -18,6 +18,51 @@ import {
   ActivityAnalytics,
 } from './dto/activities.dto';
 
+// Activity metadata interface - matches the DTO schemas
+interface ActivityMetadata {
+  percentComplete?: number;
+  actualResources?: Array<{
+    type?: 'equipment' | 'labor' | 'material';
+    resourceId?: string;
+    quantity?: number;
+    unit?: string;
+  }>;
+  actualCost?: number;
+  results?: {
+    quality?: 'excellent' | 'good' | 'fair' | 'poor';
+    quantityAchieved?: number;
+    notes?: string;
+  };
+  issues?: string;
+  recommendations?: string;
+  instructions?: string;
+  estimatedCost?: number;
+  location?: {
+    lat?: number;
+    lng?: number;
+  };
+  resourceUsage?: Array<{
+    resourceId?: string;
+    quantityUsed?: number;
+  }>;
+  notes?: string;
+  resources?: Array<{
+    type?: 'equipment' | 'labor' | 'material';
+    resourceId?: string;
+    quantity?: number;
+    unit?: string;
+  }>;
+  safetyNotes?: string;
+  helpRequests?: Array<{
+    id: string;
+    requestedBy: string;
+    message: string;
+    createdAt: string;
+    status: 'pending' | 'resolved';
+  }>;
+  [key: string]: any; // Allow for additional metadata fields
+}
+
 // Cost management interfaces
 export interface CostEntryData {
   type?: CostType;
@@ -291,6 +336,7 @@ export class ActivitiesService {
         id: true,
         createdById: true,
         farmId: true,
+        metadata: true,
         assignments: {
           where: { userId, isActive: true },
           select: {
@@ -308,16 +354,25 @@ export class ActivitiesService {
 
     // Authorization is now handled by guards and decorators in the controller
 
-    // Build update data object
-    const updateData: any = {
+    // Build update data object with proper typing
+    const updateData: Prisma.FarmActivityUpdateInput = {
       name: data.name,
       description: data.description,
       scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
       priority: data.priority,
       estimatedDuration: data.estimatedDuration,
-      instructions: data.instructions,
-      estimatedCost: data.estimatedCost,
-      metadata: data.metadata,
+      // Note: instructions, estimatedCost, actualCost are not direct fields in FarmActivity
+      // They should be handled through metadata or related tables
+      metadata: {
+        ...(activity.metadata as ActivityMetadata || {}),
+        ...data.metadata,
+      },
+    };
+
+    // Create a separate metadata object for easier manipulation
+    const metadataUpdate: ActivityMetadata = {
+      ...(activity.metadata as ActivityMetadata || {}),
+      ...data.metadata,
     };
 
     // Handle status transitions
@@ -335,7 +390,7 @@ export class ActivitiesService {
           break;
         case 'COMPLETED':
           updateData.completedAt = data.completedAt ? new Date(data.completedAt) : now;
-          updateData.percentComplete = 100;
+          metadataUpdate.percentComplete = 100;
           break;
         case 'CANCELLED':
           updateData.completedAt = now;
@@ -343,30 +398,60 @@ export class ActivitiesService {
       }
     }
 
-    // Handle execution fields
+    // Handle execution fields - store in metadata
     if (data.percentComplete !== undefined) {
-      updateData.percentComplete = data.percentComplete;
+      metadataUpdate.percentComplete = data.percentComplete;
     }
     
     if (data.actualResources) {
-      updateData.actualResources = data.actualResources;
+      metadataUpdate.actualResources = data.actualResources;
     }
     
     if (data.actualCost !== undefined) {
-      updateData.actualCost = data.actualCost;
+      metadataUpdate.actualCost = data.actualCost;
     }
     
     if (data.results) {
-      updateData.results = data.results;
+      metadataUpdate.results = data.results;
     }
     
     if (data.issues) {
-      updateData.issues = data.issues;
+      metadataUpdate.issues = data.issues;
     }
     
     if (data.recommendations) {
-      updateData.recommendations = data.recommendations;
+      metadataUpdate.recommendations = data.recommendations;
     }
+    
+    // Handle instructions - store in metadata since it's not a direct field
+    if (data.instructions) {
+      metadataUpdate.instructions = data.instructions;
+    }
+    
+    // Handle estimated cost - store in metadata since it's not a direct field
+    if (data.estimatedCost !== undefined) {
+      metadataUpdate.estimatedCost = data.estimatedCost;
+    }
+    
+    // Handle location - store in metadata since it's not a direct field
+    if (data.location) {
+      metadataUpdate.location = data.location;
+    }
+    
+    // Handle resource usage - store in metadata
+    if (data.resourceUsage) {
+      metadataUpdate.resourceUsage = data.resourceUsage;
+    }
+    
+    // Handle notes - append to existing notes in metadata
+    if (data.notes) {
+      const existingNotes = metadataUpdate.notes || '';
+      const newNotes = existingNotes ? `${existingNotes}\n${data.notes}` : data.notes;
+      metadataUpdate.notes = newNotes;
+    }
+
+    // Update the metadata in the updateData object
+    updateData.metadata = metadataUpdate;
 
     const updated = await this.prisma.farmActivity.update({
       where: { id: activityId },
@@ -381,6 +466,30 @@ export class ActivitiesService {
         },
       },
     });
+
+    // Handle assignment updates if assignedTo is provided
+    if (data.assignedTo && data.assignedTo.length > 0) {
+      const organizationId = this.getOrganizationIdFromRequest(request);
+      
+      // Remove existing assignments
+      await this.prisma.activityAssignment.updateMany({
+        where: { activityId, isActive: true },
+        data: { isActive: false }
+      });
+      
+      // Create new assignments
+      const newAssignments = data.assignedTo.map(userId => ({
+        activityId,
+        userId,
+        role: 'ASSIGNED' as const,
+        assignedById: userId, // The user who is updating the activity
+        isActive: true
+      }));
+      
+      await this.prisma.activityAssignment.createMany({
+        data: newAssignments
+      });
+    }
 
     // Broadcast activity update via WebSocket
     this.activityUpdatesGateway.broadcastActivityUpdate(activityId, {

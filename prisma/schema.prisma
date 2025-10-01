@@ -1273,6 +1273,7 @@ enum ActivityType {
 
 enum ActivityStatus {
   PLANNED
+  SCHEDULED
   IN_PROGRESS
   PAUSED
   COMPLETED
