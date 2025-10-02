@@ -1161,6 +1161,168 @@ describe('Intelligence E2E Tests', () => {
     });
   });
 
+  describe('POST /intelligence/export', () => {
+    beforeEach(async () => {
+      // Create some intelligence data for export testing
+      const testData = [
+        {
+          prompt: 'What are the best practices for corn planting?',
+          model: 'gpt-3.5-turbo',
+          farmId: testFarm.id
+        },
+        {
+          prompt: 'How to improve soil quality?',
+          model: 'gpt-4',
+          farmId: testFarm.id
+        }
+      ];
+
+      for (const data of testData) {
+        await testContext
+          .request()
+          .post('/intelligence/generate')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send(data)
+          .expect(200);
+      }
+
+      // Create farm analysis
+      await testContext
+        .request()
+        .post('/intelligence/farm/analyze')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          farmId: testFarm.id,
+          analysisType: 'crop_health',
+          data: { cropType: 'corn', health: 'good' }
+        })
+        .expect(200);
+
+      // Create market analysis
+      await testContext
+        .request()
+        .post('/intelligence/market/analyze')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          commodity: 'corn',
+          region: 'North America',
+          timeframe: 'monthly',
+          analysisType: 'price_prediction'
+        })
+        .expect(200);
+    });
+
+    it('should export intelligence data as PDF', async () => {
+      const exportData = {
+        farmId: testFarm.id,
+        includeInsights: true,
+        includeAnalyses: true,
+        includeHistory: true
+      };
+
+      const response = await testContext
+        .request()
+        .post('/intelligence/export')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(exportData)
+        .expect(200);
+
+      expect(response.body.downloadUrl).toBeDefined();
+      expect(response.body.expiresAt).toBeDefined();
+      expect(response.body.fileSize).toBeGreaterThan(0);
+      expect(new Date(response.body.expiresAt)).toBeInstanceOf(Date);
+    });
+
+    it('should export with date range filter', async () => {
+      const exportData = {
+        farmId: testFarm.id,
+        includeInsights: true,
+        includeAnalyses: true,
+        includeHistory: true,
+        dateRange: {
+          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+          end: new Date()
+        }
+      };
+
+      const response = await testContext
+        .request()
+        .post('/intelligence/export')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(exportData)
+        .expect(200);
+
+      expect(response.body.downloadUrl).toBeDefined();
+    });
+
+    it('should handle large date range exports', async () => {
+      const exportData = {
+        farmId: testFarm.id,
+        includeInsights: true,
+        includeAnalyses: true,
+        includeHistory: true,
+        dateRange: {
+          start: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 60 days ago
+          end: new Date()
+        }
+      };
+
+      const response = await testContext
+        .request()
+        .post('/intelligence/export')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(exportData)
+        .expect(200);
+
+      expect(response.body.downloadUrl).toBeDefined();
+    });
+
+    it('should fail with non-existent farm', async () => {
+      const exportData = {
+        farmId: 'non-existent-farm-id',
+        includeInsights: true
+      };
+
+      await testContext
+        .request()
+        .post('/intelligence/export')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(exportData)
+        .expect(404);
+    });
+
+    it('should fail without authentication', async () => {
+      const exportData = {
+        farmId: testFarm.id,
+        includeInsights: true
+      };
+
+      await testContext
+        .request()
+        .post('/intelligence/export')
+        .send(exportData)
+        .expect(401);
+    });
+
+    it('should handle export with all data types included', async () => {
+      const exportData = {
+        farmId: testFarm.id,
+        includeInsights: true,
+        includeAnalyses: true,
+        includeHistory: true
+      };
+
+      const response = await testContext
+        .request()
+        .post('/intelligence/export')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(exportData)
+        .expect(200);
+
+      expect(response.body.downloadUrl).toBeDefined();
+    });
+  });
+
   describe('Intelligence Integration Tests', () => {
     it('should complete full intelligence workflow', async () => {
       // 1. Generate AI response

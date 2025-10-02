@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { OpenAIService } from './openai.service';
+import { UnifiedStorageService } from '../common/services/storage.service';
 import {
   IntelligenceRequest,
   IntelligenceResponse,
@@ -10,6 +11,9 @@ import {
   MarketIntelligenceResponse,
   ActivityOptimizationRequest,
   ActivityOptimizationResponse,
+  IntelligenceExportRequest,
+  IntelligenceExportResponse,
+  IntelligenceExportJobResponse,
   IntelligenceQuery,
   IntelligenceListResponse,
 } from '../../contracts/intelligence.schemas';
@@ -21,6 +25,7 @@ export class IntelligenceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly openaiService: OpenAIService,
+    private readonly storageService: UnifiedStorageService,
   ) {}
 
   /**
@@ -375,6 +380,37 @@ export class IntelligenceService {
   }
 
   /**
+   * Export intelligence data as PDF
+   */
+  async exportIntelligence(request: IntelligenceExportRequest): Promise<IntelligenceExportResponse> {
+    try {
+      this.logger.log(`Exporting intelligence data for farm ${request.farmId} as PDF`);
+
+      // Verify farm exists
+      const farm = await this.prisma.farm.findUnique({
+        where: { id: request.farmId },
+      });
+
+      if (!farm) {
+        throw new NotFoundException('Farm not found');
+      }
+
+      // Process export immediately
+      const exportData = await this.gatherIntelligenceData(request);
+      const fileInfo = await this.generatePdfExport(exportData);
+      
+      return {
+        downloadUrl: fileInfo.downloadUrl,
+        expiresAt: fileInfo.expiresAt,
+        fileSize: fileInfo.fileSize,
+      };
+    } catch (error) {
+      this.logger.error('Error exporting intelligence data:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Health check for intelligence service
    */
   async healthCheck() {
@@ -487,5 +523,190 @@ Always provide practical, actionable advice based on agricultural best practices
       },
     });
     this.logger.log(`Stored activity optimization ${optimization.id}`);
+  }
+
+  // Export helper methods
+
+  private async gatherIntelligenceData(request: IntelligenceExportRequest): Promise<any> {
+    const data: any = {
+      farmId: request.farmId,
+      exportDate: new Date(),
+      format: 'pdf',
+    };
+
+    const whereClause: any = { farmId: request.farmId };
+    if (request.dateRange) {
+      whereClause.createdAt = {
+        gte: request.dateRange.start,
+        lte: request.dateRange.end,
+      };
+    }
+
+    if (request.includeInsights) {
+      data.insights = await this.prisma.intelligenceResponse.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 100, // Limit to prevent huge exports
+      });
+    }
+
+    if (request.includeAnalyses) {
+      data.farmAnalyses = await this.prisma.farmAnalysis.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      data.marketAnalyses = await this.prisma.marketAnalysis.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      data.activityOptimizations = await this.prisma.activityOptimization.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+    }
+
+    if (request.includeHistory) {
+      data.history = await this.prisma.intelligenceResponse.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      });
+    }
+
+    return data;
+  }
+
+  private async generatePdfExport(data: any): Promise<{ downloadUrl: string; expiresAt: Date; fileSize: number }> {
+    const timestamp = Date.now();
+    const fileName = `intelligence-export-${data.farmId}-${timestamp}.pdf`;
+    const storageKey = `exports/intelligence/${data.farmId}/${fileName}`;
+    
+    try {
+      const fileBuffer = await this.generatePdfFile(data);
+      const contentType = 'application/pdf';
+
+      // Upload to storage service
+      const uploadResult = await this.storageService.uploadFile(
+        storageKey,
+        fileBuffer,
+        contentType,
+        {
+          farmId: data.farmId,
+          exportType: 'intelligence',
+          format: 'pdf',
+          generatedAt: new Date().toISOString(),
+        }
+      );
+
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+      this.logger.log(`Generated PDF export: ${fileName} (${fileBuffer.length} bytes)`);
+
+      return {
+        downloadUrl: uploadResult.url,
+        expiresAt,
+        fileSize: fileBuffer.length,
+      };
+    } catch (error) {
+      this.logger.error('Failed to generate PDF export:', error);
+      throw new Error(`PDF export generation failed: ${(error as Error).message}`);
+    }
+  }
+
+  private async generatePdfFile(data: any): Promise<Buffer> {
+    const jsPDF = require('jspdf');
+    const autoTable = require('jspdf-autotable');
+    
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(20);
+    doc.text('Intelligence Export Report', 14, 22);
+    
+    // Add metadata
+    doc.setFontSize(12);
+    doc.text(`Farm ID: ${data.farmId}`, 14, 35);
+    doc.text(`Export Date: ${data.exportDate}`, 14, 42);
+    doc.text(`Generated: ${new Date().toISOString()}`, 14, 49);
+    
+    let yPosition = 60;
+    
+    // Add insights section
+    if (data.insights && data.insights.length > 0) {
+      doc.setFontSize(16);
+      doc.text('Insights', 14, yPosition);
+      yPosition += 10;
+      
+      const insightsData = data.insights.map((insight: any) => [
+        insight.id,
+        insight.content.substring(0, 50) + (insight.content.length > 50 ? '...' : ''),
+        insight.priority || 'medium',
+        insight.category || 'general',
+        new Date(insight.createdAt).toLocaleDateString(),
+      ]);
+      
+      autoTable(doc, {
+        head: [['ID', 'Content', 'Priority', 'Category', 'Created At']],
+        body: insightsData,
+        startY: yPosition,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 128, 185] },
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 10;
+    }
+    
+    // Add farm analyses section
+    if (data.farmAnalyses && data.farmAnalyses.length > 0) {
+      doc.setFontSize(16);
+      doc.text('Farm Analyses', 14, yPosition);
+      yPosition += 10;
+      
+      const analysesData = data.farmAnalyses.map((analysis: any) => [
+        analysis.id,
+        analysis.analysisType,
+        analysis.score || 'N/A',
+        new Date(analysis.createdAt).toLocaleDateString(),
+      ]);
+      
+      autoTable(doc, {
+        head: [['ID', 'Analysis Type', 'Score', 'Created At']],
+        body: analysesData,
+        startY: yPosition,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [39, 174, 96] },
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 10;
+    }
+    
+    // Add market analyses section
+    if (data.marketAnalyses && data.marketAnalyses.length > 0) {
+      doc.setFontSize(16);
+      doc.text('Market Analyses', 14, yPosition);
+      yPosition += 10;
+      
+      const marketData = data.marketAnalyses.map((analysis: any) => [
+        analysis.id,
+        analysis.analysisType,
+        analysis.commodity || 'N/A',
+        new Date(analysis.createdAt).toLocaleDateString(),
+      ]);
+      
+      autoTable(doc, {
+        head: [['ID', 'Analysis Type', 'Commodity', 'Created At']],
+        body: marketData,
+        startY: yPosition,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [230, 126, 34] },
+      });
+    }
+    
+    return Buffer.from(doc.output('arraybuffer'));
   }
 }

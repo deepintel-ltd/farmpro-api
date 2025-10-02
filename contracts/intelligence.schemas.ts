@@ -14,6 +14,8 @@ export const IntelligenceRequestSchema = z.object({
 export const IntelligenceResponseSchema = z.object({
   id: z.string().describe('Unique response identifier'),
   content: z.string().describe('AI generated response'),
+  priority: z.enum(['low', 'medium', 'high', 'critical']).optional().describe('Priority level of the insight'),
+  category: z.enum(['efficiency', 'performance', 'market', 'sustainability', 'risk']).optional().describe('Category of the insight'),
   model: z.string().describe('Model used for generation'),
   usage: z.object({
     promptTokens: z.number().describe('Tokens used in prompt'),
@@ -131,23 +133,55 @@ export const ActivityOptimizationResponseSchema = z.object({
   userId: z.string().uuid().describe('User who requested optimization'),
 });
 
+// Export schemas
+export const IntelligenceExportRequestSchema = z.object({
+  farmId: z.string().describe('Farm to export intelligence data for'),
+  includeInsights: z.boolean().default(true).describe('Include intelligence insights in export'),
+  includeAnalyses: z.boolean().default(true).describe('Include farm analyses in export'),
+  includeHistory: z.boolean().default(true).describe('Include intelligence history in export'),
+  dateRange: z.object({
+    start: z.date().describe('Start date for data filtering'),
+    end: z.date().describe('End date for data filtering'),
+  }).optional().describe('Optional date range filter'),
+});
+
+export const IntelligenceExportResponseSchema = z.object({
+  downloadUrl: z.string().describe('URL to download the exported PDF file'),
+  expiresAt: z.date().describe('When the download URL expires'),
+  fileSize: z.number().describe('Size of the exported file in bytes'),
+});
+
+export const IntelligenceExportJobResponseSchema = z.object({
+  jobId: z.string().describe('Job identifier for tracking export progress'),
+  status: z.enum(['processing', 'completed', 'failed']).describe('Current job status'),
+  estimatedCompletion: z.date().optional().describe('Estimated completion time'),
+});
+
 // Error schemas
 export const IntelligenceErrorSchema = z.object({
-  code: z.enum([
-    'INVALID_REQUEST',
-    'MODEL_UNAVAILABLE',
-    'RATE_LIMIT_EXCEEDED',
-    'INSUFFICIENT_CREDITS',
-    'CONTENT_FILTERED',
-    'CONTEXT_TOO_LONG',
-    'INVALID_MODEL',
-    'API_ERROR',
-    'FARM_NOT_FOUND',
-    'INSUFFICIENT_DATA',
-    'ANALYSIS_FAILED'
-  ]).describe('Error code'),
-  message: z.string().describe('Human-readable error message'),
-  details: z.record(z.string(), z.any()).optional().describe('Additional error details'),
+  error: z.object({
+    code: z.enum([
+      'INVALID_REQUEST',
+      'MODEL_UNAVAILABLE',
+      'RATE_LIMIT_EXCEEDED',
+      'INSUFFICIENT_CREDITS',
+      'CONTENT_FILTERED',
+      'CONTEXT_TOO_LONG',
+      'INVALID_MODEL',
+      'API_ERROR',
+      'FARM_NOT_FOUND',
+      'INSUFFICIENT_DATA',
+      'ANALYSIS_FAILED',
+      'EXPORT_FAILED',
+      'INVALID_FORMAT',
+      'FILE_GENERATION_ERROR'
+    ]).describe('Error code'),
+    message: z.string().describe('Human-readable error message'),
+    details: z.string().optional().describe('Additional error details'),
+    timestamp: z.date().describe('Error timestamp'),
+    requestId: z.string().describe('Request identifier for tracking'),
+  }).describe('Error information'),
+  suggestions: z.array(z.string()).optional().describe('Actionable suggestions to resolve the error'),
 });
 
 // Query schemas
@@ -180,6 +214,9 @@ export type MarketIntelligenceRequest = z.infer<typeof MarketIntelligenceRequest
 export type MarketIntelligenceResponse = z.infer<typeof MarketIntelligenceResponseSchema>;
 export type ActivityOptimizationRequest = z.infer<typeof ActivityOptimizationRequestSchema>;
 export type ActivityOptimizationResponse = z.infer<typeof ActivityOptimizationResponseSchema>;
+export type IntelligenceExportRequest = z.infer<typeof IntelligenceExportRequestSchema>;
+export type IntelligenceExportResponse = z.infer<typeof IntelligenceExportResponseSchema>;
+export type IntelligenceExportJobResponse = z.infer<typeof IntelligenceExportJobResponseSchema>;
 export type IntelligenceError = z.infer<typeof IntelligenceErrorSchema>;
 export type IntelligenceQuery = z.infer<typeof IntelligenceQuerySchema>;
 export type IntelligenceListResponse = z.infer<typeof IntelligenceListResponseSchema>;

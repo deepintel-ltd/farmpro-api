@@ -240,6 +240,19 @@ export class IntelligenceController {
     });
   }
 
+  @TsRestHandler(intelligenceContract.exportIntelligence)
+  @RequirePermission(...PERMISSIONS.INTELLIGENCE.READ)
+  async exportIntelligence(@Request() req: AuthenticatedRequest) {
+    return tsRestHandler(intelligenceContract.exportIntelligence, async ({ body }) => {
+      const response = await this.intelligenceService.exportIntelligence(body);
+      
+      return {
+        status: 200 as const,
+        body: response,
+      };
+    });
+  }
+
   @Public()
   @ApiOperation({ 
     summary: 'Health check',

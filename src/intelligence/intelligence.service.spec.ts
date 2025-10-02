@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IntelligenceService } from './intelligence.service';
 import { OpenAIService } from './openai.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { UnifiedStorageService } from '../common/services/storage.service';
 
 describe('IntelligenceService', () => {
   let service: IntelligenceService;
@@ -19,14 +20,17 @@ describe('IntelligenceService', () => {
     },
     farmAnalysis: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
     marketAnalysis: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
     activityOptimization: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
   };
@@ -37,6 +41,15 @@ describe('IntelligenceService', () => {
     generateMarketAnalysis: jest.fn(),
     generateActivityOptimization: jest.fn(),
     parseJsonResponse: jest.fn(),
+    healthCheck: jest.fn(),
+  };
+
+  const mockStorageService = {
+    uploadFile: jest.fn(),
+    deleteFile: jest.fn(),
+    generateSignedUrl: jest.fn(),
+    getFileUrl: jest.fn(),
+    getConfig: jest.fn(),
     healthCheck: jest.fn(),
   };
 
@@ -51,6 +64,10 @@ describe('IntelligenceService', () => {
         {
           provide: OpenAIService,
           useValue: mockOpenAIService,
+        },
+        {
+          provide: UnifiedStorageService,
+          useValue: mockStorageService,
         },
       ],
     }).compile();
@@ -413,6 +430,65 @@ describe('IntelligenceService', () => {
           totalPages: 1,
         },
       });
+    });
+  });
+
+  describe('exportIntelligence', () => {
+    it('should export intelligence data as PDF successfully', async () => {
+      const mockFarm = { id: 'farm-1', name: 'Test Farm' };
+      const mockUploadResult = {
+        url: 'https://storage.example.com/exports/intelligence-export-farm-1-123.pdf',
+        bucket: 'test-bucket',
+        etag: '"test-etag"',
+      };
+
+      mockPrismaService.farm.findUnique.mockResolvedValue(mockFarm);
+      mockPrismaService.intelligenceResponse.findMany.mockResolvedValue([]);
+      mockPrismaService.farmAnalysis.findMany.mockResolvedValue([]);
+      mockPrismaService.marketAnalysis.findMany.mockResolvedValue([]);
+      mockPrismaService.activityOptimization.findMany.mockResolvedValue([]);
+      mockStorageService.uploadFile.mockResolvedValue(mockUploadResult);
+
+      const request = {
+        farmId: 'farm-1',
+        includeInsights: true,
+        includeAnalyses: true,
+        includeHistory: true,
+      };
+
+      const result = await service.exportIntelligence(request);
+
+      expect(result).toEqual({
+        downloadUrl: mockUploadResult.url,
+        expiresAt: expect.any(Date),
+        fileSize: expect.any(Number),
+      });
+
+      expect(mockStorageService.uploadFile).toHaveBeenCalledWith(
+        expect.stringContaining('exports/intelligence/farm-1/'),
+        expect.any(Buffer),
+        'application/pdf',
+        expect.objectContaining({
+          farmId: 'farm-1',
+          exportType: 'intelligence',
+          format: 'pdf',
+        })
+      );
+    });
+
+    it('should throw NotFoundException when farm does not exist', async () => {
+      mockPrismaService.farm.findUnique.mockResolvedValue(null);
+
+      const request = {
+        farmId: 'non-existent-farm',
+        includeInsights: true,
+        includeAnalyses: false,
+        includeHistory: false,
+      };
+
+      await expect(service.exportIntelligence(request)).rejects.toThrow(
+        new NotFoundException('Farm not found')
+      );
     });
   });
 

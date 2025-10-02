@@ -9,6 +9,9 @@ import {
   MarketIntelligenceResponseSchema,
   ActivityOptimizationRequestSchema,
   ActivityOptimizationResponseSchema,
+  IntelligenceExportRequestSchema,
+  IntelligenceExportResponseSchema,
+  IntelligenceExportJobResponseSchema,
   IntelligenceErrorSchema,
   IntelligenceQuerySchema,
   IntelligenceListResponseSchema,
@@ -194,6 +197,22 @@ export const intelligenceContract = c.router({
     },
     summary: 'Get intelligence response by ID',
     description: 'Retrieve a specific intelligence response by its identifier',
+  },
+
+  // Export intelligence data
+  exportIntelligence: {
+    method: 'POST',
+    path: '/intelligence/export',
+    responses: {
+      200: IntelligenceExportResponseSchema,
+      400: IntelligenceErrorSchema,
+      401: IntelligenceErrorSchema,
+      404: IntelligenceErrorSchema,
+      500: IntelligenceErrorSchema,
+    },
+    body: IntelligenceExportRequestSchema,
+    summary: 'Export intelligence data as PDF',
+    description: 'Export intelligence insights, analyses, and history as a PDF report',
   },
 
   // Health check
