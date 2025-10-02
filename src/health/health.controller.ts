@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { healthContract } from '../../contracts/health.contract';
 import { PrismaHealthService } from '../prisma/prisma.health';
+import { UnifiedStorageService } from '../common/services/storage.service';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 
 @ApiTags('Health')
@@ -10,7 +11,10 @@ import { ErrorResponseUtil } from '../common/utils/error-response.util';
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
 
-  constructor(private readonly prismaHealthService: PrismaHealthService) {}
+  constructor(
+    private readonly prismaHealthService: PrismaHealthService,
+    private readonly storageService: UnifiedStorageService
+  ) {}
 
   @TsRestHandler(healthContract.health)
   @ApiOperation({ summary: 'Health check endpoint' })
@@ -43,11 +47,17 @@ export class HealthController {
       try {
         this.logger.log('Health check requested');
         
-        const healthCheck = await this.prismaHealthService.checkHealth();
+        const [healthCheck, storageHealth] = await Promise.all([
+          this.prismaHealthService.checkHealth(),
+          this.storageService.healthCheck()
+        ]);
+        
         const timestamp = new Date().toISOString();
         
         // Determine overall status
-        const isHealthy = healthCheck.status === 'healthy' && healthCheck.database.connected;
+        const isHealthy = healthCheck.status === 'healthy' && 
+                         healthCheck.database.connected && 
+                         storageHealth.status === 'healthy';
         
         if (isHealthy) {
           const response = {
@@ -58,21 +68,26 @@ export class HealthController {
             database: {
               status: 'connected' as const,
               latency: healthCheck.database.responseTime
+            },
+            storage: {
+              status: storageHealth.status,
+              provider: storageHealth.provider,
+              bucket: storageHealth.bucket
             }
           };
           
-          this.logger.log(`Health check passed: DB latency ${healthCheck.database.responseTime}ms`);
+          this.logger.log(`Health check passed: DB latency ${healthCheck.database.responseTime}ms, Storage: ${storageHealth.provider}`);
           return { status: 200, body: response };
         } else {
-          this.logger.error('Health check failed: Database disconnected');
+          this.logger.error('Health check failed: Database or storage disconnected');
           return {
             status: 503,
             body: {
               errors: [{
                 status: '503',
                 title: 'Service Unavailable',
-                detail: 'Database connection failed',
-                code: 'DATABASE_UNAVAILABLE'
+                detail: 'Database or storage connection failed',
+                code: 'SERVICE_UNAVAILABLE'
               }]
             }
           };

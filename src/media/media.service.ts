@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3 } from 'aws-sdk';
+import { UnifiedStorageService } from '../common/services/storage.service';
 import { ConfigService } from '@nestjs/config';
 
 export interface UploadFileDto {
@@ -27,36 +27,11 @@ interface FileFilters {
 
 @Injectable()
 export class MediaService {
-  private s3: S3;
-  private bucketName: string;
-
   constructor(
     private readonly prisma: PrismaService,
+    private readonly storageService: UnifiedStorageService,
     private readonly configService: ConfigService,
-  ) {
-    // In test environment, use mock S3
-    if (process.env.NODE_ENV === 'test') {
-      this.s3 = {
-        upload: () => ({
-          promise: () => Promise.resolve({
-            Location: 'https://test-bucket.s3.amazonaws.com/test-key.jpg'
-          })
-        }),
-        deleteObject: () => ({
-          promise: () => Promise.resolve({})
-        }),
-        getSignedUrl: () => 'https://test-bucket.s3.amazonaws.com/test-key.jpg?signature=test'
-      } as any;
-      this.bucketName = 'farmpro-media-test';
-    } else {
-      this.s3 = new S3({
-        accessKeyId: this.configService.get('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.configService.get('AWS_SECRET_ACCESS_KEY'),
-        region: this.configService.get('AWS_REGION') || 'us-east-1',
-      });
-      this.bucketName = this.configService.get('AWS_S3_BUCKET') || 'farmpro-media-dev';
-    }
-  }
+  ) {}
 
   async uploadFile(
     uploadData: UploadFileDto,
@@ -80,21 +55,19 @@ export class MediaService {
     const s3Key = `organizations/${organizationId}/${uploadData.metadata.context}/${uploadData.metadata.contextId}/${timestamp}-${randomId}.${fileExtension}`;
 
     try {
-      // Upload to S3
-      const uploadResult = await this.s3.upload({
-        Bucket: this.bucketName,
-        Key: s3Key,
-        Body: uploadData.file.buffer,
-        ContentType: uploadData.file.mimetype,
-        Metadata: {
+      // Upload to storage service (S3 or Cloudflare R2)
+      const uploadResult = await this.storageService.uploadFile(
+        s3Key,
+        uploadData.file.buffer,
+        uploadData.file.mimetype,
+        {
           context: uploadData.metadata.context,
           contextId: uploadData.metadata.contextId,
           organizationId,
           uploadedBy: userId,
           originalName: uploadData.file.originalname,
-        },
-        ServerSideEncryption: 'AES256',
-      }).promise();
+        }
+      );
 
       // Save media record to database
       const media = await this.prisma.media.create({
@@ -105,12 +78,13 @@ export class MediaService {
           ...(uploadData.metadata.context === 'observation' && { observationId: uploadData.metadata.contextId }),
           
           filename: uploadData.file.originalname,
-          url: uploadResult.Location,
+          url: uploadResult.url,
           mimeType: uploadData.file.mimetype,
           size: uploadData.file.size,
           metadata: {
-            s3Key,
-            s3Bucket: this.bucketName,
+            storageKey: s3Key,
+            storageBucket: uploadResult.bucket,
+            storageProvider: this.storageService.getConfig().provider,
             context: uploadData.metadata.context,
             contextId: uploadData.metadata.contextId,
             uploadedBy: userId,
@@ -263,13 +237,10 @@ export class MediaService {
     }
 
     try {
-      // Delete from S3
-      const s3Key = metadata?.s3Key;
-      if (s3Key) {
-        await this.s3.deleteObject({
-          Bucket: this.bucketName,
-          Key: s3Key,
-        }).promise();
+      // Delete from storage service
+      const storageKey = metadata?.storageKey || metadata?.s3Key; // Support legacy s3Key
+      if (storageKey) {
+        await this.storageService.deleteFile(storageKey);
       }
 
       // Update audit trail before deletion
@@ -313,19 +284,15 @@ export class MediaService {
   async generateDownloadUrl(mediaId: string, organizationId: string) {
     const media = await this.getFile(mediaId, organizationId);
     const metadata = media.attributes as any;
-    const s3Key = metadata?.s3Key;
+    const storageKey = metadata?.storageKey || metadata?.s3Key; // Support legacy s3Key
     
-    if (!s3Key) {
+    if (!storageKey) {
       // Return direct URL for legacy files
       return media.attributes.url;
     }
 
     try {
-      const url = this.s3.getSignedUrl('getObject', {
-        Bucket: this.bucketName,
-        Key: s3Key,
-        Expires: 3600, // 1 hour
-      });
+      const url = await this.storageService.generateSignedUrl(storageKey, 3600); // 1 hour
 
       // Add audit entry for download
       await this.addAuditEntry(mediaId, 'DOWNLOADED', organizationId, 'File downloaded');
@@ -504,6 +471,8 @@ export class MediaService {
         description: metadata?.description,
         tags: metadata?.tags,
         location: metadata?.location,
+        storageProvider: metadata?.storageProvider || 'aws', // Default to aws for legacy files
+        storageBucket: metadata?.storageBucket || metadata?.s3Bucket,
       },
     };
   }
