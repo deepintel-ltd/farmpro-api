@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UnifiedStorageService } from '../common/services/storage.service';
+import { VideoCompressionService } from '../common/services/video-compression.service';
 import { ConfigService } from '@nestjs/config';
 
 export interface UploadFileDto {
@@ -30,6 +31,7 @@ export class MediaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: UnifiedStorageService,
+    private readonly videoCompressionService: VideoCompressionService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -48,8 +50,32 @@ export class MediaService {
     // Validate file
     this.validateFile(uploadData.file);
 
+    // Check if file is a video and compress if needed
+    let fileBuffer = uploadData.file.buffer;
+    let fileMimeType = uploadData.file.mimetype;
+    let originalSize = uploadData.file.size;
+    let compressionInfo = null;
+
+    if (this.isVideoFile(uploadData.file.mimetype)) {
+      const compressionResult = await this.compressVideoIfNeeded(
+        uploadData.file.buffer,
+        uploadData.file.originalname
+      );
+      
+      if (compressionResult.success && compressionResult.compressedSize < originalSize) {
+        fileBuffer = compressionResult.compressedBuffer!;
+        fileMimeType = 'video/mp4'; // Compressed videos are always MP4
+        compressionInfo = {
+          originalSize: compressionResult.originalSize,
+          compressedSize: compressionResult.compressedSize,
+          compressionRatio: compressionResult.compressionRatio,
+          processingTime: compressionResult.processingTime,
+        };
+      }
+    }
+
     // Generate S3 key with context organization
-    const fileExtension = uploadData.file.originalname.split('.').pop();
+    const fileExtension = fileMimeType === 'video/mp4' ? 'mp4' : uploadData.file.originalname.split('.').pop();
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(7);
     const s3Key = `organizations/${organizationId}/${uploadData.metadata.context}/${uploadData.metadata.contextId}/${timestamp}-${randomId}.${fileExtension}`;
@@ -58,14 +84,15 @@ export class MediaService {
       // Upload to storage service (S3 or Cloudflare R2)
       const uploadResult = await this.storageService.uploadFile(
         s3Key,
-        uploadData.file.buffer,
-        uploadData.file.mimetype,
+        fileBuffer,
+        fileMimeType,
         {
           context: uploadData.metadata.context,
           contextId: uploadData.metadata.contextId,
           organizationId,
           uploadedBy: userId,
           originalName: uploadData.file.originalname,
+          ...(compressionInfo && { compressionInfo: JSON.stringify(compressionInfo) }),
         }
       );
 
@@ -507,6 +534,109 @@ export class MediaService {
     
     if (dangerousExtensions.some(ext => filename.endsWith(ext))) {
       throw new BadRequestException('File extension not allowed for security reasons');
+    }
+  }
+
+  /**
+   * Check if the file is a video that can be compressed
+   */
+  private isVideoFile(mimeType: string): boolean {
+    const videoTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+    return videoTypes.includes(mimeType);
+  }
+
+  /**
+   * Compress video if it meets the criteria for compression
+   */
+  private async compressVideoIfNeeded(
+    buffer: Buffer,
+    filename: string
+  ): Promise<{
+    success: boolean;
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+    compressedBuffer?: Buffer;
+    processingTime: number;
+    error?: string;
+  }> {
+    const minSizeForCompression = 5 * 1024 * 1024; // 5MB minimum size for compression
+    const maxSizeForCompression = 100 * 1024 * 1024; // 100MB maximum size for compression
+
+    // Skip compression for small files or very large files
+    if (buffer.length < minSizeForCompression || buffer.length > maxSizeForCompression) {
+      return {
+        success: true,
+        originalSize: buffer.length,
+        compressedSize: buffer.length,
+        compressionRatio: 0,
+        compressedBuffer: buffer,
+        processingTime: 0,
+      };
+    }
+
+    try {
+      // Check if FFmpeg is available
+      const isFFmpegAvailable = await this.videoCompressionService.isFFmpegAvailable();
+      if (!isFFmpegAvailable) {
+        // Return original buffer if FFmpeg is not available
+        return {
+          success: true,
+          originalSize: buffer.length,
+          compressedSize: buffer.length,
+          compressionRatio: 0,
+          compressedBuffer: buffer,
+          processingTime: 0,
+        };
+      }
+
+      // Compress the video
+      const result = await this.videoCompressionService.compressVideo(
+        buffer,
+        filename,
+        {
+          quality: 'medium',
+          maxWidth: 1920,
+          maxHeight: 1080,
+        }
+      );
+
+      if (result.success && result.outputPath) {
+        // Read the compressed file
+        const fs = require('fs').promises;
+        const compressedBuffer = await fs.readFile(result.outputPath);
+        
+        return {
+          success: true,
+          originalSize: result.originalSize,
+          compressedSize: result.compressedSize,
+          compressionRatio: result.compressionRatio,
+          compressedBuffer,
+          processingTime: result.processingTime,
+        };
+      }
+
+      // If compression failed, return original buffer
+      return {
+        success: true,
+        originalSize: buffer.length,
+        compressedSize: buffer.length,
+        compressionRatio: 0,
+        compressedBuffer: buffer,
+        processingTime: result.processingTime,
+        error: result.error,
+      };
+    } catch (error) {
+      // If compression fails, return original buffer
+      return {
+        success: true,
+        originalSize: buffer.length,
+        compressedSize: buffer.length,
+        compressionRatio: 0,
+        compressedBuffer: buffer,
+        processingTime: 0,
+        error: (error as Error).message,
+      };
     }
   }
 }

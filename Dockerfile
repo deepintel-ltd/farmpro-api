@@ -4,10 +4,11 @@ FROM node:20-alpine AS base
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies required for Prisma and native modules
+# Install system dependencies required for Prisma, native modules, and FFmpeg
 RUN apk add --no-cache \
     openssl \
     ca-certificates \
+    ffmpeg \
     && rm -rf /var/cache/apk/*
 
 # Copy package files
@@ -40,6 +41,7 @@ RUN apk add --no-cache \
     openssl \
     ca-certificates \
     dumb-init \
+    ffmpeg \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user for security
