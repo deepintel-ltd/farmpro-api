@@ -56,9 +56,12 @@ COPY --chown=nestjs:nodejs contracts/package*.json ./contracts/
 RUN npm ci --only=production && npm cache clean --force
 RUN cd contracts && npm ci --only=production && npm cache clean --force
 
-# Copy built application and generated files
-COPY --from=base --chown=nestjs:nodejs /app/dist ./dist
+# Copy Prisma schema and generate client
 COPY --from=base --chown=nestjs:nodejs /app/prisma ./prisma
+RUN npx prisma generate
+
+# Copy built application
+COPY --from=base --chown=nestjs:nodejs /app/dist ./dist
 
 # Switch to non-root user
 USER nestjs
