@@ -5,6 +5,7 @@ import { healthContract } from '../../contracts/health.contract';
 import { PrismaHealthService } from '../prisma/prisma.health';
 import { UnifiedStorageService } from '../common/services/storage.service';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('Health')
 @Controller()
@@ -16,6 +17,7 @@ export class HealthController {
     private readonly storageService: UnifiedStorageService
   ) {}
 
+  @Public()
   @TsRestHandler(healthContract.health)
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ 
@@ -105,6 +107,7 @@ export class HealthController {
   /**
    * Simple liveness probe endpoint
    */
+  @Public()
   @Get('health/live')
   @ApiOperation({ summary: 'Liveness probe for container orchestration' })
   @ApiResponse({ status: 200, description: 'Service is alive' })
@@ -116,6 +119,7 @@ export class HealthController {
   /**
    * Readiness probe endpoint with dependency checks
    */
+  @Public()
   @Get('health/ready')
   @ApiOperation({ summary: 'Readiness probe for container orchestration' })
   @ApiResponse({ status: 200, description: 'Service is ready to accept traffic' })
