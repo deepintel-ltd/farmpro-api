@@ -23,6 +23,7 @@ import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 import { BillingModule } from '@/billing/billing.module';
+import { WeatherModule } from '@/weather/weather.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { BillingModule } from '@/billing/billing.module';
     AppCacheModule,
     BrevoModule,
     BillingModule,
+    WeatherModule,
   ],
   controllers: [AppController],
   providers: [

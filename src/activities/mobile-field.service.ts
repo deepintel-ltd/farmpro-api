@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { WeatherService } from './weather.service';
+import { WeatherService } from '../weather/weather.service';
 
 // Simplified mobile interfaces
 interface MobileTaskQuery {

@@ -10,7 +10,7 @@ import { MarketModule } from '../market/market.module';
 import { ActivityUpdatesGateway } from './activity-updates.gateway';
 import { MobileFieldController } from './mobile-field.controller';
 import { MobileFieldService } from './mobile-field.service';
-import { WeatherService } from './weather.service';
+import { WeatherModule } from '../weather/weather.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ActivityAssignmentGuard } from './guards';
 
@@ -18,6 +18,7 @@ import { ActivityAssignmentGuard } from './guards';
   imports: [
     PrismaModule, 
     MarketModule,
+    WeatherModule,
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: process.env.JWT_SECRET,
@@ -34,7 +35,6 @@ import { ActivityAssignmentGuard } from './guards';
     ActivityNotesService,
     ActivityUpdatesGateway,
     MobileFieldService,
-    WeatherService,
     ActivityAssignmentGuard,
   ],
   exports: [
@@ -45,7 +45,6 @@ import { ActivityAssignmentGuard } from './guards';
     ActivityNotesService,
     ActivityUpdatesGateway,
     MobileFieldService,
-    WeatherService,
     ActivityAssignmentGuard,
   ],
 })

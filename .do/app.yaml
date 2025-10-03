@@ -1,0 +1,74 @@
+name: farmpro-api
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: your-username/farmpro-api
+    branch: main
+    deploy_on_push: true
+  run_command: node dist/main.js
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 3000
+  health_check:
+    http_path: /api/health
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: PORT
+    value: "3000"
+  - key: DATABASE_URL
+    value: ${db.DATABASE_URL}
+    type: SECRET
+  - key: REDIS_URL
+    value: ${redis.REDIS_URL}
+    type: SECRET
+  - key: JWT_SECRET
+    value: ${JWT_SECRET}
+    type: SECRET
+  - key: JWT_REFRESH_SECRET
+    value: ${JWT_REFRESH_SECRET}
+    type: SECRET
+  - key: OPENAI_API_KEY
+    value: ${OPENAI_API_KEY}
+    type: SECRET
+  - key: WEATHER_API_KEY
+    value: ${WEATHER_API_KEY}
+    type: SECRET
+  - key: BREVO_API_KEY
+    value: ${BREVO_API_KEY}
+    type: SECRET
+  - key: STRIPE_SECRET_KEY
+    value: ${STRIPE_SECRET_KEY}
+    type: SECRET
+  - key: STRIPE_WEBHOOK_SECRET
+    value: ${STRIPE_WEBHOOK_SECRET}
+    type: SECRET
+  - key: PAYSTACK_SECRET_KEY
+    value: ${PAYSTACK_SECRET_KEY}
+    type: SECRET
+  - key: AWS_ACCESS_KEY_ID
+    value: ${AWS_ACCESS_KEY_ID}
+    type: SECRET
+  - key: AWS_SECRET_ACCESS_KEY
+    value: ${AWS_SECRET_ACCESS_KEY}
+    type: SECRET
+  - key: FRONTEND_URL
+    value: ${FRONTEND_URL}
+  - key: BASE_URL
+    value: ${BASE_URL}
+  - key: ALLOWED_ORIGINS
+    value: ${ALLOWED_ORIGINS}
+
+databases:
+- name: db
+  engine: PG
+  version: "15"
+  size: db-s-1vcpu-1gb
+  num_nodes: 1
+
+redis:
+- name: redis
+  size: redis-s-1vcpu-1gb
+  version: "7"

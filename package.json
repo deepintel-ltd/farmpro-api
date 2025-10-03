@@ -47,7 +47,9 @@
     "contracts:publish:npm": "node scripts/publish-contracts.js npm",
     "contracts:publish:all": "node scripts/publish-contracts.js all",
     "db:init": "tsx scripts/init-db.ts",
-    "db:verify": "tsx scripts/verify-init.ts"
+    "db:verify": "tsx scripts/verify-init.ts",
+    "setup:env": "node scripts/setup-env.js",
+    "setup:dev": "npm run setup:env && npm run db:init"
   },
   "keywords": [],
   "author": "",

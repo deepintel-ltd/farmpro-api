@@ -227,15 +227,13 @@ export const WeatherHistoryResponseSchema = z.object({
 
 export const weatherContract = c.router({
   /**
-   * Get current weather for a location
+   * Get current weather for a farm
    */
   getCurrentWeather: {
     method: 'GET',
     path: '/weather/current',
     query: z.object({
-      farmId: z.string().uuid().optional(),
-      latitude: z.coerce.number().optional(),
-      longitude: z.coerce.number().optional(),
+      farmId: z.string().uuid(),
       includeAgMetrics: z.coerce.boolean().optional().default(true),
     }),
     responses: {
@@ -243,21 +241,19 @@ export const weatherContract = c.router({
       400: JsonApiErrorResponseSchema,
       404: JsonApiErrorResponseSchema,
     },
-    summary: 'Get current weather conditions',
+    summary: 'Get current weather conditions for a farm',
     description:
-      'Retrieve current weather data for a farm or specific coordinates. Includes agricultural metrics when available.',
+      'Retrieve current weather data for a farm using its stored location coordinates. Includes agricultural metrics when available.',
   },
 
   /**
-   * Get weather forecast
+   * Get weather forecast for a farm
    */
   getWeatherForecast: {
     method: 'GET',
     path: '/weather/forecast',
     query: z.object({
-      farmId: z.string().uuid().optional(),
-      latitude: z.coerce.number().optional(),
-      longitude: z.coerce.number().optional(),
+      farmId: z.string().uuid(),
       days: z.coerce.number().min(1).max(14).optional().default(7),
       includeHourly: z.coerce.boolean().optional().default(false),
       includeAgMetrics: z.coerce.boolean().optional().default(true),
@@ -267,21 +263,19 @@ export const weatherContract = c.router({
       400: JsonApiErrorResponseSchema,
       404: JsonApiErrorResponseSchema,
     },
-    summary: 'Get weather forecast',
+    summary: 'Get weather forecast for a farm',
     description:
-      'Retrieve weather forecast for up to 14 days. Optionally include hourly forecast and agricultural metrics.',
+      'Retrieve weather forecast for up to 14 days for a farm using its stored location coordinates. Optionally include hourly forecast and agricultural metrics.',
   },
 
   /**
-   * Get weather alerts
+   * Get weather alerts for a farm
    */
   getWeatherAlerts: {
     method: 'GET',
     path: '/weather/alerts',
     query: z.object({
-      farmId: z.string().uuid().optional(),
-      latitude: z.coerce.number().optional(),
-      longitude: z.coerce.number().optional(),
+      farmId: z.string().uuid(),
       activeOnly: z.coerce.boolean().optional().default(true),
       severity: AlertSeveritySchema.optional(),
       type: WeatherAlertTypeSchema.optional(),
@@ -291,21 +285,19 @@ export const weatherContract = c.router({
       400: JsonApiErrorResponseSchema,
       404: JsonApiErrorResponseSchema,
     },
-    summary: 'Get weather alerts',
+    summary: 'Get weather alerts for a farm',
     description:
-      'Retrieve weather alerts for a location. Filter by severity, type, and active status.',
+      'Retrieve weather alerts for a farm using its stored location coordinates. Filter by severity, type, and active status.',
   },
 
   /**
-   * Get historical weather data
+   * Get historical weather data for a farm
    */
   getWeatherHistory: {
     method: 'GET',
     path: '/weather/history',
     query: z.object({
-      farmId: z.string().uuid().optional(),
-      latitude: z.coerce.number().optional(),
-      longitude: z.coerce.number().optional(),
+      farmId: z.string().uuid(),
       startDate: z.string().date(),
       endDate: z.string().date(),
       includeAgMetrics: z.coerce.boolean().optional().default(false),
@@ -315,8 +307,8 @@ export const weatherContract = c.router({
       400: JsonApiErrorResponseSchema,
       404: JsonApiErrorResponseSchema,
     },
-    summary: 'Get historical weather data',
-    description: 'Retrieve historical weather data for a location within a date range.',
+    summary: 'Get historical weather data for a farm',
+    description: 'Retrieve historical weather data for a farm using its stored location coordinates within a date range.',
   },
 
   /**
