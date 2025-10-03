@@ -17,8 +17,8 @@ export class HealthController {
     private readonly storageService: UnifiedStorageService
   ) {}
 
-  @Public()
   @TsRestHandler(healthContract.health)
+  @Public()
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ 
     status: 200, 

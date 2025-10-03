@@ -73,7 +73,7 @@ export interface ApiContractDefinition {
   activitiesMedia: typeof activitiesMediaContract;
   activitiesAnalytics: typeof activitiesAnalyticsContract;
   mobile: typeof mobileFieldContract;
-  health: typeof healthContract.health;
+  health: typeof healthContract;
 }
 
 // Create the contract with explicit typing
@@ -104,7 +104,7 @@ export const apiContract: ApiContractDefinition = c.router({
   activitiesMedia: activitiesMediaContract,
   activitiesAnalytics: activitiesAnalyticsContract,
   mobile: mobileFieldContract,
-  ...healthContract,
+  health: healthContract,
 });
 
 // =============================================================================
