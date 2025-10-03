@@ -15,11 +15,11 @@ RUN apk add --no-cache \
 COPY package*.json ./
 COPY contracts/package*.json ./contracts/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci && npm cache clean --force
 
 # Install contracts dependencies
-RUN cd contracts && npm ci --only=production && npm cache clean --force
+RUN cd contracts && npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -48,12 +48,17 @@ RUN apk add --no-cache \
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
-# Copy built application and dependencies
+# Copy package files for production install
+COPY --chown=nestjs:nodejs package*.json ./
+COPY --chown=nestjs:nodejs contracts/package*.json ./contracts/
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+RUN cd contracts && npm ci --only=production && npm cache clean --force
+
+# Copy built application and generated files
 COPY --from=base --chown=nestjs:nodejs /app/dist ./dist
-COPY --from=base --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=base --chown=nestjs:nodejs /app/contracts ./contracts
 COPY --from=base --chown=nestjs:nodejs /app/prisma ./prisma
-COPY --from=base --chown=nestjs:nodejs /app/package*.json ./
 
 # Switch to non-root user
 USER nestjs
