@@ -144,7 +144,7 @@ export const analyticsContract = c.router({
   
   getDashboard: {
     method: 'GET',
-    path: '/api/analytics/dashboard',
+    path: '/analytics/dashboard',
     query: BaseAnalyticsQuerySchema.merge(CommonQueryParams),
     responses: {
       200: AnalyticsResponseSchema,
@@ -160,7 +160,7 @@ export const analyticsContract = c.router({
   
   getFinancialAnalytics: {
     method: 'GET',
-    path: '/api/analytics/financial',
+    path: '/analytics/financial',
     query: FinancialQuerySchema.merge(CommonQueryParams),
     responses: {
       200: AnalyticsResponseSchema,
@@ -176,7 +176,7 @@ export const analyticsContract = c.router({
   
   getFarmToMarketAnalytics: {
     method: 'GET',
-    path: '/api/analytics/farm-to-market',
+    path: '/analytics/farm-to-market',
     query: FarmToMarketQuerySchema.merge(CommonQueryParams),
     responses: {
       200: AnalyticsResponseSchema,
@@ -192,7 +192,7 @@ export const analyticsContract = c.router({
   
   getActivityAnalytics: {
     method: 'GET',
-    path: '/api/analytics/activities',
+    path: '/analytics/activities',
     query: ActivityQuerySchema.merge(CommonQueryParams),
     responses: {
       200: AnalyticsResponseSchema,
@@ -208,7 +208,7 @@ export const analyticsContract = c.router({
   
   getMarketAnalytics: {
     method: 'GET',
-    path: '/api/analytics/market',
+    path: '/analytics/market',
     query: MarketQuerySchema.merge(CommonQueryParams),
     responses: {
       200: AnalyticsResponseSchema,
@@ -224,7 +224,7 @@ export const analyticsContract = c.router({
   
   getInsights: {
     method: 'GET',
-    path: '/api/analytics/insights',
+    path: '/analytics/insights',
     query: BaseAnalyticsQuerySchema.merge(CommonQueryParams),
     responses: {
       200: z.object({
@@ -251,7 +251,7 @@ export const analyticsContract = c.router({
   
   exportAnalytics: {
     method: 'POST',
-    path: '/api/analytics/export',
+    path: '/analytics/export',
     body: ExportRequestSchema,
     responses: {
       202: z.object({
@@ -278,7 +278,7 @@ export const analyticsContract = c.router({
   
   generateReport: {
     method: 'POST',
-    path: '/api/analytics/reports',
+    path: '/analytics/reports',
     body: ReportRequestSchema,
     responses: {
       202: z.object({

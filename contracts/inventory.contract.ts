@@ -34,7 +34,7 @@ export const inventoryContract = c.router({
   // Get all inventory items
   getInventory: {
     method: 'GET',
-    path: '/api/inventory',
+    path: '/inventory',
     query: AllQueryParams.extend({
       farmId: z.string().uuid().optional(),
       commodityId: z.string().uuid().optional(),
@@ -54,7 +54,7 @@ export const inventoryContract = c.router({
   // Get single inventory item
   getInventoryItem: {
     method: 'GET',
-    path: '/api/inventory/:id',
+    path: '/inventory/:id',
     pathParams: UuidPathParam('Inventory'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
@@ -67,7 +67,7 @@ export const inventoryContract = c.router({
   // Create inventory item
   createInventory: {
     method: 'POST',
-    path: '/api/inventory',
+    path: '/inventory',
     body: CreateInventoryRequestSchema,
     responses: {
       201: InventoryResourceSchema,
@@ -79,7 +79,7 @@ export const inventoryContract = c.router({
   // Update inventory item
   updateInventory: {
     method: 'PATCH',
-    path: '/api/inventory/:id',
+    path: '/inventory/:id',
     pathParams: UuidPathParam('Inventory'),
     body: UpdateInventoryRequestSchema,
     responses: {
@@ -92,7 +92,7 @@ export const inventoryContract = c.router({
   // Delete inventory item
   deleteInventory: {
     method: 'DELETE',
-    path: '/api/inventory/:id',
+    path: '/inventory/:id',
     pathParams: UuidPathParam('Inventory'),
     body: z.object({}),
     responses: {
@@ -109,7 +109,7 @@ export const inventoryContract = c.router({
   // Get inventory movements
   getInventoryMovements: {
     method: 'GET',
-    path: '/api/inventory/:id/movements',
+    path: '/inventory/:id/movements',
     pathParams: UuidPathParam('Inventory'),
     query: AllQueryParams,
     responses: {
@@ -123,7 +123,7 @@ export const inventoryContract = c.router({
   // Quantity operations
   updateInventoryQuantity: {
     method: 'PATCH',
-    path: '/api/inventory/:id/quantity',
+    path: '/inventory/:id/quantity',
     pathParams: UuidPathParam('Inventory'),
     body: z.object({
       data: z.object({
@@ -146,7 +146,7 @@ export const inventoryContract = c.router({
   // Transfer inventory
   transferInventory: {
     method: 'POST',
-    path: '/api/inventory/transfer',
+    path: '/inventory/transfer',
     body: InventoryTransferRequestSchema,
     responses: {
       201: InventoryResourceSchema,
@@ -162,7 +162,7 @@ export const inventoryContract = c.router({
   // Get quality tests
   getQualityTests: {
     method: 'GET',
-    path: '/api/inventory/:id/quality-tests',
+    path: '/inventory/:id/quality-tests',
     pathParams: UuidPathParam('Inventory'),
     query: AllQueryParams,
     responses: {
@@ -175,7 +175,7 @@ export const inventoryContract = c.router({
   // Add quality test
   addQualityTest: {
     method: 'POST',
-    path: '/api/inventory/:id/quality-tests',
+    path: '/inventory/:id/quality-tests',
     pathParams: UuidPathParam('Inventory'),
     body: InventoryQualityTestRequestSchema,
     responses: {
@@ -188,7 +188,7 @@ export const inventoryContract = c.router({
   // Update quality grade
   updateQualityGrade: {
     method: 'PUT',
-    path: '/api/inventory/:id/quality-grade',
+    path: '/inventory/:id/quality-grade',
     pathParams: UuidPathParam('Inventory'),
     body: z.object({
       newGrade: z.string(),
@@ -210,7 +210,7 @@ export const inventoryContract = c.router({
   // Get inventory analytics
   getInventoryAnalytics: {
     method: 'GET',
-    path: '/api/inventory/analytics',
+    path: '/inventory/analytics',
     query: z.object({
       period: z.string().optional(),
       metric: z.string().optional(),
@@ -233,7 +233,7 @@ export const inventoryContract = c.router({
   // Get stock alerts
   getStockAlerts: {
     method: 'GET',
-    path: '/api/inventory/stock-alerts',
+    path: '/inventory/stock-alerts',
     query: z.object({
       severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
       type: z.enum(['low_stock', 'expiry', 'quality']).optional(),
@@ -259,7 +259,7 @@ export const inventoryContract = c.router({
   // Get batch inventory
   getBatchInventory: {
     method: 'GET',
-    path: '/api/inventory/batches/:batchNumber',
+    path: '/inventory/batches/:batchNumber',
     pathParams: z.object({
       batchNumber: z.string(),
     }),
@@ -274,7 +274,7 @@ export const inventoryContract = c.router({
   // Batch operations
   updateBatch: {
     method: 'PATCH',
-    path: '/api/inventory/batches/:batchNumber',
+    path: '/inventory/batches/:batchNumber',
     pathParams: z.object({
       batchNumber: z.string(),
     }),
@@ -319,7 +319,7 @@ export const inventoryContract = c.router({
   // Get traceability
   getTraceability: {
     method: 'GET',
-    path: '/api/inventory/traceability/:id',
+    path: '/inventory/traceability/:id',
     pathParams: UuidPathParam('Inventory'),
     responses: {
       200: z.object({
@@ -341,7 +341,7 @@ export const inventoryContract = c.router({
   // Get facilities
   getFacilities: {
     method: 'GET',
-    path: '/api/inventory/facilities',
+    path: '/inventory/facilities',
     query: z.object({
       farmId: z.string().uuid().optional(),
     }),
@@ -361,7 +361,7 @@ export const inventoryContract = c.router({
   // Get facility details
   getFacility: {
     method: 'GET',
-    path: '/api/inventory/facilities/:facilityId',
+    path: '/inventory/facilities/:facilityId',
     pathParams: z.object({
       facilityId: z.string(),
     }),
@@ -381,7 +381,7 @@ export const inventoryContract = c.router({
   // Log facility conditions
   logFacilityConditions: {
     method: 'POST',
-    path: '/api/inventory/facilities/:facilityId/conditions',
+    path: '/inventory/facilities/:facilityId/conditions',
     pathParams: z.object({
       facilityId: z.string(),
     }),
@@ -403,7 +403,7 @@ export const inventoryContract = c.router({
   // Get storage optimization
   getStorageOptimization: {
     method: 'GET',
-    path: '/api/inventory/storage-optimization',
+    path: '/inventory/storage-optimization',
     query: z.object({
       farmId: z.string().uuid().optional(),
       commodityId: z.string().uuid().optional(),
@@ -428,7 +428,7 @@ export const inventoryContract = c.router({
   // Get inventory valuation
   getInventoryValuation: {
     method: 'GET',
-    path: '/api/inventory/valuation',
+    path: '/inventory/valuation',
     query: z.object({
       method: z.enum(['fifo', 'lifo', 'average', 'current_market']).optional(),
       asOfDate: z.string().datetime().optional(),
@@ -449,7 +449,7 @@ export const inventoryContract = c.router({
   // Get cost basis
   getCostBasis: {
     method: 'GET',
-    path: '/api/inventory/:id/cost-basis',
+    path: '/inventory/:id/cost-basis',
     pathParams: UuidPathParam('Inventory'),
     responses: {
       200: z.object({
@@ -467,7 +467,7 @@ export const inventoryContract = c.router({
   // Update cost basis
   updateCostBasis: {
     method: 'PUT',
-    path: '/api/inventory/:id/cost-basis',
+    path: '/inventory/:id/cost-basis',
     pathParams: UuidPathParam('Inventory'),
     body: z.object({
       newCostBasis: z.number().positive(),
@@ -485,7 +485,7 @@ export const inventoryContract = c.router({
   // Get aging report
   getAgingReport: {
     method: 'GET',
-    path: '/api/inventory/aging-report',
+    path: '/inventory/aging-report',
     query: z.object({
       farmId: z.string().uuid().optional(),
       commodityId: z.string().uuid().optional(),
@@ -510,7 +510,7 @@ export const inventoryContract = c.router({
   // Get demand forecast
   getDemandForecast: {
     method: 'GET',
-    path: '/api/inventory/demand-forecast',
+    path: '/inventory/demand-forecast',
     query: z.object({
       commodityId: z.string().uuid().optional(),
       period: z.string().optional(),
@@ -532,7 +532,7 @@ export const inventoryContract = c.router({
   // Get reorder points
   getReorderPoints: {
     method: 'GET',
-    path: '/api/inventory/reorder-points',
+    path: '/inventory/reorder-points',
     query: z.object({
       commodityId: z.string().uuid().optional(),
       farmId: z.string().uuid().optional(),
@@ -553,7 +553,7 @@ export const inventoryContract = c.router({
   // Generate replenishment plan
   generateReplenishmentPlan: {
     method: 'POST',
-    path: '/api/inventory/replenishment-plan',
+    path: '/inventory/replenishment-plan',
     body: z.object({
       commodityId: z.string().uuid().optional(),
       farmId: z.string().uuid().optional(),
@@ -581,7 +581,7 @@ export const inventoryContract = c.router({
   // Configure alerts
   configureAlerts: {
     method: 'POST',
-    path: '/api/inventory/alerts/configure',
+    path: '/inventory/alerts/configure',
     body: z.object({
       lowStockThreshold: z.number().positive(),
       expiryWarningDays: z.number().positive(),
@@ -603,7 +603,7 @@ export const inventoryContract = c.router({
   // Get waste analysis
   getWasteAnalysis: {
     method: 'GET',
-    path: '/api/inventory/waste-analysis',
+    path: '/inventory/waste-analysis',
     query: z.object({
       period: z.string().optional(),
       farmId: z.string().uuid().optional(),
@@ -625,7 +625,7 @@ export const inventoryContract = c.router({
   // Generate reports
   generateReports: {
     method: 'POST',
-    path: '/api/inventory/reports',
+    path: '/inventory/reports',
     body: z.object({
       reportType: z.enum(['stock_levels', 'movements', 'valuation', 'waste', 'custom']),
       filters: z.object({

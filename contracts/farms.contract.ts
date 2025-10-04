@@ -28,7 +28,7 @@ export const farmContract = c.router({
   // Get all farms
   getFarms: {
     method: 'GET',
-    path: '/api/farms',
+    path: '/farms',
     query: AllQueryParams,
     responses: {
       200: FarmCollectionSchema,
@@ -40,7 +40,7 @@ export const farmContract = c.router({
   // Get single farm
   getFarm: {
     method: 'GET',
-    path: '/api/farms/:id',
+    path: '/farms/:id',
     pathParams: CuidPathParam('Farm'),
     query: CommonQueryParams.merge(ResourceFieldsParams),
     responses: {
@@ -53,7 +53,7 @@ export const farmContract = c.router({
   // Create farm
   createFarm: {
     method: 'POST',
-    path: '/api/farms',
+    path: '/farms',
     body: CreateFarmRequestSchema,
     responses: {
       201: FarmResourceSchema,
@@ -65,7 +65,7 @@ export const farmContract = c.router({
   // Update farm
   updateFarm: {
     method: 'PATCH',
-    path: '/api/farms/:id',
+    path: '/farms/:id',
     pathParams: CuidPathParam('Farm'),
     body: UpdateFarmRequestSchema,
     responses: {
@@ -78,7 +78,7 @@ export const farmContract = c.router({
   // Delete farm
   deleteFarm: {
     method: 'DELETE',
-    path: '/api/farms/:id',
+    path: '/farms/:id',
     pathParams: CuidPathParam('Farm'),
     body: z.object({}),
     responses: {
@@ -93,7 +93,7 @@ export const farmContract = c.router({
   // Get farm relationships - commodities
   getFarmCommodities: {
     method: 'GET',
-    path: '/api/farms/:id/commodities',
+    path: '/farms/:id/commodities',
     pathParams: CuidPathParam('Farm'),
     query: AllQueryParams,
     responses: {
@@ -106,7 +106,7 @@ export const farmContract = c.router({
   // Get farm relationships - orders
   getFarmOrders: {
     method: 'GET',
-    path: '/api/farms/:id/orders',
+    path: '/farms/:id/orders',
     pathParams: CuidPathParam('Farm'),
     query: AllQueryParams,
     responses: {
@@ -119,7 +119,7 @@ export const farmContract = c.router({
   // Get farm relationship data - commodities
   getFarmCommodityRelationships: {
     method: 'GET',
-    path: '/api/farms/:id/relationships/commodities',
+    path: '/farms/:id/relationships/commodities',
     pathParams: CuidPathParam('Farm'),
     responses: {
       200: z.object({
@@ -144,7 +144,7 @@ export const farmContract = c.router({
   // Get farm relationship data - orders
   getFarmOrderRelationships: {
     method: 'GET',
-    path: '/api/farms/:id/relationships/orders',
+    path: '/farms/:id/relationships/orders',
     pathParams: CuidPathParam('Farm'),
     query: AllQueryParams,
     responses: {

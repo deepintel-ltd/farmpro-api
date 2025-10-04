@@ -34,7 +34,7 @@ export const organizationContract = c.router({
 
   getProfile: {
     method: 'GET',
-    path: '/api/organizations/profile',
+    path: '/organizations/profile',
     responses: {
       200: OrganizationResourceSchema,
       401: z.object({
@@ -52,7 +52,7 @@ export const organizationContract = c.router({
 
   updateProfile: {
     method: 'PUT',
-    path: '/api/organizations/profile',
+    path: '/organizations/profile',
     body: UpdateOrganizationRequestSchema,
     responses: {
       200: OrganizationResourceSchema,
@@ -79,7 +79,7 @@ export const organizationContract = c.router({
 
   uploadLogo: {
     method: 'POST',
-    path: '/api/organizations/logo',
+    path: '/organizations/logo',
     contentType: 'multipart/form-data',
     body: z.object({
       file: z.instanceof(File),
@@ -109,7 +109,7 @@ export const organizationContract = c.router({
 
   getSettings: {
     method: 'GET',
-    path: '/api/organizations/settings',
+    path: '/organizations/settings',
     responses: {
       200: OrganizationSettingsResourceSchema,
       401: z.object({
@@ -127,7 +127,7 @@ export const organizationContract = c.router({
 
   updateSettings: {
     method: 'PUT',
-    path: '/api/organizations/settings',
+    path: '/organizations/settings',
     body: UpdateOrganizationSettingsRequestSchema,
     responses: {
       200: OrganizationSettingsResourceSchema,
@@ -158,7 +158,7 @@ export const organizationContract = c.router({
 
   requestVerification: {
     method: 'POST',
-    path: '/api/organizations/request-verification',
+    path: '/organizations/request-verification',
     body: OrganizationVerificationRequestSchema,
     responses: {
       200: z.object({
@@ -186,7 +186,7 @@ export const organizationContract = c.router({
 
   getVerificationStatus: {
     method: 'GET',
-    path: '/api/organizations/verification-status',
+    path: '/organizations/verification-status',
     responses: {
       200: z.object({
         data: z.object({
@@ -220,7 +220,7 @@ export const organizationContract = c.router({
 
   getAnalytics: {
     method: 'GET',
-    path: '/api/organizations/analytics',
+    path: '/organizations/analytics',
     query: OrganizationAnalyticsQuerySchema,
     responses: {
       200: z.object({
@@ -252,7 +252,7 @@ export const organizationContract = c.router({
 
   getActivityFeed: {
     method: 'GET',
-    path: '/api/organizations/activity-feed',
+    path: '/organizations/activity-feed',
     query: OrganizationActivityQuerySchema,
     responses: {
       200: z.object({
@@ -295,7 +295,7 @@ export const organizationContract = c.router({
 
   getComplianceReport: {
     method: 'GET',
-    path: '/api/organizations/compliance-report',
+    path: '/organizations/compliance-report',
     query: OrganizationComplianceQuerySchema,
     responses: {
       200: z.object({
@@ -335,7 +335,7 @@ export const organizationContract = c.router({
 
   getTeam: {
     method: 'GET',
-    path: '/api/organizations/team',
+    path: '/organizations/team',
     responses: {
       200: OrganizationTeamCollectionSchema,
       401: z.object({
@@ -353,7 +353,7 @@ export const organizationContract = c.router({
 
   getTeamStats: {
     method: 'GET',
-    path: '/api/organizations/team/stats',
+    path: '/organizations/team/stats',
     query: z.object({
       period: z.string().optional(),
       roleId: z.string().uuid().optional(),
@@ -380,7 +380,7 @@ export const organizationContract = c.router({
 
   getIntegrations: {
     method: 'GET',
-    path: '/api/organizations/integrations',
+    path: '/organizations/integrations',
     responses: {
       200: z.object({
         data: z.array(z.object({
@@ -410,7 +410,7 @@ export const organizationContract = c.router({
 
   configureIntegration: {
     method: 'POST',
-    path: '/api/organizations/integrations/:integrationId',
+    path: '/organizations/integrations/:integrationId',
     pathParams: z.object({
       integrationId: z.string(),
     }),
@@ -443,7 +443,7 @@ export const organizationContract = c.router({
 
   updateIntegration: {
     method: 'PUT',
-    path: '/api/organizations/integrations/:integrationId',
+    path: '/organizations/integrations/:integrationId',
     pathParams: z.object({
       integrationId: z.string(),
     }),
@@ -484,7 +484,7 @@ export const organizationContract = c.router({
 
   deleteIntegration: {
     method: 'DELETE',
-    path: '/api/organizations/integrations/:integrationId',
+    path: '/organizations/integrations/:integrationId',
     pathParams: z.object({
       integrationId: z.string(),
     }),
@@ -515,7 +515,7 @@ export const organizationContract = c.router({
 
   getIntegrationStatus: {
     method: 'GET',
-    path: '/api/organizations/integrations/:integrationId/status',
+    path: '/organizations/integrations/:integrationId/status',
     pathParams: z.object({
       integrationId: z.string(),
     }),
@@ -552,7 +552,7 @@ export const organizationContract = c.router({
 
   requestExport: {
     method: 'POST',
-    path: '/api/organizations/export',
+    path: '/organizations/export',
     body: OrganizationExportRequestSchema,
     responses: {
       202: z.object({
@@ -583,7 +583,7 @@ export const organizationContract = c.router({
 
   getExports: {
     method: 'GET',
-    path: '/api/organizations/exports',
+    path: '/organizations/exports',
     responses: {
       200: z.object({
         data: z.array(z.object({
@@ -615,7 +615,7 @@ export const organizationContract = c.router({
 
   getExport: {
     method: 'GET',
-    path: '/api/organizations/exports/:exportId',
+    path: '/organizations/exports/:exportId',
     pathParams: z.object({
       exportId: z.string(),
     }),
@@ -651,7 +651,7 @@ export const organizationContract = c.router({
 
   createBackup: {
     method: 'POST',
-    path: '/api/organizations/backup',
+    path: '/organizations/backup',
     body: OrganizationBackupRequestSchema,
     responses: {
       202: z.object({
@@ -686,7 +686,7 @@ export const organizationContract = c.router({
 
   getBilling: {
     method: 'GET',
-    path: '/api/organizations/billing',
+    path: '/organizations/billing',
     responses: {
       200: OrganizationBillingResourceSchema,
       401: z.object({
@@ -704,7 +704,7 @@ export const organizationContract = c.router({
 
   getUsage: {
     method: 'GET',
-    path: '/api/organizations/usage',
+    path: '/organizations/usage',
     responses: {
       200: OrganizationUsageResourceSchema,
       401: z.object({
@@ -722,7 +722,7 @@ export const organizationContract = c.router({
 
   getPlans: {
     method: 'GET',
-    path: '/api/organizations/plans',
+    path: '/organizations/plans',
     responses: {
       200: z.object({
         data: z.array(z.object({
@@ -758,7 +758,7 @@ export const organizationContract = c.router({
 
   subscribe: {
     method: 'POST',
-    path: '/api/organizations/subscribe',
+    path: '/organizations/subscribe',
     body: OrganizationBillingRequestSchema,
     responses: {
       200: z.object({
@@ -789,7 +789,7 @@ export const organizationContract = c.router({
 
   updateSubscription: {
     method: 'PUT',
-    path: '/api/organizations/subscription',
+    path: '/organizations/subscription',
     body: z.object({
       data: z.object({
         type: z.literal('subscriptions'),
@@ -827,7 +827,7 @@ export const organizationContract = c.router({
 
   getInvoices: {
     method: 'GET',
-    path: '/api/organizations/invoices',
+    path: '/organizations/invoices',
     query: z.object({
       page: z.coerce.number().positive().optional(),
       limit: z.coerce.number().positive().max(100).optional(),
@@ -872,7 +872,7 @@ export const organizationContract = c.router({
 
   getInvoice: {
     method: 'GET',
-    path: '/api/organizations/invoices/:invoiceId',
+    path: '/organizations/invoices/:invoiceId',
     pathParams: z.object({
       invoiceId: z.string(),
     }),
@@ -917,7 +917,7 @@ export const organizationContract = c.router({
 
   getOrganizations: {
     method: 'GET',
-    path: '/api/organizations',
+    path: '/organizations',
     query: z.object({
       page: z.coerce.number().positive().optional(),
       limit: z.coerce.number().positive().max(100).optional(),
@@ -943,7 +943,7 @@ export const organizationContract = c.router({
 
   getOrganization: {
     method: 'GET',
-    path: '/api/organizations/:orgId',
+    path: '/organizations/:orgId',
     pathParams: z.object({
       orgId: z.string(),
     }),
@@ -964,7 +964,7 @@ export const organizationContract = c.router({
 
   createOrganization: {
     method: 'POST',
-    path: '/api/organizations',
+    path: '/organizations',
     body: CreateOrganizationRequestSchema,
     responses: {
       201: OrganizationResourceSchema,
@@ -983,7 +983,7 @@ export const organizationContract = c.router({
 
   updateOrganization: {
     method: 'PUT',
-    path: '/api/organizations/:orgId',
+    path: '/organizations/:orgId',
     pathParams: z.object({
       orgId: z.string(),
     }),
@@ -1013,7 +1013,7 @@ export const organizationContract = c.router({
 
   deleteOrganization: {
     method: 'DELETE',
-    path: '/api/organizations/:orgId',
+    path: '/organizations/:orgId',
     pathParams: z.object({
       orgId: z.string(),
     }),
