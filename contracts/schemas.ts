@@ -12,7 +12,13 @@ export const FarmSchema = z.object({
   location: z.object({
     latitude: z.number().min(-90).max(90, 'Invalid latitude'),
     longitude: z.number().min(-180).max(180, 'Invalid longitude'),
-    address: z.string().min(1, 'Address is required')
+    address: z.object({
+      street: z.string().min(1, 'Street address is required'),
+      city: z.string().min(1, 'City is required'),
+      state: z.string().min(1, 'State is required'),
+      zipCode: z.string().min(1, 'Zip code is required'),
+      country: z.string().min(1, 'Country is required')
+    })
   }),
   size: z.number().positive('Farm size must be positive'),
   cropTypes: z.array(z.string().min(1)).min(1, 'At least one crop type required'),
