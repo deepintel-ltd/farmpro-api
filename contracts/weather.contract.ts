@@ -233,8 +233,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/current',
     query: z.object({
-      farmId: z.string().uuid(),
-      includeAgMetrics: z.coerce.boolean().optional().default(true),
+      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
     }),
     responses: {
       200: CurrentWeatherResponseSchema,
@@ -243,7 +242,7 @@ export const weatherContract = c.router({
     },
     summary: 'Get current weather conditions for a farm',
     description:
-      'Retrieve current weather data for a farm using its stored location coordinates. Includes agricultural metrics when available.',
+      'Retrieve current weather data for a farm using its stored location coordinates. Includes agricultural metrics.',
   },
 
   /**
@@ -253,10 +252,9 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/forecast',
     query: z.object({
-      farmId: z.string().uuid(),
+      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
       days: z.coerce.number().min(1).max(14).optional().default(7),
       includeHourly: z.coerce.boolean().optional().default(false),
-      includeAgMetrics: z.coerce.boolean().optional().default(true),
     }),
     responses: {
       200: WeatherForecastResponseSchema,
@@ -275,7 +273,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/alerts',
     query: z.object({
-      farmId: z.string().uuid(),
+      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
       activeOnly: z.coerce.boolean().optional().default(true),
       severity: AlertSeveritySchema.optional(),
       type: WeatherAlertTypeSchema.optional(),
@@ -297,7 +295,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/history',
     query: z.object({
-      farmId: z.string().uuid(),
+      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
       startDate: z.string().date(),
       endDate: z.string().date(),
       includeAgMetrics: z.coerce.boolean().optional().default(false),
@@ -318,7 +316,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/ag-insights',
     query: z.object({
-      farmId: z.string().uuid(),
+      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
       cropType: z.string().optional(),
       growthStage: z.string().optional(),
     }),

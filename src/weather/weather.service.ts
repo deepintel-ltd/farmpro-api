@@ -127,7 +127,7 @@ export class WeatherService {
     private readonly prisma: PrismaService,
   ) {
     this.apiKey = this.configService.get<string>('WEATHER_API_KEY');
-    this.apiUrl = this.configService.get<string>('WEATHER_API_URL', 'https://api.openweathermap.org/data/3.0/onecall');
+    this.apiUrl = this.configService.get<string>('WEATHER_API_URL', 'https://api.openweathermap.org/data/2.5/onecall');
     
     this.httpClient = axios.create({
       baseURL: this.apiUrl,
@@ -142,7 +142,6 @@ export class WeatherService {
     farmId?: string,
     latitude?: number,
     longitude?: number,
-    includeAgMetrics: boolean = true,
   ) {
     const coords = await this.resolveCoordinates(farmId, latitude, longitude);
     
@@ -179,7 +178,7 @@ export class WeatherService {
         timestamp: new Date(data.current.dt * 1000).toISOString(),
       };
 
-      const agMetrics = includeAgMetrics ? await this.calculateAgMetrics(data, coords) : undefined;
+      const agMetrics = await this.calculateAgMetrics(data);
 
       return {
         data: {
@@ -208,7 +207,6 @@ export class WeatherService {
     longitude?: number,
     days: number = 7,
     includeHourly: boolean = false,
-    includeAgMetrics: boolean = true,
   ) {
     const coords = await this.resolveCoordinates(farmId, latitude, longitude);
     
@@ -263,7 +261,7 @@ export class WeatherService {
           }))
         : [];
 
-      const agMetrics = includeAgMetrics ? await this.calculateAgMetrics(data, coords) : undefined;
+      const agMetrics = await this.calculateAgMetrics(data);
 
       return {
         data: {
@@ -361,7 +359,6 @@ export class WeatherService {
     farmId?: string,
     latitude?: number,
     longitude?: number,
-    includeAgMetrics: boolean = false,
   ) {
     const coords = await this.resolveCoordinates(farmId, latitude, longitude);
     
@@ -430,7 +427,7 @@ export class WeatherService {
     }
   }
 
-  async getAgWeatherInsights(farmId: string, cropType?: string, growthStage?: string) {
+  async getAgWeatherInsights(farmId: string) {
     // This would integrate with AI service for agricultural insights
     // For now, return basic insights based on current weather
     const farm = await this.prisma.farm.findUnique({
@@ -446,7 +443,7 @@ export class WeatherService {
       throw new BadRequestException('Farm location not configured');
     }
 
-    const currentWeather = await this.getCurrentWeather(farmId, location.latitude, location.longitude, true);
+    const currentWeather = await this.getCurrentWeather(farmId, location.latitude, location.longitude);
     const weather = currentWeather.data.attributes;
 
     const insights = [];
@@ -602,7 +599,7 @@ export class WeatherService {
     return recommendations[event] || ['Monitor conditions closely', 'Take appropriate precautions'];
   }
 
-  private async calculateAgMetrics(data: OpenWeatherOneCallResponse, coords: { latitude: number; longitude: number }): Promise<AgWeatherMetrics> {
+  private async calculateAgMetrics(data: OpenWeatherOneCallResponse): Promise<AgWeatherMetrics> {
     // Basic agricultural metrics calculation
     const current = data.current;
     const daily = data.daily[0];
@@ -664,6 +661,14 @@ export class WeatherService {
             country: 'Unknown',
             coordinates: coords,
             timezone: 'UTC',
+          },
+          agMetrics: {
+            growingDegreeDays: 10,
+            soilMoisture: 50,
+            evapotranspiration: 2.5,
+            chillHours: 0,
+            heatStress: false,
+            frostRisk: false,
           },
         },
       },
@@ -747,8 +752,7 @@ export class WeatherService {
       const currentWeather = await this.getCurrentWeather(
         undefined, // farmId
         latitude,
-        longitude,
-        false // includeAgMetrics
+        longitude
       );
 
       const weather = currentWeather.data.attributes;

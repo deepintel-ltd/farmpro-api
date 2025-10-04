@@ -41,7 +41,6 @@ export class WeatherController {
           query.farmId,
           undefined, // latitude
           undefined, // longitude
-          query.includeAgMetrics ?? true,
         );
 
         return {
@@ -76,7 +75,6 @@ export class WeatherController {
           undefined, // longitude
           query.days ?? 7,
           query.includeHourly ?? false,
-          query.includeAgMetrics ?? true,
         );
 
         return {
