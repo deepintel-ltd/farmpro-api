@@ -19,9 +19,21 @@ interface AuthenticatedSocket extends Socket {
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+    origin: [
+      'http://localhost:5173',
+      'https://localhost:5173',
+      /^https:\/\/.*\.farmpro\.app$/,
+    ],
     credentials: true,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'X-API-Key',
+    ],
   },
   namespace: '/activities',
 })

@@ -9,8 +9,56 @@ async function bootstrap() {
   // Global exception filter for consistent error handling
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Enable CORS
-  app.enableCors();
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'https://localhost:5173',
+    /^https:\/\/.*\.farmpro\.app$/,
+  ];
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin matches allowed patterns
+      const isAllowed = allowedOrigins.some(allowedOrigin => {
+        if (typeof allowedOrigin === 'string') {
+          return allowedOrigin === origin;
+        }
+        if (allowedOrigin instanceof RegExp) {
+          return allowedOrigin.test(origin);
+        }
+        return false;
+      });
+      
+      if (isAllowed) {
+        return callback(null, true);
+      }
+      
+      // Log blocked origins for debugging
+      console.warn(`CORS blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'X-API-Key',
+      'Cache-Control',
+      'Pragma',
+    ],
+    exposedHeaders: [
+      'X-Total-Count',
+      'X-Page-Count',
+      'X-Current-Page',
+      'X-Per-Page',
+    ],
+    maxAge: 86400, // 24 hours
+  });
 
   // Global prefix
   app.setGlobalPrefix('api');

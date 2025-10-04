@@ -208,9 +208,11 @@ export class OpenAIService {
       // Try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        // Merge parsed response with fallback to ensure all required fields are present
+        return { ...fallback, ...parsed };
       }
-      
+
       this.logger.warn('No JSON found in AI response, using fallback');
       return fallback;
     } catch (error) {

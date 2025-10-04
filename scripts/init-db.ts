@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { hash } from '@node-rs/argon2';
 
 const prisma = new PrismaClient();
 
@@ -125,6 +125,7 @@ const SYSTEM_ROLES = [
     description: 'Full platform administration access',
     level: 100,
     isSystemRole: true,
+    isPlatformAdmin: true,
     permissions: [
       'user:manage', 'organization:manage', 'farm:manage', 'activity:manage',
       'inventory:manage', 'order:manage', 'commodity:manage', 'analytics:manage',
@@ -582,7 +583,7 @@ async function initializeUsers(organizations: any[]) {
   
   const users = [];
   for (const userData of SAMPLE_USERS) {
-    const hashedPassword = await bcrypt.hash(userData.password, 12);
+    const hashedPassword = await hash(userData.password);
     const organization = organizations[userData.organizationIndex];
     
     const user = await prisma.user.upsert({
