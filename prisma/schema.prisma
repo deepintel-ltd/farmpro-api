@@ -397,6 +397,7 @@ model FarmActivity {
   @@index([status, scheduledAt])
   @@index([farmId, scheduledAt])
   @@index([createdById, status])
+  @@index([farmId, createdAt])
   @@map("farm_activities")
 }
 
@@ -696,6 +697,8 @@ model Transaction {
 
   @@index([organizationId, status])
   @@index([organizationId, type])
+  @@index([organizationId, type, createdAt])
+  @@index([farmId, type, createdAt])
   @@map("transactions")
 }
 

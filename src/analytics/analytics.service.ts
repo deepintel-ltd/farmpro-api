@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
 import { JobQueueService } from '../common/services/job-queue.service';
+import { MonitoringService } from '../common/services/monitoring.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrencyAwareService } from '../common/services/currency-aware.service';
 import { CurrencyService } from '../common/services/currency.service';
@@ -35,6 +36,7 @@ export class AnalyticsService extends CurrencyAwareService {
     private readonly cacheService: CacheService,
     private readonly intelligenceService: IntelligenceService,
     private readonly jobQueueService: JobQueueService,
+    private readonly monitoringService: MonitoringService,
     currencyService: CurrencyService,
   ) {
     super(prisma, currencyService);
@@ -44,6 +46,7 @@ export class AnalyticsService extends CurrencyAwareService {
    * Get dashboard analytics with key performance indicators
    */
   async getDashboard(user: CurrentUser, query: BaseAnalyticsQuery): Promise<AnalyticsResponse> {
+    const startTime = Date.now();
     this.logger.log(`Getting dashboard analytics for user: ${user.userId}`);
 
     // Validate input parameters
@@ -56,6 +59,23 @@ export class AnalyticsService extends CurrencyAwareService {
         const cached = await this.cacheService.get<AnalyticsResponse>(cacheKey);
         if (cached) {
           this.logger.debug(`Cache hit for dashboard analytics: ${cacheKey}`);
+          
+          // Track cache hit performance
+          const duration = Date.now() - startTime;
+          this.monitoringService.trackPerformance({
+            operation: 'getDashboard',
+            duration,
+            userId: user.userId,
+            organizationId: user.organizationId,
+            metadata: {
+              farmId: query.farmId,
+              period: query.period,
+              includeInsights: query.includeInsights,
+              useCache: query.useCache,
+              cacheHit: true
+            }
+          });
+          
           return cached;
         }
       }
@@ -63,11 +83,11 @@ export class AnalyticsService extends CurrencyAwareService {
       const dateFilter = this.buildDateFilter(query.period);
       const whereClause = this.buildWhereClause(user, query, dateFilter);
 
-      // Fetch key metrics in parallel
+      // Fetch key metrics in parallel with caching
       const [revenue, expenses, activities] = await Promise.all([
-        this.getRevenueData(whereClause),
-        this.getExpenseData(whereClause),
-        this.getActivityCount(whereClause)
+        this.getCachedRevenueData(whereClause, user.organizationId),
+        this.getCachedExpenseData(whereClause, user.organizationId),
+        this.getCachedActivityCount(whereClause, user.organizationId)
       ]);
 
       const revenueAmount = Number(revenue._sum.amount) || 0;
@@ -141,7 +161,7 @@ export class AnalyticsService extends CurrencyAwareService {
             farmId: query.farmId,
             metrics,
             charts,
-            insights: query.includeInsights ? await this.generateInsights(user, query) : undefined,
+            insights: query.includeInsights ? await this.getCachedInsights(user, query) : undefined,
             summary,
             generatedAt: new Date().toISOString(),
             cacheKey: query.useCache ? cacheKey : undefined
@@ -151,9 +171,26 @@ export class AnalyticsService extends CurrencyAwareService {
 
       // Cache the response
       if (query.useCache) {
-        await this.cacheService.set(cacheKey, response, 300); // 5 minutes
+        await this.cacheService.set(cacheKey, response, 120); // 2 minutes (reduced TTL for fresher data)
       }
 
+      // Track performance metrics
+      const duration = Date.now() - startTime;
+      this.monitoringService.trackPerformance({
+        operation: 'getDashboard',
+        duration,
+        userId: user.userId,
+        organizationId: user.organizationId,
+        metadata: {
+          farmId: query.farmId,
+          period: query.period,
+          includeInsights: query.includeInsights,
+          useCache: query.useCache,
+          cacheHit: false
+        }
+      });
+
+      this.logger.log(`Dashboard analytics completed in ${duration}ms for user: ${user.userId}`);
       return response;
     } catch (error) {
       this.logger.error(`Dashboard analytics failed for user ${user.userId}:`, error);
@@ -493,6 +530,81 @@ export class AnalyticsService extends CurrencyAwareService {
     };
   }
 
+  /**
+   * Get cached revenue data or fetch from database
+   */
+  private async getCachedRevenueData(whereClause: WhereClause, organizationId: string) {
+    const farmPart = whereClause.farmId ?? 'all-farms';
+    const startDate = whereClause.createdAt?.gte?.toISOString() ?? 'no-start';
+    const endDate = whereClause.createdAt?.lte?.toISOString() ?? 'no-end';
+    const cacheKey = `revenue:${organizationId}:${farmPart}:${startDate}:${endDate}`;
+
+    try {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) {
+        this.logger.debug(`Cache hit for revenue data: ${cacheKey}`);
+        return cached;
+      }
+
+      const data = await this.getRevenueData(whereClause);
+      await this.cacheService.set(cacheKey, data, 120); // 2 minutes (reduced TTL for fresher data)
+      return data;
+    } catch (error) {
+      this.logger.warn('Failed to get cached revenue data, fetching directly:', error);
+      return this.getRevenueData(whereClause);
+    }
+  }
+
+  /**
+   * Get cached expense data or fetch from database
+   */
+  private async getCachedExpenseData(whereClause: WhereClause, organizationId: string) {
+    const farmPart = whereClause.farmId ?? 'all-farms';
+    const startDate = whereClause.createdAt?.gte?.toISOString() ?? 'no-start';
+    const endDate = whereClause.createdAt?.lte?.toISOString() ?? 'no-end';
+    const cacheKey = `expense:${organizationId}:${farmPart}:${startDate}:${endDate}`;
+
+    try {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) {
+        this.logger.debug(`Cache hit for expense data: ${cacheKey}`);
+        return cached;
+      }
+
+      const data = await this.getExpenseData(whereClause);
+      await this.cacheService.set(cacheKey, data, 120); // 2 minutes (reduced TTL for fresher data)
+      return data;
+    } catch (error) {
+      this.logger.warn('Failed to get cached expense data, fetching directly:', error);
+      return this.getExpenseData(whereClause);
+    }
+  }
+
+  /**
+   * Get cached activity count or fetch from database
+   */
+  private async getCachedActivityCount(whereClause: WhereClause, organizationId: string) {
+    const farmPart = whereClause.farmId ?? 'all-farms';
+    const startDate = whereClause.createdAt?.gte?.toISOString() ?? 'no-start';
+    const endDate = whereClause.createdAt?.lte?.toISOString() ?? 'no-end';
+    const cacheKey = `activities:${organizationId}:${farmPart}:${startDate}:${endDate}`;
+
+    try {
+      const cached = await this.cacheService.get<number>(cacheKey);
+      if (cached !== undefined) {
+        this.logger.debug(`Cache hit for activity count: ${cacheKey}`);
+        return cached;
+      }
+
+      const data = await this.getActivityCount(whereClause);
+      await this.cacheService.set(cacheKey, data, 120); // 2 minutes (reduced TTL for fresher data)
+      return data;
+    } catch (error) {
+      this.logger.warn('Failed to get cached activity count, fetching directly:', error);
+      return this.getActivityCount(whereClause);
+    }
+  }
+
   private async getRevenueData(whereClause: WhereClause) {
     return this.prisma.transaction.aggregate({
       where: { ...whereClause, type: TransactionType.FARM_REVENUE },
@@ -678,6 +790,33 @@ export class AnalyticsService extends CurrencyAwareService {
       profitMargin: 0,
       roi: 0
     };
+  }
+
+  /**
+   * Get cached insights or generate new ones
+   */
+  private async getCachedInsights(user: CurrentUser, query: BaseAnalyticsQuery): Promise<AnalyticsInsight[]> {
+    const insightsCacheKey = `insights:${user.organizationId}:${query.farmId}:${query.period}`;
+    
+    try {
+      // Try to get from cache first
+      const cached = await this.cacheService.get<AnalyticsInsight[]>(insightsCacheKey);
+      if (cached) {
+        this.logger.debug(`Cache hit for insights: ${insightsCacheKey}`);
+        return cached;
+      }
+
+      // Generate new insights
+      const insights = await this.generateInsights(user, query);
+      
+      // Cache the insights for 1 hour (longer than dashboard cache)
+      await this.cacheService.set(insightsCacheKey, insights, 3600);
+      
+      return insights;
+    } catch (error) {
+      this.logger.warn('Failed to get cached insights, returning empty array:', error);
+      return [];
+    }
   }
 
   private async generateInsights(user: CurrentUser, query: BaseAnalyticsQuery): Promise<AnalyticsInsight[]> {
