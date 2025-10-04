@@ -51,9 +51,9 @@ export const ordersCrudContract = c.router({
     query: AllQueryParams.extend({
       type: z.enum(['BUY', 'SELL']).optional(),
       status: z.string().optional(),
-      buyerOrgId: z.string().uuid().optional(),
-      supplierOrgId: z.string().uuid().optional(),
-      commodityId: z.string().uuid().optional(),
+      buyerOrgId: z.string().cuid().optional(),
+      supplierOrgId: z.string().cuid().optional(),
+      commodityId: z.string().cuid().optional(),
       dateRange: z.string().optional(),
     }),
     responses: {

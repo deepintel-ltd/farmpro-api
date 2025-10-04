@@ -63,7 +63,7 @@ export const NotificationAttributesSchema = z.object({
   relatedEntityType: z
     .enum(['farm', 'activity', 'order', 'commodity', 'user', 'invoice'])
     .optional(),
-  relatedEntityId: z.string().uuid().optional(),
+  relatedEntityId: z.string().cuid().optional(),
   deliveryChannels: z.array(DeliveryChannelSchema).optional(),
   expiresAt: z.string().datetime().optional(),
   createdAt: z.string().datetime(),
@@ -127,7 +127,7 @@ export const CreateNotificationRequestSchema = z.object({
       relatedEntityType: z
         .enum(['farm', 'activity', 'order', 'commodity', 'user', 'invoice'])
         .optional(),
-      relatedEntityId: z.string().uuid().optional(),
+      relatedEntityId: z.string().cuid().optional(),
       deliveryChannels: z.array(DeliveryChannelSchema).optional().default(['in_app']),
       expiresAt: z.string().datetime().optional(),
     }),
@@ -156,7 +156,7 @@ export const CreateAlertRequestSchema = z.object({
       message: z.string().min(1).max(1000),
       recommendations: z.array(z.string()).optional(),
       affectedAreas: z.array(z.string()).optional(),
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
       expiresAt: z.string().datetime().optional(),
     }),
   }),
@@ -168,7 +168,7 @@ export const CreateAlertRequestSchema = z.object({
 export const UpdateNotificationRequestSchema = z.object({
   data: z.object({
     type: z.literal('notifications'),
-    id: z.string().uuid(),
+    id: z.string().cuid(),
     attributes: z
       .object({
         status: NotificationStatusSchema.optional(),
@@ -290,7 +290,7 @@ export const notificationsContract = c.router({
       type: NotificationTypeSchema.optional(),
       priority: NotificationPrioritySchema.optional(),
       unreadOnly: z.coerce.boolean().optional(),
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
     }),
     responses: {
       200: NotificationCollectionSchema,
@@ -307,7 +307,7 @@ export const notificationsContract = c.router({
     method: 'GET',
     path: '/notifications/:id',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string().cuid(),
     }),
     query: JsonApiQuerySchema.optional(),
     responses: {
@@ -341,7 +341,7 @@ export const notificationsContract = c.router({
     method: 'PATCH',
     path: '/notifications/:id/read',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string().cuid(),
     }),
     body: z.object({}),
     responses: {
@@ -360,7 +360,7 @@ export const notificationsContract = c.router({
     path: '/notifications/mark-all-read',
     body: z.object({
       type: NotificationTypeSchema.optional(),
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
     }),
     responses: {
       200: z.object({
@@ -385,7 +385,7 @@ export const notificationsContract = c.router({
     method: 'DELETE',
     path: '/notifications/:id',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string().cuid(),
     }),
     body: z.object({}),
     responses: {
@@ -417,7 +417,7 @@ export const notificationsContract = c.router({
         .optional(),
       severity: z.enum(['info', 'warning', 'critical']).optional(),
       activeOnly: z.coerce.boolean().optional().default(true),
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
     }),
     responses: {
       200: AlertCollectionSchema,
@@ -450,7 +450,7 @@ export const notificationsContract = c.router({
     method: 'POST',
     path: '/notifications/alerts/:id/acknowledge',
     pathParams: z.object({
-      id: z.string().uuid(),
+      id: z.string().cuid(),
     }),
     body: z.object({}),
     responses: {
@@ -497,7 +497,7 @@ export const notificationsContract = c.router({
     method: 'GET',
     path: '/notifications/unread-count',
     query: z.object({
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
       type: NotificationTypeSchema.optional(),
     }),
     responses: {

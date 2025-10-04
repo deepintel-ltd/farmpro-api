@@ -110,7 +110,7 @@ export const ordersMessagingContract = c.router({
       200: z.object({
         data: z.object({
           type: z.literal('contracts'),
-          id: z.string().uuid(),
+          id: z.string().cuid(),
           attributes: z.object({
             url: z.string().url(),
             terms: z.string(),

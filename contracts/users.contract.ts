@@ -140,7 +140,7 @@ export const userContract = c.router({
         data: z.array(
           z.object({
             type: z.literal('farms'),
-            id: z.string().uuid(),
+            id: z.string().cuid(),
           }),
         ),
         links: z
@@ -165,7 +165,7 @@ export const userContract = c.router({
         data: z.array(
           z.object({
             type: z.literal('orders'),
-            id: z.string().uuid(),
+            id: z.string().cuid(),
           }),
         ),
         links: z
@@ -299,7 +299,7 @@ export const userContract = c.router({
           attributes: z.object({
             name: z.string(),
             permissions: z.array(z.string()),
-            farmId: z.string().uuid().nullable(),
+            farmId: z.string().cuid().nullable(),
             expiresAt: z.string().datetime().nullable(),
           }),
         })),
@@ -341,11 +341,11 @@ export const userContract = c.router({
     method: 'DELETE',
     path: '/users/:id/roles/:roleId',
     pathParams: z.object({
-      id: z.string().uuid(),
-      roleId: z.string().uuid(),
+      id: z.string().cuid(),
+      roleId: z.string().cuid(),
     }),
     query: z.object({
-      farmId: z.string().uuid().optional(),
+      farmId: z.string().cuid().optional(),
     }),
     responses: {
       200: z.object({

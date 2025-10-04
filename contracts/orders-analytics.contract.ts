@@ -36,7 +36,7 @@ export const ordersAnalyticsContract = c.router({
             successRate: z.number(),
             averageValue: z.number(),
             topCommodities: z.array(z.object({
-              commodityId: z.string().uuid(),
+              commodityId: z.string().cuid(),
               name: z.string(),
               count: z.number(),
             })),
@@ -115,7 +115,7 @@ export const ordersAnalyticsContract = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('report-jobs'),
-          id: z.string().uuid(),
+          id: z.string().cuid(),
           attributes: z.object({
             status: z.enum(['pending', 'processing', 'completed', 'failed']),
             estimatedCompletion: z.string().datetime().optional(),

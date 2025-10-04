@@ -356,8 +356,8 @@ export const organizationContract = c.router({
     path: '/organizations/team/stats',
     query: z.object({
       period: z.string().optional(),
-      roleId: z.string().uuid().optional(),
-      farmId: z.string().uuid().optional(),
+      roleId: z.string().cuid().optional(),
+      farmId: z.string().cuid().optional(),
     }),
     responses: {
       200: OrganizationTeamStatsResourceSchema,

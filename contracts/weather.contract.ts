@@ -95,7 +95,7 @@ export const AlertSeveritySchema = z.enum(['low', 'medium', 'high', 'critical'])
  * Weather alert
  */
 export const WeatherAlertSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().cuid(),
   type: WeatherAlertTypeSchema,
   severity: AlertSeveritySchema,
   title: z.string(),

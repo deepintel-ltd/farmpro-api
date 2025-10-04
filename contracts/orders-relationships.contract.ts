@@ -57,7 +57,7 @@ export const ordersRelationshipsContract = c.router({
         data: z
           .object({
             type: z.literal('users'),
-            id: z.string().uuid(),
+            id: z.string().cuid(),
           })
           .nullable(),
         links: z
@@ -82,7 +82,7 @@ export const ordersRelationshipsContract = c.router({
         data: z
           .object({
             type: z.literal('users'),
-            id: z.string().uuid(),
+            id: z.string().cuid(),
           })
           .nullable(),
         links: z
