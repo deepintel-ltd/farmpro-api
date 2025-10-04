@@ -821,8 +821,12 @@ export class AnalyticsService extends CurrencyAwareService {
 
   private async getActivityData(whereClause: WhereClause, activityType?: string) {
     try {
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const baseWhere = { ...whereClause };
+      delete baseWhere.organizationId;
+
       const activityWhere = {
-        ...whereClause,
+        ...baseWhere,
         ...(activityType && { type: activityType as any })
       };
 
@@ -848,8 +852,12 @@ export class AnalyticsService extends CurrencyAwareService {
 
   private async getEfficiencyData(whereClause: WhereClause) {
     try {
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const activityWhere = { ...whereClause };
+      delete activityWhere.organizationId;
+
       const [activities, revenue] = await Promise.all([
-        this.prisma.farmActivity.count({ where: whereClause }),
+        this.prisma.farmActivity.count({ where: activityWhere }),
         this.prisma.transaction.aggregate({
           where: { ...whereClause, type: TransactionType.FARM_REVENUE },
           _sum: { amount: true }
@@ -872,12 +880,16 @@ export class AnalyticsService extends CurrencyAwareService {
 
   private async getActivityCosts(whereClause: WhereClause) {
     try {
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const activityWhere = { ...whereClause };
+      delete activityWhere.organizationId;
+
       const [totalCosts, activityCount] = await Promise.all([
         this.prisma.transaction.aggregate({
           where: { ...whereClause, type: TransactionType.FARM_EXPENSE },
           _sum: { amount: true }
         }),
-        this.prisma.farmActivity.count({ where: whereClause })
+        this.prisma.farmActivity.count({ where: activityWhere })
       ]);
 
       const totalCostAmount = Number(totalCosts._sum.amount) || 0;
@@ -1450,6 +1462,10 @@ export class AnalyticsService extends CurrencyAwareService {
 
   private async calculateResourceEfficiency(whereClause: WhereClause): Promise<number> {
     try {
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const activityWhere = { ...whereClause };
+      delete activityWhere.organizationId;
+
       // Calculate resource efficiency based on input/output ratio and activity efficiency
       const [inputs, outputs, activities] = await Promise.all([
         this.prisma.transaction.aggregate({
@@ -1461,7 +1477,7 @@ export class AnalyticsService extends CurrencyAwareService {
           _sum: { amount: true }
         }),
         this.prisma.farmActivity.count({
-          where: { ...whereClause, status: ActivityStatus.COMPLETED }
+          where: { ...activityWhere, status: ActivityStatus.COMPLETED }
         })
       ]);
 
@@ -1475,9 +1491,12 @@ export class AnalyticsService extends CurrencyAwareService {
       
       // Calculate basic ROI efficiency (0-100 scale)
       const roiEfficiency = Math.min(100, Math.max(0, (outputAmount / inputAmount) * 25)); // Scale to 0-100
-      
+
       // Factor in activity completion rate as operational efficiency
-      const totalPlannedActivities = await this.prisma.farmActivity.count({ where: whereClause });
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const activityWhereForCount = { ...whereClause };
+      delete activityWhereForCount.organizationId;
+      const totalPlannedActivities = await this.prisma.farmActivity.count({ where: activityWhereForCount });
       const operationalEfficiency = totalPlannedActivities > 0 ? (activities / totalPlannedActivities) * 100 : 50;
       
       // Weighted combination of financial and operational efficiency
@@ -1492,10 +1511,14 @@ export class AnalyticsService extends CurrencyAwareService {
 
   private async calculateWasteReduction(whereClause: WhereClause): Promise<number> {
     try {
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const activityWhere = { ...whereClause };
+      delete activityWhere.organizationId;
+
       // Calculate waste reduction based on activity completion and resource utilization
       const [activities, costs] = await Promise.all([
         this.prisma.farmActivity.count({
-          where: { ...whereClause, status: ActivityStatus.COMPLETED }
+          where: { ...activityWhere, status: ActivityStatus.COMPLETED }
         }),
         this.prisma.transaction.aggregate({
           where: { ...whereClause, type: TransactionType.FARM_EXPENSE },
@@ -1504,7 +1527,7 @@ export class AnalyticsService extends CurrencyAwareService {
       ]);
 
       const totalActivities = await this.prisma.farmActivity.count({
-        where: whereClause
+        where: activityWhere
       });
 
       if (totalActivities === 0) return 50;
@@ -1521,10 +1544,14 @@ export class AnalyticsService extends CurrencyAwareService {
 
   private async calculateEnvironmentalImpact(whereClause: WhereClause): Promise<number> {
     try {
+      // Remove organizationId from whereClause as FarmActivity doesn't have this field
+      const activityWhere = { ...whereClause };
+      delete activityWhere.organizationId;
+
       // Calculate environmental impact based on sustainable practices
       const sustainableActivities = await this.prisma.farmActivity.count({
         where: {
-          ...whereClause,
+          ...activityWhere,
           type: {
             in: [ActivityType.FERTILIZING, ActivityType.IRRIGATION, ActivityType.PEST_CONTROL]
           }
@@ -1532,7 +1559,7 @@ export class AnalyticsService extends CurrencyAwareService {
       });
 
       const totalActivities = await this.prisma.farmActivity.count({
-        where: whereClause
+        where: activityWhere
       });
 
       if (totalActivities === 0) return 50;

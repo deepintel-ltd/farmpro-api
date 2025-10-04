@@ -743,6 +743,8 @@ async function initializeSampleCommodities() {
     }
   ];
   
+  const createdCommodities = [];
+  
   for (const commodityData of commodities) {
     const existing = await prisma.commodity.findFirst({
       where: {
@@ -752,18 +754,403 @@ async function initializeSampleCommodities() {
     });
     
     if (existing) {
-      await prisma.commodity.update({
+      const updated = await prisma.commodity.update({
         where: { id: existing.id },
         data: commodityData
       });
+      createdCommodities.push(updated);
     } else {
-      await prisma.commodity.create({
+      const created = await prisma.commodity.create({
         data: commodityData
       });
+      createdCommodities.push(created);
     }
   }
   
-  console.log(`✅ Created ${commodities.length} sample commodities`);
+  console.log(`✅ Created ${createdCommodities.length} sample commodities`);
+  return createdCommodities;
+}
+
+async function initializeSampleActivities(farms: any[], users: any[]) {
+  console.log('🚜 Initializing sample activities...');
+  
+  const activities = [];
+  const farm = farms[0]; // Use first farm
+  const farmManager = users.find(u => u.email === 'manager@farmpro.app');
+  const farmOperator = users.find(u => u.email === 'operator@farmpro.app');
+  
+  if (!farm || !farmManager || !farmOperator) {
+    console.log('⚠️  Skipping activities - missing farm or users');
+    return [];
+  }
+
+  const activityData = [
+    {
+      name: 'Harvest Wheat - Field A',
+      type: 'HARVESTING',
+      status: 'SCHEDULED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+      estimatedDuration: 480, // 8 hours
+      estimatedCost: 2500,
+      assignedTo: [farmOperator.id],
+      description: 'Harvest wheat from Field A using combine harvester',
+      instructions: 'Check weather conditions before starting. Ensure equipment is properly maintained.',
+      safetyNotes: 'Wear safety gear. Be cautious of moving parts on machinery.'
+    },
+    {
+      name: 'Quality Assessment - Field D',
+      type: 'MONITORING',
+      status: 'SCHEDULED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours from now
+      estimatedDuration: 120, // 2 hours
+      estimatedCost: 500,
+      assignedTo: [farmManager.id],
+      description: 'Assess crop quality and readiness for harvest',
+      instructions: 'Take samples from different areas. Document findings.',
+      safetyNotes: 'Watch for uneven terrain. Use proper sampling techniques.'
+    },
+    {
+      name: 'Irrigation - Field B',
+      type: 'IRRIGATION',
+      status: 'PLANNED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      estimatedDuration: 180, // 3 hours
+      estimatedCost: 800,
+      assignedTo: [farmOperator.id],
+      description: 'Water Field B using sprinkler system',
+      instructions: 'Check soil moisture levels first. Run irrigation for 3 hours.',
+      safetyNotes: 'Ensure proper water pressure. Check for leaks.'
+    },
+    {
+      name: 'Soil Testing - Field C',
+      type: 'MONITORING',
+      status: 'COMPLETED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      estimatedDuration: 240, // 4 hours
+      actualDuration: 200, // 3.3 hours
+      estimatedCost: 600,
+      actualCost: 550,
+      assignedTo: [farmManager.id],
+      description: 'Test soil composition and nutrient levels',
+      instructions: 'Take samples from 10 different locations. Send to lab for analysis.',
+      safetyNotes: 'Use clean sampling tools. Label samples properly.'
+    },
+    {
+      name: 'Pest Control - Field A',
+      type: 'PEST_CONTROL',
+      status: 'IN_PROGRESS',
+      priority: 'URGENT',
+      scheduledAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+      estimatedDuration: 300, // 5 hours
+      estimatedCost: 1200,
+      assignedTo: [farmOperator.id],
+      description: 'Apply pesticide to control aphid infestation',
+      instructions: 'Mix pesticide according to label. Apply evenly across affected areas.',
+      safetyNotes: 'Wear protective clothing and mask. Avoid contact with skin.'
+    },
+    {
+      name: 'Equipment Maintenance',
+      type: 'MAINTENANCE',
+      status: 'PLANNED',
+      priority: 'LOW',
+      scheduledAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      estimatedDuration: 360, // 6 hours
+      estimatedCost: 1500,
+      assignedTo: [farmOperator.id],
+      description: 'Maintain and service farm equipment',
+      instructions: 'Check all equipment. Replace filters and fluids as needed.',
+      safetyNotes: 'Ensure equipment is turned off. Use proper tools.'
+    }
+  ];
+
+  for (const activityInfo of activityData) {
+    const activity = await prisma.farmActivity.create({
+      data: {
+        farmId: farm.id,
+        type: activityInfo.type as any,
+        name: activityInfo.name,
+        description: activityInfo.description,
+        status: activityInfo.status as any,
+        priority: activityInfo.priority as any,
+        scheduledAt: activityInfo.scheduledAt,
+        startedAt: activityInfo.startedAt || null,
+        completedAt: activityInfo.completedAt || null,
+        estimatedDuration: activityInfo.estimatedDuration,
+        actualDuration: activityInfo.actualDuration || null,
+        cost: activityInfo.actualCost || activityInfo.estimatedCost,
+        createdById: farmManager.id,
+        metadata: {
+          instructions: activityInfo.instructions,
+          safetyNotes: activityInfo.safetyNotes,
+          percentComplete: activityInfo.status === 'COMPLETED' ? 100 : 
+                          activityInfo.status === 'IN_PROGRESS' ? 45 : 0
+        }
+      }
+    });
+
+    // Create activity assignments
+    for (const userId of activityInfo.assignedTo) {
+      await prisma.activityAssignment.create({
+        data: {
+          activityId: activity.id,
+          userId: userId,
+          assignedById: farmManager.id,
+          role: 'ASSIGNED'
+        }
+      });
+    }
+
+    // Add some cost entries for completed activities
+    if (activityInfo.status === 'COMPLETED') {
+      await prisma.activityCost.create({
+        data: {
+          activityId: activity.id,
+          type: 'LABOR',
+          description: 'Labor costs',
+          amount: activityInfo.actualCost * 0.6,
+          createdById: farmManager.id
+        }
+      });
+
+      await prisma.activityCost.create({
+        data: {
+          activityId: activity.id,
+          type: 'MATERIAL',
+          description: 'Materials and supplies',
+          amount: activityInfo.actualCost * 0.4,
+          createdById: farmManager.id
+        }
+      });
+    }
+
+    activities.push(activity);
+  }
+
+  console.log(`✅ Created ${activities.length} sample activities`);
+  return activities;
+}
+
+async function initializeSampleOrders(organizations: any[], farms: any[], commodities: any[], users: any[]) {
+  console.log('📦 Initializing sample orders...');
+  
+  const orders = [];
+  const farmOrg = organizations.find(o => o.type === 'FARM_OPERATION');
+  const tradingOrg = organizations.find(o => o.type === 'COMMODITY_TRADER');
+  const farm = farms[0];
+  const wheat = commodities.find(c => c.name === 'Organic Wheat');
+  const corn = commodities.find(c => c.name === 'Sweet Corn');
+  const farmManager = users.find(u => u.email === 'manager@farmpro.app');
+  
+  if (!farmOrg || !tradingOrg || !farm || !wheat || !corn || !farmManager) {
+    console.log('⚠️  Skipping orders - missing organizations, farm, commodities, or users');
+    return [];
+  }
+
+  const orderData = [
+    {
+      orderNumber: 'ORD-2024-001',
+      title: 'Wheat Order Response',
+      type: 'SELL',
+      status: 'PENDING',
+      commodityId: wheat.id,
+      quantity: 500,
+      pricePerUnit: 8.50,
+      totalPrice: 4250,
+      deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
+      deliveryLocation: 'Green Valley Farm',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '1234 Farm Road',
+        city: 'Rural Valley',
+        state: 'CA',
+        zip: '90210',
+        coordinates: { lat: 40.7128, lng: -74.0060 }
+      }
+    },
+    {
+      orderNumber: 'ORD-2024-002',
+      title: 'Delivery Order Coordination',
+      type: 'SELL',
+      status: 'CONFIRMED',
+      commodityId: corn.id,
+      quantity: 200,
+      pricePerUnit: 12.00,
+      totalPrice: 2400,
+      deliveryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      deliveryLocation: 'EcoFood Industries',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '5678 Commerce Blvd',
+        city: 'Trade City',
+        state: 'TX',
+        zip: '75001',
+        coordinates: { lat: 32.7767, lng: -96.7970 }
+      }
+    },
+    {
+      orderNumber: 'ORD-2024-003',
+      title: 'Price Negotiation',
+      type: 'SELL',
+      status: 'PENDING',
+      commodityId: wheat.id,
+      quantity: 300,
+      pricePerUnit: 7.80,
+      totalPrice: 2340,
+      deliveryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+      deliveryLocation: 'Premium Foods Ltd',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '9999 Food Street',
+        city: 'Premium City',
+        state: 'NY',
+        zip: '10001',
+        coordinates: { lat: 40.7589, lng: -73.9851 }
+      }
+    }
+  ];
+
+  for (const orderInfo of orderData) {
+    const order = await prisma.order.create({
+      data: {
+        orderNumber: orderInfo.orderNumber,
+        title: orderInfo.title,
+        type: orderInfo.type as any,
+        status: orderInfo.status as any,
+        commodityId: orderInfo.commodityId,
+        quantity: orderInfo.quantity,
+        pricePerUnit: orderInfo.pricePerUnit,
+        totalPrice: orderInfo.totalPrice,
+        deliveryDate: orderInfo.deliveryDate,
+        deliveryLocation: orderInfo.deliveryLocation,
+        buyerOrgId: orderInfo.buyerOrgId,
+        supplierOrgId: orderInfo.supplierOrgId,
+        createdById: orderInfo.createdById,
+        farmId: orderInfo.farmId,
+        deliveryAddress: orderInfo.deliveryAddress,
+        totalAmount: orderInfo.totalPrice,
+        currency: 'NGN'
+      }
+    });
+
+    // Create order item
+    await prisma.orderItem.create({
+      data: {
+        orderId: order.id,
+        commodityId: orderInfo.commodityId,
+        quantity: orderInfo.quantity,
+        unitPrice: orderInfo.pricePerUnit
+      }
+    });
+
+    orders.push(order);
+  }
+
+  console.log(`✅ Created ${orders.length} sample orders`);
+  return orders;
+}
+
+async function initializeSampleTransactions(organizations: any[], farms: any[], orders: any[]) {
+  console.log('💰 Initializing sample transactions...');
+  
+  const transactions = [];
+  const farmOrg = organizations.find(o => o.type === 'FARM_OPERATION');
+  const farm = farms[0];
+  
+  if (!farmOrg || !farm) {
+    console.log('⚠️  Skipping transactions - missing organization or farm');
+    return [];
+  }
+
+  const transactionData = [
+    {
+      type: 'FARM_REVENUE',
+      amount: 4250,
+      description: 'Wheat sale revenue',
+      orderId: orders[0]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 2400,
+      description: 'Corn sale revenue',
+      orderId: orders[1]?.id,
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days from now
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1500,
+      description: 'Equipment maintenance',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 800,
+      description: 'Irrigation costs',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1200,
+      description: 'Pest control materials',
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 1 week from now
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 600,
+      description: 'Soil testing lab fees',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+    }
+  ];
+
+  for (const transactionInfo of transactionData) {
+    const transaction = await prisma.transaction.create({
+      data: {
+        organizationId: farmOrg.id,
+        orderId: transactionInfo.orderId,
+        farmId: transactionInfo.farmId,
+        type: transactionInfo.type as any,
+        amount: transactionInfo.amount,
+        currency: 'NGN',
+        status: transactionInfo.status as any,
+        description: transactionInfo.description,
+        dueDate: transactionInfo.dueDate,
+        paidDate: transactionInfo.paidDate,
+        reference: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }
+    });
+
+    transactions.push(transaction);
+  }
+
+  console.log(`✅ Created ${transactions.length} sample transactions`);
+  return transactions;
 }
 
 // =============================================================================
@@ -780,7 +1167,10 @@ async function initializeDatabase() {
     const organizations = await initializeOrganizations();
     const users = await initializeUsers(organizations);
     const farms = await initializeSampleFarms(organizations);
-    await initializeSampleCommodities();
+    const commodities = await initializeSampleCommodities();
+    const activities = await initializeSampleActivities(farms, users);
+    const orders = await initializeSampleOrders(organizations, farms, commodities, users);
+    const transactions = await initializeSampleTransactions(organizations, farms, orders);
     
     console.log('\n🎉 Database initialization completed successfully!');
     console.log('\n📊 Summary:');
@@ -789,12 +1179,21 @@ async function initializeDatabase() {
     console.log(`   • ${organizations.length} organizations created`);
     console.log(`   • ${users.length} users created`);
     console.log(`   • ${farms.length} farms created`);
-    console.log(`   • 5 sample commodities created`);
+    console.log(`   • ${commodities.length} sample commodities created`);
+    console.log(`   • ${activities.length} sample activities created`);
+    console.log(`   • ${orders.length} sample orders created`);
+    console.log(`   • ${transactions.length} sample transactions created`);
     
     console.log('\n🔑 Sample Login Credentials:');
     SAMPLE_USERS.forEach(user => {
       console.log(`   • ${user.email} / ${user.password} (${user.role})`);
     });
+    
+    console.log('\n📈 Dashboard Data Available:');
+    console.log('   • Farm activities with various statuses (scheduled, in-progress, completed)');
+    console.log('   • Financial transactions (revenue and expenses)');
+    console.log('   • Orders with different statuses (pending, confirmed)');
+    console.log('   • Realistic cost breakdowns and progress tracking');
     
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
