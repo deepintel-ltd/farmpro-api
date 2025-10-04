@@ -1119,9 +1119,9 @@ async function upsertPermission(permission: { resource: string; action: string; 
   });
 }
 
-async function upsertRole(role: { name: string; description: string; isSystemRole: boolean; organizationId?: string }) {
+async function upsertRole(role: { name: string; description: string; isSystemRole: boolean; organizationId?: string; isPlatformAdmin?: boolean; level?: number }) {
   return await prisma.role.upsert({
-    where: { 
+    where: {
       name_organizationId: {
         name: role.name,
         organizationId: role.organizationId || null
@@ -1129,13 +1129,17 @@ async function upsertRole(role: { name: string; description: string; isSystemRol
     },
     update: {
       description: role.description,
-      isSystemRole: role.isSystemRole
+      isSystemRole: role.isSystemRole,
+      isPlatformAdmin: role.isPlatformAdmin ?? false,
+      level: role.level ?? 0
     },
     create: {
       name: role.name,
       description: role.description,
       isSystemRole: role.isSystemRole,
-      organizationId: role.organizationId
+      organizationId: role.organizationId,
+      isPlatformAdmin: role.isPlatformAdmin ?? false,
+      level: role.level ?? 0
     }
   });
 }
