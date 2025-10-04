@@ -119,10 +119,14 @@ ALLOWED_ORIGINS=https://your-frontend-domain.com,https://your-app-name.ondigital
 
 ### 5. Database Migration
 
-After deployment, run database migrations:
+Database migrations are now **automatically handled** during container startup. The Dockerfile includes a startup script that:
 
-1. Connect to your app via SSH or use the console
-2. Run the migration command:
+1. Runs `npx prisma migrate deploy` before starting the application
+2. Ensures the database schema is up-to-date on every deployment
+3. Fails fast if migrations cannot be applied
+
+**Manual Migration (if needed):**
+If you need to run migrations manually, connect to your app and run:
 ```bash
 npx prisma migrate deploy
 ```

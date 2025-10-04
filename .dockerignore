@@ -118,8 +118,9 @@ jspm_packages/
 tmp/
 temp/
 
-# Prisma
-prisma/migrations/
+# Prisma (keep migrations for production deployment)
+# We need migrations in the container for `prisma migrate deploy`
+# prisma/migrations/
 
 # Docker
 Dockerfile*

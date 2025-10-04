@@ -22,6 +22,7 @@
     "test:database:watch": "jest --config ./jest.database.config.js --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "contracts:install": "cd contracts && npm install",

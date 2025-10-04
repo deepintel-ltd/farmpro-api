@@ -63,6 +63,10 @@ RUN npx prisma generate
 # Copy built application
 COPY --from=base --chown=nestjs:nodejs /app/dist ./dist
 
+# Copy startup script
+COPY --chown=nestjs:nodejs scripts/start-production.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Switch to non-root user
 USER nestjs
 
@@ -76,5 +80,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application
-CMD ["node", "dist/src/main.js"]
+# Start the application using the startup script
+CMD ["/app/start.sh"]
