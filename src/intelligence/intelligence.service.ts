@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { OpenAIService } from './openai.service';
 import { UnifiedStorageService } from '../common/services/storage.service';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import {
   IntelligenceRequest,
   IntelligenceResponse,
@@ -13,7 +15,6 @@ import {
   ActivityOptimizationResponse,
   IntelligenceExportRequest,
   IntelligenceExportResponse,
-  IntelligenceExportJobResponse,
   IntelligenceQuery,
   IntelligenceListResponse,
 } from '../../contracts/intelligence.schemas';
@@ -659,9 +660,6 @@ Always provide practical, actionable advice based on agricultural best practices
   }
 
   private async generatePdfFile(data: any): Promise<Buffer> {
-    const jsPDF = require('jspdf');
-    const autoTable = require('jspdf-autotable');
-    
     const doc = new jsPDF();
     
     // Add title
@@ -690,7 +688,7 @@ Always provide practical, actionable advice based on agricultural best practices
         new Date(insight.createdAt).toLocaleDateString(),
       ]);
       
-      autoTable(doc, {
+      (doc as any).autoTable({
         head: [['ID', 'Content', 'Priority', 'Category', 'Created At']],
         body: insightsData,
         startY: yPosition,
@@ -714,7 +712,7 @@ Always provide practical, actionable advice based on agricultural best practices
         new Date(analysis.createdAt).toLocaleDateString(),
       ]);
       
-      autoTable(doc, {
+      (doc as any).autoTable({
         head: [['ID', 'Analysis Type', 'Score', 'Created At']],
         body: analysesData,
         startY: yPosition,
@@ -738,7 +736,7 @@ Always provide practical, actionable advice based on agricultural best practices
         new Date(analysis.createdAt).toLocaleDateString(),
       ]);
       
-      autoTable(doc, {
+      (doc as any).autoTable({
         head: [['ID', 'Analysis Type', 'Commodity', 'Created At']],
         body: marketData,
         startY: yPosition,

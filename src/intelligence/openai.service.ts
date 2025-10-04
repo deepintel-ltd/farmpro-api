@@ -206,6 +206,14 @@ export class OpenAIService {
   parseJsonResponse<T>(content: string, fallback: T): T {
     try {
       // Try to extract JSON from the response
+      // First, try to find JSON code block
+      const codeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        const parsed = JSON.parse(codeBlockMatch[1]);
+        return { ...fallback, ...parsed };
+      }
+
+      // If no code block, try to extract JSON object
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -258,7 +266,22 @@ Focus on practical, implementable solutions with clear schedules and resource re
 
 ${JSON.stringify(data, null, 2)}
 
-Provide insights, recommendations, and confidence score in JSON format.`;
+Provide your analysis in the following JSON format:
+{
+  "insights": ["insight 1", "insight 2", "insight 3"],
+  "recommendations": ["recommendation 1", "recommendation 2"],
+  "confidence": 0.85,
+  "data": {
+    "rawResponse": "detailed analysis text",
+    "additionalMetrics": {}
+  }
+}
+
+IMPORTANT:
+- "insights" must be an array of strings
+- "recommendations" must be an array of strings
+- "confidence" must be a number between 0 and 1
+- Keep insights and recommendations concise and actionable`;
   }
 
   private buildMarketAnalysisPrompt(
@@ -271,7 +294,26 @@ Provide insights, recommendations, and confidence score in JSON format.`;
 Timeframe: ${timeframe}
 Region: ${region || 'Global'}
 
-Provide predictions, insights, recommendations, and risk factors in JSON format.`;
+Provide your analysis in the following JSON format:
+{
+  "predictions": [
+    {
+      "date": "2025-11-01T00:00:00.000Z",
+      "value": 150.5,
+      "confidence": 0.8
+    }
+  ],
+  "insights": ["market insight 1", "market insight 2"],
+  "recommendations": ["recommendation 1", "recommendation 2"],
+  "riskFactors": ["risk factor 1", "risk factor 2"]
+}
+
+IMPORTANT:
+- "predictions" must be an array of objects with date, value, and confidence
+- "insights" must be an array of strings
+- "recommendations" must be an array of strings
+- "riskFactors" must be an array of strings
+- All confidence scores must be numbers between 0 and 1`;
   }
 
   private buildActivityOptimizationPrompt(
@@ -284,7 +326,36 @@ Provide predictions, insights, recommendations, and risk factors in JSON format.
 Constraints: ${JSON.stringify(constraints, null, 2)}
 Objectives: ${objectives.join(', ')}
 
-Provide optimized plan and alternatives in JSON format.`;
+Provide your optimization in the following JSON format:
+{
+  "optimizedPlan": {
+    "schedule": [
+      {
+        "date": "2025-11-01T00:00:00.000Z",
+        "activity": "activity description",
+        "resources": ["resource 1", "resource 2"],
+        "cost": 1000
+      }
+    ],
+    "totalCost": 5000,
+    "totalDuration": 30,
+    "expectedYield": 2000,
+    "riskScore": 0.3
+  },
+  "alternatives": [
+    {
+      "description": "alternative approach",
+      "pros": ["advantage 1", "advantage 2"],
+      "cons": ["disadvantage 1"],
+      "cost": 4500
+    }
+  ]
+}
+
+IMPORTANT:
+- All arrays must contain strings or objects as specified
+- All numeric fields must be valid numbers
+- Dates must be in ISO 8601 format`;
   }
 
   private handleOpenAIError(error: any): Error {
