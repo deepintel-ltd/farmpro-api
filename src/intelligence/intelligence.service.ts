@@ -93,13 +93,33 @@ export class IntelligenceService {
         confidence: 0.7,
         data: { rawResponse: completion.content },
       });
-      
+
+      // Ensure insights and recommendations are arrays of strings
+      const normalizeToStringArray = (value: any): string[] => {
+        if (Array.isArray(value)) {
+          return value.map(item => typeof item === 'string' ? item : JSON.stringify(item));
+        }
+        if (typeof value === 'object' && value !== null) {
+          // Convert object to array of string descriptions
+          return Object.entries(value).map(([key, val]) => {
+            if (typeof val === 'string') {
+              return `${key}: ${val}`;
+            }
+            return `${key}: ${JSON.stringify(val)}`;
+          });
+        }
+        if (typeof value === 'string') {
+          return [value];
+        }
+        return ['No data available'];
+      };
+
       const analysisResponse: FarmAnalysisResponse = {
         id: crypto.randomUUID(),
         farmId: request.farmId,
         analysisType: request.analysisType,
-        insights: response.insights,
-        recommendations: response.recommendations,
+        insights: normalizeToStringArray(response.insights),
+        recommendations: normalizeToStringArray(response.recommendations),
         confidence: response.confidence,
         data: response.data,
         createdAt: new Date(),
@@ -136,16 +156,36 @@ export class IntelligenceService {
         recommendations: ['Review the analysis for specific recommendations'],
         riskFactors: ['Market volatility'],
       });
-      
+
+      // Ensure insights, recommendations, and riskFactors are arrays of strings
+      const normalizeToStringArray = (value: any): string[] => {
+        if (Array.isArray(value)) {
+          return value.map(item => typeof item === 'string' ? item : JSON.stringify(item));
+        }
+        if (typeof value === 'object' && value !== null) {
+          // Convert object to array of string descriptions
+          return Object.entries(value).map(([key, val]) => {
+            if (typeof val === 'string') {
+              return `${key}: ${val}`;
+            }
+            return `${key}: ${JSON.stringify(val)}`;
+          });
+        }
+        if (typeof value === 'string') {
+          return [value];
+        }
+        return ['No data available'];
+      };
+
       const marketResponse: MarketIntelligenceResponse = {
         id: crypto.randomUUID(),
         commodity: request.commodity,
         region: request.region,
         analysisType: request.analysisType,
         predictions: response.predictions,
-        insights: response.insights,
-        recommendations: response.recommendations,
-        riskFactors: response.riskFactors,
+        insights: normalizeToStringArray(response.insights),
+        recommendations: normalizeToStringArray(response.recommendations),
+        riskFactors: normalizeToStringArray(response.riskFactors),
         createdAt: new Date(),
         userId: request.userId,
       };

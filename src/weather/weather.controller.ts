@@ -1,10 +1,8 @@
-import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
+import { Controller, UseGuards, Logger } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { Request as ExpressRequest } from 'express';
 import { WeatherService } from './weather.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { weatherContract } from '../../contracts/weather.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
@@ -15,10 +13,6 @@ import {
   RequirePermission,
 } from '../common/decorators/authorization.decorators';
 import { PERMISSIONS } from '../common/constants';
-
-interface AuthenticatedRequest extends ExpressRequest {
-  user: CurrentUser;
-}
 
 @ApiTags('weather')
 @ApiBearerAuth('JWT-auth')
@@ -33,7 +27,6 @@ export class WeatherController {
   @TsRestHandler(weatherContract.getCurrentWeather)
   @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getCurrentWeather(
-    @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getCurrentWeather, async ({ query }) => {
       try {
@@ -65,7 +58,6 @@ export class WeatherController {
   @TsRestHandler(weatherContract.getWeatherForecast)
   @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getWeatherForecast(
-    @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getWeatherForecast, async ({ query }) => {
       try {
@@ -99,7 +91,6 @@ export class WeatherController {
   @TsRestHandler(weatherContract.getWeatherAlerts)
   @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getWeatherAlerts(
-    @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getWeatherAlerts, async ({ query }) => {
       try {
@@ -134,7 +125,6 @@ export class WeatherController {
   @TsRestHandler(weatherContract.getWeatherHistory)
   @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getWeatherHistory(
-    @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getWeatherHistory, async ({ query }) => {
       try {
@@ -144,7 +134,6 @@ export class WeatherController {
           query.farmId,
           undefined, // latitude
           undefined, // longitude
-          query.includeAgMetrics ?? false,
         );
 
         return {
@@ -169,14 +158,11 @@ export class WeatherController {
   @TsRestHandler(weatherContract.getAgWeatherInsights)
   @RequirePermission(...PERMISSIONS.FARMS.READ)
   public getAgWeatherInsights(
-    @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getAgWeatherInsights, async ({ query }) => {
       try {
         const result = await this.weatherService.getAgWeatherInsights(
           query.farmId,
-          query.cropType,
-          query.growthStage,
         );
 
         return {
