@@ -28,7 +28,8 @@ export type {
   IntelligenceEndpoints,
   BillingEndpoints,
   PlatformAdminEndpoints,
-  MobileEndpoints
+  MobileEndpoints,
+  WeatherEndpoints
 } from './contracts';
 
 // =============================================================================
@@ -72,6 +73,9 @@ export { platformAdminContract } from './platform-admin.contract';
 export type { PlatformAdminContract } from './platform-admin.contract';
 
 export { mobileFieldContract } from './mobile-field.contract';
+
+export { weatherContract } from './weather.contract';
+export type { WeatherContract } from './weather.contract';
 
 // Order contracts
 export { ordersCrudContract } from './orders-crud.contract';
