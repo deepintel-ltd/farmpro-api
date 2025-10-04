@@ -17,6 +17,8 @@ npx prisma migrate deploy
 
 # Generate Prisma client (ensure it's up to date)
 echo "🔧 Generating Prisma client..."
+# Fix permissions for Prisma client generation
+chmod -R 755 /app/node_modules/.prisma/ 2>/dev/null || true
 npx prisma generate
 
 # Start the application

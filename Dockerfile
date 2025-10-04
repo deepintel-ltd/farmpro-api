@@ -26,6 +26,8 @@ COPY . .
 
 # Generate Prisma client
 RUN npx prisma generate
+# Ensure proper permissions for Prisma client
+RUN chmod -R 755 /app/node_modules/.prisma/
 
 # Build the application
 RUN npm run build
@@ -56,9 +58,12 @@ COPY --chown=nestjs:nodejs contracts/package*.json ./contracts/
 RUN npm ci --only=production && npm cache clean --force
 RUN cd contracts && npm ci --only=production && npm cache clean --force
 
-# Copy Prisma schema and generate client
+# Copy Prisma schema and generated client from base stage
 COPY --from=base --chown=nestjs:nodejs /app/prisma ./prisma
-RUN npx prisma generate
+COPY --from=base --chown=nestjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+# Ensure proper permissions and regenerate if needed
+RUN chmod -R 755 /app/node_modules/.prisma/ || true
+RUN npx prisma generate || echo "Prisma client already generated"
 
 # Copy built application
 COPY --from=base --chown=nestjs:nodejs /app/dist ./dist
