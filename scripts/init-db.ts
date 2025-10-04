@@ -446,18 +446,9 @@ async function initializePermissions() {
   console.log('🔐 Initializing permissions...');
   
   for (const permission of SYSTEM_PERMISSIONS) {
-    await prisma.permission.upsert({
-      where: {
-        resource_action: {
-          resource: permission.resource,
-          action: permission.action
-        }
-      },
-      update: permission,
-      create: {
-        ...permission,
-        isSystemPermission: true
-      }
+    await upsertPermission({
+      ...permission,
+      isSystemPermission: true
     });
   }
   
@@ -500,18 +491,9 @@ async function initializeRoles() {
   
   for (const roleData of SYSTEM_ROLES) {
     const { permissions, ...roleDataWithoutPermissions } = roleData;
-    const role = await prisma.role.upsert({
-      where: {
-        name_organizationId: {
-          name: roleData.name,
-          organizationId: systemOrg.id
-        }
-      },
-      update: roleDataWithoutPermissions,
-      create: {
-        ...roleDataWithoutPermissions,
-        organizationId: systemOrg.id
-      }
+    const role = await upsertRole({
+      ...roleDataWithoutPermissions,
+      organizationId: systemOrg.id
     });
 
     // Assign permissions to role
@@ -550,31 +532,14 @@ async function initializeOrganizations() {
   
   const organizations = [];
   for (const orgData of SAMPLE_ORGANIZATIONS) {
-    let org = await prisma.organization.findFirst({
-      where: { name: orgData.name }
+    const org = await upsertOrganization({
+      ...orgData,
+      type: orgData.type as any
     });
-    
-    if (org) {
-      org = await prisma.organization.update({
-        where: { id: org.id },
-        data: {
-          ...orgData,
-          type: orgData.type as any
-        }
-      });
-    } else {
-      org = await prisma.organization.create({
-        data: {
-          ...orgData,
-          type: orgData.type as any
-        }
-      });
-    }
-    
     organizations.push(org);
   }
   
-  console.log(`✅ Created ${organizations.length} organizations`);
+  console.log(`✅ Upserted ${organizations.length} organizations`);
   return organizations;
 }
 
@@ -583,28 +548,16 @@ async function initializeUsers(organizations: any[]) {
   
   const users = [];
   for (const userData of SAMPLE_USERS) {
-    const hashedPassword = await hash(userData.password);
     const organization = organizations[userData.organizationIndex];
     
-    const user = await prisma.user.upsert({
-      where: { email: userData.email },
-      update: {
-        name: userData.name,
-        phone: userData.phone,
-        organizationId: organization.id,
-        hashedPassword,
-        emailVerified: true,
-        isActive: true
-      },
-      create: {
-        email: userData.email,
-        name: userData.name,
-        phone: userData.phone,
-        organizationId: organization.id,
-        hashedPassword,
-        emailVerified: true,
-        isActive: true
-      }
+    const user = await upsertUser({
+      email: userData.email,
+      name: userData.name,
+      phone: userData.phone,
+      password: userData.password,
+      isActive: true,
+      organizationId: organization.id,
+      emailVerified: true
     });
     
     // Assign role to user with domain validation for Platform Admin
@@ -668,22 +621,20 @@ async function initializeSampleFarms(organizations: any[]) {
   );
   
   for (const org of farmOrgs) {
-    const farm = await prisma.farm.create({
-      data: {
-        organizationId: org.id,
-        name: `${org.name} Main Farm`,
-        totalArea: 100.5,
-        location: {
-          latitude: 40.7128,
-          longitude: -74.0060,
-          address: org.address
-        },
-        timezone: 'America/New_York',
-        cropTypes: ['Wheat', 'Corn', 'Soybeans'],
-        establishedDate: new Date('2020-01-01'),
-        certifications: ['Organic', 'Non-GMO'],
-        isPublic: true
-      }
+    const farm = await upsertFarm({
+      organizationId: org.id,
+      name: `${org.name} Main Farm`,
+      totalArea: 100.5,
+      location: {
+        latitude: 40.7128,
+        longitude: -74.0060,
+        address: org.address
+      },
+      timezone: 'America/New_York',
+      cropTypes: ['Wheat', 'Corn', 'Soybeans'],
+      establishedDate: new Date('2020-01-01'),
+      certifications: ['Organic', 'Non-GMO'],
+      isPublic: true
     });
     farms.push(farm);
   }
@@ -746,28 +697,18 @@ async function initializeSampleCommodities() {
   const createdCommodities = [];
   
   for (const commodityData of commodities) {
-    const existing = await prisma.commodity.findFirst({
-      where: {
-        name: commodityData.name,
-        variety: commodityData.variety
-      }
+    const created = await upsertCommodity({
+      name: commodityData.name,
+      category: commodityData.category,
+      description: `${commodityData.variety} - ${commodityData.qualityGrade}`,
+      unit: commodityData.unit,
+      isActive: true,
+      quantity: commodityData.quantity
     });
-    
-    if (existing) {
-      const updated = await prisma.commodity.update({
-        where: { id: existing.id },
-        data: commodityData
-      });
-      createdCommodities.push(updated);
-    } else {
-      const created = await prisma.commodity.create({
-        data: commodityData
-      });
-      createdCommodities.push(created);
-    }
+    createdCommodities.push(created);
   }
   
-  console.log(`✅ Created ${createdCommodities.length} sample commodities`);
+  console.log(`✅ Upserted ${createdCommodities.length} sample commodities`);
   return createdCommodities;
 }
 
@@ -952,9 +893,11 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
     return [];
   }
 
+  // Generate unique order numbers with timestamp
+  const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
   const orderData = [
     {
-      orderNumber: 'ORD-2024-001',
+      orderNumber: `ORD-${timestamp}-001`,
       title: 'Wheat Order Response',
       type: 'SELL',
       status: 'PENDING',
@@ -977,7 +920,7 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
       }
     },
     {
-      orderNumber: 'ORD-2024-002',
+      orderNumber: `ORD-${timestamp}-002`,
       title: 'Delivery Order Coordination',
       type: 'SELL',
       status: 'CONFIRMED',
@@ -1000,7 +943,7 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
       }
     },
     {
-      orderNumber: 'ORD-2024-003',
+      orderNumber: `ORD-${timestamp}-003`,
       title: 'Price Negotiation',
       type: 'SELL',
       status: 'PENDING',
@@ -1025,8 +968,8 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
   ];
 
   for (const orderInfo of orderData) {
-    const order = await prisma.order.create({
-      data: {
+    try {
+      const order = await upsertOrder({
         orderNumber: orderInfo.orderNumber,
         title: orderInfo.title,
         type: orderInfo.type as any,
@@ -1044,20 +987,23 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
         deliveryAddress: orderInfo.deliveryAddress,
         totalAmount: orderInfo.totalPrice,
         currency: 'NGN'
-      }
-    });
+      });
 
-    // Create order item
-    await prisma.orderItem.create({
-      data: {
-        orderId: order.id,
-        commodityId: orderInfo.commodityId,
-        quantity: orderInfo.quantity,
-        unitPrice: orderInfo.pricePerUnit
-      }
-    });
+      // Create order item (no unique constraint, so just create)
+      await prisma.orderItem.create({
+        data: {
+          orderId: order.id,
+          commodityId: orderInfo.commodityId,
+          quantity: orderInfo.quantity,
+          unitPrice: orderInfo.pricePerUnit
+        }
+      });
 
-    orders.push(order);
+      orders.push(order);
+    } catch (error) {
+      console.error(`❌ Failed to upsert order ${orderInfo.orderNumber}:`, error);
+      // Continue with other orders instead of failing completely
+    }
   }
 
   console.log(`✅ Created ${orders.length} sample orders`);
@@ -1154,6 +1100,204 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
 }
 
 // =============================================================================
+// UPSERT HELPER FUNCTIONS
+// =============================================================================
+
+async function upsertPermission(permission: { resource: string; action: string; description: string; isSystemPermission?: boolean }) {
+  return await prisma.permission.upsert({
+    where: {
+      resource_action: {
+        resource: permission.resource,
+        action: permission.action
+      }
+    },
+    update: {
+      description: permission.description,
+      isSystemPermission: permission.isSystemPermission
+    },
+    create: permission
+  });
+}
+
+async function upsertRole(role: { name: string; description: string; isSystemRole: boolean; organizationId?: string }) {
+  return await prisma.role.upsert({
+    where: { 
+      name_organizationId: {
+        name: role.name,
+        organizationId: role.organizationId || null
+      }
+    },
+    update: {
+      description: role.description,
+      isSystemRole: role.isSystemRole
+    },
+    create: {
+      name: role.name,
+      description: role.description,
+      isSystemRole: role.isSystemRole,
+      organizationId: role.organizationId
+    }
+  });
+}
+
+async function upsertOrganization(org: { name: string; type: string; email: string; phone?: string; address?: any }) {
+  // Find existing organization by name first
+  const existing = await prisma.organization.findFirst({
+    where: { name: org.name }
+  });
+  
+  if (existing) {
+    return await prisma.organization.update({
+      where: { id: existing.id },
+      data: {
+        name: org.name,
+        type: org.type as any,
+        email: org.email,
+        phone: org.phone,
+        address: org.address
+      }
+    });
+  } else {
+    return await prisma.organization.create({
+      data: {
+        name: org.name,
+        type: org.type as any,
+        email: org.email,
+        phone: org.phone,
+        address: org.address
+      }
+    });
+  }
+}
+
+async function upsertUser(user: { email: string; name: string; phone?: string; password: string; isActive: boolean; organizationId?: string; emailVerified?: boolean }) {
+  const hashedPassword = await hash(user.password);
+  return await prisma.user.upsert({
+    where: { email: user.email },
+    update: {
+      name: user.name,
+      phone: user.phone,
+      hashedPassword: hashedPassword,
+      isActive: user.isActive,
+      organizationId: user.organizationId,
+      emailVerified: user.emailVerified
+    },
+    create: {
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      hashedPassword: hashedPassword,
+      isActive: user.isActive,
+      organizationId: user.organizationId,
+      emailVerified: user.emailVerified
+    }
+  });
+}
+
+async function upsertFarm(farm: { organizationId: string; name: string; totalArea: number; location: any; timezone: string; cropTypes: string[]; establishedDate: Date; certifications: string[]; isPublic: boolean }) {
+  // Find existing farm by organizationId and name
+  const existing = await prisma.farm.findFirst({
+    where: {
+      organizationId: farm.organizationId,
+      name: farm.name
+    }
+  });
+  
+  if (existing) {
+    return await prisma.farm.update({
+      where: { id: existing.id },
+      data: {
+        totalArea: farm.totalArea,
+        location: farm.location,
+        timezone: farm.timezone,
+        cropTypes: farm.cropTypes,
+        establishedDate: farm.establishedDate,
+        certifications: farm.certifications,
+        isPublic: farm.isPublic
+      }
+    });
+  } else {
+    return await prisma.farm.create({
+      data: farm
+    });
+  }
+}
+
+async function upsertCommodity(commodity: { name: string; category: string; description: string; unit: string; isActive: boolean; quantity: number }) {
+  // Find existing commodity by name
+  const existing = await prisma.commodity.findFirst({
+    where: { name: commodity.name }
+  });
+  
+  if (existing) {
+    return await prisma.commodity.update({
+      where: { id: existing.id },
+      data: {
+        category: commodity.category,
+        description: commodity.description,
+        unit: commodity.unit,
+        isActive: commodity.isActive,
+        quantity: commodity.quantity
+      }
+    });
+  } else {
+    return await prisma.commodity.create({
+      data: {
+        name: commodity.name,
+        category: commodity.category,
+        description: commodity.description,
+        unit: commodity.unit,
+        isActive: commodity.isActive,
+        quantity: commodity.quantity
+      }
+    });
+  }
+}
+
+async function upsertOrder(order: { orderNumber: string; title: string; type: string; status: string; commodityId: string; quantity: number; pricePerUnit: number; totalPrice: number; deliveryDate: Date; deliveryLocation: string; buyerOrgId: string; supplierOrgId: string; createdById: string; farmId?: string; deliveryAddress: any; totalAmount: number; currency: string }) {
+  return await prisma.order.upsert({
+    where: { orderNumber: order.orderNumber },
+    update: {
+      title: order.title,
+      type: order.type as any,
+      status: order.status as any,
+      commodityId: order.commodityId,
+      quantity: order.quantity,
+      pricePerUnit: order.pricePerUnit,
+      totalPrice: order.totalPrice,
+      deliveryDate: order.deliveryDate,
+      deliveryLocation: order.deliveryLocation,
+      buyerOrgId: order.buyerOrgId,
+      supplierOrgId: order.supplierOrgId,
+      createdById: order.createdById,
+      farmId: order.farmId,
+      deliveryAddress: order.deliveryAddress,
+      totalAmount: order.totalAmount,
+      currency: order.currency as any
+    },
+    create: {
+      orderNumber: order.orderNumber,
+      title: order.title,
+      type: order.type as any,
+      status: order.status as any,
+      commodityId: order.commodityId,
+      quantity: order.quantity,
+      pricePerUnit: order.pricePerUnit,
+      totalPrice: order.totalPrice,
+      deliveryDate: order.deliveryDate,
+      deliveryLocation: order.deliveryLocation,
+      buyerOrgId: order.buyerOrgId,
+      supplierOrgId: order.supplierOrgId,
+      createdById: order.createdById,
+      farmId: order.farmId,
+      deliveryAddress: order.deliveryAddress,
+      totalAmount: order.totalAmount,
+      currency: order.currency as any
+    }
+  });
+}
+
+// =============================================================================
 // MAIN INITIALIZATION FUNCTION
 // =============================================================================
 
@@ -1161,7 +1305,7 @@ async function initializeDatabase() {
   try {
     console.log('🚀 Starting database initialization...\n');
     
-    // Initialize core data
+    // Initialize core data with upsert operations
     await initializePermissions();
     await initializeRoles();
     const organizations = await initializeOrganizations();
