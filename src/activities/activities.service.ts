@@ -119,6 +119,47 @@ export class ActivitiesService {
     throw new Error('Organization ID not found in request context');
   }
 
+  private getOrderByClause(sort?: string): any {
+    if (!sort) {
+      return { scheduledAt: 'asc' };
+    }
+
+    // Handle descending order (prefixed with -)
+    if (sort.startsWith('-')) {
+      const field = sort.substring(1);
+      switch (field) {
+        case 'scheduledAt':
+          return { scheduledAt: 'desc' };
+        case 'priority':
+          return [{ priority: 'desc' }, { scheduledAt: 'asc' }];
+        case 'createdAt':
+          return { createdAt: 'desc' };
+        case 'updatedAt':
+          return { updatedAt: 'desc' };
+        case 'name':
+          return { name: 'desc' };
+        default:
+          return { scheduledAt: 'desc' };
+      }
+    }
+
+    // Handle ascending order
+    switch (sort) {
+      case 'priority':
+        return [{ priority: 'desc' }, { scheduledAt: 'asc' }];
+      case 'scheduledAt':
+        return { scheduledAt: 'asc' };
+      case 'createdAt':
+        return { createdAt: 'asc' };
+      case 'updatedAt':
+        return { updatedAt: 'asc' };
+      case 'name':
+        return { name: 'asc' };
+      default:
+        return { scheduledAt: 'asc' };
+    }
+  }
+
   async getActivities(query: ActivityQueryOptions, request: any) {
     const organizationId = this.getOrganizationIdFromRequest(request);
     const where: any = {
@@ -166,9 +207,7 @@ export class ActivitiesService {
             include: { commodity: { select: { id: true, name: true } } }
           }
         },
-        orderBy: query.sort === 'priority' 
-          ? [{ priority: 'desc' }, { scheduledAt: 'asc' }]
-          : { scheduledAt: 'asc' },
+        orderBy: this.getOrderByClause(query.sort),
         skip,
         take,
       }),
@@ -469,8 +508,6 @@ export class ActivitiesService {
 
     // Handle assignment updates if assignedTo is provided
     if (data.assignedTo && data.assignedTo.length > 0) {
-      const organizationId = this.getOrganizationIdFromRequest(request);
-      
       // Remove existing assignments
       await this.prisma.activityAssignment.updateMany({
         where: { activityId, isActive: true },
