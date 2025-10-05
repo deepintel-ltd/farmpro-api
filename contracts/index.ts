@@ -29,7 +29,8 @@ export type {
   BillingEndpoints,
   PlatformAdminEndpoints,
   MobileEndpoints,
-  WeatherEndpoints
+  WeatherEndpoints,
+  TransactionsEndpoints
 } from './contracts';
 
 // =============================================================================
@@ -129,6 +130,10 @@ export type { RbacContract } from './rbac.contract';
 export { mediaContract } from './media.contract';
 export type { MediaContract } from './media.contract';
 
+// Transactions contract
+export { transactionsContract } from './transactions.contract';
+export type { TransactionsContract } from './transactions.contract';
+
 // =============================================================================
 // Schema Exports
 // =============================================================================
@@ -208,6 +213,17 @@ export {
   IntelligenceErrorSchema
 } from './intelligence.schemas';
 
+// Transactions schemas
+export {
+  TransactionTypeSchema,
+  TransactionStatusSchema,
+  TransactionSchema,
+  CreateTransactionRequestSchema,
+  UpdateTransactionRequestSchema,
+  TransactionFiltersSchema,
+  TransactionSummarySchema
+} from './transactions.schemas';
+
 // =============================================================================
 // Type Exports
 // =============================================================================
@@ -283,6 +299,17 @@ export type {
   IntelligenceRequest,
   IntelligenceError
 } from './intelligence.schemas';
+
+// Transactions types
+export type {
+  TransactionType,
+  TransactionStatus,
+  Transaction,
+  CreateTransactionRequest,
+  UpdateTransactionRequest,
+  TransactionFilters,
+  TransactionSummary
+} from './transactions.schemas';
 
 // =============================================================================
 // Utility Exports

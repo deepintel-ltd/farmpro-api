@@ -30,6 +30,7 @@ import { activitiesMediaContract } from './activities-media.contract';
 import { activitiesAnalyticsContract } from './activities-analytics.contract';
 import { mobileFieldContract } from './mobile-field.contract';
 import { weatherContract, type WeatherContract } from './weather.contract';
+import { transactionsContract, type TransactionsContract } from './transactions.contract';
 
 // Import common utilities
 import { initContract } from '@ts-rest/core';
@@ -75,6 +76,7 @@ export interface ApiContractDefinition {
   activitiesAnalytics: typeof activitiesAnalyticsContract;
   mobile: typeof mobileFieldContract;
   weather: typeof weatherContract;
+  transactions: typeof transactionsContract;
   health: typeof healthContract;
 }
 
@@ -107,6 +109,7 @@ export const apiContract: ApiContractDefinition = c.router({
   activitiesAnalytics: activitiesAnalyticsContract,
   mobile: mobileFieldContract,
   weather: weatherContract,
+  transactions: transactionsContract,
   health: healthContract,
 });
 
@@ -141,6 +144,7 @@ export type BillingEndpoints = ApiContractType['billing'];
 export type PlatformAdminEndpoints = ApiContractType['platformAdmin'];
 export type MobileEndpoints = ApiContractType['mobile'];
 export type WeatherEndpoints = ApiContractType['weather'];
+export type TransactionsEndpoints = ApiContractType['transactions'];
 
 // Export contract type for use in NestJS controllers
 export type { ApiContractType as ApiContract };
@@ -189,6 +193,7 @@ export function getContractMetadata() {
       platformAdmin: Object.keys(platformAdminContract),
       mobile: Object.keys(mobileFieldContract),
       weather: Object.keys(weatherContract),
+      transactions: Object.keys(transactionsContract),
     },
   };
 }
@@ -218,6 +223,7 @@ export {
   platformAdminContract,
   mobileFieldContract,
   weatherContract,
+  transactionsContract,
 };
 export type {
   FarmContract,
@@ -239,4 +245,5 @@ export type {
   BillingContract,
   PlatformAdminContract,
   WeatherContract,
+  TransactionsContract,
 };
