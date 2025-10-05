@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { PermissionsGuard } from './permissions.guard';
@@ -7,10 +6,7 @@ import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 
 describe('PermissionsGuard', () => {
   let guard: PermissionsGuard;
-
-  const mockReflector = {
-    getAllAndOverride: jest.fn(),
-  };
+  let mockReflector: jest.Mocked<Reflector>;
 
   const mockRequest = {
     user: null as CurrentUser | null,
@@ -49,18 +45,14 @@ describe('PermissionsGuard', () => {
     ...overrides,
   } as CurrentUser);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PermissionsGuard,
-        {
-          provide: Reflector,
-          useValue: mockReflector,
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Create deep mock for Reflector
+    mockReflector = {
+      getAllAndOverride: jest.fn(),
+    } as any;
 
-    guard = module.get<PermissionsGuard>(PermissionsGuard);
+    // Create guard instance with mocked dependencies
+    guard = new PermissionsGuard(mockReflector);
 
     // Reset mocks
     jest.clearAllMocks();

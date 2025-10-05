@@ -1,22 +1,21 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrderOwnershipGuard } from './order-ownership.guard';
-import { PrismaService } from '@/prisma/prisma.service';
 import { OrdersService } from '../orders.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 describe('OrderOwnershipGuard', () => {
   let guard: OrderOwnershipGuard;
+  let mockOrdersService: jest.Mocked<OrdersService>;
 
-  const mockPrismaService = {
-    order: {
-      findUnique: jest.fn(),
-    },
-  };
+  beforeEach(() => {
+    // Create deep mock for OrdersService
+    mockOrdersService = {
+      findOrderById: jest.fn().mockResolvedValue(null),
+    } as any;
 
-  const mockOrdersService = {
-    findOrderById: jest.fn(),
-  };
+    // Create guard instance with mocked dependencies
+    guard = new OrderOwnershipGuard(mockOrdersService);
+  });
 
   const mockRequest = {
     user: null as CurrentUser | null,
@@ -56,23 +55,7 @@ describe('OrderOwnershipGuard', () => {
     ...overrides,
   });
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OrderOwnershipGuard,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: OrdersService,
-          useValue: mockOrdersService,
-        },
-      ],
-    }).compile();
-
-    guard = module.get<OrderOwnershipGuard>(OrderOwnershipGuard);
-
+  beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
     mockRequest.user = null;
@@ -102,7 +85,7 @@ describe('OrderOwnershipGuard', () => {
     it('should throw ForbiddenException when order is not found', async () => {
       mockRequest.user = createMockUser();
       mockRequest.params.id = 'order-1';
-      mockPrismaService.order.findUnique.mockResolvedValue(null);
+      mockOrdersService.findOrderById.mockResolvedValue(null);
 
       await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new NotFoundException('Order not found'),
@@ -153,7 +136,6 @@ describe('OrderOwnershipGuard', () => {
       const result = await guard.canActivate(mockContext);
 
       expect(result).toBe(true);
-      expect(mockPrismaService.order.findUnique).not.toHaveBeenCalled();
       expect(mockRequest.order).toEqual(order);
     });
 

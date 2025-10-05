@@ -8,6 +8,8 @@ describe('PrismaService', () => {
   let healthService: PrismaHealthService;
 
   beforeEach(async () => {
+    // Note: This test uses Test.createTestingModule because it's testing the actual PrismaService
+    // which requires real database connection and configuration
     const module: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forRoot()],
       providers: [PrismaService, PrismaHealthService],

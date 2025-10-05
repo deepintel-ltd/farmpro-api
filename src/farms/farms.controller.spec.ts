@@ -1,52 +1,24 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { FarmsController } from './farms.controller';
 import { FarmsService } from './farms.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('FarmsController', () => {
   let controller: FarmsController;
-  let service: FarmsService;
+  let service: jest.Mocked<FarmsService>;
 
-  const mockFarmsService = {
-    getFarms: jest.fn(),
-    getFarm: jest.fn(),
-    createFarm: jest.fn(),
-    updateFarm: jest.fn(),
-    deleteFarm: jest.fn(),
-    getFarmCommodities: jest.fn(),
-  };
+  beforeEach(() => {
+    // Create deep mock for FarmsService
+    service = {
+      getFarms: jest.fn(),
+      getFarm: jest.fn(),
+      createFarm: jest.fn(),
+      updateFarm: jest.fn(),
+      deleteFarm: jest.fn(),
+      getFarmCommodities: jest.fn(),
+    } as any;
 
-  const mockPrismaService = {
-    farm: {
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      count: jest.fn(),
-    },
-    commodity: {
-      findMany: jest.fn(),
-      count: jest.fn(),
-    },
-  };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FarmsController],
-      providers: [
-        {
-          provide: FarmsService,
-          useValue: mockFarmsService,
-        },
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-      ],
-    }).compile();
-
-    controller = module.get<FarmsController>(FarmsController);
-    service = module.get<FarmsService>(FarmsService);
+    // Create controller instance with mocked dependencies
+    controller = new FarmsController(service);
   });
 
   it('should be defined', () => {

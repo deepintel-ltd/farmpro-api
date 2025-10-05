@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { EmailVerificationService } from './email-verification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrevoService } from '../external-service/brevo/brevo.service';
@@ -6,43 +5,33 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 
 describe('EmailVerificationService', () => {
   let service: EmailVerificationService;
+  let mockPrismaService: any;
+  let mockBrevoService: any;
 
-  const mockPrismaService = {
-    emailVerification: {
-      create: jest.fn(),
-      findFirst: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-      count: jest.fn(),
-    },
-    user: {
-      findFirst: jest.fn(),
-      update: jest.fn(),
-    },
-  };
+  beforeEach(() => {
+    // Create deep mocks for dependencies
+    mockPrismaService = {
+      emailVerification: {
+        create: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        count: jest.fn(),
+      },
+      user: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+      },
+    } as any;
 
-  const mockBrevoService = {
-    sendEmailVerification: jest.fn(),
-    sendWelcomeEmail: jest.fn(),
-    sendPasswordResetEmail: jest.fn(),
-  };
+    mockBrevoService = {
+      sendEmailVerification: jest.fn(),
+      sendWelcomeEmail: jest.fn(),
+      sendPasswordResetEmail: jest.fn(),
+    };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        EmailVerificationService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: BrevoService,
-          useValue: mockBrevoService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<EmailVerificationService>(EmailVerificationService);
+    // Create service instance with mocked dependencies
+    service = new EmailVerificationService(mockPrismaService, mockBrevoService);
   });
 
   afterEach(() => {

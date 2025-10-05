@@ -1,16 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { PlanFeatureMapperService } from './plan-feature-mapper.service';
 import { SubscriptionPlan, SubscriptionTier } from '@prisma/client';
 
 describe('PlanFeatureMapperService', () => {
   let service: PlanFeatureMapperService;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [PlanFeatureMapperService],
-    }).compile();
-
-    service = module.get<PlanFeatureMapperService>(PlanFeatureMapperService);
+  beforeEach(() => {
+    // Create service instance directly (no dependencies)
+    service = new PlanFeatureMapperService();
   });
 
   describe('getModuleAccess', () => {

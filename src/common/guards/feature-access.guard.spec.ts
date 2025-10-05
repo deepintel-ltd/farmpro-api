@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { FeatureAccessGuard } from './feature-access.guard';
@@ -26,10 +25,7 @@ jest.mock('@/common/config/organization-features.config', () => ({
 
 describe('FeatureAccessGuard', () => {
   let guard: FeatureAccessGuard;
-
-  const mockReflector = {
-    getAllAndOverride: jest.fn(),
-  };
+  let mockReflector: jest.Mocked<Reflector>;
 
   const mockRequest = {
     user: null as CurrentUser | null,
@@ -62,18 +58,25 @@ describe('FeatureAccessGuard', () => {
     ...overrides,
   } as CurrentUser);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FeatureAccessGuard,
-        {
-          provide: Reflector,
-          useValue: mockReflector,
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Create deep mock for Reflector
+    mockReflector = {
+      getAllAndOverride: jest.fn(),
+    } as any;
 
-    guard = module.get<FeatureAccessGuard>(FeatureAccessGuard);
+    // Create deep mocks for other dependencies
+    const mockPlanFeatureMapper = {
+      getFeaturesForPlan: jest.fn(),
+      hasFeatureAccess: jest.fn(),
+    } as any;
+
+    const mockSubscriptionService = {
+      getActiveSubscription: jest.fn(),
+      hasFeatureAccess: jest.fn(),
+    } as any;
+
+    // Create guard instance with mocked dependencies
+    guard = new FeatureAccessGuard(mockReflector, mockPlanFeatureMapper, mockSubscriptionService);
 
     // Reset mocks
     jest.clearAllMocks();

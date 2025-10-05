@@ -1,11 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 
 describe('UsersService', () => {
   let service: UsersService;
+  let mockPrismaService: any;
 
   const mockCurrentUser: CurrentUser = {
     userId: 'user-123',
@@ -74,35 +75,28 @@ describe('UsersService', () => {
     cost: 100,
   };
 
-  const mockPrismaService = {
-    user: {
-      findUnique: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      update: jest.fn(),
-    },
-    activity: {
-      findMany: jest.fn(),
-      count: jest.fn(),
-    },
-    farmActivity: {
-      findMany: jest.fn(),
-    },
-  };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsersService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Use simple Jest mocks for PrismaService (complex types)
+    mockPrismaService = {
+      user: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+        update: jest.fn(),
+      },
+      activity: {
+        findMany: jest.fn(),
+        count: jest.fn(),
+      },
+      farmActivity: {
+        findMany: jest.fn(),
+      },
+    };
 
-    service = module.get<UsersService>(UsersService);
+    // Create service instance with mocked dependencies
+    service = new UsersService(mockPrismaService);
 
     // Mock logger to avoid console output during tests
     jest.spyOn(service['logger'], 'log').mockImplementation();

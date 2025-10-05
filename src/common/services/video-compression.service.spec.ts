@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { VideoCompressionService } from './video-compression.service';
 import { promises as fs } from 'fs';
@@ -7,31 +6,24 @@ import { tmpdir } from 'os';
 
 describe('VideoCompressionService', () => {
   let service: VideoCompressionService;
-  let configService: ConfigService;
+  let configService: jest.Mocked<ConfigService>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        VideoCompressionService,
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string) => {
-              const config = {
-                TEMP_DIR: tmpdir(),
-                VIDEO_COMPRESSION_ENABLED: 'true',
-                FFMPEG_PATH: 'ffmpeg',
-                FFPROBE_PATH: 'ffprobe',
-              };
-              return config[key];
-            }),
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Create deep mock for ConfigService
+    configService = {
+      get: jest.fn((key: string) => {
+        const config = {
+          TEMP_DIR: tmpdir(),
+          VIDEO_COMPRESSION_ENABLED: 'true',
+          FFMPEG_PATH: 'ffmpeg',
+          FFPROBE_PATH: 'ffprobe',
+        };
+        return config[key];
+      }),
+    } as any;
 
-    service = module.get<VideoCompressionService>(VideoCompressionService);
-    configService = module.get<ConfigService>(ConfigService);
+    // Create service instance with mocked dependencies
+    service = new VideoCompressionService(configService);
   });
 
   it('should be defined', () => {

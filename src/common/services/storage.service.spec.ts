@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { UnifiedStorageService } from './storage.service';
 import { S3Client } from '@aws-sdk/client-s3';
@@ -29,29 +28,20 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
 
 describe('UnifiedStorageService', () => {
   let service: UnifiedStorageService;
-  let configService: ConfigService;
+  let configService: jest.Mocked<ConfigService>;
   let mockS3Client: jest.Mocked<S3Client>;
 
-  const mockConfigService = {
-    get: jest.fn(),
-  };
-
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
     
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UnifiedStorageService,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
-    }).compile();
+    // Create deep mock for ConfigService
+    configService = {
+      get: jest.fn(),
+    } as any;
 
-    service = module.get<UnifiedStorageService>(UnifiedStorageService);
-    configService = module.get<ConfigService>(ConfigService);
+    // Create service instance with mocked dependencies
+    service = new UnifiedStorageService(configService);
     
     // Get the mocked S3Client instance
     mockS3Client = (service as any).s3Client;
@@ -63,7 +53,7 @@ describe('UnifiedStorageService', () => {
 
   describe('AWS S3 Configuration', () => {
     beforeEach(async () => {
-      mockConfigService.get.mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         const config = {
           STORAGE_PROVIDER: 'aws',
           AWS_S3_BUCKET: 'test-bucket',
@@ -75,17 +65,7 @@ describe('UnifiedStorageService', () => {
       });
 
       // Recreate the service with the new configuration
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          UnifiedStorageService,
-          {
-            provide: ConfigService,
-            useValue: mockConfigService,
-          },
-        ],
-      }).compile();
-
-      service = module.get<UnifiedStorageService>(UnifiedStorageService);
+      service = new UnifiedStorageService(configService);
       mockS3Client = (service as any).s3Client;
     });
 
@@ -173,7 +153,7 @@ describe('UnifiedStorageService', () => {
 
   describe('Cloudflare R2 Configuration', () => {
     beforeEach(async () => {
-      mockConfigService.get.mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         const config = {
           STORAGE_PROVIDER: 'cloudflare',
           CLOUDFLARE_R2_BUCKET: 'test-r2-bucket',
@@ -187,17 +167,7 @@ describe('UnifiedStorageService', () => {
       });
 
       // Recreate the service with the new configuration
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          UnifiedStorageService,
-          {
-            provide: ConfigService,
-            useValue: mockConfigService,
-          },
-        ],
-      }).compile();
-
-      service = module.get<UnifiedStorageService>(UnifiedStorageService);
+      service = new UnifiedStorageService(configService);
       mockS3Client = (service as any).s3Client;
     });
 
@@ -219,7 +189,7 @@ describe('UnifiedStorageService', () => {
     });
 
     it('should fallback to R2 public URL when no custom domain', () => {
-      mockConfigService.get.mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         const config = {
           STORAGE_PROVIDER: 'cloudflare',
           CLOUDFLARE_R2_BUCKET: 'test-r2-bucket',
@@ -239,7 +209,7 @@ describe('UnifiedStorageService', () => {
 
   describe('Error Handling', () => {
     beforeEach(async () => {
-      mockConfigService.get.mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         const config = {
           STORAGE_PROVIDER: 'aws',
           AWS_S3_BUCKET: 'test-bucket',
@@ -251,17 +221,7 @@ describe('UnifiedStorageService', () => {
       });
 
       // Recreate the service with the new configuration
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          UnifiedStorageService,
-          {
-            provide: ConfigService,
-            useValue: mockConfigService,
-          },
-        ],
-      }).compile();
-
-      service = module.get<UnifiedStorageService>(UnifiedStorageService);
+      service = new UnifiedStorageService(configService);
       mockS3Client = (service as any).s3Client;
     });
 
@@ -291,7 +251,7 @@ describe('UnifiedStorageService', () => {
 
   describe('Health Check', () => {
     beforeEach(async () => {
-      mockConfigService.get.mockImplementation((key: string) => {
+      configService.get.mockImplementation((key: string) => {
         const config = {
           STORAGE_PROVIDER: 'aws',
           AWS_S3_BUCKET: 'test-bucket',
@@ -303,17 +263,7 @@ describe('UnifiedStorageService', () => {
       });
 
       // Recreate the service with the new configuration
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          UnifiedStorageService,
-          {
-            provide: ConfigService,
-            useValue: mockConfigService,
-          },
-        ],
-      }).compile();
-
-      service = module.get<UnifiedStorageService>(UnifiedStorageService);
+      service = new UnifiedStorageService(configService);
       mockS3Client = (service as any).s3Client;
     });
 

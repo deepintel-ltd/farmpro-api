@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { UsageLimitMiddleware } from './usage-limit.middleware';
 import { SubscriptionService } from '@/billing/services/subscription.service';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -26,40 +25,30 @@ describe('UsageLimitMiddleware', () => {
 
   const mockNext = jest.fn();
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsageLimitMiddleware,
-        {
-          provide: SubscriptionService,
-          useValue: {
-            checkLimit: jest.fn(),
-            getCurrentSubscriptionInternal: jest.fn(),
-          },
-        },
-        {
-          provide: PrismaService,
-          useValue: {
-            user: {
-              count: jest.fn().mockResolvedValue(0),
-            },
-            farm: {
-              count: jest.fn().mockResolvedValue(0),
-            },
-            farmActivity: {
-              count: jest.fn().mockResolvedValue(0),
-            },
-            marketplaceListing: {
-              count: jest.fn().mockResolvedValue(0),
-            },
-          },
-        },
-      ],
-    }).compile();
+  beforeEach(() => {
+    // Create deep mocks for dependencies
+    subscriptionService = {
+      checkLimit: jest.fn(),
+      getCurrentSubscriptionInternal: jest.fn(),
+    } as any;
 
-    middleware = module.get<UsageLimitMiddleware>(UsageLimitMiddleware);
-    subscriptionService = module.get(SubscriptionService);
-    prismaService = module.get(PrismaService);
+    prismaService = {
+      user: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      farm: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      farmActivity: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      marketplaceListing: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+    } as any;
+
+    // Create middleware instance with mocked dependencies
+    middleware = new UsageLimitMiddleware(subscriptionService, prismaService);
   });
 
   afterEach(() => {

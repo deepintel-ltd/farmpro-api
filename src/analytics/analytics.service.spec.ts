@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from './analytics.service';
 import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JobQueueService } from '../common/services/job-queue.service';
 import { CurrencyService } from '../common/services/currency.service';
+import { MonitoringService } from '../common/services/monitoring.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { 
   BaseAnalyticsQuery, 
@@ -17,7 +17,12 @@ import {
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
-  let module: TestingModule;
+  let mockCacheService: jest.Mocked<CacheService>;
+  let mockIntelligenceService: jest.Mocked<IntelligenceService>;
+  let mockPrismaService: any;
+  let mockJobQueueService: jest.Mocked<JobQueueService>;
+  let mockCurrencyService: jest.Mocked<CurrencyService>;
+  let mockMonitoringService: jest.Mocked<MonitoringService>;
 
   const mockUser: CurrentUser = {
     userId: '550e8400-e29b-41d4-a716-446655440000',
@@ -45,93 +50,89 @@ describe('AnalyticsService', () => {
     capabilities: ['analytics'],
   };
 
-  const mockPrismaService = {
-    transaction: {
-      aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 1000 }, _count: { id: 5 } })
-    },
-    farmActivity: {
-      count: jest.fn().mockResolvedValue(10),
-      aggregate: jest.fn().mockResolvedValue({ _avg: { actualDuration: 8 } })
-    },
-    order: {
-      findMany: jest.fn().mockResolvedValue([
-        { id: '1', totalAmount: 500, buyerId: 'buyer1' },
-        { id: '2', totalAmount: 300, buyerId: 'buyer2' }
-      ]),
-      count: jest.fn().mockResolvedValue(5),
-      aggregate: jest.fn().mockResolvedValue({ 
-        _sum: { totalPrice: 1000 }, 
-        _avg: { totalPrice: 200 } 
+  beforeEach(() => {
+    mockPrismaService = {
+      transaction: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 1000 }, _count: { id: 5 } })
+      },
+      farmActivity: {
+        count: jest.fn().mockResolvedValue(10),
+        aggregate: jest.fn().mockResolvedValue({ _avg: { actualDuration: 8 } })
+      },
+      order: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: '1', totalAmount: 500, buyerId: 'buyer1' },
+          { id: '2', totalAmount: 300, buyerId: 'buyer2' }
+        ]),
+        count: jest.fn().mockResolvedValue(5),
+        aggregate: jest.fn().mockResolvedValue({ 
+          _sum: { totalPrice: 1000 }, 
+          _avg: { totalPrice: 200 } 
+        }),
+        groupBy: jest.fn().mockResolvedValue([
+          { buyerOrgId: 'buyer1', _count: { buyerOrgId: 2 } },
+          { buyerOrgId: 'buyer2', _count: { buyerOrgId: 1 } }
+        ])
+      },
+      cropCycle: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: '1', status: 'COMPLETED', commodity: { name: 'Wheat' } },
+          { id: '2', status: 'ACTIVE', commodity: { name: 'Corn' } }
+        ]),
+        count: jest.fn().mockResolvedValue(2),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { actualYield: 1000 } })
+      },
+      harvest: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: '1', quantity: 500, cropCycle: { commodity: { name: 'Wheat' } } }
+        ]),
+        aggregate: jest.fn().mockResolvedValue({ 
+          _avg: { quantity: 500 }, 
+          _count: { id: 1 } 
+        })
+      }
+    };
+    // Create deep mocks for all dependencies
+    mockCacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+      generateQueryHash: jest.fn().mockReturnValue('test-hash'),
+    } as any;
+
+    mockIntelligenceService = {
+      analyzeFarm: jest.fn().mockResolvedValue({
+        insights: ['Test insight'],
+        recommendations: ['Test recommendation'],
+        confidence: 0.8,
+        model: 'gpt-4',
       }),
-      groupBy: jest.fn().mockResolvedValue([
-        { buyerOrgId: 'buyer1', _count: { buyerOrgId: 2 } },
-        { buyerOrgId: 'buyer2', _count: { buyerOrgId: 1 } }
-      ])
-    },
-    cropCycle: {
-      findMany: jest.fn().mockResolvedValue([
-        { id: '1', status: 'COMPLETED', commodity: { name: 'Wheat' } },
-        { id: '2', status: 'ACTIVE', commodity: { name: 'Corn' } }
-      ]),
-      count: jest.fn().mockResolvedValue(2),
-      aggregate: jest.fn().mockResolvedValue({ _sum: { actualYield: 1000 } })
-    },
-    harvest: {
-      findMany: jest.fn().mockResolvedValue([
-        { id: '1', quantity: 500, cropCycle: { commodity: { name: 'Wheat' } } }
-      ]),
-      aggregate: jest.fn().mockResolvedValue({ 
-        _avg: { quantity: 500 }, 
-        _count: { id: 1 } 
-      })
-    }
-  };
+    } as any;
 
-  beforeEach(async () => {
-    module = await Test.createTestingModule({
-      providers: [
-        AnalyticsService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: CacheService,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            generateQueryHash: jest.fn().mockReturnValue('test-hash'),
-          },
-        },
-        {
-          provide: IntelligenceService,
-          useValue: {
-            analyzeFarm: jest.fn().mockResolvedValue({
-              insights: ['Test insight'],
-              recommendations: ['Test recommendation'],
-              confidence: 0.8,
-              model: 'gpt-4',
-            }),
-          },
-        },
-        {
-          provide: JobQueueService,
-          useValue: {
-            addJob: jest.fn(),
-            processJob: jest.fn(),
-          },
-        },
-        {
-          provide: CurrencyService,
-          useValue: {
-            convertCurrency: jest.fn().mockResolvedValue(1000),
-            getExchangeRate: jest.fn().mockResolvedValue(1.0),
-          },
-        },
-      ],
-    }).compile();
+    mockJobQueueService = {
+      addJob: jest.fn(),
+      processJob: jest.fn(),
+    } as any;
 
-    service = module.get<AnalyticsService>(AnalyticsService);
+    mockCurrencyService = {
+      convertCurrency: jest.fn().mockResolvedValue(1000),
+      getExchangeRate: jest.fn().mockResolvedValue(1.0),
+    } as any;
+
+    mockMonitoringService = {
+      recordMetric: jest.fn(),
+      recordEvent: jest.fn(),
+      trackPerformance: jest.fn(),
+    } as any;
+
+    // Create service instance with mocked dependencies
+    service = new AnalyticsService(
+      mockPrismaService,
+      mockCacheService,
+      mockIntelligenceService,
+      mockJobQueueService,
+      mockMonitoringService,
+      mockCurrencyService
+    );
   });
 
   it('should be defined', () => {
@@ -159,8 +160,7 @@ describe('AnalyticsService', () => {
     });
 
     it('should use cache when enabled', async () => {
-      const cacheService = module.get<CacheService>(CacheService);
-      jest.spyOn(cacheService, 'get').mockResolvedValue({
+      jest.spyOn(mockCacheService, 'get').mockResolvedValue({
         data: {
           type: 'analytics_dashboard',
           id: 'dashboard',
@@ -180,7 +180,7 @@ describe('AnalyticsService', () => {
       };
 
       const result = await service.getDashboard(mockUser, query);
-      expect(cacheService.get).toHaveBeenCalled();
+      expect(mockCacheService.get).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
   });

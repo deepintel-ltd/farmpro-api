@@ -1,78 +1,51 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IntelligenceService } from './intelligence.service';
 import { OpenAIService } from './openai.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { UnifiedStorageService } from '../common/services/storage.service';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 
 describe('IntelligenceService', () => {
   let service: IntelligenceService;
+  let mockPrismaService: any;
+  let mockOpenAIService: DeepMocked<OpenAIService>;
+  let mockStorageService: DeepMocked<UnifiedStorageService>;
 
-  const mockPrismaService = {
-    farm: {
-      findUnique: jest.fn(),
-    },
-    intelligenceResponse: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
-      create: jest.fn(),
-    },
-    farmAnalysis: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-    },
-    marketAnalysis: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-    },
-    activityOptimization: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-    },
-  };
+  beforeEach(() => {
+    // Use simple Jest mocks for PrismaService (complex types)
+    mockPrismaService = {
+      farm: {
+        findUnique: jest.fn(),
+      },
+      intelligenceResponse: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+        create: jest.fn(),
+      },
+      farmAnalysis: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+      },
+      marketAnalysis: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+      },
+      activityOptimization: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+      },
+    };
 
-  const mockOpenAIService = {
-    generateWithContext: jest.fn(),
-    generateFarmAnalysis: jest.fn(),
-    generateMarketAnalysis: jest.fn(),
-    generateActivityOptimization: jest.fn(),
-    parseJsonResponse: jest.fn(),
-    healthCheck: jest.fn(),
-  };
+    // Use @golevelup/ts-jest for simpler services
+    mockOpenAIService = createMock<OpenAIService>();
+    mockStorageService = createMock<UnifiedStorageService>();
 
-  const mockStorageService = {
-    uploadFile: jest.fn(),
-    deleteFile: jest.fn(),
-    generateSignedUrl: jest.fn(),
-    getFileUrl: jest.fn(),
-    getConfig: jest.fn(),
-    healthCheck: jest.fn(),
-  };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        IntelligenceService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: OpenAIService,
-          useValue: mockOpenAIService,
-        },
-        {
-          provide: UnifiedStorageService,
-          useValue: mockStorageService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<IntelligenceService>(IntelligenceService);
+    // Create service instance with mocked dependencies
+    service = new IntelligenceService(mockPrismaService, mockOpenAIService, mockStorageService);
   });
 
   afterEach(() => {
@@ -447,7 +420,10 @@ describe('IntelligenceService', () => {
       mockPrismaService.farmAnalysis.findMany.mockResolvedValue([]);
       mockPrismaService.marketAnalysis.findMany.mockResolvedValue([]);
       mockPrismaService.activityOptimization.findMany.mockResolvedValue([]);
-      mockStorageService.uploadFile.mockResolvedValue(mockUploadResult);
+      mockStorageService.uploadFile.mockResolvedValue({
+        ...mockUploadResult,
+        key: 'test-key',
+      });
 
       const request = {
         farmId: 'farm-1',

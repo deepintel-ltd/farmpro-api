@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { OpenAIService } from './openai.service';
@@ -25,23 +24,16 @@ jest.mock('openai', () => {
 
 describe('OpenAIService', () => {
   let service: OpenAIService;
+  let mockConfigService: jest.Mocked<ConfigService>;
 
-  const mockConfigService = {
-    get: jest.fn().mockReturnValue('test-api-key'),
-  };
+  beforeEach(() => {
+    // Create deep mock for ConfigService
+    mockConfigService = {
+      get: jest.fn().mockReturnValue('test-api-key'),
+    } as any;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        OpenAIService,
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<OpenAIService>(OpenAIService);
+    // Create service instance with mocked dependencies
+    service = new OpenAIService(mockConfigService);
   });
 
   afterEach(() => {

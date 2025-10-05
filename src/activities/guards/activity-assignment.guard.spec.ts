@@ -1,17 +1,24 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ActivityAssignmentGuard } from './activity-assignment.guard';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 
 describe('ActivityAssignmentGuard', () => {
   let guard: ActivityAssignmentGuard;
+  let mockPrismaService: any;
 
-  const mockPrismaService = {
-    farmActivity: {
-      findUnique: jest.fn(),
-    },
-  };
+  beforeEach(() => {
+    // Use simple Jest mocks for PrismaService (complex types)
+    mockPrismaService = {
+      farmActivity: {
+        findUnique: jest.fn(),
+      },
+    };
+
+    // Create guard instance with mocked dependencies
+    guard = new ActivityAssignmentGuard(mockPrismaService);
+  });
 
   const mockRequest = {
     user: null as CurrentUser | null,
@@ -65,19 +72,7 @@ describe('ActivityAssignmentGuard', () => {
     ...overrides,
   });
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ActivityAssignmentGuard,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-      ],
-    }).compile();
-
-    guard = module.get<ActivityAssignmentGuard>(ActivityAssignmentGuard);
-
+  beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
     mockRequest.user = null;

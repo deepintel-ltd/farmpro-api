@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -7,10 +6,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
 import { EmailVerificationService } from './email-verification.service';
 import { BrevoService } from '../external-service/brevo/brevo.service';
+import { PlanFeatureMapperService } from '../billing/services/plan-feature-mapper.service';
 import { OrganizationType } from '@prisma/client';
+import { createMock, DeepMocked } from '@golevelup/ts-jest';
 
 // Mock argon2
 jest.mock('@node-rs/argon2', () => ({
@@ -20,84 +20,66 @@ jest.mock('@node-rs/argon2', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
+  let mockPrismaService: any;
+  let mockJwtService: DeepMocked<JwtService>;
+  let mockConfigService: DeepMocked<ConfigService>;
+  let mockEmailVerificationService: DeepMocked<EmailVerificationService>;
+  let mockBrevoService: DeepMocked<BrevoService>;
+  let mockPlanFeatureMapper: DeepMocked<PlanFeatureMapperService>;
 
-  const mockPrismaService = {
-    user: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      findMany: jest.fn(),
-    },
-    organization: {
-      create: jest.fn(),
-    },
-    role: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-    },
-    userRole: {
-      create: jest.fn(),
-    },
-    $transaction: jest.fn(),
-  };
+  beforeEach(() => {
+    // Use simple Jest mocks for PrismaService (complex types)
+    mockPrismaService = {
+      user: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        findMany: jest.fn(),
+      },
+      organization: {
+        create: jest.fn(),
+      },
+      role: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+      userRole: {
+        create: jest.fn(),
+      },
+      $transaction: jest.fn(),
+    };
 
-  // Mock the AuthService methods that are called internally
-  const mockAuthService = {
-    getUserWithRoles: jest.fn(),
-  };
+    // Use @golevelup/ts-jest for simpler services
+    mockJwtService = createMock<JwtService>();
+    mockConfigService = createMock<ConfigService>();
+    mockEmailVerificationService = createMock<EmailVerificationService>();
+    mockBrevoService = createMock<BrevoService>();
+    mockPlanFeatureMapper = createMock<PlanFeatureMapperService>();
 
-  const mockJwtService = {
-    sign: jest.fn(),
-    verify: jest.fn(),
-  };
+    // Set up default mock implementations
+    mockJwtService.sign.mockReturnValue('mock-token');
+    mockJwtService.verify.mockReturnValue({});
+    mockConfigService.get.mockReturnValue('mock-value');
+    mockPlanFeatureMapper.getOrganizationFeatures.mockReturnValue({
+      allowedModules: [],
+      features: [],
+    });
 
-  const mockConfigService = {
-    get: jest.fn(),
-  };
-
-  const mockEmailVerificationService = {
-    sendEmailVerification: jest.fn(),
-    sendWelcomeEmail: jest.fn(),
-    sendPasswordResetEmail: jest.fn(),
-  };
-
-  const mockBrevoService = {
-    sendNewUserNotification: jest.fn(),
-  };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: JwtService,
-          useValue: mockJwtService,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-        {
-          provide: EmailVerificationService,
-          useValue: mockEmailVerificationService,
-        },
-        {
-          provide: BrevoService,
-          useValue: mockBrevoService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<AuthService>(AuthService);
+    // Create service instance with mocked dependencies
+    service = new AuthService(
+      mockPrismaService,
+      mockJwtService,
+      mockConfigService,
+      mockEmailVerificationService,
+      mockBrevoService,
+      mockPlanFeatureMapper
+    );
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
+
 
   describe('register', () => {
     const registerDto = {
@@ -163,8 +145,8 @@ describe('AuthService', () => {
         }],
       };
 
-      // Mock the findUnique calls: first for existing user check (null), second for getUserWithRoles
-      mockPrismaService.user.findUnique
+      // Override the method with jest.fn() for Jest mock functionality
+      mockPrismaService.user.findUnique = jest.fn()
         .mockResolvedValueOnce(null) // First call for existing user check
         .mockResolvedValueOnce(mockUserWithRoles); // Second call for getUserWithRoles
 

@@ -1,45 +1,27 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { IntelligenceController } from './intelligence.controller';
 import { IntelligenceService } from './intelligence.service';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 
 describe('IntelligenceController', () => {
   let controller: IntelligenceController;
-  let intelligenceService: IntelligenceService;
+  let intelligenceService: jest.Mocked<IntelligenceService>;
 
-  const mockIntelligenceService = {
-    generateResponse: jest.fn(),
-    analyzeFarm: jest.fn(),
-    getFarmAnalysis: jest.fn(),
-    listIntelligenceHistory: jest.fn(),
-    analyzeMarket: jest.fn(),
-    getMarketAnalysis: jest.fn(),
-    optimizeActivity: jest.fn(),
-    getActivityOptimization: jest.fn(),
-    getIntelligenceResponse: jest.fn(),
-    healthCheck: jest.fn(),
-  };
+  beforeEach(() => {
+    // Create deep mock for IntelligenceService
+    intelligenceService = {
+      generateResponse: jest.fn(),
+      analyzeFarm: jest.fn(),
+      getFarmAnalysis: jest.fn(),
+      listIntelligenceHistory: jest.fn(),
+      analyzeMarket: jest.fn(),
+      getMarketAnalysis: jest.fn(),
+      optimizeActivity: jest.fn(),
+      getActivityOptimization: jest.fn(),
+      getIntelligenceResponse: jest.fn(),
+      healthCheck: jest.fn(),
+    } as any;
 
-  const mockJwtAuthGuard = {
-    canActivate: jest.fn().mockReturnValue(true),
-  };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [IntelligenceController],
-      providers: [
-        {
-          provide: IntelligenceService,
-          useValue: mockIntelligenceService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue(mockJwtAuthGuard)
-      .compile();
-
-    controller = module.get<IntelligenceController>(IntelligenceController);
-    intelligenceService = module.get<IntelligenceService>(IntelligenceService);
+    // Create controller instance with mocked dependencies
+    controller = new IntelligenceController(intelligenceService);
   });
 
   afterEach(() => {
@@ -70,7 +52,7 @@ describe('IntelligenceController', () => {
         farmId: 'farm-123',
       };
 
-      mockIntelligenceService.generateResponse.mockResolvedValue(mockResponse);
+      intelligenceService.generateResponse.mockResolvedValue(mockResponse);
 
       const handler = await controller.generateResponse(mockRequest as any);
       const result = await handler({ headers: {} as any, body: mockBody });
@@ -110,7 +92,7 @@ describe('IntelligenceController', () => {
         userId: 'user-123',
       };
 
-      mockIntelligenceService.analyzeFarm.mockResolvedValue(mockResponse);
+      intelligenceService.analyzeFarm.mockResolvedValue(mockResponse);
 
       const handler = await controller.analyzeFarm(mockRequest as any);
       const result = await handler({ headers: {} as any, body: mockBody });
@@ -140,7 +122,7 @@ describe('IntelligenceController', () => {
         userId: 'user-123',
       };
 
-      mockIntelligenceService.getFarmAnalysis.mockResolvedValue(mockResponse);
+      intelligenceService.getFarmAnalysis.mockResolvedValue(mockResponse);
 
       const handler = await controller.getFarmAnalysis();
       const result = await handler({ headers: {} as any, params: { id: 'analysis-123' } });
@@ -175,7 +157,7 @@ describe('IntelligenceController', () => {
         },
       };
 
-      mockIntelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
+      intelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
 
       const handler = await controller.listFarmAnalyses(mockRequest as any);
       const result = await handler({ headers: {} as any, query: mockQuery });
@@ -217,7 +199,7 @@ describe('IntelligenceController', () => {
         userId: 'user-123',
       };
 
-      mockIntelligenceService.analyzeMarket.mockResolvedValue(mockResponse);
+      intelligenceService.analyzeMarket.mockResolvedValue(mockResponse);
 
       const handler = await controller.analyzeMarket(mockRequest as any);
       const result = await handler({ headers: {} as any, body: mockBody });
@@ -248,7 +230,7 @@ describe('IntelligenceController', () => {
         userId: 'user-123',
       };
 
-      mockIntelligenceService.getMarketAnalysis.mockResolvedValue(mockResponse);
+      intelligenceService.getMarketAnalysis.mockResolvedValue(mockResponse);
 
       const handler = await controller.getMarketAnalysis();
       const result = await handler({ headers: {} as any, params: { id: 'market-analysis-123' } });
@@ -283,7 +265,7 @@ describe('IntelligenceController', () => {
         },
       };
 
-      mockIntelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
+      intelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
 
       const handler = await controller.listMarketAnalyses(mockRequest as any);
       const result = await handler({ headers: {} as any, query: mockQuery });
@@ -332,7 +314,7 @@ describe('IntelligenceController', () => {
         userId: 'user-123',
       };
 
-      mockIntelligenceService.optimizeActivity.mockResolvedValue(mockResponse);
+      intelligenceService.optimizeActivity.mockResolvedValue(mockResponse);
 
       const handler = await controller.optimizeActivity(mockRequest as any);
       const result = await handler({ headers: {} as any, body: mockBody });
@@ -366,7 +348,7 @@ describe('IntelligenceController', () => {
         userId: 'user-123',
       };
 
-      mockIntelligenceService.getActivityOptimization.mockResolvedValue(mockResponse);
+      intelligenceService.getActivityOptimization.mockResolvedValue(mockResponse);
 
       const handler = await controller.getActivityOptimization();
       const result = await handler({ headers: {} as any, params: { id: 'optimization-123' } });
@@ -401,7 +383,7 @@ describe('IntelligenceController', () => {
         },
       };
 
-      mockIntelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
+      intelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
 
       const handler = await controller.listActivityOptimizations(mockRequest as any);
       const result = await handler({ headers: {} as any, query: mockQuery });
@@ -438,7 +420,7 @@ describe('IntelligenceController', () => {
         },
       };
 
-      mockIntelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
+      intelligenceService.listIntelligenceHistory.mockResolvedValue(mockResponse);
 
       const handler = await controller.getIntelligenceHistory(mockRequest as any);
       const result = await handler({ headers: {} as any, query: mockQuery });
@@ -466,7 +448,7 @@ describe('IntelligenceController', () => {
         farmId: 'farm-123',
       };
 
-      mockIntelligenceService.getIntelligenceResponse.mockResolvedValue(mockResponse);
+      intelligenceService.getIntelligenceResponse.mockResolvedValue(mockResponse);
 
       const handler = await controller.getIntelligenceResponse();
       const result = await handler({ headers: {} as any, params: { id: 'response-123' } });
@@ -488,7 +470,7 @@ describe('IntelligenceController', () => {
         models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
       };
 
-      mockIntelligenceService.healthCheck.mockResolvedValue(mockResponse);
+      intelligenceService.healthCheck.mockResolvedValue(mockResponse);
 
       const handler = await controller.health();
       const result = await handler({ headers: {} as any });
