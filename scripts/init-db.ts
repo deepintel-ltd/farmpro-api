@@ -546,6 +546,16 @@ async function initializeOrganizations() {
 async function initializeUsers(organizations: any[]) {
   console.log('👤 Initializing sample users...');
   
+  // Clean up any existing duplicate user roles first
+  console.log('🧹 Cleaning up existing user roles...');
+  await prisma.userRole.deleteMany({
+    where: {
+      role: {
+        isSystemRole: true
+      }
+    }
+  });
+  
   const users = [];
   for (const userData of SAMPLE_USERS) {
     const organization = organizations[userData.organizationIndex];
@@ -572,14 +582,29 @@ async function initializeUsers(organizations: any[]) {
     const role = await prisma.role.findFirst({
       where: {
         name: roleToAssign,
-        isSystemRole: true
+        isSystemRole: true,
+        ...(roleToAssign === 'Platform Admin' && { isPlatformAdmin: true })
       }
     });
     
     if (role) {
-      // For system roles, we don't need a farmId, so we'll create a userRole without farmId
-      // by using a different approach - create directly without upsert
-      try {
+      // For system roles, we don't need a farmId, so we'll use findFirst + upsert approach
+      const existingUserRole = await prisma.userRole.findFirst({
+        where: {
+          userId: user.id,
+          roleId: role.id,
+          farmId: null
+        }
+      });
+
+      if (existingUserRole) {
+        // Update existing role
+        await prisma.userRole.update({
+          where: { id: existingUserRole.id },
+          data: { isActive: true }
+        });
+      } else {
+        // Create new role
         await prisma.userRole.create({
           data: {
             userId: user.id,
@@ -587,19 +612,6 @@ async function initializeUsers(organizations: any[]) {
             isActive: true
           }
         });
-      } catch (error) {
-        // If it already exists, update it
-        if (error.code === 'P2002') {
-          await prisma.userRole.updateMany({
-            where: {
-              userId: user.id,
-              roleId: role.id
-            },
-            data: { isActive: true }
-          });
-        } else {
-          throw error;
-        }
       }
     }
     
@@ -713,103 +725,447 @@ async function initializeSampleCommodities() {
 }
 
 async function initializeSampleActivities(farms: any[], users: any[]) {
-  console.log('🚜 Initializing sample activities...');
+  console.log('🚜 Initializing comprehensive sample activities...');
   
   const activities = [];
   const farm = farms[0]; // Use first farm
   const farmManager = users.find(u => u.email === 'manager@farmpro.app');
   const farmOperator = users.find(u => u.email === 'operator@farmpro.app');
+  const farmOwner = users.find(u => u.email === 'demo@farmpro.app');
   
-  if (!farm || !farmManager || !farmOperator) {
+  if (!farm || !farmManager || !farmOperator || !farmOwner) {
     console.log('⚠️  Skipping activities - missing farm or users');
     return [];
   }
 
+  // Comprehensive activity data covering all types and statuses
   const activityData = [
+    // LAND PREPARATION ACTIVITIES
     {
-      name: 'Harvest Wheat - Field A',
-      type: 'HARVESTING',
-      status: 'SCHEDULED',
+      name: 'Field A - Deep Plowing',
+      type: 'LAND_PREP',
+      status: 'COMPLETED',
       priority: 'HIGH',
-      scheduledAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+      scheduledAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
+      startedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      completedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
       estimatedDuration: 480, // 8 hours
-      estimatedCost: 2500,
+      actualDuration: 520, // 8.7 hours
+      estimatedCost: 1200,
+      actualCost: 1350,
       assignedTo: [farmOperator.id],
-      description: 'Harvest wheat from Field A using combine harvester',
-      instructions: 'Check weather conditions before starting. Ensure equipment is properly maintained.',
-      safetyNotes: 'Wear safety gear. Be cautious of moving parts on machinery.'
+      description: 'Deep plowing of Field A to prepare for wheat planting',
+      instructions: 'Use deep plow to turn soil 12-15 inches deep. Check for rocks and debris.',
+      safetyNotes: 'Ensure tractor is in good condition. Watch for underground utilities.',
+      resources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'deep-plow-001', quantity: 1, unit: 'unit' },
+        { type: 'labor', resourceId: 'operator-001', quantity: 1, unit: 'person' }
+      ],
+      actualResources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'deep-plow-001', quantity: 1, unit: 'unit' },
+        { type: 'labor', resourceId: 'operator-001', quantity: 1, unit: 'person' }
+      ],
+      results: {
+        quality: 'good',
+        quantityAchieved: 1,
+        notes: 'Field A successfully plowed. Soil condition excellent for planting.'
+      }
     },
     {
-      name: 'Quality Assessment - Field D',
-      type: 'MONITORING',
+      name: 'Field B - Soil Leveling',
+      type: 'LAND_PREP',
+      status: 'IN_PROGRESS',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      startedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      estimatedDuration: 240, // 4 hours
+      estimatedCost: 800,
+      assignedTo: [farmOperator.id],
+      description: 'Level soil surface in Field B after plowing',
+      instructions: 'Use land leveler to create smooth, even surface. Check for proper drainage.',
+      safetyNotes: 'Work slowly to avoid creating ruts. Check equipment regularly.',
+      resources: [
+        { type: 'equipment', resourceId: 'tractor-002', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'land-leveler-001', quantity: 1, unit: 'unit' }
+      ],
+      percentComplete: 65
+    },
+
+    // PLANTING ACTIVITIES
+    {
+      name: 'Wheat Planting - Field A',
+      type: 'PLANTING',
+      status: 'COMPLETED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      startedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      completedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      estimatedDuration: 360, // 6 hours
+      actualDuration: 380, // 6.3 hours
+      estimatedCost: 2000,
+      actualCost: 2150,
+      assignedTo: [farmOperator.id, farmManager.id],
+      description: 'Plant wheat seeds in Field A using precision seeder',
+      instructions: 'Plant at 1.5 inch depth, 6 inch row spacing. Use certified seeds.',
+      safetyNotes: 'Ensure seeder is calibrated correctly. Check seed flow regularly.',
+      resources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'precision-seeder-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'wheat-seeds-001', quantity: 150, unit: 'kg' }
+      ],
+      actualResources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'precision-seeder-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'wheat-seeds-001', quantity: 155, unit: 'kg' }
+      ],
+      results: {
+        quality: 'excellent',
+        quantityAchieved: 25, // acres planted
+        notes: 'Excellent planting conditions. Seeds germinating well.'
+      }
+    },
+    {
+      name: 'Corn Planting - Field C',
+      type: 'PLANTING',
       status: 'SCHEDULED',
       priority: 'HIGH',
-      scheduledAt: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours from now
-      estimatedDuration: 120, // 2 hours
-      estimatedCost: 500,
-      assignedTo: [farmManager.id],
-      description: 'Assess crop quality and readiness for harvest',
-      instructions: 'Take samples from different areas. Document findings.',
-      safetyNotes: 'Watch for uneven terrain. Use proper sampling techniques.'
+      scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+      estimatedDuration: 420, // 7 hours
+      estimatedCost: 1800,
+      assignedTo: [farmOperator.id],
+      description: 'Plant corn seeds in Field C',
+      instructions: 'Plant at 2 inch depth, 30 inch row spacing. Use hybrid corn seeds.',
+      safetyNotes: 'Check weather forecast. Avoid planting in wet conditions.',
+      resources: [
+        { type: 'equipment', resourceId: 'tractor-002', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'corn-planter-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'corn-seeds-001', quantity: 80, unit: 'kg' }
+      ]
+    },
+
+    // FERTILIZING ACTIVITIES
+    {
+      name: 'Pre-Plant Fertilizer - Field A',
+      type: 'FERTILIZING',
+      status: 'COMPLETED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
+      startedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+      completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      estimatedDuration: 180, // 3 hours
+      actualDuration: 165, // 2.75 hours
+      estimatedCost: 900,
+      actualCost: 920,
+      assignedTo: [farmOperator.id],
+      description: 'Apply pre-plant fertilizer to Field A',
+      instructions: 'Apply NPK 15-15-15 at 200 kg per hectare. Use broadcast spreader.',
+      safetyNotes: 'Wear protective equipment. Avoid windy conditions.',
+      resources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'broadcast-spreader-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'npk-fertilizer-001', quantity: 500, unit: 'kg' }
+      ],
+      actualResources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'broadcast-spreader-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'npk-fertilizer-001', quantity: 520, unit: 'kg' }
+      ],
+      results: {
+        quality: 'good',
+        quantityAchieved: 25, // acres fertilized
+        notes: 'Fertilizer applied evenly. Good soil incorporation.'
+      }
     },
     {
-      name: 'Irrigation - Field B',
+      name: 'Side-Dress Fertilizer - Field A',
+      type: 'FERTILIZING',
+      status: 'PLANNED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
+      estimatedDuration: 240, // 4 hours
+      estimatedCost: 1200,
+      assignedTo: [farmOperator.id],
+      description: 'Apply side-dress nitrogen to wheat in Field A',
+      instructions: 'Apply urea at 100 kg per hectare when wheat is 6-8 inches tall.',
+      safetyNotes: 'Apply when soil is moist. Avoid contact with plant leaves.',
+      resources: [
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'side-dress-applicator-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'urea-fertilizer-001', quantity: 250, unit: 'kg' }
+      ]
+    },
+
+    // IRRIGATION ACTIVITIES
+    {
+      name: 'Field A - Sprinkler Irrigation',
+      type: 'IRRIGATION',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
+      estimatedDuration: 480, // 8 hours
+      estimatedCost: 600,
+      assignedTo: [farmOperator.id],
+      description: 'Water wheat field using center pivot irrigation',
+      instructions: 'Apply 1 inch of water. Check soil moisture before and after.',
+      safetyNotes: 'Monitor water pressure. Check for leaks regularly.',
+      resources: [
+        { type: 'equipment', resourceId: 'center-pivot-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'water-supply-001', quantity: 10000, unit: 'gallons' }
+      ],
+      percentComplete: 75
+    },
+    {
+      name: 'Field B - Drip Irrigation Setup',
       type: 'IRRIGATION',
       status: 'PLANNED',
       priority: 'NORMAL',
-      scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-      estimatedDuration: 180, // 3 hours
+      scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
+      estimatedDuration: 360, // 6 hours
+      estimatedCost: 1500,
+      assignedTo: [farmOperator.id, farmManager.id],
+      description: 'Install drip irrigation system in Field B',
+      instructions: 'Install main lines and emitters. Test system thoroughly.',
+      safetyNotes: 'Handle pipes carefully. Use proper connectors.',
+      resources: [
+        { type: 'equipment', resourceId: 'trenching-tool-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'drip-tubing-001', quantity: 2000, unit: 'feet' },
+        { type: 'material', resourceId: 'emitters-001', quantity: 500, unit: 'pieces' }
+      ]
+    },
+
+    // PEST CONTROL ACTIVITIES
+    {
+      name: 'Aphid Control - Field A',
+      type: 'PEST_CONTROL',
+      status: 'COMPLETED',
+      priority: 'URGENT',
+      scheduledAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      startedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      estimatedDuration: 300, // 5 hours
+      actualDuration: 320, // 5.3 hours
       estimatedCost: 800,
+      actualCost: 850,
       assignedTo: [farmOperator.id],
-      description: 'Water Field B using sprinkler system',
-      instructions: 'Check soil moisture levels first. Run irrigation for 3 hours.',
-      safetyNotes: 'Ensure proper water pressure. Check for leaks.'
+      description: 'Spray insecticide to control aphid infestation',
+      instructions: 'Apply pyrethroid insecticide at recommended rate. Cover all plant surfaces.',
+      safetyNotes: 'Wear full protective equipment. Check wind conditions. Re-entry interval 24 hours.',
+      resources: [
+        { type: 'equipment', resourceId: 'sprayer-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'tractor-002', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'pyrethroid-insecticide-001', quantity: 5, unit: 'liters' }
+      ],
+      actualResources: [
+        { type: 'equipment', resourceId: 'sprayer-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'tractor-002', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'pyrethroid-insecticide-001', quantity: 5.2, unit: 'liters' }
+      ],
+      results: {
+        quality: 'excellent',
+        quantityAchieved: 25, // acres treated
+        notes: 'Aphid population significantly reduced. No phytotoxicity observed.'
+      }
     },
     {
-      name: 'Soil Testing - Field C',
+      name: 'Weed Control - Field C',
+      type: 'PEST_CONTROL',
+      status: 'SCHEDULED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      estimatedDuration: 240, // 4 hours
+      estimatedCost: 700,
+      assignedTo: [farmOperator.id],
+      description: 'Apply herbicide for weed control in Field C',
+      instructions: 'Apply glyphosate herbicide before planting. Use boom sprayer.',
+      safetyNotes: 'Check weather forecast. Avoid drift to non-target areas.',
+      resources: [
+        { type: 'equipment', resourceId: 'boom-sprayer-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'tractor-001', quantity: 1, unit: 'unit' },
+        { type: 'material', resourceId: 'glyphosate-herbicide-001', quantity: 10, unit: 'liters' }
+      ]
+    },
+
+    // HARVESTING ACTIVITIES
+    {
+      name: 'Wheat Harvest - Field A',
+      type: 'HARVESTING',
+      status: 'SCHEDULED',
+      priority: 'URGENT',
+      scheduledAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      estimatedDuration: 720, // 12 hours
+      estimatedCost: 3000,
+      assignedTo: [farmOperator.id, farmManager.id],
+      description: 'Harvest wheat from Field A using combine harvester',
+      instructions: 'Check grain moisture content. Adjust combine settings for optimal threshing.',
+      safetyNotes: 'Ensure all safety guards are in place. Check for bystanders.',
+      resources: [
+        { type: 'equipment', resourceId: 'combine-harvester-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'grain-cart-001', quantity: 1, unit: 'unit' },
+        { type: 'labor', resourceId: 'harvest-crew-001', quantity: 3, unit: 'people' }
+      ]
+    },
+    {
+      name: 'Corn Harvest - Field C',
+      type: 'HARVESTING',
+      status: 'PLANNED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 days from now
+      estimatedDuration: 600, // 10 hours
+      estimatedCost: 2500,
+      assignedTo: [farmOperator.id],
+      description: 'Harvest corn from Field C',
+      instructions: 'Check kernel moisture. Adjust combine for corn settings.',
+      safetyNotes: 'Check for lodged corn. Work carefully around obstacles.',
+      resources: [
+        { type: 'equipment', resourceId: 'corn-head-001', quantity: 1, unit: 'unit' },
+        { type: 'equipment', resourceId: 'combine-harvester-001', quantity: 1, unit: 'unit' }
+      ]
+    },
+
+    // MONITORING ACTIVITIES
+    {
+      name: 'Crop Health Assessment - Field A',
       type: 'MONITORING',
       status: 'COMPLETED',
       priority: 'NORMAL',
-      scheduledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-      estimatedDuration: 240, // 4 hours
-      actualDuration: 200, // 3.3 hours
-      estimatedCost: 600,
-      actualCost: 550,
+      scheduledAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      startedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      completedAt: new Date(Date.now() - 20 * 60 * 60 * 1000), // 20 hours ago
+      estimatedDuration: 120, // 2 hours
+      actualDuration: 105, // 1.75 hours
+      estimatedCost: 200,
+      actualCost: 200,
       assignedTo: [farmManager.id],
-      description: 'Test soil composition and nutrient levels',
-      instructions: 'Take samples from 10 different locations. Send to lab for analysis.',
-      safetyNotes: 'Use clean sampling tools. Label samples properly.'
+      description: 'Assess crop health and growth stage in Field A',
+      instructions: 'Walk field systematically. Check for diseases, pests, and nutrient deficiencies.',
+      safetyNotes: 'Wear appropriate footwear. Watch for uneven terrain.',
+      resources: [
+        { type: 'equipment', resourceId: 'field-scout-kit-001', quantity: 1, unit: 'unit' },
+        { type: 'labor', resourceId: 'scout-001', quantity: 1, unit: 'person' }
+      ],
+      actualResources: [
+        { type: 'equipment', resourceId: 'field-scout-kit-001', quantity: 1, unit: 'unit' },
+        { type: 'labor', resourceId: 'scout-001', quantity: 1, unit: 'person' }
+      ],
+      results: {
+        quality: 'good',
+        quantityAchieved: 25, // acres scouted
+        notes: 'Crop looking healthy. Minor aphid damage noted. No major issues.'
+      }
     },
     {
-      name: 'Pest Control - Field A',
-      type: 'PEST_CONTROL',
+      name: 'Soil Moisture Monitoring',
+      type: 'MONITORING',
       status: 'IN_PROGRESS',
-      priority: 'URGENT',
-      scheduledAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-      startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      estimatedDuration: 300, // 5 hours
-      estimatedCost: 1200,
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+      startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
+      estimatedDuration: 90, // 1.5 hours
+      estimatedCost: 150,
+      assignedTo: [farmManager.id],
+      description: 'Check soil moisture levels across all fields',
+      instructions: 'Use soil moisture probe. Take readings at 6 inch depth.',
+      safetyNotes: 'Handle probe carefully. Clean after each use.',
+      resources: [
+        { type: 'equipment', resourceId: 'soil-moisture-probe-001', quantity: 1, unit: 'unit' }
+      ],
+      percentComplete: 40
+    },
+
+    // MAINTENANCE ACTIVITIES
+    {
+      name: 'Tractor Service - Tractor 001',
+      type: 'MAINTENANCE',
+      status: 'COMPLETED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+      startedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      completedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000), // 9 days ago
+      estimatedDuration: 240, // 4 hours
+      actualDuration: 220, // 3.7 hours
+      estimatedCost: 500,
+      actualCost: 480,
       assignedTo: [farmOperator.id],
-      description: 'Apply pesticide to control aphid infestation',
-      instructions: 'Mix pesticide according to label. Apply evenly across affected areas.',
-      safetyNotes: 'Wear protective clothing and mask. Avoid contact with skin.'
+      description: 'Regular maintenance service for Tractor 001',
+      instructions: 'Change oil, filters, and fluids. Check all systems.',
+      safetyNotes: 'Ensure tractor is off and cool. Use proper lifting equipment.',
+      resources: [
+        { type: 'equipment', resourceId: 'maintenance-tools-001', quantity: 1, unit: 'set' },
+        { type: 'material', resourceId: 'engine-oil-001', quantity: 8, unit: 'liters' },
+        { type: 'material', resourceId: 'oil-filter-001', quantity: 1, unit: 'piece' }
+      ],
+      actualResources: [
+        { type: 'equipment', resourceId: 'maintenance-tools-001', quantity: 1, unit: 'set' },
+        { type: 'material', resourceId: 'engine-oil-001', quantity: 8, unit: 'liters' },
+        { type: 'material', resourceId: 'oil-filter-001', quantity: 1, unit: 'piece' }
+      ],
+      results: {
+        quality: 'excellent',
+        quantityAchieved: 1, // tractor serviced
+        notes: 'Tractor in excellent condition. All systems functioning properly.'
+      }
     },
     {
-      name: 'Equipment Maintenance',
+      name: 'Irrigation System Maintenance',
       type: 'MAINTENANCE',
       status: 'PLANNED',
       priority: 'LOW',
-      scheduledAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-      estimatedDuration: 360, // 6 hours
-      estimatedCost: 1500,
+      scheduledAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // 3 weeks from now
+      estimatedDuration: 300, // 5 hours
+      estimatedCost: 800,
       assignedTo: [farmOperator.id],
-      description: 'Maintain and service farm equipment',
-      instructions: 'Check all equipment. Replace filters and fluids as needed.',
-      safetyNotes: 'Ensure equipment is turned off. Use proper tools.'
+      description: 'Maintain and repair irrigation equipment',
+      instructions: 'Check pumps, pipes, and emitters. Replace worn parts.',
+      safetyNotes: 'Turn off water supply. Check electrical connections.',
+      resources: [
+        { type: 'equipment', resourceId: 'maintenance-tools-002', quantity: 1, unit: 'set' },
+        { type: 'material', resourceId: 'replacement-parts-001', quantity: 1, unit: 'kit' }
+      ]
+    },
+
+    // OTHER ACTIVITIES
+    {
+      name: 'Farm Record Keeping',
+      type: 'OTHER',
+      status: 'IN_PROGRESS',
+      priority: 'LOW',
+      scheduledAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+      startedAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+      estimatedDuration: 120, // 2 hours
+      estimatedCost: 100,
+      assignedTo: [farmManager.id],
+      description: 'Update farm records and documentation',
+      instructions: 'Record all activities, costs, and observations in farm management system.',
+      safetyNotes: 'Ensure data backup. Use secure login credentials.',
+      resources: [
+        { type: 'equipment', resourceId: 'computer-001', quantity: 1, unit: 'unit' },
+        { type: 'labor', resourceId: 'admin-001', quantity: 1, unit: 'person' }
+      ],
+      percentComplete: 30
+    },
+    {
+      name: 'Equipment Training Session',
+      type: 'OTHER',
+      status: 'PLANNED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
+      estimatedDuration: 180, // 3 hours
+      estimatedCost: 300,
+      assignedTo: [farmOperator.id, farmManager.id],
+      description: 'Training session on new equipment operation',
+      instructions: 'Review safety procedures and operating manuals for new equipment.',
+      safetyNotes: 'Follow all safety protocols. Ask questions if unsure.',
+      resources: [
+        { type: 'equipment', resourceId: 'training-materials-001', quantity: 1, unit: 'set' },
+        { type: 'labor', resourceId: 'trainer-001', quantity: 1, unit: 'person' }
+      ]
     }
   ];
 
+  // Create activities
   for (const activityInfo of activityData) {
     const activity = await prisma.farmActivity.create({
       data: {
@@ -829,8 +1185,10 @@ async function initializeSampleActivities(farms: any[], users: any[]) {
         metadata: {
           instructions: activityInfo.instructions,
           safetyNotes: activityInfo.safetyNotes,
-          percentComplete: activityInfo.status === 'COMPLETED' ? 100 : 
-                          activityInfo.status === 'IN_PROGRESS' ? 45 : 0
+          resources: activityInfo.resources || [],
+          actualResources: activityInfo.actualResources || [],
+          percentComplete: activityInfo.percentComplete || (activityInfo.status === 'COMPLETED' ? 100 : 0),
+          results: activityInfo.results || null
         }
       }
     });
@@ -847,25 +1205,86 @@ async function initializeSampleActivities(farms: any[], users: any[]) {
       });
     }
 
-    // Add some cost entries for completed activities
-    if (activityInfo.status === 'COMPLETED') {
+    // Add cost entries for activities
+    if (activityInfo.status === 'COMPLETED' && activityInfo.actualCost) {
+      // Labor costs (60% of total)
       await prisma.activityCost.create({
         data: {
           activityId: activity.id,
           type: 'LABOR',
-          description: 'Labor costs',
+          description: 'Labor costs for activity execution',
           amount: activityInfo.actualCost * 0.6,
           createdById: farmManager.id
         }
       });
 
+      // Equipment costs (25% of total)
+      await prisma.activityCost.create({
+        data: {
+          activityId: activity.id,
+          type: 'EQUIPMENT',
+          description: 'Equipment usage and fuel costs',
+          amount: activityInfo.actualCost * 0.25,
+          createdById: farmManager.id
+        }
+      });
+
+      // Material costs (15% of total)
       await prisma.activityCost.create({
         data: {
           activityId: activity.id,
           type: 'MATERIAL',
-          description: 'Materials and supplies',
-          amount: activityInfo.actualCost * 0.4,
+          description: 'Materials and supplies used',
+          amount: activityInfo.actualCost * 0.15,
           createdById: farmManager.id
+        }
+      });
+    } else if (activityInfo.estimatedCost) {
+      // Add estimated costs for planned/scheduled activities
+      await prisma.activityCost.create({
+        data: {
+          activityId: activity.id,
+          type: 'LABOR',
+          description: 'Estimated labor costs',
+          amount: activityInfo.estimatedCost * 0.6,
+          createdById: farmManager.id
+        }
+      });
+    }
+
+    // Add activity notes for completed activities
+    if (activityInfo.status === 'COMPLETED') {
+      await prisma.activityNote.create({
+        data: {
+          activityId: activity.id,
+          userId: farmManager.id,
+          content: `Activity completed successfully. ${activityInfo.results?.notes || 'No issues encountered.'}`,
+          type: 'OBSERVATION',
+          isPrivate: false
+        }
+      });
+
+      // Add progress log for completed activities
+      await prisma.activityProgressLog.create({
+        data: {
+          activityId: activity.id,
+          userId: farmManager.id,
+          percentComplete: 100,
+          notes: 'Activity completed as planned',
+          timestamp: activityInfo.completedAt || new Date()
+        }
+      });
+    }
+
+    // Add progress logs for in-progress activities
+    if (activityInfo.status === 'IN_PROGRESS' && activityInfo.percentComplete) {
+      await prisma.activityProgressLog.create({
+        data: {
+          activityId: activity.id,
+          userId: farmOperator.id,
+          percentComplete: activityInfo.percentComplete,
+          notes: `Activity in progress. Currently ${activityInfo.percentComplete}% complete.`,
+          timestamp: new Date()
         }
       });
     }
@@ -873,20 +1292,623 @@ async function initializeSampleActivities(farms: any[], users: any[]) {
     activities.push(activity);
   }
 
-  console.log(`✅ Created ${activities.length} sample activities`);
+  console.log(`✅ Created ${activities.length} comprehensive sample activities`);
   return activities;
 }
 
+async function initializeActivityTemplates(organizations: any[]) {
+  console.log('📋 Initializing activity templates...');
+  
+  const templates = [];
+  const farmOrg = organizations.find(o => o.type === 'FARM_OPERATION');
+  
+  if (!farmOrg) {
+    console.log('⚠️  Skipping activity templates - missing farm organization');
+    return [];
+  }
+
+  const templateData = [
+    // System templates (available to all organizations)
+    {
+      name: 'Wheat Planting Template',
+      type: 'PLANTING',
+      description: 'Standard wheat planting procedure',
+      defaultDuration: 360, // 6 hours
+      instructions: 'Plant wheat seeds at 1.5 inch depth with 6 inch row spacing. Use certified seeds and ensure proper soil moisture.',
+      safetyNotes: 'Ensure seeder is calibrated correctly. Check seed flow regularly. Wear appropriate safety gear.',
+      applicableCrops: ['Wheat', 'Barley', 'Oats'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Corn Planting Template',
+      type: 'PLANTING',
+      description: 'Standard corn planting procedure',
+      defaultDuration: 420, // 7 hours
+      instructions: 'Plant corn seeds at 2 inch depth with 30 inch row spacing. Use hybrid seeds and check soil temperature.',
+      safetyNotes: 'Check weather forecast. Avoid planting in wet conditions. Ensure proper seed depth.',
+      applicableCrops: ['Corn', 'Maize'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Deep Plowing Template',
+      type: 'LAND_PREP',
+      description: 'Deep plowing for soil preparation',
+      defaultDuration: 480, // 8 hours
+      instructions: 'Use deep plow to turn soil 12-15 inches deep. Check for rocks and debris. Ensure proper depth.',
+      safetyNotes: 'Ensure tractor is in good condition. Watch for underground utilities. Check equipment before starting.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Fertilizer Application Template',
+      type: 'FERTILIZING',
+      description: 'Standard fertilizer application procedure',
+      defaultDuration: 240, // 4 hours
+      instructions: 'Apply fertilizer according to soil test recommendations. Use broadcast spreader for even distribution.',
+      safetyNotes: 'Wear protective equipment. Avoid windy conditions. Check calibration before application.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Pest Control Spraying Template',
+      type: 'PEST_CONTROL',
+      description: 'Pesticide application for pest control',
+      defaultDuration: 300, // 5 hours
+      instructions: 'Apply pesticide at recommended rate. Cover all plant surfaces evenly. Check wind conditions.',
+      safetyNotes: 'Wear full protective equipment. Check wind conditions. Observe re-entry intervals. Store chemicals safely.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Irrigation Setup Template',
+      type: 'IRRIGATION',
+      description: 'Irrigation system setup and operation',
+      defaultDuration: 360, // 6 hours
+      instructions: 'Set up irrigation system according to field layout. Test all components before operation.',
+      safetyNotes: 'Check water pressure. Monitor for leaks. Ensure proper electrical connections.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Crop Monitoring Template',
+      type: 'MONITORING',
+      description: 'Regular crop health and growth monitoring',
+      defaultDuration: 120, // 2 hours
+      instructions: 'Walk field systematically. Check for diseases, pests, and nutrient deficiencies. Document findings.',
+      safetyNotes: 'Wear appropriate footwear. Watch for uneven terrain. Use proper sampling techniques.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Equipment Maintenance Template',
+      type: 'MAINTENANCE',
+      description: 'Regular equipment maintenance and service',
+      defaultDuration: 240, // 4 hours
+      instructions: 'Change oil, filters, and fluids. Check all systems and components. Lubricate moving parts.',
+      safetyNotes: 'Ensure equipment is off and cool. Use proper lifting equipment. Follow lockout procedures.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Wheat Harvest Template',
+      type: 'HARVESTING',
+      description: 'Wheat harvesting with combine harvester',
+      defaultDuration: 720, // 12 hours
+      instructions: 'Check grain moisture content. Adjust combine settings for optimal threshing. Monitor grain quality.',
+      safetyNotes: 'Ensure all safety guards are in place. Check for bystanders. Monitor equipment temperature.',
+      applicableCrops: ['Wheat', 'Barley', 'Oats'],
+      isSystem: true,
+      organizationId: null
+    },
+    {
+      name: 'Soil Testing Template',
+      type: 'MONITORING',
+      description: 'Soil sampling and testing procedure',
+      defaultDuration: 180, // 3 hours
+      instructions: 'Take soil samples from 10 different locations. Send to lab for analysis. Document sample locations.',
+      safetyNotes: 'Use clean sampling tools. Label samples properly. Avoid contamination.',
+      applicableCrops: ['All'],
+      isSystem: true,
+      organizationId: null
+    },
+
+    // Organization-specific templates
+    {
+      name: 'FarmPro Demo - Organic Wheat Planting',
+      type: 'PLANTING',
+      description: 'Organic wheat planting procedure for FarmPro Demo Farm',
+      defaultDuration: 400, // 6.7 hours
+      instructions: 'Plant organic wheat seeds at 1.5 inch depth. Use only certified organic seeds. Apply organic fertilizer if needed.',
+      safetyNotes: 'Ensure all materials are certified organic. Check organic certification requirements.',
+      applicableCrops: ['Organic Wheat'],
+      isSystem: false,
+      organizationId: farmOrg.id
+    },
+    {
+      name: 'FarmPro Demo - Precision Agriculture Monitoring',
+      type: 'MONITORING',
+      description: 'Advanced monitoring using precision agriculture tools',
+      defaultDuration: 180, // 3 hours
+      instructions: 'Use GPS-guided equipment for precise monitoring. Collect data for analysis. Update farm management system.',
+      safetyNotes: 'Ensure GPS equipment is calibrated. Check data accuracy. Backup all collected data.',
+      applicableCrops: ['All'],
+      isSystem: false,
+      organizationId: farmOrg.id
+    },
+    {
+      name: 'FarmPro Demo - Sustainable Irrigation',
+      type: 'IRRIGATION',
+      description: 'Water-efficient irrigation practices',
+      defaultDuration: 300, // 5 hours
+      instructions: 'Use soil moisture sensors to optimize irrigation timing. Apply water efficiently to reduce waste.',
+      safetyNotes: 'Monitor water usage. Check for leaks regularly. Follow water conservation guidelines.',
+      applicableCrops: ['All'],
+      isSystem: false,
+      organizationId: farmOrg.id
+    }
+  ];
+
+  for (const templateInfo of templateData) {
+    const template = await prisma.activityTemplate.create({
+      data: {
+        name: templateInfo.name,
+        type: templateInfo.type,
+        description: templateInfo.description,
+        defaultDuration: templateInfo.defaultDuration,
+        instructions: templateInfo.instructions,
+        safetyNotes: templateInfo.safetyNotes,
+        applicableCrops: templateInfo.applicableCrops,
+        isSystem: templateInfo.isSystem,
+        organizationId: templateInfo.organizationId,
+        metadata: {
+          createdBy: 'system',
+          version: '1.0',
+          lastUsed: null,
+          usageCount: 0
+        }
+      }
+    });
+    templates.push(template);
+  }
+
+  console.log(`✅ Created ${templates.length} activity templates`);
+  return templates;
+}
+
+async function initializeSampleInventory(organizations: any[], farms: any[], commodities: any[], users: any[]) {
+  console.log('📦 Initializing comprehensive sample inventory...');
+  
+  const inventoryItems = [];
+  const farm = farms[0]; // Use first farm
+  const farmManager = users.find(u => u.email === 'manager@farmpro.app');
+  const farmOperator = users.find(u => u.email === 'operator@farmpro.app');
+  
+  if (!farm || !farmManager || !farmOperator) {
+    console.log('⚠️  Skipping inventory - missing farm or users');
+    return [];
+  }
+
+  // Get commodities for inventory
+  const wheat = commodities.find(c => c.name === 'Organic Wheat');
+  const corn = commodities.find(c => c.name === 'Sweet Corn');
+  const soybeans = commodities.find(c => c.name === 'Soybeans');
+  const tomatoes = commodities.find(c => c.name === 'Tomatoes');
+  const potatoes = commodities.find(c => c.name === 'Potatoes');
+
+  if (!wheat || !corn || !soybeans || !tomatoes || !potatoes) {
+    console.log('⚠️  Skipping inventory - missing commodities');
+    return [];
+  }
+
+  // Comprehensive inventory data
+  const inventoryData = [
+    // WHEAT INVENTORY
+    {
+      commodityId: wheat.id,
+      quantity: 2500,
+      unit: 'bushels',
+      quality: 'premium',
+      location: 'Main Storage Shed - Section A',
+      status: 'AVAILABLE',
+      batchNumber: 'WHT-2024-001',
+      harvestDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+      expiryDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000), // 300 days from now
+      costBasis: 8.50,
+      storageConditions: {
+        temperature: 15,
+        humidity: 60,
+        requirements: 'Cool, dry storage. Monitor for pests.'
+      },
+      metadata: {
+        moisture: 12.5,
+        protein: 14.2,
+        testWeight: 60.5,
+        certifications: ['Organic', 'Non-GMO'],
+        gradeReason: 'market_demand',
+        gradeEvidence: ['lab_test_001', 'quality_cert_001'],
+        gradeAssessedBy: farmManager.id,
+        certifiedGrade: 'Premium Grade A'
+      }
+    },
+    {
+      commodityId: wheat.id,
+      quantity: 1800,
+      unit: 'bushels',
+      quality: 'grade_a',
+      location: 'Main Storage Shed - Section B',
+      status: 'RESERVED',
+      batchNumber: 'WHT-2024-002',
+      harvestDate: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), // 25 days ago
+      expiryDate: new Date(Date.now() + 320 * 24 * 60 * 60 * 1000), // 320 days from now
+      costBasis: 8.20,
+      storageConditions: {
+        temperature: 16,
+        humidity: 58,
+        requirements: 'Cool, dry storage. Regular inspection required.'
+      },
+      metadata: {
+        moisture: 13.2,
+        protein: 13.8,
+        testWeight: 59.8,
+        certifications: ['Organic'],
+        reservedFor: 'Order ORD-2024-001',
+        reservedUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    },
+    {
+      commodityId: wheat.id,
+      quantity: 500,
+      unit: 'bushels',
+      quality: 'grade_b',
+      location: 'Secondary Storage - Section C',
+      status: 'AVAILABLE',
+      batchNumber: 'WHT-2024-003',
+      harvestDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), // 20 days ago
+      expiryDate: new Date(Date.now() + 310 * 24 * 60 * 60 * 1000), // 310 days from now
+      costBasis: 7.80,
+      storageConditions: {
+        temperature: 18,
+        humidity: 65,
+        requirements: 'Monitor for moisture. Check weekly.'
+      },
+      metadata: {
+        moisture: 14.1,
+        protein: 13.2,
+        testWeight: 58.5,
+        certifications: ['Organic'],
+        notes: 'Lower grade due to weather conditions during harvest'
+      }
+    },
+
+    // CORN INVENTORY
+    {
+      commodityId: corn.id,
+      quantity: 1200,
+      unit: 'crates',
+      quality: 'premium',
+      location: 'Cold Storage Unit - Chamber 1',
+      status: 'AVAILABLE',
+      batchNumber: 'CRN-2024-001',
+      harvestDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+      expiryDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // 20 days from now
+      costBasis: 12.00,
+      storageConditions: {
+        temperature: 2,
+        humidity: 85,
+        requirements: 'Refrigerated storage. Maintain cold chain.'
+      },
+      metadata: {
+        moisture: 70,
+        sugar: 18.5,
+        size: 'Large',
+        certifications: ['Fresh', 'Grade A'],
+        gradeReason: 'upgrade',
+        gradeEvidence: ['sugar_test_001', 'size_analysis_001'],
+        gradeAssessedBy: farmManager.id,
+        certifiedGrade: 'Premium Sweet Corn'
+      }
+    },
+    {
+      commodityId: corn.id,
+      quantity: 800,
+      unit: 'crates',
+      quality: 'grade_a',
+      location: 'Cold Storage Unit - Chamber 2',
+      status: 'SOLD',
+      batchNumber: 'CRN-2024-002',
+      harvestDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+      expiryDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
+      costBasis: 11.50,
+      storageConditions: {
+        temperature: 3,
+        humidity: 80,
+        requirements: 'Refrigerated storage. Monitor temperature.'
+      },
+      metadata: {
+        moisture: 72,
+        sugar: 17.8,
+        size: 'Medium',
+        certifications: ['Fresh'],
+        soldTo: 'EcoFood Industries',
+        soldDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        orderId: 'ORD-2024-002'
+      }
+    },
+
+    // SOYBEANS INVENTORY
+    {
+      commodityId: soybeans.id,
+      quantity: 3500,
+      unit: 'bushels',
+      quality: 'premium',
+      location: 'Main Storage Shed - Section D',
+      status: 'AVAILABLE',
+      batchNumber: 'SB-2024-001',
+      harvestDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
+      expiryDate: new Date(Date.now() + 400 * 24 * 60 * 60 * 1000), // 400 days from now
+      costBasis: 15.20,
+      storageConditions: {
+        temperature: 12,
+        humidity: 55,
+        requirements: 'Dry storage. Monitor for moisture and pests.'
+      },
+      metadata: {
+        moisture: 11.8,
+        protein: 36.5,
+        oil: 19.2,
+        certifications: ['Non-GMO', 'Roundup Ready'],
+        gradeReason: 'retest',
+        gradeEvidence: ['protein_test_001', 'oil_analysis_001'],
+        gradeAssessedBy: farmManager.id,
+        certifiedGrade: 'Premium Grade 1'
+      }
+    },
+    {
+      commodityId: soybeans.id,
+      quantity: 1500,
+      unit: 'bushels',
+      quality: 'grade_a',
+      location: 'Secondary Storage - Section E',
+      status: 'CONSUMED',
+      batchNumber: 'SB-2024-002',
+      harvestDate: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000), // 40 days ago
+      expiryDate: new Date(Date.now() + 380 * 24 * 60 * 60 * 1000), // 380 days from now
+      costBasis: 14.80,
+      storageConditions: {
+        temperature: 14,
+        humidity: 60,
+        requirements: 'Dry storage. Regular inspection.'
+      },
+      metadata: {
+        moisture: 12.5,
+        protein: 35.8,
+        oil: 18.9,
+        certifications: ['Non-GMO'],
+        consumedFor: 'Processing',
+        consumedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        consumedBy: farmOperator.id
+      }
+    },
+
+    // TOMATOES INVENTORY
+    {
+      commodityId: tomatoes.id,
+      quantity: 150,
+      unit: 'boxes',
+      quality: 'premium',
+      location: 'Cold Storage Unit - Chamber 3',
+      status: 'AVAILABLE',
+      batchNumber: 'TOM-2024-001',
+      harvestDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+      costBasis: 25.00,
+      storageConditions: {
+        temperature: 8,
+        humidity: 90,
+        requirements: 'Refrigerated storage. Handle with care.'
+      },
+      metadata: {
+        moisture: 95,
+        brix: 4.8,
+        size: 'Large',
+        color: 'Deep Red',
+        certifications: ['Fresh', 'Grade A'],
+        gradeReason: 'upgrade',
+        gradeEvidence: ['brix_test_001', 'color_analysis_001'],
+        gradeAssessedBy: farmManager.id,
+        certifiedGrade: 'Premium Roma Tomatoes'
+      }
+    },
+    {
+      commodityId: tomatoes.id,
+      quantity: 100,
+      unit: 'boxes',
+      quality: 'grade_a',
+      location: 'Cold Storage Unit - Chamber 4',
+      status: 'EXPIRED',
+      batchNumber: 'TOM-2024-002',
+      harvestDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), // 20 days ago
+      expiryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago (expired)
+      costBasis: 22.00,
+      storageConditions: {
+        temperature: 10,
+        humidity: 85,
+        requirements: 'Refrigerated storage. Monitor for spoilage.'
+      },
+      metadata: {
+        moisture: 92,
+        brix: 4.2,
+        size: 'Medium',
+        color: 'Red',
+        certifications: ['Fresh'],
+        expiredReason: 'Natural spoilage',
+        disposalDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        disposalMethod: 'Compost'
+      }
+    },
+
+    // POTATOES INVENTORY
+    {
+      commodityId: potatoes.id,
+      quantity: 400,
+      unit: 'bags',
+      quality: 'premium',
+      location: 'Root Cellar - Section A',
+      status: 'AVAILABLE',
+      batchNumber: 'POT-2024-001',
+      harvestDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 60 days ago
+      expiryDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), // 120 days from now
+      costBasis: 18.50,
+      storageConditions: {
+        temperature: 4,
+        humidity: 95,
+        requirements: 'Cool, humid storage. Dark environment.'
+      },
+      metadata: {
+        moisture: 80,
+        size: 'Large',
+        variety: 'Russet',
+        certifications: ['Fresh', 'Grade A'],
+        gradeReason: 'market_demand',
+        gradeEvidence: ['size_test_001', 'quality_inspection_001'],
+        gradeAssessedBy: farmManager.id,
+        certifiedGrade: 'Premium Russet Potatoes'
+      }
+    },
+    {
+      commodityId: potatoes.id,
+      quantity: 200,
+      unit: 'bags',
+      quality: 'grade_b',
+      location: 'Root Cellar - Section B',
+      status: 'AVAILABLE',
+      batchNumber: 'POT-2024-002',
+      harvestDate: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000), // 55 days ago
+      expiryDate: new Date(Date.now() + 110 * 24 * 60 * 60 * 1000), // 110 days from now
+      costBasis: 16.00,
+      storageConditions: {
+        temperature: 5,
+        humidity: 90,
+        requirements: 'Cool, humid storage. Regular inspection.'
+      },
+      metadata: {
+        moisture: 78,
+        size: 'Medium',
+        variety: 'Russet',
+        certifications: ['Fresh'],
+        notes: 'Some minor blemishes, suitable for processing'
+      }
+    },
+
+    // ADDITIONAL WHEAT BATCHES FOR TESTING
+    {
+      commodityId: wheat.id,
+      quantity: 1000,
+      unit: 'bushels',
+      quality: 'standard',
+      location: 'Temporary Storage - Field Edge',
+      status: 'AVAILABLE',
+      batchNumber: 'WHT-2024-004',
+      harvestDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
+      expiryDate: new Date(Date.now() + 280 * 24 * 60 * 60 * 1000), // 280 days from now
+      costBasis: 7.20,
+      storageConditions: {
+        temperature: 20,
+        humidity: 70,
+        requirements: 'Temporary storage. Move to main facility soon.'
+      },
+      metadata: {
+        moisture: 15.2,
+        protein: 12.8,
+        testWeight: 57.2,
+        certifications: ['Organic'],
+        notes: 'Lower grade due to late harvest conditions',
+        needsTransfer: true
+      }
+    },
+
+    // PROCESSED PRODUCTS
+    {
+      commodityId: wheat.id,
+      quantity: 500,
+      unit: 'bushels',
+      quality: 'premium',
+      location: 'Processing Facility - Mill Storage',
+      status: 'RESERVED',
+      batchNumber: 'WHT-MILL-2024-001',
+      harvestDate: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000), // 35 days ago
+      expiryDate: new Date(Date.now() + 200 * 24 * 60 * 60 * 1000), // 200 days from now
+      costBasis: 9.50,
+      storageConditions: {
+        temperature: 18,
+        humidity: 50,
+        requirements: 'Milled product storage. Airtight containers.'
+      },
+      metadata: {
+        moisture: 10.5,
+        protein: 14.5,
+        testWeight: 61.0,
+        certifications: ['Organic', 'Milled', 'Grade A'],
+        processedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        reservedFor: 'Premium Flour Production',
+        reservedUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      }
+    }
+  ];
+
+  // Create inventory items
+  for (const itemData of inventoryData) {
+    const inventoryItem = await prisma.inventory.create({
+      data: {
+        organizationId: farm.organizationId,
+        farmId: farm.id,
+        commodityId: itemData.commodityId,
+        quantity: itemData.quantity,
+        unit: itemData.unit,
+        quality: itemData.quality,
+        location: itemData.location,
+        status: itemData.status as any,
+        metadata: {
+          batchNumber: itemData.batchNumber,
+          harvestDate: itemData.harvestDate,
+          expiryDate: itemData.expiryDate,
+          storageConditions: itemData.storageConditions,
+          costBasis: itemData.costBasis,
+          ...itemData.metadata
+        }
+      }
+    });
+
+    inventoryItems.push(inventoryItem);
+  }
+
+  console.log(`✅ Created ${inventoryItems.length} comprehensive inventory items`);
+  return inventoryItems;
+}
+
 async function initializeSampleOrders(organizations: any[], farms: any[], commodities: any[], users: any[]) {
-  console.log('📦 Initializing sample orders...');
+  console.log('📦 Initializing comprehensive sample orders...');
   
   const orders = [];
   const farmOrg = organizations.find(o => o.type === 'FARM_OPERATION');
   const tradingOrg = organizations.find(o => o.type === 'COMMODITY_TRADER');
+  const logisticsOrg = organizations.find(o => o.type === 'LOGISTICS_PROVIDER');
   const farm = farms[0];
   const wheat = commodities.find(c => c.name === 'Organic Wheat');
   const corn = commodities.find(c => c.name === 'Sweet Corn');
+  const soybeans = commodities.find(c => c.name === 'Soybeans');
+  const tomatoes = commodities.find(c => c.name === 'Tomatoes');
+  const potatoes = commodities.find(c => c.name === 'Potatoes');
   const farmManager = users.find(u => u.email === 'manager@farmpro.app');
+  const farmOperator = users.find(u => u.email === 'operator@farmpro.app');
   
   if (!farmOrg || !tradingOrg || !farm || !wheat || !corn || !farmManager) {
     console.log('⚠️  Skipping orders - missing organizations, farm, commodities, or users');
@@ -896,40 +1918,19 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
   // Generate unique order numbers with timestamp
   const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
   const orderData = [
+    // SELL ORDERS - Farm selling commodities
     {
       orderNumber: `ORD-${timestamp}-001`,
-      title: 'Wheat Order Response',
+      title: 'Premium Wheat Sale - GrainSparkles Trading',
+      description: 'High-quality organic wheat for premium market',
       type: 'SELL',
-      status: 'PENDING',
+      status: 'CONFIRMED',
       commodityId: wheat.id,
       quantity: 500,
       pricePerUnit: 8.50,
       totalPrice: 4250,
       deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
-      deliveryLocation: 'Green Valley Farm',
-      buyerOrgId: tradingOrg.id,
-      supplierOrgId: farmOrg.id,
-      createdById: farmManager.id,
-      farmId: farm.id,
-      deliveryAddress: {
-        street: '1234 Farm Road',
-        city: 'Rural Valley',
-        state: 'CA',
-        zip: '90210',
-        coordinates: { lat: 40.7128, lng: -74.0060 }
-      }
-    },
-    {
-      orderNumber: `ORD-${timestamp}-002`,
-      title: 'Delivery Order Coordination',
-      type: 'SELL',
-      status: 'CONFIRMED',
-      commodityId: corn.id,
-      quantity: 200,
-      pricePerUnit: 12.00,
-      totalPrice: 2400,
-      deliveryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-      deliveryLocation: 'EcoFood Industries',
+      deliveryLocation: 'GrainSparkles Trading Hub',
       buyerOrgId: tradingOrg.id,
       supplierOrgId: farmOrg.id,
       createdById: farmManager.id,
@@ -940,19 +1941,75 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
         state: 'TX',
         zip: '75001',
         coordinates: { lat: 32.7767, lng: -96.7970 }
+      },
+      paymentTerms: 'Net 30 days',
+      specialInstructions: 'Ensure proper grain moisture levels. Use certified organic transport.',
+      terms: {
+        qualityGrade: 'premium',
+        moistureMax: 13.5,
+        proteinMin: 14.0,
+        organicCertified: true
+      },
+      confirmedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        contractNumber: 'CON-2024-001',
+        qualityCertification: 'Organic Grade A',
+        transportMethod: 'Refrigerated Truck',
+        insuranceRequired: true
+      }
+    },
+    {
+      orderNumber: `ORD-${timestamp}-002`,
+      title: 'Sweet Corn Delivery - EcoFood Industries',
+      description: 'Fresh sweet corn for retail distribution',
+      type: 'SELL',
+      status: 'IN_TRANSIT',
+      commodityId: corn.id,
+      quantity: 200,
+      pricePerUnit: 12.00,
+      totalPrice: 2400,
+      deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+      deliveryLocation: 'EcoFood Industries Distribution Center',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '1234 Food Processing Ave',
+        city: 'Eco City',
+        state: 'CA',
+        zip: '90210',
+        coordinates: { lat: 34.0522, lng: -118.2437 }
+      },
+      paymentTerms: 'COD',
+      specialInstructions: 'Maintain cold chain throughout transport. Handle with care.',
+      terms: {
+        qualityGrade: 'grade_a',
+        temperatureMax: 4,
+        freshnessGuarantee: '48 hours',
+        organicCertified: true
+      },
+      confirmedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      acceptedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      metadata: {
+        contractNumber: 'CON-2024-002',
+        transportProvider: 'ColdChain Logistics',
+        trackingNumber: 'CCL-789456123',
+        estimatedArrival: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000)
       }
     },
     {
       orderNumber: `ORD-${timestamp}-003`,
-      title: 'Price Negotiation',
+      title: 'Soybeans Bulk Sale - Premium Foods Ltd',
+      description: 'Non-GMO soybeans for processing',
       type: 'SELL',
       status: 'PENDING',
-      commodityId: wheat.id,
-      quantity: 300,
-      pricePerUnit: 7.80,
-      totalPrice: 2340,
-      deliveryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
-      deliveryLocation: 'Premium Foods Ltd',
+      commodityId: soybeans.id,
+      quantity: 1000,
+      pricePerUnit: 15.20,
+      totalPrice: 15200,
+      deliveryDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
+      deliveryLocation: 'Premium Foods Processing Plant',
       buyerOrgId: tradingOrg.id,
       supplierOrgId: farmOrg.id,
       createdById: farmManager.id,
@@ -963,6 +2020,304 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
         state: 'NY',
         zip: '10001',
         coordinates: { lat: 40.7589, lng: -73.9851 }
+      },
+      paymentTerms: 'Letter of Credit',
+      specialInstructions: 'Ensure proper storage conditions. Quality inspection required.',
+      terms: {
+        qualityGrade: 'premium',
+        proteinMin: 36.0,
+        oilMin: 19.0,
+        nonGMO: true,
+        moistureMax: 12.0
+      },
+      metadata: {
+        contractNumber: 'CON-2024-003',
+        qualityInspection: 'Required',
+        storageRequirements: 'Dry, cool storage',
+        processingDestination: 'Soybean Oil Production'
+      }
+    },
+    {
+      orderNumber: `ORD-${timestamp}-004`,
+      title: 'Tomatoes Fresh Sale - Local Market',
+      description: 'Fresh tomatoes for local farmers market',
+      type: 'SELL',
+      status: 'DELIVERED',
+      commodityId: tomatoes.id,
+      quantity: 50,
+      pricePerUnit: 25.00,
+      totalPrice: 1250,
+      deliveryDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      deliveryLocation: 'Local Farmers Market',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '456 Market Square',
+        city: 'Rural Valley',
+        state: 'CA',
+        zip: '90210',
+        coordinates: { lat: 40.7128, lng: -74.0060 }
+      },
+      paymentTerms: 'Cash on Delivery',
+      specialInstructions: 'Deliver early morning. Ensure freshness.',
+      terms: {
+        qualityGrade: 'premium',
+        freshnessGuarantee: '24 hours',
+        organicCertified: true,
+        size: 'Large'
+      },
+      confirmedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      acceptedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      completedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      metadata: {
+        contractNumber: 'CON-2024-004',
+        deliveryMethod: 'Direct Farm to Market',
+        customerSatisfaction: 'Excellent',
+        repeatOrder: true
+      }
+    },
+    {
+      orderNumber: `ORD-${timestamp}-005`,
+      title: 'Potatoes Wholesale - Restaurant Chain',
+      description: 'Russet potatoes for restaurant chain',
+      type: 'SELL',
+      status: 'CANCELLED',
+      commodityId: potatoes.id,
+      quantity: 300,
+      pricePerUnit: 18.50,
+      totalPrice: 5550,
+      deliveryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      deliveryLocation: 'Restaurant Chain Distribution',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '789 Restaurant Row',
+        city: 'Food City',
+        state: 'FL',
+        zip: '33101',
+        coordinates: { lat: 25.7617, lng: -80.1918 }
+      },
+      paymentTerms: 'Net 15 days',
+      specialInstructions: 'Size specification: Large to Extra Large only',
+      terms: {
+        qualityGrade: 'grade_a',
+        sizeMin: 'Large',
+        organicCertified: false,
+        storageRequirements: 'Cool, dark storage'
+      },
+      confirmedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+      metadata: {
+        contractNumber: 'CON-2024-005',
+        cancellationReason: 'Buyer requested cancellation due to supply chain issues',
+        cancellationDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        cancellationFee: 0
+      }
+    },
+
+    // BUY ORDERS - Farm buying inputs and supplies
+    {
+      orderNumber: `ORD-${timestamp}-006`,
+      title: 'Fertilizer Purchase - Spring Season',
+      description: 'NPK fertilizer for spring planting season',
+      type: 'BUY',
+      status: 'CONFIRMED',
+      commodityId: wheat.id, // Using wheat as placeholder for fertilizer
+      quantity: 2000,
+      pricePerUnit: 0.45,
+      totalPrice: 900,
+      deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      deliveryLocation: 'FarmPro Demo Farm',
+      buyerOrgId: farmOrg.id,
+      supplierOrgId: tradingOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '1234 Farm Road',
+        city: 'Rural Valley',
+        state: 'CA',
+        zip: '90210',
+        coordinates: { lat: 40.7128, lng: -74.0060 }
+      },
+      paymentTerms: 'Net 30 days',
+      specialInstructions: 'Deliver to main storage shed. Use covered transport.',
+      terms: {
+        productType: 'NPK 15-15-15',
+        organicCertified: true,
+        applicationRate: '200kg per hectare',
+        storageRequirements: 'Dry storage'
+      },
+      confirmedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      metadata: {
+        contractNumber: 'CON-2024-006',
+        supplier: 'AgriSupply Solutions',
+        productCode: 'NPK-15-15-15-ORG',
+        applicationSeason: 'Spring 2024'
+      }
+    },
+    {
+      orderNumber: `ORD-${timestamp}-007`,
+      title: 'Seeds Purchase - Wheat Variety',
+      description: 'Certified organic wheat seeds for planting',
+      type: 'BUY',
+      status: 'IN_TRANSIT',
+      commodityId: wheat.id,
+      quantity: 100,
+      pricePerUnit: 2.50,
+      totalPrice: 250,
+      deliveryDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1 day from now
+      deliveryLocation: 'FarmPro Demo Farm',
+      buyerOrgId: farmOrg.id,
+      supplierOrgId: tradingOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '1234 Farm Road',
+        city: 'Rural Valley',
+        state: 'CA',
+        zip: '90210',
+        coordinates: { lat: 40.7128, lng: -74.0060 }
+      },
+      paymentTerms: 'Prepaid',
+      specialInstructions: 'Handle with care. Maintain seed viability.',
+      terms: {
+        variety: 'Hard Red Winter Wheat',
+        germinationRate: '95%',
+        organicCertified: true,
+        seedTreatment: 'None'
+      },
+      confirmedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      acceptedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        contractNumber: 'CON-2024-007',
+        supplier: 'SeedMaster Organic',
+        variety: 'HRW-2024-ORG',
+        plantingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    },
+    {
+      orderNumber: `ORD-${timestamp}-008`,
+      title: 'Equipment Parts - Tractor Maintenance',
+      description: 'Replacement parts for tractor maintenance',
+      type: 'BUY',
+      status: 'PENDING',
+      commodityId: wheat.id, // Using wheat as placeholder for equipment parts
+      quantity: 1,
+      pricePerUnit: 150.00,
+      totalPrice: 150,
+      deliveryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+      deliveryLocation: 'FarmPro Demo Farm',
+      buyerOrgId: farmOrg.id,
+      supplierOrgId: tradingOrg.id,
+      createdById: farmOperator.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '1234 Farm Road',
+        city: 'Rural Valley',
+        state: 'CA',
+        zip: '90210',
+        coordinates: { lat: 40.7128, lng: -74.0060 }
+      },
+      paymentTerms: 'Net 15 days',
+      specialInstructions: 'Include installation instructions. Warranty required.',
+      terms: {
+        partNumber: 'TR-ENG-001',
+        equipmentModel: 'John Deere 6120R',
+        warrantyPeriod: '12 months',
+        installationRequired: true
+      },
+      metadata: {
+        contractNumber: 'CON-2024-008',
+        supplier: 'Farm Equipment Solutions',
+        partCategory: 'Engine Components',
+        maintenanceSchedule: 'Scheduled Maintenance'
+      }
+    },
+
+    // LOGISTICS ORDERS - Transportation and delivery
+    {
+      orderNumber: `ORD-${timestamp}-009`,
+      title: 'Transportation Service - Wheat Delivery',
+      description: 'Logistics service for wheat delivery to trading hub',
+      type: 'BUY',
+      status: 'CONFIRMED',
+      commodityId: wheat.id,
+      quantity: 1,
+      pricePerUnit: 500.00,
+      totalPrice: 500,
+      deliveryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      deliveryLocation: 'GrainSparkles Trading Hub',
+      buyerOrgId: farmOrg.id,
+      supplierOrgId: logisticsOrg?.id || tradingOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: '5678 Commerce Blvd',
+        city: 'Trade City',
+        state: 'TX',
+        zip: '75001',
+        coordinates: { lat: 32.7767, lng: -96.7970 }
+      },
+      paymentTerms: 'Upon delivery',
+      specialInstructions: 'Use refrigerated transport. Maintain grain quality.',
+      terms: {
+        serviceType: 'Refrigerated Transport',
+        distance: '500 miles',
+        weightCapacity: '40,000 lbs',
+        insuranceIncluded: true
+      },
+      confirmedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        contractNumber: 'CON-2024-009',
+        logisticsProvider: 'ColdChain Logistics',
+        vehicleType: 'Refrigerated Truck',
+        driverContact: 'John Smith - (555) 123-4567'
+      }
+    },
+
+    // MARKETPLACE ORDERS - Public marketplace transactions
+    {
+      orderNumber: `ORD-${timestamp}-010`,
+      title: 'Marketplace Corn Sale - Premium Quality',
+      description: 'Premium sweet corn listed on marketplace',
+      type: 'SELL',
+      status: 'PENDING',
+      commodityId: corn.id,
+      quantity: 100,
+      pricePerUnit: 15.00,
+      totalPrice: 1500,
+      deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
+      deliveryLocation: 'Customer Address',
+      buyerOrgId: tradingOrg.id,
+      supplierOrgId: farmOrg.id,
+      createdById: farmManager.id,
+      farmId: farm.id,
+      deliveryAddress: {
+        street: 'Customer Address',
+        city: 'Various',
+        state: 'Multiple',
+        zip: '00000',
+        coordinates: { lat: 0, lng: 0 }
+      },
+      paymentTerms: 'Online Payment',
+      specialInstructions: 'Marketplace order. Handle with care.',
+      terms: {
+        qualityGrade: 'premium',
+        marketplaceListing: true,
+        customerRating: '4.8/5',
+        organicCertified: true
+      },
+      isPublic: true,
+      publishedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      metadata: {
+        contractNumber: 'CON-2024-010',
+        marketplace: 'FarmPro Marketplace',
+        listingId: 'MP-2024-001',
+        customerInquiries: 5,
+        views: 25
       }
     }
   ];
@@ -989,7 +2344,7 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
         currency: 'NGN'
       });
 
-      // Create order item (no unique constraint, so just create)
+      // Create order item
       await prisma.orderItem.create({
         data: {
           orderId: order.id,
@@ -999,6 +2354,27 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
         }
       });
 
+      // Update order with additional fields if they exist
+      if (orderInfo.description || orderInfo.paymentTerms || orderInfo.specialInstructions || orderInfo.terms || orderInfo.metadata) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            metadata: {
+              description: orderInfo.description,
+              paymentTerms: orderInfo.paymentTerms,
+              specialInstructions: orderInfo.specialInstructions,
+              terms: orderInfo.terms,
+              confirmedAt: orderInfo.confirmedAt,
+              acceptedAt: orderInfo.acceptedAt,
+              completedAt: orderInfo.completedAt,
+              publishedAt: orderInfo.publishedAt,
+              isPublic: orderInfo.isPublic || false,
+              ...orderInfo.metadata
+            }
+          }
+        });
+      }
+
       orders.push(order);
     } catch (error) {
       console.error(`❌ Failed to upsert order ${orderInfo.orderNumber}:`, error);
@@ -1006,7 +2382,7 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
     }
   }
 
-  console.log(`✅ Created ${orders.length} sample orders`);
+  console.log(`✅ Created ${orders.length} comprehensive sample orders`);
   return orders;
 }
 
@@ -1317,6 +2693,8 @@ async function initializeDatabase() {
     const farms = await initializeSampleFarms(organizations);
     const commodities = await initializeSampleCommodities();
     const activities = await initializeSampleActivities(farms, users);
+    const activityTemplates = await initializeActivityTemplates(organizations);
+    const inventory = await initializeSampleInventory(organizations, farms, commodities, users);
     const orders = await initializeSampleOrders(organizations, farms, commodities, users);
     const transactions = await initializeSampleTransactions(organizations, farms, orders);
     
@@ -1328,8 +2706,10 @@ async function initializeDatabase() {
     console.log(`   • ${users.length} users created`);
     console.log(`   • ${farms.length} farms created`);
     console.log(`   • ${commodities.length} sample commodities created`);
-    console.log(`   • ${activities.length} sample activities created`);
-    console.log(`   • ${orders.length} sample orders created`);
+    console.log(`   • ${activities.length} comprehensive sample activities created`);
+    console.log(`   • ${activityTemplates.length} activity templates created`);
+    console.log(`   • ${inventory.length} comprehensive inventory items created`);
+    console.log(`   • ${orders.length} comprehensive sample orders created`);
     console.log(`   • ${transactions.length} sample transactions created`);
     
     console.log('\n🔑 Sample Login Credentials:');
@@ -1338,10 +2718,19 @@ async function initializeDatabase() {
     });
     
     console.log('\n📈 Dashboard Data Available:');
-    console.log('   • Farm activities with various statuses (scheduled, in-progress, completed)');
-    console.log('   • Financial transactions (revenue and expenses)');
-    console.log('   • Orders with different statuses (pending, confirmed)');
-    console.log('   • Realistic cost breakdowns and progress tracking');
+    console.log('   • 20+ comprehensive farm activities covering all types (LAND_PREP, PLANTING, FERTILIZING, IRRIGATION, PEST_CONTROL, HARVESTING, MONITORING, MAINTENANCE, OTHER)');
+    console.log('   • Activities with various statuses (PLANNED, SCHEDULED, IN_PROGRESS, COMPLETED) and priorities (LOW, NORMAL, HIGH, URGENT)');
+    console.log('   • Detailed resource tracking (equipment, labor, materials) and cost breakdowns');
+    console.log('   • Activity assignments, progress logs, notes, and results tracking');
+    console.log('   • 13 activity templates (10 system + 3 organization-specific) for common farming operations');
+    console.log('   • 12+ comprehensive inventory items across 5 commodities (Wheat, Corn, Soybeans, Tomatoes, Potatoes)');
+    console.log('   • Inventory with different statuses (AVAILABLE, RESERVED, SOLD, CONSUMED, EXPIRED) and quality grades (premium, grade_a, grade_b, standard)');
+    console.log('   • Detailed batch tracking, storage conditions, quality certifications, and traceability data');
+    console.log('   • 10+ comprehensive orders covering both BUY and SELL transactions across all order statuses');
+    console.log('   • Orders with different statuses (PENDING, CONFIRMED, IN_TRANSIT, DELIVERED, CANCELLED) and payment terms');
+    console.log('   • Detailed order terms, quality specifications, delivery tracking, and marketplace integration');
+    console.log('   • Financial transactions (revenue and expenses) with realistic cost allocations');
+    console.log('   • Complete activity lifecycle from planning to completion with realistic timelines');
     
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
