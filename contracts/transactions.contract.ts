@@ -95,6 +95,13 @@ export const TransactionFiltersSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20)
 });
 
+export const TransactionSummaryQuerySchema = z.object({
+  farmId: z.string().cuid().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  type: TransactionTypeSchema.optional()
+});
+
 export const TransactionSummarySchema = z.object({
   totalRevenue: z.number(),
   totalExpenses: z.number(),
@@ -302,12 +309,7 @@ export const transactionsContract = c.router({
       403: JsonApiErrorResponseSchema,
       500: JsonApiErrorResponseSchema
     },
-    query: z.object({
-      farmId: z.string().cuid().optional(),
-      startDate: z.string().datetime().optional(),
-      endDate: z.string().datetime().optional(),
-      type: TransactionTypeSchema.optional()
-    }),
+    query: TransactionSummaryQuerySchema,
     summary: 'Get transaction summary and analytics'
   },
 

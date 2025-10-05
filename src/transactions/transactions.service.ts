@@ -88,26 +88,43 @@ export class TransactionsService {
   async getTransaction(user: CurrentUser, transactionId: string) {
     this.logger.log(`Getting transaction ${transactionId} for user: ${user.userId}`);
 
-    const transaction = await this.prisma.transaction.findFirst({
-      where: {
-        id: transactionId,
-        organizationId: user.organizationId
-      },
-      include: {
-        order: {
-          select: { id: true, orderNumber: true, title: true }
+    try {
+      const transaction = await this.prisma.transaction.findFirst({
+        where: {
+          id: transactionId,
+          organizationId: user.organizationId
         },
-        organization: {
-          select: { id: true, name: true }
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
         }
+      });
+
+      if (!transaction) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
       }
-    });
 
-    if (!transaction) {
-      throw new NotFoundException(`Transaction ${transactionId} not found`);
+      return this.mapTransactionToResponse(transaction);
+    } catch (error) {
+      // If it's already a NotFoundException, rethrow it
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle Prisma validation errors for invalid ID format
+      if (error instanceof Error && (
+        error.message.includes('Invalid') ||
+        error.message.includes('invalid') ||
+        error.message.includes('malformed')
+      )) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
+      }
+      // Rethrow other errors
+      throw error;
     }
-
-    return this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -119,68 +136,85 @@ export class TransactionsService {
     const { data: requestData } = data;
     const { attributes } = requestData;
 
-    // Use transaction with locking to prevent race conditions
-    const transaction = await this.prisma.$transaction(async (tx) => {
-      // Lock the transaction record for update
-      const existingTransaction = await tx.transaction.findFirst({
-        where: {
-          id: transactionId,
-          organizationId: user.organizationId
+    try {
+      // Use transaction with locking to prevent race conditions
+      const transaction = await this.prisma.$transaction(async (tx) => {
+        // Lock the transaction record for update
+        const existingTransaction = await tx.transaction.findFirst({
+          where: {
+            id: transactionId,
+            organizationId: user.organizationId
+          }
+        });
+
+        if (!existingTransaction) {
+          throw new NotFoundException(`Transaction ${transactionId} not found`);
         }
+
+        // Validate status transitions
+        if (attributes.status && existingTransaction.status !== attributes.status) {
+          this.validateStatusTransition(existingTransaction.status, attributes.status as TransactionStatus);
+        }
+
+        const updateData: Prisma.TransactionUpdateInput = {};
+
+        if (attributes.status) updateData.status = attributes.status as TransactionStatus;
+        if (attributes.amount) updateData.amount = attributes.amount;
+        if (attributes.description) updateData.description = attributes.description;
+        if (attributes.categoryId) {
+          updateData.category = {
+            connect: { id: attributes.categoryId }
+          };
+        }
+        if (attributes.paidDate) updateData.paidDate = new Date(attributes.paidDate);
+        if (attributes.metadata) {
+          updateData.metadata = {
+            ...(existingTransaction.metadata as Record<string, any> || {}),
+            ...attributes.metadata,
+            updatedBy: user.userId,
+            updatedAt: new Date().toISOString()
+          };
+        } else {
+          updateData.metadata = {
+            ...(existingTransaction.metadata as Record<string, any> || {}),
+            updatedBy: user.userId,
+            updatedAt: new Date().toISOString()
+          };
+        }
+
+        return await tx.transaction.update({
+          where: { id: transactionId },
+          data: updateData,
+          include: {
+            order: {
+              select: { id: true, orderNumber: true, title: true }
+            },
+            organization: {
+              select: { id: true, name: true }
+            }
+          }
+        });
       });
 
-      if (!existingTransaction) {
+      this.logger.log(`Successfully updated transaction ${transaction.id}`);
+
+      return this.mapTransactionToResponse(transaction);
+    } catch (error) {
+      // If it's already a NotFoundException or BadRequestException, rethrow it
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      // Handle Prisma validation errors for invalid ID format
+      if (error instanceof Error && (
+        error.message.includes('Invalid') ||
+        error.message.includes('invalid') ||
+        error.message.includes('malformed')
+      )) {
         throw new NotFoundException(`Transaction ${transactionId} not found`);
       }
-
-      // Validate status transitions
-      if (attributes.status && existingTransaction.status !== attributes.status) {
-        this.validateStatusTransition(existingTransaction.status, attributes.status as TransactionStatus);
-      }
-
-      const updateData: Prisma.TransactionUpdateInput = {};
-
-      if (attributes.status) updateData.status = attributes.status as TransactionStatus;
-      if (attributes.amount) updateData.amount = attributes.amount;
-      if (attributes.description) updateData.description = attributes.description;
-      if (attributes.categoryId) {
-        updateData.category = {
-          connect: { id: attributes.categoryId }
-        };
-      }
-      if (attributes.paidDate) updateData.paidDate = new Date(attributes.paidDate);
-      if (attributes.metadata) {
-        updateData.metadata = {
-          ...(existingTransaction.metadata as Record<string, any> || {}),
-          ...attributes.metadata,
-          updatedBy: user.userId,
-          updatedAt: new Date().toISOString()
-        };
-      } else {
-        updateData.metadata = {
-          ...(existingTransaction.metadata as Record<string, any> || {}),
-          updatedBy: user.userId,
-          updatedAt: new Date().toISOString()
-        };
-      }
-
-      return await tx.transaction.update({
-        where: { id: transactionId },
-        data: updateData,
-        include: {
-          order: {
-            select: { id: true, orderNumber: true, title: true }
-          },
-          organization: {
-            select: { id: true, name: true }
-          }
-        }
-      });
-    });
-
-    this.logger.log(`Successfully updated transaction ${transaction.id}`);
-
-    return this.mapTransactionToResponse(transaction);
+      // Rethrow other errors
+      throw error;
+    }
   }
 
   /**
@@ -1099,31 +1133,65 @@ export class TransactionsService {
   }
 
   private async validateFarmAccess(farmId: string, organizationId: string) {
-    const farm = await this.prisma.farm.findFirst({
-      where: {
-        id: farmId,
-        organizationId
-      }
-    });
+    try {
+      const farm = await this.prisma.farm.findFirst({
+        where: {
+          id: farmId,
+          organizationId
+        }
+      });
 
-    if (!farm) {
-      throw new NotFoundException(`Farm ${farmId} not found or access denied`);
+      if (!farm) {
+        throw new NotFoundException(`Farm ${farmId} not found or access denied`);
+      }
+    } catch (error) {
+      // If it's already a NotFoundException, rethrow it
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle Prisma validation errors for invalid ID format
+      if (error instanceof Error && (
+        error.message.includes('Invalid') ||
+        error.message.includes('invalid') ||
+        error.message.includes('malformed')
+      )) {
+        throw new NotFoundException(`Farm ${farmId} not found or access denied`);
+      }
+      // Rethrow other errors
+      throw error;
     }
   }
 
   private async validateOrderAccess(orderId: string, organizationId: string) {
-    const order = await this.prisma.order.findFirst({
-      where: {
-        id: orderId,
-        OR: [
-          { buyerOrgId: organizationId },
-          { supplierOrgId: organizationId }
-        ]
-      }
-    });
+    try {
+      const order = await this.prisma.order.findFirst({
+        where: {
+          id: orderId,
+          OR: [
+            { buyerOrgId: organizationId },
+            { supplierOrgId: organizationId }
+          ]
+        }
+      });
 
-    if (!order) {
-      throw new NotFoundException(`Order ${orderId} not found or access denied`);
+      if (!order) {
+        throw new NotFoundException(`Order ${orderId} not found or access denied`);
+      }
+    } catch (error) {
+      // If it's already a NotFoundException, rethrow it
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle Prisma validation errors for invalid ID format
+      if (error instanceof Error && (
+        error.message.includes('Invalid') ||
+        error.message.includes('invalid') ||
+        error.message.includes('malformed')
+      )) {
+        throw new NotFoundException(`Order ${orderId} not found or access denied`);
+      }
+      // Rethrow other errors
+      throw error;
     }
   }
 

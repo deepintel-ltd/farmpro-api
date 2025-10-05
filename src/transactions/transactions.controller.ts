@@ -32,6 +32,44 @@ export class TransactionsController {
     });
   }
 
+  @TsRestHandler(transactionsContract.listTransactions)
+  public listTransactions(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.listTransactions, async ({ query }) => {
+      try {
+        const result = await this.transactionsService.listTransactions(user, query);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid query parameters',
+          badRequestCode: 'INVALID_QUERY_PARAMETERS',
+          internalErrorMessage: 'Failed to list transactions',
+          internalErrorCode: 'LIST_TRANSACTIONS_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.getTransactionSummary)
+  public getTransactionSummary(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.getTransactionSummary, async ({ query }) => {
+      try {
+        const result = await this.transactionsService.getTransactionSummary(user, query);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid query parameters',
+          badRequestCode: 'INVALID_QUERY_PARAMETERS',
+          internalErrorMessage: 'Failed to get transaction summary',
+          internalErrorCode: 'GET_TRANSACTION_SUMMARY_FAILED',
+        });
+      }
+    });
+  }
+
   @TsRestHandler(transactionsContract.getTransaction)
   public getTransaction(
     @GetCurrentUser() user: CurrentUser
@@ -67,44 +105,6 @@ export class TransactionsController {
           badRequestCode: 'INVALID_TRANSACTION_UPDATE',
           internalErrorMessage: 'Failed to update transaction',
           internalErrorCode: 'UPDATE_TRANSACTION_FAILED',
-        });
-      }
-    });
-  }
-
-  @TsRestHandler(transactionsContract.listTransactions)
-  public listTransactions(
-    @GetCurrentUser() user: CurrentUser
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(transactionsContract.listTransactions, async ({ query }) => {
-      try {
-        const result = await this.transactionsService.listTransactions(user, query);
-        return { status: 200 as const, body: result };
-      } catch (error: unknown) {
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid query parameters',
-          badRequestCode: 'INVALID_QUERY_PARAMETERS',
-          internalErrorMessage: 'Failed to list transactions',
-          internalErrorCode: 'LIST_TRANSACTIONS_FAILED',
-        });
-      }
-    });
-  }
-
-  @TsRestHandler(transactionsContract.getTransactionSummary)
-  public getTransactionSummary(
-    @GetCurrentUser() user: CurrentUser
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(transactionsContract.getTransactionSummary, async ({ query }) => {
-      try {
-        const result = await this.transactionsService.getTransactionSummary(user, query);
-        return { status: 200 as const, body: result };
-      } catch (error: unknown) {
-        return ErrorResponseUtil.handleCommonError(error, {
-          badRequestMessage: 'Invalid query parameters',
-          badRequestCode: 'INVALID_QUERY_PARAMETERS',
-          internalErrorMessage: 'Failed to get transaction summary',
-          internalErrorCode: 'GET_TRANSACTION_SUMMARY_FAILED',
         });
       }
     });
