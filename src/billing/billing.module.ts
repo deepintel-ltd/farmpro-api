@@ -14,10 +14,11 @@ import { PlanFeatureMapperService } from './services/plan-feature-mapper.service
 import { StripeProvider } from './providers/stripe.provider';
 import { PaystackProvider } from './providers/paystack.provider';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BrevoModule } from '../external-service/brevo/brevo.module';
 
 @Global()
 @Module({
-  imports: [PrismaModule, ConfigModule, ScheduleModule.forRoot()],
+  imports: [PrismaModule, ConfigModule, ScheduleModule.forRoot(), BrevoModule],
   controllers: [BillingController],
   providers: [
     BillingService,
