@@ -22,6 +22,7 @@ import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 import { BillingModule } from '@/billing/billing.module';
 import { WeatherModule } from '@/weather/weather.module';
+import { UsersModule } from '@/users/users.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { WeatherModule } from '@/weather/weather.module';
     BrevoModule,
     BillingModule,
     WeatherModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [

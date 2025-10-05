@@ -180,9 +180,49 @@ export class UsersController {
   // User Management (Admin/Manager)
   // =============================================================================
 
-  @TsRestHandler(userContract.getUsersWithQuery)
+  @TsRestHandler(userContract.getUsers)
   @RequirePermission(...PERMISSIONS.USERS.READ)
   public getUsers(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: any,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(userContract.getUsers, async () => {
+      try {
+        this.logger.log(`Get users requested by: ${req.user.userId}`);
+        
+        const result = await this.usersService.getUsers(req.user, {
+          page: query.page,
+          limit: query.limit,
+          search: query.search,
+          role: query.role,
+          isActive: query.isActive,
+          farmId: query.farmId,
+        });
+
+        return {
+          status: 200 as const,
+          body: {
+            data: result.data.map(user => ({
+              id: user.id,
+              type: 'users',
+              attributes: user,
+            })),
+            meta: result.meta,
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get users failed:', error);
+        return ErrorResponseUtil.handleCommonError(error, {
+          unauthorizedMessage: 'Insufficient permissions to view users',
+          unauthorizedCode: 'USER_READ_FORBIDDEN',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(userContract.getUsersWithQuery)
+  @RequirePermission(...PERMISSIONS.USERS.READ)
+  public getUsersWithQuery(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
   ): ReturnType<typeof tsRestHandler> {

@@ -155,6 +155,102 @@ export class UsersService {
   // User Management (Admin)
   // =============================================================================
 
+  async getUsers(user: CurrentUser, query: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+    isActive?: boolean;
+    farmId?: string;
+  }) {
+    this.logger.log(`Get users requested by: ${user.userId}`, { query });
+    
+    // Authorization is now handled by guards and decorators
+
+    const page = query.page || 1;
+    const limit = Math.min(query.limit || 25, 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      organizationId: user.organizationId,
+    };
+
+    if (query.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query.isActive !== undefined) {
+      where.isActive = query.isActive;
+    }
+
+    if (query.role) {
+      where.userRoles = {
+        some: {
+          role: { name: query.role },
+          isActive: true,
+        },
+      };
+    }
+
+    if (query.farmId) {
+      where.userRoles = {
+        some: {
+          farmId: query.farmId,
+          isActive: true,
+        },
+      };
+    }
+
+    const [users, totalCount] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          isActive: true,
+          lastLoginAt: true,
+          createdAt: true,
+          userRoles: {
+            where: { isActive: true },
+            select: {
+              role: { select: { name: true } },
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    this.logger.log(`Found ${totalCount} users for get users by user: ${user.userId}`);
+
+    return {
+      data: users.map(u => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        phone: u.phone,
+        isActive: u.isActive,
+        roles: u.userRoles.map(ur => ur.role.name),
+        lastLoginAt: u.lastLoginAt?.toISOString() || null,
+        createdAt: u.createdAt.toISOString(),
+      })),
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    };
+  }
+
   async searchUsers(user: CurrentUser, query: {
     page?: number;
     limit?: number;
