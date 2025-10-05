@@ -18,7 +18,13 @@ describe('Core Resource Schemas', () => {
         location: {
           latitude: 40.7128,
           longitude: -74.0060,
-          address: '123 Farm Road, Rural County, State 12345'
+          address: {
+            street: '123 Farm Road',
+            city: 'Rural County',
+            state: 'State',
+            zipCode: '12345',
+            country: 'US'
+          }
         },
         size: 150.5,
         cropTypes: ['corn', 'soybeans', 'wheat'],
@@ -36,7 +42,13 @@ describe('Core Resource Schemas', () => {
         location: {
           latitude: 200, // Invalid latitude
           longitude: -74.0060,
-          address: '123 Farm Road'
+          address: {
+            street: '123 Farm Road',
+            city: 'City',
+            state: 'ST',
+            zipCode: '12345',
+            country: 'US'
+          }
         },
         size: -10, // Negative size should fail
         cropTypes: [], // Empty array should fail
@@ -196,7 +208,7 @@ describe('JSON API Schemas', () => {
   describe('JsonApiResourceSchema', () => {
     it('should validate a JSON API resource response', () => {
       const FarmResourceTest = JsonApiResourceSchema(FarmSchema);
-      
+
       const validResource = {
         data: {
           id: '123',
@@ -206,7 +218,13 @@ describe('JSON API Schemas', () => {
             location: {
               latitude: 40.7128,
               longitude: -74.0060,
-              address: '123 Farm Road'
+              address: {
+                street: '123 Farm Road',
+                city: 'City',
+                state: 'ST',
+                zipCode: '12345',
+                country: 'US'
+              }
             },
             size: 100,
             cropTypes: ['corn'],
@@ -259,7 +277,13 @@ describe('Request Schemas', () => {
             location: {
               latitude: 40.7128,
               longitude: -74.0060,
-              address: '123 New Farm Road'
+              address: {
+                street: '123 New Farm Road',
+                city: 'City',
+                state: 'ST',
+                zipCode: '12345',
+                country: 'US'
+              }
             },
             size: 200,
             cropTypes: ['corn', 'soybeans'],

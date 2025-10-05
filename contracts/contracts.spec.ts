@@ -50,11 +50,11 @@ describe('API Contracts', () => {
     });
 
     it('should have correct paths', () => {
-      expect(apiContract.farms.getFarms.path).toBe('/api/farms');
-      expect(apiContract.farms.getFarm.path).toBe('/api/farms/:id');
-      expect(apiContract.farms.createFarm.path).toBe('/api/farms');
-      expect(apiContract.farms.updateFarm.path).toBe('/api/farms/:id');
-      expect(apiContract.farms.deleteFarm.path).toBe('/api/farms/:id');
+      expect(apiContract.farms.getFarms.path).toBe('/farms');
+      expect(apiContract.farms.getFarm.path).toBe('/farms/:id');
+      expect(apiContract.farms.createFarm.path).toBe('/farms');
+      expect(apiContract.farms.updateFarm.path).toBe('/farms/:id');
+      expect(apiContract.farms.deleteFarm.path).toBe('/farms/:id');
     });
   });
 
@@ -68,7 +68,13 @@ describe('API Contracts', () => {
             location: {
               latitude: 40.7128,
               longitude: -74.0060,
-              address: '123 Farm Road, Test City, NY'
+              address: {
+                street: '123 Farm Road',
+                city: 'Test City',
+                state: 'NY',
+                zipCode: '10001',
+                country: 'US'
+              }
             },
             size: 100,
             cropTypes: ['corn', 'wheat'],
@@ -254,23 +260,23 @@ describe('API Contracts', () => {
   describe('Relationship Endpoints', () => {
     it('should have relationship endpoints for all resources', () => {
       // Farm relationships
-      expect(apiContract.farms.getFarmCommodities.path).toBe('/api/farms/:id/commodities');
-      expect(apiContract.farms.getFarmOrders.path).toBe('/api/farms/:id/orders');
-      expect(apiContract.farms.getFarmCommodityRelationships.path).toBe('/api/farms/:id/relationships/commodities');
-      expect(apiContract.farms.getFarmOrderRelationships.path).toBe('/api/farms/:id/relationships/orders');
-      
+      expect(apiContract.farms.getFarmCommodities.path).toBe('/farms/:id/commodities');
+      expect(apiContract.farms.getFarmOrders.path).toBe('/farms/:id/orders');
+      expect(apiContract.farms.getFarmCommodityRelationships.path).toBe('/farms/:id/relationships/commodities');
+      expect(apiContract.farms.getFarmOrderRelationships.path).toBe('/farms/:id/relationships/orders');
+
       // User relationships
       expect(apiContract.users.getUserFarms.path).toBe('/users/:id/farms');
       expect(apiContract.users.getUserOrders.path).toBe('/users/:id/orders');
       expect(apiContract.users.getUserFarmRelationships.path).toBe('/users/:id/relationships/farms');
       expect(apiContract.users.getUserOrderRelationships.path).toBe('/users/:id/relationships/orders');
-      
+
       // Order relationships
       expect(apiContract.ordersRelationships.getOrderBuyer.path).toBe('/orders/:id/buyer');
       expect(apiContract.ordersRelationships.getOrderSeller.path).toBe('/orders/:id/seller');
       expect(apiContract.ordersRelationships.getOrderBuyerRelationship.path).toBe('/orders/:id/relationships/buyer');
       expect(apiContract.ordersRelationships.getOrderSellerRelationship.path).toBe('/orders/:id/relationships/seller');
-      
+
       // Commodity relationships
       expect(apiContract.commodities.getCommodityOrders.path).toBe('/commodities/:id/orders');
       expect(apiContract.commodities.getCommodityOrderRelationships.path).toBe('/commodities/:id/relationships/orders');

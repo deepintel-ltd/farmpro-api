@@ -85,19 +85,19 @@ describe('FeatureAccessGuard', () => {
   });
 
   describe('canActivate', () => {
-    it('should throw ForbiddenException when user context is not found', () => {
+    it('should throw ForbiddenException when user context is not found', async () => {
       mockRequest.user = null;
 
-      expect(() => guard.canActivate(mockContext)).toThrow(
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new ForbiddenException('User context not found'),
       );
     });
 
-    it('should return true for platform admin and bypass all restrictions', () => {
+    it('should return true for platform admin and bypass all restrictions', async () => {
       mockRequest.user = createMockUser({ isPlatformAdmin: true });
       mockReflector.getAllAndOverride.mockReturnValue(undefined);
 
-      const result = guard.canActivate(mockContext);
+      const result = await guard.canActivate(mockContext);
 
       expect(result).toBe(true);
       expect(mockReflector.getAllAndOverride).toHaveBeenCalledWith(
@@ -107,27 +107,28 @@ describe('FeatureAccessGuard', () => {
     });
 
     describe('feature access', () => {
-      it('should return true when no feature is required', () => {
+      it('should return true when no feature is required', async () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride.mockReturnValue(undefined);
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should return true when user has access to required feature', () => {
+      it('should return true when user has access to required feature', async () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
           .mockReturnValueOnce('farm_management') // required feature
           .mockReturnValue(undefined);
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should throw ForbiddenException when org type does not support feature', () => {
+      it('should throw ForbiddenException when org type does not support feature', async () => {
         mockRequest.user = createMockUser({
           organization: {
             id: 'org-1',
@@ -146,12 +147,12 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValue(undefined) // REQUIRE_CAPABILITY_KEY
           .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-        expect(() => guard.canActivate(mockContext)).toThrow(
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(
           new ForbiddenException("Feature 'marketplace' is not available for FARM_OPERATION organizations"),
         );
       });
 
-      it('should throw ForbiddenException when feature is not in allowed modules', () => {
+      it('should throw ForbiddenException when feature is not in allowed modules', async () => {
         mockRequest.user = createMockUser({
           organization: {
             id: 'org-1',
@@ -170,12 +171,12 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValue(undefined) // REQUIRE_CAPABILITY_KEY
           .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-        expect(() => guard.canActivate(mockContext)).toThrow(
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(
           new ForbiddenException("Feature 'marketplace' is not enabled for your organization"),
         );
       });
 
-      it('should throw ForbiddenException when feature is not in plan', () => {
+      it('should throw ForbiddenException when feature is not in plan', async () => {
         mockRequest.user = createMockUser({
           organization: {
             id: 'org-1',
@@ -194,23 +195,23 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValue(undefined) // REQUIRE_CAPABILITY_KEY
           .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-        expect(() => guard.canActivate(mockContext)).toThrow(
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(
           new ForbiddenException("Feature 'marketplace' is not included in your current plan. Please upgrade to access this feature."),
         );
       });
     });
 
     describe('capability access', () => {
-      it('should return true when no capability is required', () => {
+      it('should return true when no capability is required', async () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride.mockReturnValue(undefined);
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should return true when user has required capability', () => {
+      it('should return true when user has required capability', async () => {
         mockRequest.user = createMockUser({ capabilities: ['advanced_analytics'] });
         mockReflector.getAllAndOverride
           .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
@@ -218,12 +219,12 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValueOnce('advanced_analytics') // REQUIRE_CAPABILITY_KEY
           .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should throw ForbiddenException when user lacks required capability', () => {
+      it('should throw ForbiddenException when user lacks required capability', async () => {
         mockRequest.user = createMockUser({ capabilities: ['basic'] });
         mockReflector.getAllAndOverride
           .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
@@ -231,23 +232,23 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValueOnce('advanced_analytics') // REQUIRE_CAPABILITY_KEY
           .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-        expect(() => guard.canActivate(mockContext)).toThrow(
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(
           new ForbiddenException("Your organization does not have the 'advanced_analytics' capability"),
         );
       });
     });
 
     describe('organization type access', () => {
-      it('should return true when no org type is required', () => {
+      it('should return true when no org type is required', async () => {
         mockRequest.user = createMockUser();
         mockReflector.getAllAndOverride.mockReturnValue(undefined);
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should return true when user org type matches required types', () => {
+      it('should return true when user org type matches required types', async () => {
         mockRequest.user = createMockUser({
           organization: {
             id: 'org-1',
@@ -261,16 +262,17 @@ describe('FeatureAccessGuard', () => {
           },
         });
         mockReflector.getAllAndOverride
-          .mockReturnValue(undefined) // no feature required
-          .mockReturnValue(undefined) // no capability required
-          .mockReturnValue(['FARM_OPERATION', 'INTEGRATED_FARM']); // required org types
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_FEATURE_KEY
+          .mockReturnValueOnce(undefined) // REQUIRE_CAPABILITY_KEY
+          .mockReturnValueOnce(['FARM_OPERATION', 'INTEGRATED_FARM']); // REQUIRE_ORG_TYPE_KEY
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should throw ForbiddenException when user org type does not match required types', () => {
+      it('should throw ForbiddenException when user org type does not match required types', async () => {
         mockRequest.user = createMockUser({
           organization: {
             id: 'org-1',
@@ -289,14 +291,14 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValueOnce(undefined) // REQUIRE_CAPABILITY_KEY
           .mockReturnValueOnce(['FARM_OPERATION', 'INTEGRATED_FARM']); // REQUIRE_ORG_TYPE_KEY
 
-        expect(() => guard.canActivate(mockContext)).toThrow(
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(
           new ForbiddenException('This resource is only available to FARM_OPERATION, INTEGRATED_FARM organizations'),
         );
       });
     });
 
     describe('combined requirements', () => {
-      it('should pass when all requirements are met', () => {
+      it('should pass when all requirements are met', async () => {
         mockRequest.user = createMockUser({
           capabilities: ['advanced_analytics'],
           organization: {
@@ -311,16 +313,17 @@ describe('FeatureAccessGuard', () => {
           },
         });
         mockReflector.getAllAndOverride
-          .mockReturnValueOnce('analytics') // required feature
-          .mockReturnValueOnce('advanced_analytics') // required capability
-          .mockReturnValueOnce(['INTEGRATED_FARM']); // required org type
+          .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
+          .mockReturnValueOnce('analytics') // REQUIRE_FEATURE_KEY
+          .mockReturnValueOnce('advanced_analytics') // REQUIRE_CAPABILITY_KEY
+          .mockReturnValueOnce(['INTEGRATED_FARM']); // REQUIRE_ORG_TYPE_KEY
 
-        const result = guard.canActivate(mockContext);
+        const result = await guard.canActivate(mockContext);
 
         expect(result).toBe(true);
       });
 
-      it('should fail when any requirement is not met', () => {
+      it('should fail when any requirement is not met', async () => {
         mockRequest.user = createMockUser({
           capabilities: ['basic'], // missing advanced_analytics
           organization: {
@@ -340,7 +343,7 @@ describe('FeatureAccessGuard', () => {
           .mockReturnValueOnce('advanced_analytics') // REQUIRE_CAPABILITY_KEY
           .mockReturnValueOnce(['INTEGRATED_FARM']); // REQUIRE_ORG_TYPE_KEY
 
-        expect(() => guard.canActivate(mockContext)).toThrow(
+        await expect(guard.canActivate(mockContext)).rejects.toThrow(
           new ForbiddenException("Your organization does not have the 'advanced_analytics' capability"),
         );
       });
@@ -348,7 +351,7 @@ describe('FeatureAccessGuard', () => {
   });
 
   describe('edge cases', () => {
-    it('should handle empty capabilities array', () => {
+    it('should handle empty capabilities array', async () => {
       mockRequest.user = createMockUser({ capabilities: [] });
       mockReflector.getAllAndOverride
         .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
@@ -356,12 +359,12 @@ describe('FeatureAccessGuard', () => {
         .mockReturnValueOnce('basic') // REQUIRE_CAPABILITY_KEY
         .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-      expect(() => guard.canActivate(mockContext)).toThrow(
+      await expect(guard.canActivate(mockContext)).rejects.toThrow(
         new ForbiddenException("Your organization does not have the 'basic' capability"),
       );
     });
 
-    it('should handle undefined organization', () => {
+    it('should handle undefined organization', async () => {
       mockRequest.user = createMockUser({ organization: undefined });
       mockReflector.getAllAndOverride
         .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
@@ -369,10 +372,10 @@ describe('FeatureAccessGuard', () => {
         .mockReturnValue(undefined) // REQUIRE_CAPABILITY_KEY
         .mockReturnValue(undefined); // REQUIRE_ORG_TYPE_KEY
 
-      expect(() => guard.canActivate(mockContext)).toThrow();
+      await expect(guard.canActivate(mockContext)).rejects.toThrow();
     });
 
-    it('should handle empty required org types array', () => {
+    it('should handle empty required org types array', async () => {
       mockRequest.user = createMockUser();
       mockReflector.getAllAndOverride
         .mockReturnValueOnce(undefined) // IS_PUBLIC_KEY
@@ -380,7 +383,7 @@ describe('FeatureAccessGuard', () => {
         .mockReturnValueOnce(undefined) // REQUIRE_CAPABILITY_KEY
         .mockReturnValueOnce([]); // REQUIRE_ORG_TYPE_KEY - empty array
 
-      const result = guard.canActivate(mockContext);
+      const result = await guard.canActivate(mockContext);
 
       expect(result).toBe(true);
     });
