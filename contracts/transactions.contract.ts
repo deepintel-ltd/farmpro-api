@@ -28,7 +28,6 @@ export const TransactionSchema = z.object({
   organizationId: z.string().cuid(),
   orderId: z.string().cuid().optional(),
   farmId: z.string().cuid().optional(),
-  activityId: z.string().cuid().optional(),
   type: TransactionTypeSchema,
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
@@ -38,8 +37,7 @@ export const TransactionSchema = z.object({
   dueDate: z.string().datetime().optional(),
   paidDate: z.string().datetime().optional(),
   metadata: z.record(z.any()).optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
+  createdAt: z.string().datetime()
 });
 
 // =============================================================================
@@ -56,7 +54,6 @@ export const CreateTransactionRequestSchema = z.object({
       description: z.string().min(1).max(500),
       orderId: z.string().cuid().optional(),
       farmId: z.string().cuid().optional(),
-      activityId: z.string().cuid().optional(),
       dueDate: z.string().datetime().optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -81,7 +78,6 @@ export const TransactionFiltersSchema = z.object({
   status: TransactionStatusSchema.optional(),
   farmId: z.string().cuid().optional(),
   orderId: z.string().cuid().optional(),
-  activityId: z.string().cuid().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   minAmount: z.number().positive().optional(),
@@ -168,24 +164,6 @@ export const transactionsContract = c.router({
     summary: 'Update transaction'
   },
 
-  // List transactions with filters
-  listTransactions: {
-    method: 'GET',
-    path: '/transactions',
-    responses: {
-      200: z.object({
-        data: z.array(TransactionSchema),
-        meta: PaginationMetaSchema
-      }),
-      400: JsonApiErrorResponseSchema,
-      401: JsonApiErrorResponseSchema,
-      403: JsonApiErrorResponseSchema,
-      500: JsonApiErrorResponseSchema
-    },
-    query: TransactionFiltersSchema,
-    summary: 'List transactions with filters'
-  },
-
   // Get transaction summary/analytics
   getTransactionSummary: {
     method: 'GET',
@@ -205,6 +183,24 @@ export const transactionsContract = c.router({
       type: TransactionTypeSchema.optional()
     }),
     summary: 'Get transaction summary and analytics'
+  },
+
+  // List transactions with filters
+  listTransactions: {
+    method: 'GET',
+    path: '/transactions',
+    responses: {
+      200: z.object({
+        data: z.array(TransactionSchema),
+        meta: PaginationMetaSchema
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    query: TransactionFiltersSchema,
+    summary: 'List transactions with filters'
   },
 
   // Mark transaction as paid

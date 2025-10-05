@@ -2472,71 +2472,406 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
 }
 
 async function initializeSampleTransactions(organizations: any[], farms: any[], orders: any[]) {
-  console.log('💰 Initializing sample transactions...');
+  console.log('💰 Initializing comprehensive sample transactions...');
   
   const transactions = [];
   const farmOrg = organizations.find(o => o.type === 'FARM_OPERATION');
   const farm = farms[0];
+  const secondFarm = farms[1];
   
   if (!farmOrg || !farm) {
     console.log('⚠️  Skipping transactions - missing organization or farm');
     return [];
   }
 
+  // Comprehensive transaction data covering all types and scenarios
   const transactionData = [
+    // =============================================================================
+    // FARM REVENUE TRANSACTIONS
+    // =============================================================================
     {
       type: 'FARM_REVENUE',
       amount: 4250,
-      description: 'Wheat sale revenue',
+      description: 'Wheat sale revenue - Premium quality harvest',
       orderId: orders[0]?.id,
       farmId: farm.id,
       status: 'COMPLETED',
-      paidDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+      paidDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        commodity: 'wheat',
+        quantity: 85,
+        quality: 'premium',
+        buyer: 'GrainCo Ltd'
+      }
     },
     {
       type: 'FARM_REVENUE',
       amount: 2400,
-      description: 'Corn sale revenue',
+      description: 'Corn sale revenue - Standard grade',
       orderId: orders[1]?.id,
       farmId: farm.id,
       status: 'PENDING',
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days from now
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      metadata: {
+        commodity: 'corn',
+        quantity: 60,
+        quality: 'standard',
+        buyer: 'FeedMill Inc'
+      }
     },
+    {
+      type: 'FARM_REVENUE',
+      amount: 1800,
+      description: 'Soybean sale revenue - Organic certified',
+      orderId: orders[2]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
+      metadata: {
+        commodity: 'soybean',
+        quantity: 45,
+        quality: 'organic',
+        certification: 'USDA Organic'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 3200,
+      description: 'Rice sale revenue - Basmati variety',
+      farmId: secondFarm?.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      metadata: {
+        commodity: 'rice',
+        variety: 'basmati',
+        quantity: 80,
+        quality: 'premium'
+      }
+    },
+
+    // =============================================================================
+    // FARM EXPENSE TRANSACTIONS
+    // =============================================================================
     {
       type: 'FARM_EXPENSE',
       amount: 1500,
-      description: 'Equipment maintenance',
+      description: 'Equipment maintenance - Tractor service',
       farmId: farm.id,
       status: 'COMPLETED',
-      paidDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+      paidDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      metadata: {
+        category: 'equipment',
+        equipment: 'tractor',
+        serviceType: 'routine_maintenance',
+        vendor: 'ABC Equipment Co.',
+        receipt: 'REC-001-2024'
+      }
     },
     {
       type: 'FARM_EXPENSE',
       amount: 800,
-      description: 'Irrigation costs',
+      description: 'Irrigation system costs - Water pump repair',
       farmId: farm.id,
       status: 'COMPLETED',
-      paidDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+      paidDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      metadata: {
+        category: 'irrigation',
+        equipment: 'water_pump',
+        serviceType: 'repair',
+        vendor: 'Irrigation Solutions Ltd'
+      }
     },
     {
       type: 'FARM_EXPENSE',
       amount: 1200,
-      description: 'Pest control materials',
+      description: 'Pest control materials - Organic pesticides',
       farmId: farm.id,
       status: 'PENDING',
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 1 week from now
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
+      metadata: {
+        category: 'pest_control',
+        material: 'organic_pesticides',
+        quantity: 50,
+        unit: 'liters',
+        vendor: 'EcoPest Solutions'
+      }
     },
     {
       type: 'FARM_EXPENSE',
       amount: 600,
-      description: 'Soil testing lab fees',
+      description: 'Soil testing lab fees - Comprehensive analysis',
       farmId: farm.id,
       status: 'COMPLETED',
-      paidDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+      paidDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      metadata: {
+        category: 'testing',
+        service: 'soil_analysis',
+        lab: 'AgriLab Services',
+        tests: ['pH', 'nutrients', 'organic_matter', 'microbial_activity']
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 2200,
+      description: 'Fertilizer purchase - NPK blend',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+      metadata: {
+        category: 'fertilizer',
+        type: 'NPK_blend',
+        quantity: 100,
+        unit: 'kg',
+        vendor: 'AgriChem Supplies',
+        receipt: 'REC-002-2024'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 950,
+      description: 'Labor costs - Seasonal workers',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      metadata: {
+        category: 'labor',
+        type: 'seasonal_workers',
+        workers: 5,
+        hours: 40,
+        rate: 4.75
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1800,
+      description: 'Fuel costs - Diesel for machinery',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
+      metadata: {
+        category: 'fuel',
+        type: 'diesel',
+        quantity: 200,
+        unit: 'liters',
+        vendor: 'FuelCo Station',
+        receipt: 'REC-003-2024'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 750,
+      description: 'Seeds purchase - Hybrid corn seeds',
+      farmId: secondFarm?.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      metadata: {
+        category: 'seeds',
+        type: 'hybrid_corn',
+        quantity: 25,
+        unit: 'kg',
+        vendor: 'SeedMaster Corp'
+      }
+    },
+
+    // =============================================================================
+    // ORDER PAYMENT TRANSACTIONS
+    // =============================================================================
+    {
+      type: 'ORDER_PAYMENT',
+      amount: 3000,
+      description: 'Payment for wheat order - Bank transfer',
+      orderId: orders[0]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        paymentMethod: 'bank_transfer',
+        reference: 'BT-2024-001',
+        bank: 'First Bank',
+        account: '****1234'
+      }
+    },
+    {
+      type: 'ORDER_PAYMENT',
+      amount: 2400,
+      description: 'Payment for corn order - Mobile money',
+      orderId: orders[1]?.id,
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      metadata: {
+        paymentMethod: 'mobile_money',
+        provider: 'MTN Mobile Money',
+        phone: '+2348012345678'
+      }
+    },
+    {
+      type: 'ORDER_PAYMENT',
+      amount: 1800,
+      description: 'Payment for soybean order - Cash on delivery',
+      orderId: orders[2]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
+      metadata: {
+        paymentMethod: 'cash_on_delivery',
+        deliveryDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        driver: 'John Doe'
+      }
+    },
+
+    // =============================================================================
+    // PLATFORM FEE TRANSACTIONS
+    // =============================================================================
+    {
+      type: 'PLATFORM_FEE',
+      amount: 150,
+      description: 'Platform commission fee - Wheat sale',
+      orderId: orders[0]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        feeType: 'commission',
+        rate: 0.035, // 3.5%
+        baseAmount: 4250,
+        calculation: '4250 * 0.035 = 148.75'
+      }
+    },
+    {
+      type: 'PLATFORM_FEE',
+      amount: 84,
+      description: 'Platform commission fee - Corn sale',
+      orderId: orders[1]?.id,
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      metadata: {
+        feeType: 'commission',
+        rate: 0.035, // 3.5%
+        baseAmount: 2400,
+        calculation: '2400 * 0.035 = 84'
+      }
+    },
+    {
+      type: 'PLATFORM_FEE',
+      amount: 63,
+      description: 'Platform commission fee - Soybean sale',
+      orderId: orders[2]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
+      metadata: {
+        feeType: 'commission',
+        rate: 0.035, // 3.5%
+        baseAmount: 1800,
+        calculation: '1800 * 0.035 = 63'
+      }
+    },
+    {
+      type: 'PLATFORM_FEE',
+      amount: 25,
+      description: 'Platform listing fee - Premium listing',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+      metadata: {
+        feeType: 'listing',
+        listingType: 'premium',
+        duration: '30_days',
+        features: ['priority_placement', 'analytics', 'promotion']
+      }
+    },
+
+    // =============================================================================
+    // REFUND TRANSACTIONS
+    // =============================================================================
+    {
+      type: 'REFUND',
+      amount: 500,
+      description: 'Refund for cancelled order - Quality issue',
+      orderId: orders[3]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
+      metadata: {
+        reason: 'quality_issue',
+        originalAmount: 500,
+        refundMethod: 'bank_transfer',
+        reference: 'REF-2024-001',
+        approvedBy: 'admin@farmpro.com'
+      }
+    },
+    {
+      type: 'REFUND',
+      amount: 200,
+      description: 'Partial refund - Delivery delay compensation',
+      orderId: orders[4]?.id,
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+      metadata: {
+        reason: 'delivery_delay',
+        originalAmount: 1000,
+        refundPercentage: 0.2,
+        delayDays: 3,
+        compensationType: 'partial_refund'
+      }
+    },
+
+    // =============================================================================
+    // FAILED TRANSACTIONS (for testing error scenarios)
+    // =============================================================================
+    {
+      type: 'FARM_EXPENSE',
+      amount: 300,
+      description: 'Failed payment - Insufficient funds',
+      farmId: farm.id,
+      status: 'FAILED',
+      metadata: {
+        failureReason: 'insufficient_funds',
+        attemptDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+        retryCount: 3,
+        lastAttempt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    },
+    {
+      type: 'ORDER_PAYMENT',
+      amount: 1500,
+      description: 'Failed payment - Network timeout',
+      orderId: orders[5]?.id,
+      farmId: farm.id,
+      status: 'FAILED',
+      metadata: {
+        failureReason: 'network_timeout',
+        attemptDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        retryCount: 2,
+        lastAttempt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    },
+
+    // =============================================================================
+    // CANCELLED TRANSACTIONS
+    // =============================================================================
+    {
+      type: 'FARM_EXPENSE',
+      amount: 400,
+      description: 'Cancelled order - Customer request',
+      farmId: farm.id,
+      status: 'CANCELLED',
+      metadata: {
+        cancellationReason: 'customer_request',
+        cancelledAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+        cancelledBy: 'customer@example.com',
+        refundIssued: false
+      }
     }
   ];
 
+  // Create transactions with proper reference generation
   for (const transactionInfo of transactionData) {
+    const reference = generateTransactionReference(transactionInfo.type);
+    
     const transaction = await prisma.transaction.create({
       data: {
         organizationId: farmOrg.id,
@@ -2549,15 +2884,38 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
         description: transactionInfo.description,
         dueDate: transactionInfo.dueDate,
         paidDate: transactionInfo.paidDate,
-        reference: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        reference: reference,
+        metadata: transactionInfo.metadata || {}
       }
     });
 
     transactions.push(transaction);
   }
 
-  console.log(`✅ Created ${transactions.length} sample transactions`);
+  console.log(`✅ Created ${transactions.length} comprehensive sample transactions`);
+  console.log(`   - Farm Revenue: ${transactions.filter(t => t.type === 'FARM_REVENUE').length}`);
+  console.log(`   - Farm Expenses: ${transactions.filter(t => t.type === 'FARM_EXPENSE').length}`);
+  console.log(`   - Order Payments: ${transactions.filter(t => t.type === 'ORDER_PAYMENT').length}`);
+  console.log(`   - Platform Fees: ${transactions.filter(t => t.type === 'PLATFORM_FEE').length}`);
+  console.log(`   - Refunds: ${transactions.filter(t => t.type === 'REFUND').length}`);
+  console.log(`   - Failed: ${transactions.filter(t => t.status === 'FAILED').length}`);
+  console.log(`   - Cancelled: ${transactions.filter(t => t.status === 'CANCELLED').length}`);
+  
   return transactions;
+}
+
+// Helper function to generate proper transaction references
+function generateTransactionReference(type: string): string {
+  const prefix = type === 'FARM_REVENUE' ? 'REV' :
+                 type === 'FARM_EXPENSE' ? 'EXP' :
+                 type === 'ORDER_PAYMENT' ? 'PAY' :
+                 type === 'PLATFORM_FEE' ? 'FEE' :
+                 type === 'REFUND' ? 'REF' : 'TXN';
+  
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substr(2, 5);
+  
+  return `${prefix}-${timestamp}-${random}`.toUpperCase();
 }
 
 // =============================================================================

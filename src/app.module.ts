@@ -23,6 +23,7 @@ import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 import { BillingModule } from '@/billing/billing.module';
 import { WeatherModule } from '@/weather/weather.module';
 import { UsersModule } from '@/users/users.module';
+import { TransactionsModule } from '@/transactions/transactions.module';
 import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware';
 
 @Module({
@@ -50,6 +51,7 @@ import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware
     BillingModule,
     WeatherModule,
     UsersModule,
+    TransactionsModule,
   ],
   controllers: [],
   providers: [

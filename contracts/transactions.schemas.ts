@@ -24,7 +24,6 @@ export const TransactionSchema = z.object({
   organizationId: z.string().cuid(),
   orderId: z.string().cuid().optional(),
   farmId: z.string().cuid().optional(),
-  activityId: z.string().cuid().optional(),
   type: TransactionTypeSchema,
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
@@ -34,8 +33,7 @@ export const TransactionSchema = z.object({
   dueDate: z.string().datetime().optional(),
   paidDate: z.string().datetime().optional(),
   metadata: z.record(z.any()).optional(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
+  createdAt: z.string().datetime()
 });
 
 // =============================================================================
@@ -52,7 +50,6 @@ export const CreateTransactionRequestSchema = z.object({
       description: z.string().min(1).max(500),
       orderId: z.string().cuid().optional(),
       farmId: z.string().cuid().optional(),
-      activityId: z.string().cuid().optional(),
       dueDate: z.string().datetime().optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -77,7 +74,6 @@ export const TransactionFiltersSchema = z.object({
   status: TransactionStatusSchema.optional(),
   farmId: z.string().cuid().optional(),
   orderId: z.string().cuid().optional(),
-  activityId: z.string().cuid().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   minAmount: z.number().positive().optional(),
