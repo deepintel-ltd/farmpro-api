@@ -24,6 +24,7 @@ export const TransactionSchema = z.object({
   organizationId: z.string().cuid(),
   orderId: z.string().cuid().optional(),
   farmId: z.string().cuid().optional(),
+  categoryId: z.string().cuid().optional(),
   type: TransactionTypeSchema,
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
@@ -32,6 +33,9 @@ export const TransactionSchema = z.object({
   reference: z.string().optional(),
   dueDate: z.string().datetime().optional(),
   paidDate: z.string().datetime().optional(),
+  requiresApproval: z.boolean().default(false),
+  approvedBy: z.string().cuid().optional(),
+  approvedAt: z.string().datetime().optional(),
   metadata: z.record(z.any()).optional(),
   createdAt: z.string().datetime()
 });
@@ -50,7 +54,9 @@ export const CreateTransactionRequestSchema = z.object({
       description: z.string().min(1).max(500),
       orderId: z.string().cuid().optional(),
       farmId: z.string().cuid().optional(),
+      categoryId: z.string().cuid().optional(),
       dueDate: z.string().datetime().optional(),
+      requiresApproval: z.boolean().default(false),
       metadata: z.record(z.any()).optional()
     })
   })
@@ -63,6 +69,7 @@ export const UpdateTransactionRequestSchema = z.object({
       status: TransactionStatusSchema.optional(),
       amount: z.number().positive().optional(),
       description: z.string().min(1).max(500).optional(),
+      categoryId: z.string().cuid().optional(),
       paidDate: z.string().datetime().optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -74,6 +81,8 @@ export const TransactionFiltersSchema = z.object({
   status: TransactionStatusSchema.optional(),
   farmId: z.string().cuid().optional(),
   orderId: z.string().cuid().optional(),
+  categoryId: z.string().cuid().optional(),
+  requiresApproval: z.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   minAmount: z.number().positive().optional(),
@@ -92,6 +101,123 @@ export const TransactionSummarySchema = z.object({
 });
 
 // =============================================================================
+// Bulk Operations Schemas
+// =============================================================================
+
+export const BulkUpdateRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('bulk-transactions'),
+    attributes: z.object({
+      transactionIds: z.array(z.string().cuid()),
+      updates: z.object({
+        status: TransactionStatusSchema.optional(),
+        description: z.string().min(1).max(500).optional(),
+        metadata: z.record(z.any()).optional()
+      })
+    })
+  })
+});
+
+export const BulkDeleteRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('bulk-transactions'),
+    attributes: z.object({
+      transactionIds: z.array(z.string().cuid()),
+      reason: z.string().min(1).max(200).optional()
+    })
+  })
+});
+
+export const BulkMarkPaidRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('bulk-transactions'),
+    attributes: z.object({
+      transactionIds: z.array(z.string().cuid()),
+      paidDate: z.string().datetime().optional(),
+      reference: z.string().optional(),
+      metadata: z.record(z.any()).optional()
+    })
+  })
+});
+
+// =============================================================================
+// Transaction Categories Schemas
+// =============================================================================
+
+export const TransactionCategorySchema = z.object({
+  id: z.string().cuid(),
+  organizationId: z.string().cuid(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+  isDefault: z.boolean().default(false),
+  createdAt: z.string().datetime()
+});
+
+export const CreateCategoryRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-categories'),
+    attributes: z.object({
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      isDefault: z.boolean().default(false)
+    })
+  })
+});
+
+export const UpdateCategoryRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-categories'),
+    attributes: z.object({
+      name: z.string().min(1).max(100).optional(),
+      description: z.string().max(500).optional(),
+      color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      isDefault: z.boolean().optional()
+    })
+  })
+});
+
+// =============================================================================
+// Approval Workflow Schemas
+// =============================================================================
+
+export const ApprovalRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-approvals'),
+    attributes: z.object({
+      approvedBy: z.string().cuid(),
+      approvalNotes: z.string().max(500).optional(),
+      metadata: z.record(z.any()).optional()
+    })
+  })
+});
+
+export const RejectionRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-approvals'),
+    attributes: z.object({
+      rejectedBy: z.string().cuid(),
+      rejectionReason: z.string().min(1).max(500),
+      metadata: z.record(z.any()).optional()
+    })
+  })
+});
+
+export const PendingApprovalSchema = z.object({
+  id: z.string().cuid(),
+  organizationId: z.string().cuid(),
+  transactionId: z.string().cuid(),
+  requestedBy: z.string().cuid(),
+  requestedAt: z.string().datetime(),
+  amount: z.number().positive(),
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']),
+  description: z.string(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
+  metadata: z.record(z.any()).optional()
+});
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 
@@ -102,3 +228,18 @@ export type CreateTransactionRequest = z.infer<typeof CreateTransactionRequestSc
 export type UpdateTransactionRequest = z.infer<typeof UpdateTransactionRequestSchema>;
 export type TransactionFilters = z.infer<typeof TransactionFiltersSchema>;
 export type TransactionSummary = z.infer<typeof TransactionSummarySchema>;
+
+// Bulk Operations Types
+export type BulkUpdateRequest = z.infer<typeof BulkUpdateRequestSchema>;
+export type BulkDeleteRequest = z.infer<typeof BulkDeleteRequestSchema>;
+export type BulkMarkPaidRequest = z.infer<typeof BulkMarkPaidRequestSchema>;
+
+// Transaction Categories Types
+export type TransactionCategory = z.infer<typeof TransactionCategorySchema>;
+export type CreateCategoryRequest = z.infer<typeof CreateCategoryRequestSchema>;
+export type UpdateCategoryRequest = z.infer<typeof UpdateCategoryRequestSchema>;
+
+// Approval Workflow Types
+export type ApprovalRequest = z.infer<typeof ApprovalRequestSchema>;
+export type RejectionRequest = z.infer<typeof RejectionRequestSchema>;
+export type PendingApproval = z.infer<typeof PendingApprovalSchema>;

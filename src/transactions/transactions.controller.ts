@@ -151,4 +151,217 @@ export class TransactionsController {
       }
     });
   }
+
+  // =============================================================================
+  // Bulk Operations
+  // =============================================================================
+
+  @TsRestHandler(transactionsContract.bulkUpdateTransactions)
+  public bulkUpdateTransactions(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.bulkUpdateTransactions, async ({ body }) => {
+      try {
+        const result = await this.transactionsService.bulkUpdateTransactions(user, body);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid bulk update data or transaction access denied',
+          badRequestCode: 'INVALID_BULK_UPDATE_DATA',
+          internalErrorMessage: 'Failed to bulk update transactions',
+          internalErrorCode: 'BULK_UPDATE_TRANSACTIONS_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.bulkDeleteTransactions)
+  public bulkDeleteTransactions(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.bulkDeleteTransactions, async ({ body }) => {
+      try {
+        const result = await this.transactionsService.bulkDeleteTransactions(user, body);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid bulk delete data or transaction access denied',
+          badRequestCode: 'INVALID_BULK_DELETE_DATA',
+          internalErrorMessage: 'Failed to bulk delete transactions',
+          internalErrorCode: 'BULK_DELETE_TRANSACTIONS_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.bulkMarkAsPaid)
+  public bulkMarkAsPaid(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.bulkMarkAsPaid, async ({ body }) => {
+      try {
+        const result = await this.transactionsService.bulkMarkAsPaid(user, body);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid bulk mark as paid data or transaction access denied',
+          badRequestCode: 'INVALID_BULK_MARK_PAID_DATA',
+          internalErrorMessage: 'Failed to bulk mark transactions as paid',
+          internalErrorCode: 'BULK_MARK_AS_PAID_FAILED',
+        });
+      }
+    });
+  }
+
+  // =============================================================================
+  // Transaction Categories
+  // =============================================================================
+
+  @TsRestHandler(transactionsContract.getTransactionCategories)
+  public getTransactionCategories(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.getTransactionCategories, async () => {
+      try {
+        const result = await this.transactionsService.getTransactionCategories(user);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          internalErrorMessage: 'Failed to get transaction categories',
+          internalErrorCode: 'GET_TRANSACTION_CATEGORIES_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.createTransactionCategory)
+  public createTransactionCategory(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.createTransactionCategory, async ({ body }) => {
+      try {
+        const result = await this.transactionsService.createTransactionCategory(user, body);
+        return { status: 201 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid category data or name already exists',
+          badRequestCode: 'INVALID_CATEGORY_DATA',
+          internalErrorMessage: 'Failed to create transaction category',
+          internalErrorCode: 'CREATE_TRANSACTION_CATEGORY_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.updateTransactionCategory)
+  public updateTransactionCategory(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.updateTransactionCategory, async ({ params, body }) => {
+      try {
+        const result = await this.transactionsService.updateTransactionCategory(user, params.id, body);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Transaction category not found',
+          notFoundCode: 'TRANSACTION_CATEGORY_NOT_FOUND',
+          badRequestMessage: 'Invalid category update data or name already exists',
+          badRequestCode: 'INVALID_CATEGORY_UPDATE_DATA',
+          internalErrorMessage: 'Failed to update transaction category',
+          internalErrorCode: 'UPDATE_TRANSACTION_CATEGORY_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.deleteTransactionCategory)
+  public deleteTransactionCategory(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.deleteTransactionCategory, async ({ params }) => {
+      try {
+        const result = await this.transactionsService.deleteTransactionCategory(user, params.id);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Transaction category not found',
+          notFoundCode: 'TRANSACTION_CATEGORY_NOT_FOUND',
+          badRequestMessage: 'Cannot delete category that is in use by transactions',
+          badRequestCode: 'CATEGORY_IN_USE',
+          internalErrorMessage: 'Failed to delete transaction category',
+          internalErrorCode: 'DELETE_TRANSACTION_CATEGORY_FAILED',
+        });
+      }
+    });
+  }
+
+  // =============================================================================
+  // Approval Workflow
+  // =============================================================================
+
+  @TsRestHandler(transactionsContract.approveTransaction)
+  public approveTransaction(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.approveTransaction, async ({ params, body }) => {
+      try {
+        const result = await this.transactionsService.approveTransaction(user, params.id, body);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Transaction not found',
+          notFoundCode: 'TRANSACTION_NOT_FOUND',
+          badRequestMessage: 'Transaction does not require approval or is already approved',
+          badRequestCode: 'INVALID_APPROVAL_STATE',
+          internalErrorMessage: 'Failed to approve transaction',
+          internalErrorCode: 'APPROVE_TRANSACTION_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.rejectTransaction)
+  public rejectTransaction(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.rejectTransaction, async ({ params, body }) => {
+      try {
+        const result = await this.transactionsService.rejectTransaction(user, params.id, body);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Transaction not found',
+          notFoundCode: 'TRANSACTION_NOT_FOUND',
+          badRequestMessage: 'Transaction does not require approval or is already approved',
+          badRequestCode: 'INVALID_REJECTION_STATE',
+          internalErrorMessage: 'Failed to reject transaction',
+          internalErrorCode: 'REJECT_TRANSACTION_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.getPendingApprovals)
+  public getPendingApprovals(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.getPendingApprovals, async ({ query }) => {
+      try {
+        const result = await this.transactionsService.getPendingApprovals(user, {
+          page: query.page || 1,
+          limit: query.limit || 20,
+          priority: query.priority,
+          farmId: query.farmId
+        });
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid query parameters',
+          badRequestCode: 'INVALID_QUERY_PARAMETERS',
+          internalErrorMessage: 'Failed to get pending approvals',
+          internalErrorCode: 'GET_PENDING_APPROVALS_FAILED',
+        });
+      }
+    });
+  }
 }

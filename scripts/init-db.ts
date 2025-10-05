@@ -340,6 +340,7 @@ const SAMPLE_ORGANIZATIONS = [
     plan: 'PRO', // Updated to proper enum value
     maxUsers: 25,
     maxFarms: 3,
+    currency: 'USD', // US farm uses USD
     // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
   },
@@ -359,6 +360,7 @@ const SAMPLE_ORGANIZATIONS = [
     plan: 'ENTERPRISE', // Updated to proper enum value
     maxUsers: 100,
     maxFarms: 0,
+    currency: 'USD', // International trader uses USD
     // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
   },
@@ -378,6 +380,7 @@ const SAMPLE_ORGANIZATIONS = [
     plan: 'BASIC', // Updated to proper enum value
     maxUsers: 50,
     maxFarms: 0,
+    currency: 'USD', // US logistics uses USD
     // Features will be set by PlanFeatureMapper
     allowCustomRoles: false
   },
@@ -397,6 +400,7 @@ const SAMPLE_ORGANIZATIONS = [
     plan: 'ENTERPRISE', // Updated to proper enum value
     maxUsers: 200,
     maxFarms: 10,
+    currency: 'USD', // Large corporate farm uses USD
     // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
   }
@@ -2426,7 +2430,8 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
         farmId: orderInfo.farmId,
         deliveryAddress: orderInfo.deliveryAddress,
         totalAmount: orderInfo.totalPrice,
-        currency: 'NGN'
+        currency: orderInfo.buyerOrgId === farmOrg.id ? farmOrg.currency : 
+                  orderInfo.supplierOrgId === farmOrg.id ? farmOrg.currency : 'USD'
       });
 
       // Create order item
@@ -2865,6 +2870,184 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
         cancelledBy: 'customer@example.com',
         refundIssued: false
       }
+    },
+
+    // =============================================================================
+    // ADDITIONAL TRANSACTIONS TO FILL GAPS
+    // =============================================================================
+    
+    // More Seasonal Revenue
+    {
+      type: 'FARM_REVENUE',
+      amount: 5500,
+      description: 'Bulk tomato sale - Premium greenhouse harvest',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 2 weeks ago
+      metadata: {
+        commodity: 'tomato',
+        quantity: 110,
+        quality: 'premium',
+        buyer: 'FreshMarket Chain',
+        season: 'greenhouse',
+        variety: 'cherry_tomatoes'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 3200,
+      description: 'Potato sale - Organic certified batch',
+      farmId: secondFarm?.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      metadata: {
+        commodity: 'potato',
+        quantity: 80,
+        quality: 'organic',
+        certification: 'USDA Organic',
+        buyer: 'Organic Foods Ltd',
+        variety: 'russet'
+      }
+    },
+
+    // Utility and Recurring Expenses
+    {
+      type: 'FARM_EXPENSE',
+      amount: 450,
+      description: 'Electricity bill - Farm operations',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
+      metadata: {
+        category: 'utilities',
+        type: 'electricity',
+        period: 'monthly',
+        usage: '1250_kwh',
+        rate: 0.36,
+        vendor: 'PowerGrid Utilities',
+        billNumber: 'PG-2024-001'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 280,
+      description: 'Water bill - Irrigation system',
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+      metadata: {
+        category: 'utilities',
+        type: 'water',
+        period: 'monthly',
+        usage: '8500_gallons',
+        rate: 0.033,
+        vendor: 'AquaFlow Water Co',
+        billNumber: 'AF-2024-002'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 350,
+      description: 'Insurance premium - Farm equipment coverage',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), // 20 days ago
+      metadata: {
+        category: 'insurance',
+        type: 'equipment_coverage',
+        period: 'quarterly',
+        coverage: 'tractor_irrigation_machinery',
+        provider: 'FarmGuard Insurance',
+        policyNumber: 'FG-2024-001'
+      }
+    },
+
+    // International Order Payment
+    {
+      type: 'ORDER_PAYMENT',
+      amount: 8500,
+      description: 'International payment - Export order to Europe',
+      orderId: orders[6]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12 days ago
+      metadata: {
+        paymentMethod: 'international_wire',
+        originalCurrency: 'EUR',
+        originalAmount: 7225, // 8500 USD * 0.85 EUR/USD
+        exchangeRate: 0.85,
+        bank: 'International Bank',
+        swiftCode: 'INTLGB2L',
+        reference: 'INT-2024-001',
+        destination: 'Netherlands'
+      }
+    },
+
+    // Subscription and Premium Services
+    {
+      type: 'PLATFORM_FEE',
+      amount: 150,
+      description: 'Premium subscription - Advanced analytics',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), // 25 days ago
+      metadata: {
+        feeType: 'subscription',
+        plan: 'premium',
+        duration: 'monthly',
+        features: ['advanced_analytics', 'ai_insights', 'priority_support'],
+        autoRenew: true
+      }
+    },
+    {
+      type: 'PLATFORM_FEE',
+      amount: 75,
+      description: 'API access fee - Third-party integration',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000), // 18 days ago
+      metadata: {
+        feeType: 'api_access',
+        tier: 'standard',
+        requests: 10000,
+        period: 'monthly',
+        integration: 'weather_service'
+      }
+    },
+
+    // Historical Data for Analytics
+    {
+      type: 'FARM_REVENUE',
+      amount: 6800,
+      description: 'Historical wheat sale - Previous month',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
+      metadata: {
+        commodity: 'wheat',
+        quantity: 136,
+        quality: 'premium',
+        buyer: 'GrainCo Ltd',
+        season: 'winter_harvest',
+        historical: true
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1800,
+      description: 'Historical equipment purchase - Tractor maintenance',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000), // 50 days ago
+      metadata: {
+        category: 'equipment',
+        type: 'major_repair',
+        equipment: 'tractor',
+        serviceType: 'engine_overhaul',
+        vendor: 'HeavyMach Solutions',
+        warranty: '6_months',
+        historical: true
+      }
     }
   ];
 
@@ -2879,7 +3062,7 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
         farmId: transactionInfo.farmId,
         type: transactionInfo.type as any,
         amount: transactionInfo.amount,
-        currency: 'NGN',
+        currency: farmOrg.currency,
         status: transactionInfo.status as any,
         description: transactionInfo.description,
         dueDate: transactionInfo.dueDate,
@@ -2898,6 +3081,8 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
   console.log(`   - Order Payments: ${transactions.filter(t => t.type === 'ORDER_PAYMENT').length}`);
   console.log(`   - Platform Fees: ${transactions.filter(t => t.type === 'PLATFORM_FEE').length}`);
   console.log(`   - Refunds: ${transactions.filter(t => t.type === 'REFUND').length}`);
+  console.log(`   - Completed: ${transactions.filter(t => t.status === 'COMPLETED').length}`);
+  console.log(`   - Pending: ${transactions.filter(t => t.status === 'PENDING').length}`);
   console.log(`   - Failed: ${transactions.filter(t => t.status === 'FAILED').length}`);
   console.log(`   - Cancelled: ${transactions.filter(t => t.status === 'CANCELLED').length}`);
   
@@ -3572,7 +3757,7 @@ async function initializeDatabase() {
     console.log(`   • ${taskDemoData.length} comprehensive task scenarios created`);
     console.log(`   • ${inventory.length} comprehensive inventory items created`);
     console.log(`   • ${orders.length} comprehensive sample orders created`);
-    console.log(`   • ${transactions.length} sample transactions created`);
+    console.log(`   • ${transactions.length} comprehensive sample transactions created`);
     
     console.log('\n🔑 Sample Login Credentials:');
     SAMPLE_USERS.forEach(user => {
@@ -3593,7 +3778,7 @@ async function initializeDatabase() {
     console.log('   • 10+ comprehensive orders covering both BUY and SELL transactions across all order statuses');
     console.log('   • Orders with different statuses (PENDING, CONFIRMED, IN_TRANSIT, DELIVERED, CANCELLED) and payment terms');
     console.log('   • Detailed order terms, quality specifications, delivery tracking, and marketplace integration');
-    console.log('   • Financial transactions (revenue and expenses) with realistic cost allocations');
+    console.log('   • 31+ comprehensive financial transactions covering all types and statuses with realistic cost allocations');
     console.log('   • Complete activity lifecycle from planning to completion with realistic timelines');
     
   } catch (error) {

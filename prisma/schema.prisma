@@ -183,6 +183,7 @@ model Organization {
   roles             Role[]
   subscription      Subscription?
   transactions      Transaction[]
+  transactionCategories TransactionCategory[]
   users             User[]
 
   @@index([type])
@@ -621,6 +622,7 @@ model Transaction {
   organizationId String
   orderId        String?
   farmId         String?
+  categoryId     String?
   type           TransactionType
   amount         Decimal
   currency       Currency          @default(NGN)
@@ -629,16 +631,39 @@ model Transaction {
   reference      String?
   dueDate        DateTime?
   paidDate       DateTime?
+  requiresApproval Boolean         @default(false)
+  approvedBy     String?
+  approvedAt     DateTime?
   metadata       Json?
   createdAt      DateTime          @default(now())
   order          Order?            @relation(fields: [orderId], references: [id])
   organization   Organization      @relation(fields: [organizationId], references: [id])
+  category       TransactionCategory? @relation(fields: [categoryId], references: [id])
 
   @@index([organizationId, status])
   @@index([organizationId, type])
   @@index([organizationId, type, createdAt])
   @@index([farmId, type, createdAt])
+  @@index([categoryId])
+  @@index([requiresApproval])
   @@map("transactions")
+}
+
+model TransactionCategory {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  color          String?        @db.VarChar(7) // Hex color code
+  isDefault      Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@map("transaction_categories")
 }
 
 model SoilData {

@@ -1,3 +1,9 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- CreateEnum
+CREATE TYPE "public"."AuthProvider" AS ENUM ('LOCAL', 'GOOGLE', 'GITHUB');
+
 -- CreateEnum
 CREATE TYPE "public"."OrganizationType" AS ENUM ('FARM_OPERATION', 'COMMODITY_TRADER', 'LOGISTICS_PROVIDER', 'INTEGRATED_FARM');
 
@@ -8,7 +14,7 @@ CREATE TYPE "public"."CropStatus" AS ENUM ('PLANNED', 'PLANTED', 'GROWING', 'MAT
 CREATE TYPE "public"."ActivityType" AS ENUM ('LAND_PREP', 'PLANTING', 'FERTILIZING', 'IRRIGATION', 'PEST_CONTROL', 'HARVESTING', 'MAINTENANCE', 'MONITORING', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "public"."ActivityStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "public"."ActivityStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED', 'SCHEDULED');
 
 -- CreateEnum
 CREATE TYPE "public"."InventoryStatus" AS ENUM ('AVAILABLE', 'RESERVED', 'SOLD', 'CONSUMED', 'EXPIRED');
@@ -91,10 +97,12 @@ CREATE TABLE "public"."users" (
     "lastLoginAt" TIMESTAMP(3),
     "refreshTokenHash" TEXT,
     "refreshTokenExpiresAt" TIMESTAMP(3),
-    "organizationId" TEXT NOT NULL,
+    "organizationId" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "profileComplete" BOOLEAN NOT NULL DEFAULT true,
+    "authProvider" "public"."AuthProvider" DEFAULT 'LOCAL',
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -532,6 +540,7 @@ CREATE TABLE "public"."transactions" (
     "organizationId" TEXT NOT NULL,
     "orderId" TEXT,
     "farmId" TEXT,
+    "categoryId" TEXT,
     "type" "public"."TransactionType" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
@@ -540,10 +549,27 @@ CREATE TABLE "public"."transactions" (
     "reference" TEXT,
     "dueDate" TIMESTAMP(3),
     "paidDate" TIMESTAMP(3),
+    "requiresApproval" BOOLEAN NOT NULL DEFAULT false,
+    "approvedBy" TEXT,
+    "approvedAt" TIMESTAMP(3),
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "transactions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."transaction_categories" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "color" VARCHAR(7),
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "transaction_categories_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1062,6 +1088,9 @@ CREATE INDEX "farm_activities_farmId_scheduledAt_idx" ON "public"."farm_activiti
 CREATE INDEX "farm_activities_createdById_status_idx" ON "public"."farm_activities"("createdById", "status");
 
 -- CreateIndex
+CREATE INDEX "farm_activities_farmId_createdAt_idx" ON "public"."farm_activities"("farmId", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "activity_assignments_activityId_idx" ON "public"."activity_assignments"("activityId");
 
 -- CreateIndex
@@ -1162,6 +1191,24 @@ CREATE INDEX "transactions_organizationId_status_idx" ON "public"."transactions"
 
 -- CreateIndex
 CREATE INDEX "transactions_organizationId_type_idx" ON "public"."transactions"("organizationId", "type");
+
+-- CreateIndex
+CREATE INDEX "transactions_organizationId_type_createdAt_idx" ON "public"."transactions"("organizationId", "type", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "transactions_farmId_type_createdAt_idx" ON "public"."transactions"("farmId", "type", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "transactions_categoryId_idx" ON "public"."transactions"("categoryId");
+
+-- CreateIndex
+CREATE INDEX "transactions_requiresApproval_idx" ON "public"."transactions"("requiresApproval");
+
+-- CreateIndex
+CREATE INDEX "transaction_categories_organizationId_idx" ON "public"."transaction_categories"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "transaction_categories_name_organizationId_key" ON "public"."transaction_categories"("name", "organizationId");
 
 -- CreateIndex
 CREATE INDEX "soil_data_areaId_sampleDate_idx" ON "public"."soil_data"("areaId", "sampleDate");
@@ -1407,16 +1454,16 @@ ALTER TABLE "public"."email_verifications" ADD CONSTRAINT "email_verifications_u
 ALTER TABLE "public"."roles" ADD CONSTRAINT "roles_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "public"."roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."role_permissions" ADD CONSTRAINT "role_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "public"."permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "public"."roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "public"."roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."farms" ADD CONSTRAINT "farms_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1431,34 +1478,34 @@ ALTER TABLE "public"."seasons" ADD CONSTRAINT "seasons_farmId_fkey" FOREIGN KEY 
 ALTER TABLE "public"."commodities" ADD CONSTRAINT "commodities_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."crop_cycles" ADD CONSTRAINT "crop_cycles_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "public"."seasons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."crop_cycles" ADD CONSTRAINT "crop_cycles_areaId_fkey" FOREIGN KEY ("areaId") REFERENCES "public"."areas"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."crop_cycles" ADD CONSTRAINT "crop_cycles_commodityId_fkey" FOREIGN KEY ("commodityId") REFERENCES "public"."commodities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."farm_activities" ADD CONSTRAINT "farm_activities_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."crop_cycles" ADD CONSTRAINT "crop_cycles_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "public"."seasons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."farm_activities" ADD CONSTRAINT "farm_activities_areaId_fkey" FOREIGN KEY ("areaId") REFERENCES "public"."areas"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."farm_activities" ADD CONSTRAINT "farm_activities_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."farm_activities" ADD CONSTRAINT "farm_activities_cropCycleId_fkey" FOREIGN KEY ("cropCycleId") REFERENCES "public"."crop_cycles"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."farm_activities" ADD CONSTRAINT "farm_activities_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."farm_activities" ADD CONSTRAINT "farm_activities_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."activity_assignments" ADD CONSTRAINT "activity_assignments_activityId_fkey" FOREIGN KEY ("activityId") REFERENCES "public"."farm_activities"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."activity_assignments" ADD CONSTRAINT "activity_assignments_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."activity_assignments" ADD CONSTRAINT "activity_assignments_assignedById_fkey" FOREIGN KEY ("assignedById") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."activity_assignments" ADD CONSTRAINT "activity_assignments_assignedById_fkey" FOREIGN KEY ("assignedById") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."activity_assignments" ADD CONSTRAINT "activity_assignments_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."activity_costs" ADD CONSTRAINT "activity_costs_activityId_fkey" FOREIGN KEY ("activityId") REFERENCES "public"."farm_activities"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1488,31 +1535,28 @@ ALTER TABLE "public"."activity_templates" ADD CONSTRAINT "activity_templates_org
 ALTER TABLE "public"."harvests" ADD CONSTRAINT "harvests_cropCycleId_fkey" FOREIGN KEY ("cropCycleId") REFERENCES "public"."crop_cycles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."inventory" ADD CONSTRAINT "inventory_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."inventory" ADD CONSTRAINT "inventory_commodityId_fkey" FOREIGN KEY ("commodityId") REFERENCES "public"."commodities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."inventory" ADD CONSTRAINT "inventory_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."inventory" ADD CONSTRAINT "inventory_commodityId_fkey" FOREIGN KEY ("commodityId") REFERENCES "public"."commodities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."inventory" ADD CONSTRAINT "inventory_harvestId_fkey" FOREIGN KEY ("harvestId") REFERENCES "public"."harvests"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."inventory" ADD CONSTRAINT "inventory_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_buyerOrgId_fkey" FOREIGN KEY ("buyerOrgId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_supplierOrgId_fkey" FOREIGN KEY ("supplierOrgId") REFERENCES "public"."organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."order_items" ADD CONSTRAINT "order_items_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."orders" ADD CONSTRAINT "orders_supplierOrgId_fkey" FOREIGN KEY ("supplierOrgId") REFERENCES "public"."organizations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."order_items" ADD CONSTRAINT "order_items_commodityId_fkey" FOREIGN KEY ("commodityId") REFERENCES "public"."commodities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1521,10 +1565,13 @@ ALTER TABLE "public"."order_items" ADD CONSTRAINT "order_items_commodityId_fkey"
 ALTER TABLE "public"."order_items" ADD CONSTRAINT "order_items_inventoryId_fkey" FOREIGN KEY ("inventoryId") REFERENCES "public"."inventory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."deliveries" ADD CONSTRAINT "deliveries_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."order_items" ADD CONSTRAINT "order_items_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."deliveries" ADD CONSTRAINT "deliveries_driverId_fkey" FOREIGN KEY ("driverId") REFERENCES "public"."drivers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."deliveries" ADD CONSTRAINT "deliveries_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."drivers" ADD CONSTRAINT "drivers_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1533,10 +1580,16 @@ ALTER TABLE "public"."drivers" ADD CONSTRAINT "drivers_organizationId_fkey" FORE
 ALTER TABLE "public"."tracking_updates" ADD CONSTRAINT "tracking_updates_deliveryId_fkey" FOREIGN KEY ("deliveryId") REFERENCES "public"."deliveries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "public"."transaction_categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."transaction_categories" ADD CONSTRAINT "transaction_categories_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."soil_data" ADD CONSTRAINT "soil_data_areaId_fkey" FOREIGN KEY ("areaId") REFERENCES "public"."areas"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1548,13 +1601,13 @@ ALTER TABLE "public"."sensors" ADD CONSTRAINT "sensors_farmId_fkey" FOREIGN KEY 
 ALTER TABLE "public"."sensor_readings" ADD CONSTRAINT "sensor_readings_sensorId_fkey" FOREIGN KEY ("sensorId") REFERENCES "public"."sensors"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."observations" ADD CONSTRAINT "observations_areaId_fkey" FOREIGN KEY ("areaId") REFERENCES "public"."areas"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."observations" ADD CONSTRAINT "observations_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."observations" ADD CONSTRAINT "observations_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."observations" ADD CONSTRAINT "observations_areaId_fkey" FOREIGN KEY ("areaId") REFERENCES "public"."areas"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."media" ADD CONSTRAINT "media_farmActivityId_fkey" FOREIGN KEY ("farmActivityId") REFERENCES "public"."farm_activities"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -1581,10 +1634,10 @@ ALTER TABLE "public"."documents" ADD CONSTRAINT "documents_orderId_fkey" FOREIGN
 ALTER TABLE "public"."activities" ADD CONSTRAINT "activities_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."intelligence_responses" ADD CONSTRAINT "intelligence_responses_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."intelligence_responses" ADD CONSTRAINT "intelligence_responses_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."intelligence_responses" ADD CONSTRAINT "intelligence_responses_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."intelligence_responses" ADD CONSTRAINT "intelligence_responses_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."farm_analyses" ADD CONSTRAINT "farm_analyses_farmId_fkey" FOREIGN KEY ("farmId") REFERENCES "public"."farms"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1602,25 +1655,25 @@ ALTER TABLE "public"."activity_optimizations" ADD CONSTRAINT "activity_optimizat
 ALTER TABLE "public"."activity_optimizations" ADD CONSTRAINT "activity_optimizations_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."marketplace_listings" ADD CONSTRAINT "marketplace_listings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "public"."marketplace_listings" ADD CONSTRAINT "marketplace_listings_inventoryId_fkey" FOREIGN KEY ("inventoryId") REFERENCES "public"."inventory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."price_alerts" ADD CONSTRAINT "price_alerts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."marketplace_listings" ADD CONSTRAINT "marketplace_listings_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."price_alerts" ADD CONSTRAINT "price_alerts_commodityId_fkey" FOREIGN KEY ("commodityId") REFERENCES "public"."commodities"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."price_alerts" ADD CONSTRAINT "price_alerts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_planId_fkey" FOREIGN KEY ("planId") REFERENCES "public"."subscription_plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "public"."payment_methods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "public"."payment_methods"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_planId_fkey" FOREIGN KEY ("planId") REFERENCES "public"."subscription_plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."invoices" ADD CONSTRAINT "invoices_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "public"."subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1636,3 +1689,4 @@ ALTER TABLE "public"."payments" ADD CONSTRAINT "payments_paymentMethodId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "public"."usage_records" ADD CONSTRAINT "usage_records_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "public"."subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

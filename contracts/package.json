@@ -1,6 +1,6 @@
 {
   "name": "@deepintel-ltd/farmpro-api-contracts",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "description": "Type-safe API contracts for FarmPro agricultural platform",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -51,7 +51,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deepintel-ltd/farmpro-api-contracts.git"
+    "url": "git+https://github.com/deepintel-ltd/farmpro-api-contracts.git"
   },
   "bugs": {
     "url": "https://github.com/deepintel-ltd/farmpro-api-contracts/issues"

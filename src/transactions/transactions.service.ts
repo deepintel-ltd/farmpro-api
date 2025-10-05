@@ -5,7 +5,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { 
   CreateTransactionRequest, 
   UpdateTransactionRequest, 
-  TransactionFilters
+  TransactionFilters,
+  BulkUpdateRequest,
+  BulkDeleteRequest,
+  BulkMarkPaidRequest,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
+  ApprovalRequest,
+  RejectionRequest
 } from '@contracts/transactions.schemas';
 import { TransactionsContract } from '@contracts/transactions.contract';
 import { ExtractRequestBodyType } from '@contracts/type-safety';
@@ -50,7 +57,9 @@ export class TransactionsService {
         description: attributes.description,
         orderId: attributes.orderId,
         farmId: attributes.farmId,
+        categoryId: attributes.categoryId,
         dueDate: attributes.dueDate ? new Date(attributes.dueDate) : null,
+        requiresApproval: attributes.requiresApproval || false,
         metadata: {
           ...(attributes.metadata || {}),
           createdBy: user.userId,
@@ -134,6 +143,11 @@ export class TransactionsService {
       if (attributes.status) updateData.status = attributes.status as TransactionStatus;
       if (attributes.amount) updateData.amount = attributes.amount;
       if (attributes.description) updateData.description = attributes.description;
+      if (attributes.categoryId) {
+        updateData.category = {
+          connect: { id: attributes.categoryId }
+        };
+      }
       if (attributes.paidDate) updateData.paidDate = new Date(attributes.paidDate);
       if (attributes.metadata) {
         updateData.metadata = {
@@ -184,6 +198,8 @@ export class TransactionsService {
     if (filters.status) where.status = filters.status as TransactionStatus;
     if (filters.farmId) where.farmId = filters.farmId;
     if (filters.orderId) where.orderId = filters.orderId;
+    if (filters.categoryId) where.categoryId = filters.categoryId;
+    if (filters.requiresApproval !== undefined) where.requiresApproval = filters.requiresApproval;
     if (filters.startDate || filters.endDate) {
       where.createdAt = {};
       if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
@@ -438,6 +454,637 @@ export class TransactionsService {
   }
 
   // =============================================================================
+  // Bulk Operations
+  // =============================================================================
+
+  /**
+   * Bulk update transactions
+   */
+  async bulkUpdateTransactions(user: CurrentUser, data: BulkUpdateRequest) {
+    this.logger.log(`Bulk updating transactions for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+    const { transactionIds, updates } = attributes;
+
+    // Validate that all transactions belong to the user's organization
+    const existingTransactions = await this.prisma.transaction.findMany({
+      where: {
+        id: { in: transactionIds },
+        organizationId: user.organizationId
+      }
+    });
+
+    if (existingTransactions.length !== transactionIds.length) {
+      throw new BadRequestException('Some transactions not found or access denied');
+    }
+
+    const results = {
+      updatedCount: 0,
+      failedCount: 0,
+      errors: [] as Array<{ transactionId: string; error: string }>
+    };
+
+    // Process each transaction update
+    for (const transactionId of transactionIds) {
+      try {
+        const updateData: Prisma.TransactionUpdateInput = {};
+
+        if (updates.status) {
+          const existingTransaction = existingTransactions.find(t => t.id === transactionId);
+          if (existingTransaction) {
+            this.validateStatusTransition(existingTransaction.status, updates.status as TransactionStatus);
+          }
+          updateData.status = updates.status as TransactionStatus;
+        }
+        if (updates.description) updateData.description = updates.description;
+        if (updates.metadata) {
+          const existingTransaction = existingTransactions.find(t => t.id === transactionId);
+          updateData.metadata = {
+            ...(existingTransaction?.metadata as Record<string, any> || {}),
+            ...updates.metadata,
+            updatedBy: user.userId,
+            updatedAt: new Date().toISOString()
+          };
+        }
+
+        await this.prisma.transaction.update({
+          where: { id: transactionId },
+          data: updateData
+        });
+
+        results.updatedCount++;
+      } catch (error) {
+        results.failedCount++;
+        results.errors.push({
+          transactionId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    this.logger.log(`Bulk update completed: ${results.updatedCount} updated, ${results.failedCount} failed`);
+
+    return {
+      data: {
+        type: 'bulk-transactions' as const,
+        attributes: results
+      }
+    };
+  }
+
+  /**
+   * Bulk delete transactions
+   */
+  async bulkDeleteTransactions(user: CurrentUser, data: BulkDeleteRequest) {
+    this.logger.log(`Bulk deleting transactions for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+    const { transactionIds } = attributes;
+
+    // Validate that all transactions belong to the user's organization
+    const existingTransactions = await this.prisma.transaction.findMany({
+      where: {
+        id: { in: transactionIds },
+        organizationId: user.organizationId
+      }
+    });
+
+    if (existingTransactions.length !== transactionIds.length) {
+      throw new BadRequestException('Some transactions not found or access denied');
+    }
+
+    const results = {
+      deletedCount: 0,
+      failedCount: 0,
+      errors: [] as Array<{ transactionId: string; error: string }>
+    };
+
+    // Process each transaction deletion
+    for (const transactionId of transactionIds) {
+      try {
+        const existingTransaction = existingTransactions.find(t => t.id === transactionId);
+        
+        // Check if transaction can be deleted (not completed)
+        if (existingTransaction?.status === TransactionStatus.COMPLETED) {
+          throw new BadRequestException('Cannot delete completed transactions');
+        }
+
+        await this.prisma.transaction.delete({
+          where: { id: transactionId }
+        });
+
+        results.deletedCount++;
+      } catch (error) {
+        results.failedCount++;
+        results.errors.push({
+          transactionId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    this.logger.log(`Bulk delete completed: ${results.deletedCount} deleted, ${results.failedCount} failed`);
+
+    return {
+      data: {
+        type: 'bulk-transactions' as const,
+        attributes: results
+      }
+    };
+  }
+
+  /**
+   * Bulk mark transactions as paid
+   */
+  async bulkMarkAsPaid(user: CurrentUser, data: BulkMarkPaidRequest) {
+    this.logger.log(`Bulk marking transactions as paid for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+    const { transactionIds, paidDate, reference, metadata } = attributes;
+
+    // Validate that all transactions belong to the user's organization
+    const existingTransactions = await this.prisma.transaction.findMany({
+      where: {
+        id: { in: transactionIds },
+        organizationId: user.organizationId
+      }
+    });
+
+    if (existingTransactions.length !== transactionIds.length) {
+      throw new BadRequestException('Some transactions not found or access denied');
+    }
+
+    const results = {
+      updatedCount: 0,
+      failedCount: 0,
+      errors: [] as Array<{ transactionId: string; error: string }>
+    };
+
+    // Process each transaction
+    for (const transactionId of transactionIds) {
+      try {
+        const existingTransaction = existingTransactions.find(t => t.id === transactionId);
+        
+        if (!existingTransaction) {
+          throw new NotFoundException(`Transaction ${transactionId} not found`);
+        }
+
+        if (existingTransaction.status === TransactionStatus.COMPLETED) {
+          throw new BadRequestException('Transaction is already completed');
+        }
+
+        const updateData: Prisma.TransactionUpdateInput = {
+          status: TransactionStatus.COMPLETED,
+          paidDate: paidDate ? new Date(paidDate) : new Date()
+        };
+
+        if (reference) updateData.reference = reference;
+        if (metadata) {
+          updateData.metadata = {
+            ...(existingTransaction.metadata as Record<string, any> || {}),
+            ...metadata,
+            paidBy: user.userId,
+            paidAt: new Date().toISOString()
+          };
+        } else {
+          updateData.metadata = {
+            ...(existingTransaction.metadata as Record<string, any> || {}),
+            paidBy: user.userId,
+            paidAt: new Date().toISOString()
+          };
+        }
+
+        await this.prisma.transaction.update({
+          where: { id: transactionId },
+          data: updateData
+        });
+
+        results.updatedCount++;
+      } catch (error) {
+        results.failedCount++;
+        results.errors.push({
+          transactionId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    this.logger.log(`Bulk mark as paid completed: ${results.updatedCount} updated, ${results.failedCount} failed`);
+
+    return {
+      data: {
+        type: 'bulk-transactions' as const,
+        attributes: results
+      }
+    };
+  }
+
+  // =============================================================================
+  // Transaction Categories
+  // =============================================================================
+
+  /**
+   * Get transaction categories
+   */
+  async getTransactionCategories(user: CurrentUser) {
+    this.logger.log(`Getting transaction categories for user: ${user.userId}`);
+
+    const categories = await this.prisma.transactionCategory.findMany({
+      where: {
+        organizationId: user.organizationId
+      },
+      orderBy: [
+        { isDefault: 'desc' },
+        { name: 'asc' }
+      ]
+    });
+
+    return {
+      data: categories.map(category => ({
+        id: category.id,
+        type: 'transaction-categories' as const,
+        attributes: {
+          id: category.id,
+          organizationId: category.organizationId,
+          name: category.name,
+          description: category.description,
+          color: category.color,
+          isDefault: category.isDefault,
+          createdAt: category.createdAt.toISOString()
+        }
+      }))
+    };
+  }
+
+  /**
+   * Create transaction category
+   */
+  async createTransactionCategory(user: CurrentUser, data: CreateCategoryRequest) {
+    this.logger.log(`Creating transaction category for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+
+    // Check if category name already exists
+    const existingCategory = await this.prisma.transactionCategory.findFirst({
+      where: {
+        name: attributes.name,
+        organizationId: user.organizationId
+      }
+    });
+
+    if (existingCategory) {
+      throw new BadRequestException('Category name already exists');
+    }
+
+    const category = await this.prisma.transactionCategory.create({
+      data: {
+        organizationId: user.organizationId,
+        name: attributes.name,
+        description: attributes.description,
+        color: attributes.color,
+        isDefault: attributes.isDefault
+      }
+    });
+
+    this.logger.log(`Successfully created transaction category ${category.id}`);
+
+    return {
+      data: {
+        id: category.id,
+        type: 'transaction-categories' as const,
+        attributes: {
+          id: category.id,
+          organizationId: category.organizationId,
+          name: category.name,
+          description: category.description,
+          color: category.color,
+          isDefault: category.isDefault,
+          createdAt: category.createdAt.toISOString()
+        }
+      }
+    };
+  }
+
+  /**
+   * Update transaction category
+   */
+  async updateTransactionCategory(user: CurrentUser, categoryId: string, data: UpdateCategoryRequest) {
+    this.logger.log(`Updating transaction category ${categoryId} for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+
+    // Check if category exists and belongs to organization
+    const existingCategory = await this.prisma.transactionCategory.findFirst({
+      where: {
+        id: categoryId,
+        organizationId: user.organizationId
+      }
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundException(`Transaction category ${categoryId} not found`);
+    }
+
+    // Check if new name conflicts with existing category
+    if (attributes.name && attributes.name !== existingCategory.name) {
+      const conflictingCategory = await this.prisma.transactionCategory.findFirst({
+        where: {
+          name: attributes.name,
+          organizationId: user.organizationId,
+          id: { not: categoryId }
+        }
+      });
+
+      if (conflictingCategory) {
+        throw new BadRequestException('Category name already exists');
+      }
+    }
+
+    const category = await this.prisma.transactionCategory.update({
+      where: { id: categoryId },
+      data: {
+        name: attributes.name,
+        description: attributes.description,
+        color: attributes.color,
+        isDefault: attributes.isDefault
+      }
+    });
+
+    this.logger.log(`Successfully updated transaction category ${category.id}`);
+
+    return {
+      data: {
+        id: category.id,
+        type: 'transaction-categories' as const,
+        attributes: {
+          id: category.id,
+          organizationId: category.organizationId,
+          name: category.name,
+          description: category.description,
+          color: category.color,
+          isDefault: category.isDefault,
+          createdAt: category.createdAt.toISOString()
+        }
+      }
+    };
+  }
+
+  /**
+   * Delete transaction category
+   */
+  async deleteTransactionCategory(user: CurrentUser, categoryId: string) {
+    this.logger.log(`Deleting transaction category ${categoryId} for user: ${user.userId}`);
+
+    // Check if category exists and belongs to organization
+    const existingCategory = await this.prisma.transactionCategory.findFirst({
+      where: {
+        id: categoryId,
+        organizationId: user.organizationId
+      }
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundException(`Transaction category ${categoryId} not found`);
+    }
+
+    // Check if category is in use
+    const transactionsUsingCategory = await this.prisma.transaction.count({
+      where: {
+        categoryId: categoryId
+      }
+    });
+
+    if (transactionsUsingCategory > 0) {
+      throw new BadRequestException('Cannot delete category that is in use by transactions');
+    }
+
+    await this.prisma.transactionCategory.delete({
+      where: { id: categoryId }
+    });
+
+    this.logger.log(`Successfully deleted transaction category ${categoryId}`);
+
+    return {
+      data: {
+        success: true,
+        message: 'Transaction category deleted successfully'
+      }
+    };
+  }
+
+  // =============================================================================
+  // Approval Workflow
+  // =============================================================================
+
+  /**
+   * Approve transaction
+   */
+  async approveTransaction(user: CurrentUser, transactionId: string, data: ApprovalRequest) {
+    this.logger.log(`Approving transaction ${transactionId} for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+
+    // Use transaction with locking to prevent race conditions
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      const existingTransaction = await tx.transaction.findFirst({
+        where: {
+          id: transactionId,
+          organizationId: user.organizationId
+        }
+      });
+
+      if (!existingTransaction) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
+      }
+
+      if (!existingTransaction.requiresApproval) {
+        throw new BadRequestException('Transaction does not require approval');
+      }
+
+      if (existingTransaction.approvedBy) {
+        throw new BadRequestException('Transaction is already approved');
+      }
+
+      const updateData: Prisma.TransactionUpdateInput = {
+        approvedBy: attributes.approvedBy,
+        approvedAt: new Date()
+      };
+
+      if (attributes.metadata) {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          ...attributes.metadata,
+          approvalNotes: attributes.approvalNotes,
+          approvedBy: user.userId,
+          approvedAt: new Date().toISOString()
+        };
+      } else {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          approvalNotes: attributes.approvalNotes,
+          approvedBy: user.userId,
+          approvedAt: new Date().toISOString()
+        };
+      }
+
+      return await tx.transaction.update({
+        where: { id: transactionId },
+        data: updateData,
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
+        }
+      });
+    });
+
+    this.logger.log(`Successfully approved transaction ${transaction.id}`);
+
+    return this.mapTransactionToResponse(transaction);
+  }
+
+  /**
+   * Reject transaction
+   */
+  async rejectTransaction(user: CurrentUser, transactionId: string, data: RejectionRequest) {
+    this.logger.log(`Rejecting transaction ${transactionId} for user: ${user.userId}`);
+
+    const { data: requestData } = data;
+    const { attributes } = requestData;
+
+    // Use transaction with locking to prevent race conditions
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      const existingTransaction = await tx.transaction.findFirst({
+        where: {
+          id: transactionId,
+          organizationId: user.organizationId
+        }
+      });
+
+      if (!existingTransaction) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
+      }
+
+      if (!existingTransaction.requiresApproval) {
+        throw new BadRequestException('Transaction does not require approval');
+      }
+
+      if (existingTransaction.approvedBy) {
+        throw new BadRequestException('Transaction is already approved');
+      }
+
+      const updateData: Prisma.TransactionUpdateInput = {
+        status: TransactionStatus.CANCELLED
+      };
+
+      if (attributes.metadata) {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          ...attributes.metadata,
+          rejectionReason: attributes.rejectionReason,
+          rejectedBy: user.userId,
+          rejectedAt: new Date().toISOString()
+        };
+      } else {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          rejectionReason: attributes.rejectionReason,
+          rejectedBy: user.userId,
+          rejectedAt: new Date().toISOString()
+        };
+      }
+
+      return await tx.transaction.update({
+        where: { id: transactionId },
+        data: updateData,
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
+        }
+      });
+    });
+
+    this.logger.log(`Successfully rejected transaction ${transaction.id}`);
+
+    return this.mapTransactionToResponse(transaction);
+  }
+
+  /**
+   * Get pending approvals
+   */
+  async getPendingApprovals(user: CurrentUser, filters: {
+    page: number;
+    limit: number;
+    priority?: string;
+    farmId?: string;
+  }) {
+    this.logger.log(`Getting pending approvals for user: ${user.userId}`);
+
+    const where: Prisma.TransactionWhereInput = {
+      organizationId: user.organizationId,
+      requiresApproval: true,
+      approvedBy: null,
+      status: TransactionStatus.PENDING
+    };
+
+    if (filters.farmId) where.farmId = filters.farmId;
+
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit
+      }),
+      this.prisma.transaction.count({ where })
+    ]);
+
+    const totalPages = Math.ceil(total / filters.limit);
+
+    return {
+      data: transactions.map(transaction => ({
+        id: transaction.id,
+        organizationId: transaction.organizationId,
+        transactionId: transaction.id,
+        requestedBy: (transaction.metadata as any)?.createdBy || 'Unknown',
+        requestedAt: transaction.createdAt.toISOString(),
+        amount: parseFloat(transaction.amount.toString()),
+        currency: transaction.currency,
+        description: transaction.description,
+        priority: (transaction.metadata as any)?.priority || 'medium',
+        metadata: transaction.metadata
+      })),
+      meta: {
+        page: filters.page,
+        limit: filters.limit,
+        total,
+        totalPages
+      }
+    };
+  }
+
+  // =============================================================================
   // Private Helper Methods
   // =============================================================================
 
@@ -518,6 +1165,7 @@ export class TransactionsService {
           organizationId: transaction.organizationId,
           orderId: transaction.orderId,
           farmId: transaction.farmId,
+          categoryId: transaction.categoryId,
           type: transaction.type,
           amount: parseFloat(transaction.amount.toString()),
           currency: transaction.currency,
@@ -526,6 +1174,9 @@ export class TransactionsService {
           reference: transaction.reference,
           dueDate: transaction.dueDate?.toISOString(),
           paidDate: transaction.paidDate?.toISOString(),
+          requiresApproval: transaction.requiresApproval,
+          approvedBy: transaction.approvedBy,
+          approvedAt: transaction.approvedAt?.toISOString(),
           metadata: transaction.metadata,
           createdAt: transaction.createdAt.toISOString(),
         }

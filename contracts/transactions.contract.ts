@@ -28,6 +28,7 @@ export const TransactionSchema = z.object({
   organizationId: z.string().cuid(),
   orderId: z.string().cuid().optional(),
   farmId: z.string().cuid().optional(),
+  categoryId: z.string().cuid().optional(),
   type: TransactionTypeSchema,
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
@@ -36,6 +37,9 @@ export const TransactionSchema = z.object({
   reference: z.string().optional(),
   dueDate: z.string().datetime().optional(),
   paidDate: z.string().datetime().optional(),
+  requiresApproval: z.boolean().default(false),
+  approvedBy: z.string().cuid().optional(),
+  approvedAt: z.string().datetime().optional(),
   metadata: z.record(z.any()).optional(),
   createdAt: z.string().datetime()
 });
@@ -54,7 +58,9 @@ export const CreateTransactionRequestSchema = z.object({
       description: z.string().min(1).max(500),
       orderId: z.string().cuid().optional(),
       farmId: z.string().cuid().optional(),
+      categoryId: z.string().cuid().optional(),
       dueDate: z.string().datetime().optional(),
+      requiresApproval: z.boolean().default(false),
       metadata: z.record(z.any()).optional()
     })
   })
@@ -67,6 +73,7 @@ export const UpdateTransactionRequestSchema = z.object({
       status: TransactionStatusSchema.optional(),
       amount: z.number().positive().optional(),
       description: z.string().min(1).max(500).optional(),
+      categoryId: z.string().cuid().optional(),
       paidDate: z.string().datetime().optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -78,6 +85,8 @@ export const TransactionFiltersSchema = z.object({
   status: TransactionStatusSchema.optional(),
   farmId: z.string().cuid().optional(),
   orderId: z.string().cuid().optional(),
+  categoryId: z.string().cuid().optional(),
+  requiresApproval: z.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   minAmount: z.number().positive().optional(),
@@ -100,6 +109,123 @@ export const PaginationMetaSchema = z.object({
   limit: z.number(),
   total: z.number(),
   totalPages: z.number()
+});
+
+// =============================================================================
+// Bulk Operations Schemas
+// =============================================================================
+
+export const BulkUpdateRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('bulk-transactions'),
+    attributes: z.object({
+      transactionIds: z.array(z.string().cuid()),
+      updates: z.object({
+        status: TransactionStatusSchema.optional(),
+        description: z.string().min(1).max(500).optional(),
+        metadata: z.record(z.any()).optional()
+      })
+    })
+  })
+});
+
+export const BulkDeleteRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('bulk-transactions'),
+    attributes: z.object({
+      transactionIds: z.array(z.string().cuid()),
+      reason: z.string().min(1).max(200).optional()
+    })
+  })
+});
+
+export const BulkMarkPaidRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('bulk-transactions'),
+    attributes: z.object({
+      transactionIds: z.array(z.string().cuid()),
+      paidDate: z.string().datetime().optional(),
+      reference: z.string().optional(),
+      metadata: z.record(z.any()).optional()
+    })
+  })
+});
+
+// =============================================================================
+// Transaction Categories Schemas
+// =============================================================================
+
+export const TransactionCategorySchema = z.object({
+  id: z.string().cuid(),
+  organizationId: z.string().cuid(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+  isDefault: z.boolean().default(false),
+  createdAt: z.string().datetime()
+});
+
+export const CreateCategoryRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-categories'),
+    attributes: z.object({
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      isDefault: z.boolean().default(false)
+    })
+  })
+});
+
+export const UpdateCategoryRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-categories'),
+    attributes: z.object({
+      name: z.string().min(1).max(100).optional(),
+      description: z.string().max(500).optional(),
+      color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      isDefault: z.boolean().optional()
+    })
+  })
+});
+
+// =============================================================================
+// Approval Workflow Schemas
+// =============================================================================
+
+export const ApprovalRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-approvals'),
+    attributes: z.object({
+      approvedBy: z.string().cuid(),
+      approvalNotes: z.string().max(500).optional(),
+      metadata: z.record(z.any()).optional()
+    })
+  })
+});
+
+export const RejectionRequestSchema = z.object({
+  data: z.object({
+    type: z.literal('transaction-approvals'),
+    attributes: z.object({
+      rejectedBy: z.string().cuid(),
+      rejectionReason: z.string().min(1).max(500),
+      metadata: z.record(z.any()).optional()
+    })
+  })
+});
+
+export const PendingApprovalSchema = z.object({
+  id: z.string().cuid(),
+  organizationId: z.string().cuid(),
+  transactionId: z.string().cuid(),
+  requestedBy: z.string().cuid(),
+  requestedAt: z.string().datetime(),
+  amount: z.number().positive(),
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']),
+  description: z.string(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
+  metadata: z.record(z.any()).optional()
 });
 
 // =============================================================================
@@ -260,6 +386,239 @@ export const transactionsContract = c.router({
       })
     }),
     summary: 'Cancel transaction'
+  },
+
+  // =============================================================================
+  // Bulk Operations
+  // =============================================================================
+
+  // Bulk update transactions
+  bulkUpdateTransactions: {
+    method: 'PATCH',
+    path: '/transactions/bulk',
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('bulk-transactions'),
+          attributes: z.object({
+            updatedCount: z.number(),
+            failedCount: z.number(),
+            errors: z.array(z.object({
+              transactionId: z.string(),
+              error: z.string()
+            })).optional()
+          })
+        })
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    body: BulkUpdateRequestSchema,
+    summary: 'Bulk update multiple transactions'
+  },
+
+  // Bulk delete transactions
+  bulkDeleteTransactions: {
+    method: 'DELETE',
+    path: '/transactions/bulk',
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('bulk-transactions'),
+          attributes: z.object({
+            deletedCount: z.number(),
+            failedCount: z.number(),
+            errors: z.array(z.object({
+              transactionId: z.string(),
+              error: z.string()
+            })).optional()
+          })
+        })
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    body: BulkDeleteRequestSchema,
+    summary: 'Bulk delete multiple transactions'
+  },
+
+  // Bulk mark transactions as paid
+  bulkMarkAsPaid: {
+    method: 'PATCH',
+    path: '/transactions/bulk/paid',
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('bulk-transactions'),
+          attributes: z.object({
+            updatedCount: z.number(),
+            failedCount: z.number(),
+            errors: z.array(z.object({
+              transactionId: z.string(),
+              error: z.string()
+            })).optional()
+          })
+        })
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    body: BulkMarkPaidRequestSchema,
+    summary: 'Bulk mark multiple transactions as paid'
+  },
+
+  // =============================================================================
+  // Transaction Categories
+  // =============================================================================
+
+  // Get transaction categories
+  getTransactionCategories: {
+    method: 'GET',
+    path: '/transactions/categories',
+    responses: {
+      200: z.object({
+        data: z.array(TransactionCategorySchema)
+      }),
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    summary: 'Get all transaction categories for organization'
+  },
+
+  // Create transaction category
+  createTransactionCategory: {
+    method: 'POST',
+    path: '/transactions/categories',
+    responses: {
+      201: z.object({
+        data: TransactionCategorySchema
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    body: CreateCategoryRequestSchema,
+    summary: 'Create a new transaction category'
+  },
+
+  // Update transaction category
+  updateTransactionCategory: {
+    method: 'PATCH',
+    path: '/transactions/categories/:id',
+    responses: {
+      200: z.object({
+        data: TransactionCategorySchema
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    pathParams: z.object({
+      id: z.string().cuid()
+    }),
+    body: UpdateCategoryRequestSchema,
+    summary: 'Update transaction category'
+  },
+
+  // Delete transaction category
+  deleteTransactionCategory: {
+    method: 'DELETE',
+    path: '/transactions/categories/:id',
+    responses: {
+      200: z.object({
+        data: z.object({
+          success: z.boolean(),
+          message: z.string()
+        })
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    pathParams: z.object({
+      id: z.string().cuid()
+    }),
+    summary: 'Delete transaction category'
+  },
+
+  // =============================================================================
+  // Approval Workflow
+  // =============================================================================
+
+  // Approve transaction
+  approveTransaction: {
+    method: 'PATCH',
+    path: '/transactions/:id/approve',
+    responses: {
+      200: z.object({
+        data: TransactionSchema
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    pathParams: z.object({
+      id: z.string().cuid()
+    }),
+    body: ApprovalRequestSchema,
+    summary: 'Approve a transaction'
+  },
+
+  // Reject transaction
+  rejectTransaction: {
+    method: 'PATCH',
+    path: '/transactions/:id/reject',
+    responses: {
+      200: z.object({
+        data: TransactionSchema
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    pathParams: z.object({
+      id: z.string().cuid()
+    }),
+    body: RejectionRequestSchema,
+    summary: 'Reject a transaction'
+  },
+
+  // Get pending approvals
+  getPendingApprovals: {
+    method: 'GET',
+    path: '/transactions/pending-approvals',
+    responses: {
+      200: z.object({
+        data: z.array(PendingApprovalSchema),
+        meta: PaginationMetaSchema
+      }),
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    query: z.object({
+      page: z.number().int().positive().default(1),
+      limit: z.number().int().positive().max(100).default(20),
+      priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+      farmId: z.string().cuid().optional()
+    }),
+    summary: 'Get transactions pending approval'
   }
 });
 
