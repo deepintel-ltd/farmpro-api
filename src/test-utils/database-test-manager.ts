@@ -36,6 +36,7 @@ export class DatabaseTestManager {
       .withUsername('test_user')
       .withPassword('test_password')
       .withExposedPorts(5432)
+      .withStartupTimeout(120000) // 2 minutes
       .start();
 
     const connectionUrl = this.getConnectionUrl();
@@ -132,7 +133,7 @@ export class DatabaseTestManager {
   }
 
   /**
-   * Initialize database with permissions and roles
+   * Initialize database with permissions and roles (minimal for tests)
    */
   async initializeDatabase(): Promise<void> {
     if (!this.prisma) {
@@ -146,8 +147,8 @@ export class DatabaseTestManager {
       const connectionUrl = this.getConnectionUrl();
       process.env.DATABASE_URL = connectionUrl;
 
-      // Run the init script
-      execSync('npx tsx scripts/init-db.ts', {
+      // Run the minimal test init script
+      execSync('npx tsx tests/scripts/init-test-db.ts', {
         stdio: 'inherit',
         env: {
           ...process.env,
