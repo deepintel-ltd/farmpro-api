@@ -83,7 +83,11 @@ export class BrevoService {
         'welcome.html',
         'password-reset.html',
         'invitation.html',
-        'new-user-notification.html'
+        'new-user-notification.html',
+        'subscription-expiration-warning.html',
+        'subscription-expired.html',
+        'trial-expiration-warning.html',
+        'subscription-renewal-success.html'
       ];
 
       templates.forEach(template => {
@@ -511,6 +515,190 @@ export class BrevoService {
   public verifyCode(code: string, token: string): boolean {
     const expectedCode = this.generateVerificationCode(token);
     return code === expectedCode;
+  }
+
+  /**
+   * Send subscription expiration warning email
+   * @param email User email
+   * @param userData Subscription and user data
+   * @returns Promise resolving on success
+   */
+  public async sendSubscriptionExpirationWarning(
+    email: string,
+    userData: UserMetadata & {
+      companyName?: string;
+      planName?: string;
+      daysRemaining?: number;
+      expirationDate?: string;
+      renewalUrl?: string;
+    } = {}
+  ): Promise<void> {
+    try {
+      const template = this.loadTemplate('subscription-expiration-warning.html');
+      const renewalUrl = userData.renewalUrl ?? this.generateUrl('/billing/subscriptions');
+
+      const name = userData.firstName && userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
+        : userData.firstName ?? email.split('@')[0] ?? 'User';
+
+      const variables: Record<string, string> = {
+        name,
+        companyName: userData.companyName ?? 'Your Organization',
+        planName: userData.planName ?? 'Current Plan',
+        daysRemaining: (userData.daysRemaining ?? 7).toString(),
+        expirationDate: userData.expirationDate ?? new Date().toLocaleDateString(),
+        renewalUrl,
+        organizationAddress: this.getOrganizationAddress(),
+        year: new Date().getFullYear().toString(),
+      };
+
+      const htmlContent = this.replaceVariables(template, variables);
+
+      return this.sendEmail({
+        to: email,
+        subject: `Your FarmPro subscription expires in ${userData.daysRemaining ?? 7} days`,
+        htmlContent,
+      });
+    } catch (error) {
+      this.logger.warn(`Subscription expiration warning email template not found for ${email}`);
+    }
+  }
+
+  /**
+   * Send subscription expired notification
+   * @param email User email
+   * @param userData Subscription and user data
+   * @returns Promise resolving on success
+   */
+  public async sendSubscriptionExpiredNotification(
+    email: string,
+    userData: UserMetadata & {
+      companyName?: string;
+      planName?: string;
+      downgradedPlan?: string;
+      upgradeUrl?: string;
+    } = {}
+  ): Promise<void> {
+    try {
+      const template = this.loadTemplate('subscription-expired.html');
+      const upgradeUrl = userData.upgradeUrl ?? this.generateUrl('/billing/plans');
+
+      const name = userData.firstName && userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
+        : userData.firstName ?? email.split('@')[0] ?? 'User';
+
+      const variables: Record<string, string> = {
+        name,
+        companyName: userData.companyName ?? 'Your Organization',
+        planName: userData.planName ?? 'Previous Plan',
+        downgradedPlan: userData.downgradedPlan ?? 'FREE',
+        upgradeUrl,
+        organizationAddress: this.getOrganizationAddress(),
+        year: new Date().getFullYear().toString(),
+      };
+
+      const htmlContent = this.replaceVariables(template, variables);
+
+      return this.sendEmail({
+        to: email,
+        subject: 'Your FarmPro subscription has expired',
+        htmlContent,
+      });
+    } catch (error) {
+      this.logger.warn(`Subscription expired email template not found for ${email}`);
+    }
+  }
+
+  /**
+   * Send trial expiration warning email
+   * @param email User email
+   * @param userData Trial and user data
+   * @returns Promise resolving on success
+   */
+  public async sendTrialExpirationWarning(
+    email: string,
+    userData: UserMetadata & {
+      companyName?: string;
+      daysRemaining?: number;
+      trialEndDate?: string;
+      upgradeUrl?: string;
+    } = {}
+  ): Promise<void> {
+    try {
+      const template = this.loadTemplate('trial-expiration-warning.html');
+      const upgradeUrl = userData.upgradeUrl ?? this.generateUrl('/billing/plans');
+
+      const name = userData.firstName && userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
+        : userData.firstName ?? email.split('@')[0] ?? 'User';
+
+      const variables: Record<string, string> = {
+        name,
+        companyName: userData.companyName ?? 'Your Organization',
+        daysRemaining: (userData.daysRemaining ?? 3).toString(),
+        trialEndDate: userData.trialEndDate ?? new Date().toLocaleDateString(),
+        upgradeUrl,
+        organizationAddress: this.getOrganizationAddress(),
+        year: new Date().getFullYear().toString(),
+      };
+
+      const htmlContent = this.replaceVariables(template, variables);
+
+      return this.sendEmail({
+        to: email,
+        subject: `Your FarmPro trial expires in ${userData.daysRemaining ?? 3} days`,
+        htmlContent,
+      });
+    } catch (error) {
+      this.logger.warn(`Trial expiration warning email template not found for ${email}`);
+    }
+  }
+
+  /**
+   * Send subscription renewal success notification
+   * @param email User email
+   * @param userData Subscription and user data
+   * @returns Promise resolving on success
+   */
+  public async sendSubscriptionRenewalSuccess(
+    email: string,
+    userData: UserMetadata & {
+      companyName?: string;
+      planName?: string;
+      amount?: string;
+      nextBillingDate?: string;
+      invoiceUrl?: string;
+    } = {}
+  ): Promise<void> {
+    try {
+      const template = this.loadTemplate('subscription-renewal-success.html');
+      const invoiceUrl = userData.invoiceUrl ?? this.generateUrl('/billing/invoices');
+
+      const name = userData.firstName && userData.lastName
+        ? `${userData.firstName} ${userData.lastName}`
+        : userData.firstName ?? email.split('@')[0] ?? 'User';
+
+      const variables: Record<string, string> = {
+        name,
+        companyName: userData.companyName ?? 'Your Organization',
+        planName: userData.planName ?? 'Current Plan',
+        amount: userData.amount ?? '$0.00',
+        nextBillingDate: userData.nextBillingDate ?? new Date().toLocaleDateString(),
+        invoiceUrl,
+        organizationAddress: this.getOrganizationAddress(),
+        year: new Date().getFullYear().toString(),
+      };
+
+      const htmlContent = this.replaceVariables(template, variables);
+
+      return this.sendEmail({
+        to: email,
+        subject: 'Your FarmPro subscription has been renewed',
+        htmlContent,
+      });
+    } catch (error) {
+      this.logger.warn(`Subscription renewal success email template not found for ${email}`);
+    }
   }
 
   /**

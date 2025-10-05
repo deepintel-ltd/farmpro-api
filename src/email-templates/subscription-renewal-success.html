@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your FarmPro Subscription Has Been Renewed</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-subtitle {
+            color: #d1fae5;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+        }
+
+        .message {
+            color: #4b5563;
+            font-size: 16px;
+            margin: 0 0 20px 0;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .success-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+
+        .success-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #065f46;
+            margin: 0 0 10px 0;
+        }
+
+        .subscription-info {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .amount-highlight {
+            color: #10b981;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .invoice-button {
+            display: inline-block;
+            background-color: #ffffff;
+            color: #059669;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            border: 2px solid #10b981;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 14px;
+        }
+
+        .features {
+            margin: 30px 0;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #d1fae5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+            color: #059669;
+        }
+
+        .feature-text {
+            color: #4b5563;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .thank-you-box {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .thank-you-text {
+            color: #4b5563;
+            font-size: 16px;
+            font-style: italic;
+            margin: 0;
+        }
+
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer-text {
+            color: #6b7280;
+            font-size: 14px;
+            margin: 0 0 10px 0;
+        }
+
+        .footer-links {
+            margin: 20px 0;
+        }
+
+        .footer-link {
+            color: #10b981;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 14px;
+        }
+
+        .copyright {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .greeting {
+                font-size: 20px;
+            }
+
+            .message {
+                font-size: 15px;
+            }
+
+            .info-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .invoice-button {
+                padding: 12px 25px;
+                font-size: 13px;
+            }
+
+            .amount-highlight {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 class="logo">🌾 FarmPro</h1>
+            <p class="logo-subtitle">Integrated Farm-to-Market Platform</p>
+        </div>
+
+        <div class="content">
+            <h2 class="greeting">Hi {{name}},</h2>
+
+            <p class="message">
+                Great news! Your subscription for <strong>{{companyName}}</strong> has been successfully renewed. You can continue enjoying all the premium features without interruption.
+            </p>
+
+            <div class="success-box">
+                <div class="success-icon">✅</div>
+                <p class="success-title">Subscription Renewed Successfully</p>
+
+                <div class="subscription-info">
+                    <div class="info-row">
+                        <span class="info-label">Plan:</span>
+                        <span class="info-value">{{planName}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Organization:</span>
+                        <span class="info-value">{{companyName}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Amount Charged:</span>
+                        <span class="info-value amount-highlight">{{amount}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Next Billing Date:</span>
+                        <span class="info-value">{{nextBillingDate}}</span>
+                    </div>
+                </div>
+
+                <a href="{{invoiceUrl}}" class="invoice-button">View Invoice</a>
+            </div>
+
+            <div class="info-box">
+                <p>
+                    <strong>📧 Receipt & Invoice</strong><br><br>
+                    Your payment receipt and detailed invoice are available in your billing dashboard. You can download them anytime for your records.
+                </p>
+            </div>
+
+            <p class="message" style="margin-top: 40px; margin-bottom: 15px;">
+                <strong>Your subscription includes:</strong>
+            </p>
+
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text"><strong>Full Platform Access:</strong> All features enabled for your team</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text"><strong>Unlimited Operations:</strong> Manage farms, activities, and inventory without limits</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text"><strong>Advanced Tools:</strong> Analytics, AI insights, and automation</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text"><strong>Team Collaboration:</strong> Work seamlessly with your entire organization</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text"><strong>Priority Support:</strong> Fast, dedicated assistance when you need it</p>
+                </div>
+            </div>
+
+            <div class="thank-you-box">
+                <p class="thank-you-text">
+                    "Thank you for being a valued FarmPro customer. We're committed to helping your agricultural operations thrive!"
+                </p>
+            </div>
+
+            <p class="message">
+                Your subscription will automatically renew on <strong>{{nextBillingDate}}</strong>. You can update your payment method or subscription settings anytime in your billing dashboard.
+            </p>
+
+            <p class="message">
+                If you have any questions about your subscription or need assistance with anything, our support team is always here to help.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                <strong>Questions or need assistance?</strong><br>
+                Our support team is here to help!
+            </p>
+
+            <div class="footer-links">
+                <a href="https://farmpro.app/support" class="footer-link">Support Center</a>
+                <a href="https://farmpro.app/billing" class="footer-link">Billing Dashboard</a>
+                <a href="https://farmpro.app/contact" class="footer-link">Contact Us</a>
+            </div>
+
+            <p class="copyright">
+                © {{year}} FarmPro. All rights reserved.<br>
+                {{organizationAddress}}
+            </p>
+
+            <p class="footer-text" style="margin-top: 20px; font-size: 12px;">
+                This is an automated receipt for your subscription renewal.<br>
+                To manage your subscription settings, visit your <a href="{{invoiceUrl}}" style="color: #6b7280;">billing dashboard</a>.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

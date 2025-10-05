@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your FarmPro Subscription is Expiring Soon</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-subtitle {
+            color: #fef3c7;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+        }
+
+        .message {
+            color: #4b5563;
+            font-size: 16px;
+            margin: 0 0 20px 0;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .warning-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .warning-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #92400e;
+            margin: 0 0 10px 0;
+        }
+
+        .expiry-info {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .expiry-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .expiry-row:last-child {
+            border-bottom: none;
+        }
+
+        .expiry-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .expiry-value {
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .expiry-days {
+            color: #f59e0b;
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .renew-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 14px;
+        }
+
+        .features {
+            margin: 30px 0;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #d1fae5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .feature-text {
+            color: #4b5563;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer-text {
+            color: #6b7280;
+            font-size: 14px;
+            margin: 0 0 10px 0;
+        }
+
+        .footer-links {
+            margin: 20px 0;
+        }
+
+        .footer-link {
+            color: #10b981;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 14px;
+        }
+
+        .copyright {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .greeting {
+                font-size: 20px;
+            }
+
+            .message {
+                font-size: 15px;
+            }
+
+            .expiry-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .renew-button {
+                padding: 14px 30px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 class="logo">🌾 FarmPro</h1>
+            <p class="logo-subtitle">Integrated Farm-to-Market Platform</p>
+        </div>
+
+        <div class="content">
+            <h2 class="greeting">Hi {{name}},</h2>
+
+            <p class="message">
+                We wanted to remind you that your <strong>{{planName}}</strong> subscription for <strong>{{companyName}}</strong> will be expiring soon.
+            </p>
+
+            <div class="warning-box">
+                <div class="warning-icon">⏰</div>
+                <p class="warning-title">Subscription Expiring Soon</p>
+
+                <p class="expiry-days">{{daysRemaining}} days remaining</p>
+
+                <div class="expiry-info">
+                    <div class="expiry-row">
+                        <span class="expiry-label">Current Plan:</span>
+                        <span class="expiry-value">{{planName}}</span>
+                    </div>
+                    <div class="expiry-row">
+                        <span class="expiry-label">Expiration Date:</span>
+                        <span class="expiry-value">{{expirationDate}}</span>
+                    </div>
+                    <div class="expiry-row">
+                        <span class="expiry-label">Organization:</span>
+                        <span class="expiry-value">{{companyName}}</span>
+                    </div>
+                </div>
+
+                <a href="{{renewalUrl}}" class="renew-button">Renew Subscription</a>
+            </div>
+
+            <div class="info-box">
+                <p>
+                    <strong>⚠️ What happens if my subscription expires?</strong><br><br>
+                    If your subscription is not renewed before the expiration date, your account will be automatically downgraded to the <strong>FREE</strong> plan. This means you'll lose access to premium features and your usage limits will be reduced.
+                </p>
+            </div>
+
+            <p class="message" style="margin-top: 40px; margin-bottom: 15px;">
+                <strong>Continue enjoying these premium features:</strong>
+            </p>
+
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text">Unlimited farm management and activity tracking</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text">Advanced analytics and reporting tools</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text">Priority marketplace listings and trading features</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text">Team collaboration with unlimited users</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <p class="feature-text">Premium support and dedicated assistance</p>
+                </div>
+            </div>
+
+            <p class="message">
+                To continue using all the features your team relies on, simply click the button above to renew your subscription. If you have any questions or need assistance, our support team is always ready to help.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                <strong>Questions or need assistance?</strong><br>
+                Our support team is here to help!
+            </p>
+
+            <div class="footer-links">
+                <a href="https://farmpro.app/support" class="footer-link">Support Center</a>
+                <a href="https://farmpro.app/billing" class="footer-link">Billing</a>
+                <a href="https://farmpro.app/contact" class="footer-link">Contact Us</a>
+            </div>
+
+            <p class="copyright">
+                © {{year}} FarmPro. All rights reserved.<br>
+                {{organizationAddress}}
+            </p>
+        </div>
+    </div>
+</body>
+</html>

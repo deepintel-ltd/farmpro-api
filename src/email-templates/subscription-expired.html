@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your FarmPro Subscription Has Expired</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-subtitle {
+            color: #fecaca;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 20px 0;
+        }
+
+        .message {
+            color: #4b5563;
+            font-size: 16px;
+            margin: 0 0 20px 0;
+        }
+
+        .alert-box {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .alert-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .alert-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #991b1b;
+            margin: 0 0 10px 0;
+        }
+
+        .plan-info {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .plan-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .plan-row:last-child {
+            border-bottom: none;
+        }
+
+        .plan-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .plan-value {
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .downgraded {
+            color: #ef4444;
+        }
+
+        .upgrade-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+        .warning-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box p {
+            margin: 0;
+            color: #92400e;
+            font-size: 14px;
+        }
+
+        .limitations {
+            margin: 30px 0;
+        }
+
+        .limitation-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .limitation-icon {
+            width: 24px;
+            height: 24px;
+            background-color: #fee2e2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+            color: #dc2626;
+        }
+
+        .limitation-text {
+            color: #4b5563;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .footer {
+            background-color: #f9fafb;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer-text {
+            color: #6b7280;
+            font-size: 14px;
+            margin: 0 0 10px 0;
+        }
+
+        .footer-links {
+            margin: 20px 0;
+        }
+
+        .footer-link {
+            color: #10b981;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 14px;
+        }
+
+        .copyright {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .greeting {
+                font-size: 20px;
+            }
+
+            .message {
+                font-size: 15px;
+            }
+
+            .plan-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .upgrade-button {
+                padding: 14px 30px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 class="logo">🌾 FarmPro</h1>
+            <p class="logo-subtitle">Integrated Farm-to-Market Platform</p>
+        </div>
+
+        <div class="content">
+            <h2 class="greeting">Hi {{name}},</h2>
+
+            <p class="message">
+                We wanted to let you know that your <strong>{{planName}}</strong> subscription for <strong>{{companyName}}</strong> has expired.
+            </p>
+
+            <div class="alert-box">
+                <div class="alert-icon">🔒</div>
+                <p class="alert-title">Subscription Expired</p>
+
+                <div class="plan-info">
+                    <div class="plan-row">
+                        <span class="plan-label">Previous Plan:</span>
+                        <span class="plan-value">{{planName}}</span>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-label">Current Plan:</span>
+                        <span class="plan-value downgraded">{{downgradedPlan}}</span>
+                    </div>
+                    <div class="plan-row">
+                        <span class="plan-label">Organization:</span>
+                        <span class="plan-value">{{companyName}}</span>
+                    </div>
+                </div>
+
+                <a href="{{upgradeUrl}}" class="upgrade-button">Upgrade Your Plan</a>
+            </div>
+
+            <div class="warning-box">
+                <p>
+                    <strong>⚠️ Your account has been downgraded</strong><br><br>
+                    Don't worry, your data is safe! We've automatically moved your account to the <strong>{{downgradedPlan}}</strong> plan. However, some features and capabilities are now limited.
+                </p>
+            </div>
+
+            <p class="message" style="margin-top: 40px; margin-bottom: 15px;">
+                <strong>Limitations on the FREE plan:</strong>
+            </p>
+
+            <div class="limitations">
+                <div class="limitation-item">
+                    <div class="limitation-icon">⚠</div>
+                    <p class="limitation-text"><strong>Limited Users:</strong> Only 1 active user per organization</p>
+                </div>
+                <div class="limitation-item">
+                    <div class="limitation-icon">⚠</div>
+                    <p class="limitation-text"><strong>Basic Features:</strong> Access to only essential farm management tools</p>
+                </div>
+                <div class="limitation-item">
+                    <div class="limitation-icon">⚠</div>
+                    <p class="limitation-text"><strong>No Analytics:</strong> Advanced reporting and intelligence features disabled</p>
+                </div>
+                <div class="limitation-item">
+                    <div class="limitation-icon">⚠</div>
+                    <p class="limitation-text"><strong>Limited Support:</strong> Community support only (no priority assistance)</p>
+                </div>
+                <div class="limitation-item">
+                    <div class="limitation-icon">⚠</div>
+                    <p class="limitation-text"><strong>Reduced Storage:</strong> Limited inventory and activity history</p>
+                </div>
+            </div>
+
+            <p class="message">
+                <strong>Good news!</strong> You can restore all your premium features and regain full access by upgrading to a paid plan. Your team can continue working seamlessly with all the tools they need.
+            </p>
+
+            <p class="message">
+                Click the button above to choose a plan that works for your organization. We're here to help if you have any questions about which plan is right for you.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                <strong>Questions or need assistance?</strong><br>
+                Our support team is here to help!
+            </p>
+
+            <div class="footer-links">
+                <a href="https://farmpro.app/support" class="footer-link">Support Center</a>
+                <a href="https://farmpro.app/pricing" class="footer-link">View Plans</a>
+                <a href="https://farmpro.app/contact" class="footer-link">Contact Us</a>
+            </div>
+
+            <p class="copyright">
+                © {{year}} FarmPro. All rights reserved.<br>
+                {{organizationAddress}}
+            </p>
+        </div>
+    </div>
+</body>
+</html>

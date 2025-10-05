@@ -13,6 +13,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { EmailVerificationService } from '@/auth/email-verification.service';
 import { BrevoService } from '@/external-service/brevo/brevo.service';
 import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
+import { SubscriptionTier } from '@prisma/client';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
 import { UserMetadata } from './types/user-metadata.types';
@@ -105,7 +106,7 @@ export class AuthService {
     const result = await this.prisma.$transaction(async (tx) => {
       const { allowedModules, features } = this.planFeatureMapper.getOrganizationFeatures(
         organizationType,
-        'BASIC'
+        SubscriptionTier.FREE
       );
 
       const organization = await tx.organization.create({
@@ -114,8 +115,8 @@ export class AuthService {
           type: organizationType,
           email,
           isActive: true,
-          plan: 'BASIC',
-          maxUsers: 5,
+          plan: SubscriptionTier.FREE,
+          maxUsers: 1,
           maxFarms: 1,
           features,
           allowedModules,
@@ -862,8 +863,9 @@ export class AuthService {
     // Create organization and update user in a transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // Initialize organization features based on type and plan
-      const { allowedModules, features } = await import('@/common/config/organization-features.config').then(m =>
-        m.initializeOrganizationFeatures(organizationType, 'basic')
+      const { allowedModules, features } = this.planFeatureMapper.getOrganizationFeatures(
+        organizationType,
+        SubscriptionTier.FREE
       );
 
       // Create organization
@@ -873,8 +875,8 @@ export class AuthService {
           type: organizationType,
           email: user.email,
           isActive: true,
-          plan: 'basic',
-          maxUsers: 5,
+          plan: SubscriptionTier.FREE,
+          maxUsers: 1,
           maxFarms: 1,
           features,
           allowedModules,

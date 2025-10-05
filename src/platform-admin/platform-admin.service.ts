@@ -7,18 +7,19 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { OrganizationType } from '@prisma/client';
+import { OrganizationType, SubscriptionTier } from '@prisma/client';
 import { UpdateOrganizationRequest } from '../../contracts/platform-admin.schemas';
-import {
-  ORGANIZATION_FEATURES,
-  initializeOrganizationFeatures,
-} from '@/common/config/organization-features.config';
+import { ORGANIZATION_FEATURES } from '@/common/config/organization-features.config';
+import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
 
 @Injectable()
 export class PlatformAdminService {
   private readonly logger = new Logger(PlatformAdminService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planFeatureMapper: PlanFeatureMapperService,
+  ) {}
 
   /**
    * Require that the user is a platform admin
@@ -181,11 +182,11 @@ export class PlatformAdminService {
       throw new BadRequestException('Organization already has this type');
     }
 
-    const { allowedModules, features } = initializeOrganizationFeatures(
+    const { allowedModules, features } = this.planFeatureMapper.getOrganizationFeatures(
       updates.organizationType,
-      org.plan,
+      org.plan as SubscriptionTier,
     );
-    const validFeatures = org.features.filter((f) => features.includes(f));
+    const validFeatures = org.features.filter((f: string) => features.includes(f));
 
     Object.assign(updateData, {
       type: updates.organizationType,
@@ -209,7 +210,10 @@ export class PlatformAdminService {
   ): void {
     if (updates.plan === undefined) return;
 
-    const { allowedModules, features } = initializeOrganizationFeatures(org.type, updates.plan);
+    const { allowedModules, features } = this.planFeatureMapper.getOrganizationFeatures(
+      org.type,
+      updates.plan as SubscriptionTier,
+    );
 
     Object.assign(updateData, {
       plan: updates.plan,

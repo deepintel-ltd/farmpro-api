@@ -20,7 +20,8 @@ import { AppModule } from '../app.module';
 import * as request from 'supertest';
 import { MockOpenAIService } from './mocks/openai.mock';
 import { OpenAIService } from '@/intelligence/openai.service';
-import { initializeOrganizationFeatures } from '@/common/config/organization-features.config';  
+import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
+import { SubscriptionTier } from '@prisma/client';  
 
 // Type definitions for entities with relations
 type OrganizationWithRelations = Organization;
@@ -199,13 +200,14 @@ export class TestContext {
   async createOrganization(
     overrides: Partial<Prisma.OrganizationCreateInput> = {},
   ): Promise<OrganizationWithRelations> {
-    
+
     const orgType = overrides.type || OrganizationType.FARM_OPERATION;
-    const plan = overrides.plan || 'basic';
-    
+    const plan = (overrides.plan || SubscriptionTier.FREE) as SubscriptionTier;
+
     // Initialize organization features based on type and plan
-    const { allowedModules, features } = initializeOrganizationFeatures(orgType, plan);
-    
+    const planFeatureMapper = new PlanFeatureMapperService();
+    const { allowedModules, features } = planFeatureMapper.getOrganizationFeatures(orgType, plan);
+
     // Add RBAC feature to all test organizations
     const featuresWithRbac = [...features, 'rbac'];
     const modulesWithRbac = [...allowedModules, 'rbac'];
