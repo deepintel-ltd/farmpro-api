@@ -1,7 +1,92 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, SubscriptionTier } from '@prisma/client';
 import { hash } from '@node-rs/argon2';
 
 const prisma = new PrismaClient();
+
+// =============================================================================
+// PLAN FEATURE MAPPER (Simplified for init script)
+// =============================================================================
+
+class PlanFeatureMapper {
+  getOrganizationFeatures(orgType: string, planTier: SubscriptionTier): {
+    allowedModules: string[];
+    features: string[];
+  } {
+    const baseModules = this.getBaseModules(planTier);
+    const premiumModules = this.getPremiumModules(planTier);
+    const allModules = [...baseModules, ...premiumModules];
+    
+    const baseFeatures = this.getBaseFeatures(planTier);
+    const premiumFeatures = this.getPremiumFeatures(planTier);
+    const allFeatures = [...baseFeatures, ...premiumFeatures];
+    
+    return { allowedModules: allModules, features: allFeatures };
+  }
+
+  private getBaseModules(tier: SubscriptionTier): string[] {
+    const moduleMap: Record<SubscriptionTier, string[]> = {
+      FREE: ['farm_management', 'activities', 'marketplace', 'orders', 'inventory', 'media'],
+      BASIC: ['farm_management', 'activities', 'marketplace', 'orders', 'inventory', 'deliveries', 'media'],
+      PRO: [
+        'farm_management', 'activities', 'inventory', 'analytics', 
+        'marketplace', 'orders', 'trading', 'deliveries', 
+        'observations', 'crop_cycles', 'intelligence', 'media'
+      ],
+      ENTERPRISE: [
+        'farm_management', 'activities', 'inventory', 'analytics',
+        'marketplace', 'orders', 'trading', 'deliveries',
+        'observations', 'sensors', 'crop_cycles', 'areas',
+        'seasons', 'drivers', 'tracking', 'intelligence', 'media'
+      ],
+    };
+
+    return moduleMap[tier] || moduleMap.FREE;
+  }
+
+  private getPremiumModules(tier: SubscriptionTier): string[] {
+    const premiumModules: string[] = [];
+
+    if (tier === 'PRO' || tier === 'ENTERPRISE') {
+      premiumModules.push('advanced_analytics', 'ai_insights', 'api_access', 'custom_roles');
+    }
+
+    if (tier === 'ENTERPRISE') {
+      premiumModules.push('white_label');
+    }
+
+    return premiumModules;
+  }
+
+  private getBaseFeatures(tier: SubscriptionTier): string[] {
+    const featureMap: Record<SubscriptionTier, string[]> = {
+      FREE: ['basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management'],
+      BASIC: ['basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management'],
+      PRO: [
+        'basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management',
+        'advanced_analytics', 'ai_insights', 'api_access', 'custom_roles'
+      ],
+      ENTERPRISE: [
+        'basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management',
+        'advanced_analytics', 'ai_insights', 'api_access', 'custom_roles',
+        'white_label', 'priority_support', 'unlimited_usage'
+      ],
+    };
+
+    return featureMap[tier] || featureMap.FREE;
+  }
+
+  private getPremiumFeatures(tier: SubscriptionTier): string[] {
+    const premiumFeatures: string[] = [];
+
+    if (tier === 'PRO' || tier === 'ENTERPRISE') {
+      premiumFeatures.push('priority_support');
+    }
+
+    return premiumFeatures;
+  }
+}
+
+const planFeatureMapper = new PlanFeatureMapper();
 
 // =============================================================================
 // PERMISSIONS INITIALIZATION
@@ -252,10 +337,10 @@ const SAMPLE_ORGANIZATIONS = [
       country: 'USA'
     },
     description: 'Demo farm showcasing FarmPro platform capabilities',
-    plan: 'premium',
+    plan: 'PRO', // Updated to proper enum value
     maxUsers: 25,
     maxFarms: 3,
-    features: ['farm_management', 'analytics', 'mobile_app'],
+    // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
   },
   {
@@ -271,10 +356,10 @@ const SAMPLE_ORGANIZATIONS = [
       country: 'USA'
     },
     description: 'Professional commodity trading and market intelligence platform',
-    plan: 'enterprise',
+    plan: 'ENTERPRISE', // Updated to proper enum value
     maxUsers: 100,
     maxFarms: 0,
-    features: ['exchange', 'analytics', 'api_access', 'custom_roles'],
+    // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
   },
   {
@@ -290,10 +375,10 @@ const SAMPLE_ORGANIZATIONS = [
       country: 'USA'
     },
     description: 'Specialized agricultural logistics and cold chain management',
-    plan: 'professional',
+    plan: 'BASIC', // Updated to proper enum value
     maxUsers: 50,
     maxFarms: 0,
-    features: ['delivery_tracking', 'mobile_app', 'analytics'],
+    // Features will be set by PlanFeatureMapper
     allowCustomRoles: false
   },
   {
@@ -309,10 +394,10 @@ const SAMPLE_ORGANIZATIONS = [
       country: 'USA'
     },
     description: 'Large-scale integrated farming and commodity trading operation',
-    plan: 'enterprise',
+    plan: 'ENTERPRISE', // Updated to proper enum value
     maxUsers: 200,
     maxFarms: 10,
-    features: ['farm_management', 'exchange', 'analytics', 'api_access', 'custom_roles'],
+    // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
   }
 ];
@@ -480,7 +565,7 @@ async function initializeRoles() {
         description: 'System organization for platform-wide roles',
         isVerified: true,
         isActive: true,
-        plan: 'enterprise',
+        plan: 'ENTERPRISE', // Updated to proper enum value
         maxUsers: 999999,
         maxFarms: 999999,
         features: ['all_features'],
@@ -2520,11 +2605,26 @@ async function upsertRole(role: { name: string; description: string; isSystemRol
   });
 }
 
-async function upsertOrganization(org: { name: string; type: string; email: string; phone?: string; address?: any }) {
+async function upsertOrganization(org: { 
+  name: string; 
+  type: string; 
+  email: string; 
+  phone?: string; 
+  address?: any;
+  plan?: string;
+  maxUsers?: number;
+  maxFarms?: number;
+  description?: string;
+  allowCustomRoles?: boolean;
+}) {
   // Find existing organization by name first
   const existing = await prisma.organization.findFirst({
     where: { name: org.name }
   });
+  
+  // Determine plan tier and get features
+  const planTier = (org.plan as SubscriptionTier) || SubscriptionTier.BASIC;
+  const { allowedModules, features } = planFeatureMapper.getOrganizationFeatures(org.type, planTier);
   
   if (existing) {
     return await prisma.organization.update({
@@ -2534,7 +2634,14 @@ async function upsertOrganization(org: { name: string; type: string; email: stri
         type: org.type as any,
         email: org.email,
         phone: org.phone,
-        address: org.address
+        address: org.address,
+        plan: planTier,
+        maxUsers: org.maxUsers || 5,
+        maxFarms: org.maxFarms || 1,
+        features: features,
+        allowedModules: allowedModules,
+        description: org.description,
+        allowCustomRoles: org.allowCustomRoles || false
       }
     });
   } else {
@@ -2544,7 +2651,16 @@ async function upsertOrganization(org: { name: string; type: string; email: stri
         type: org.type as any,
         email: org.email,
         phone: org.phone,
-        address: org.address
+        address: org.address,
+        plan: planTier,
+        maxUsers: org.maxUsers || 5,
+        maxFarms: org.maxFarms || 1,
+        features: features,
+        allowedModules: allowedModules,
+        description: org.description,
+        allowCustomRoles: org.allowCustomRoles || false,
+        isActive: true,
+        isVerified: false
       }
     });
   }

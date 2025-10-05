@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlanService } from './plan.service';
+import { PlanFeatureMapperService } from './plan-feature-mapper.service';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -24,6 +25,7 @@ export class SubscriptionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly planService: PlanService,
+    private readonly planFeatureMapper: PlanFeatureMapperService,
   ) {}
 
   /**
@@ -216,38 +218,81 @@ export class SubscriptionService {
       newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
     }
 
-    // Update subscription
-    const updatedSubscription = await this.prisma.subscription.update({
-      where: { id: subscription.id },
-      data: {
-        planId: dto.planId,
-        billingInterval: interval,
-        currentPeriodStart: now,
-        currentPeriodEnd: newPeriodEnd,
-        status: SubscriptionStatus.ACTIVE,
-        isTrialing: false,
-        trialStart: null,
-        trialEnd: null,
-      },
-      include: {
-        plan: true,
-        paymentMethod: true,
-      },
+    // Get organization to update features
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Calculate new organization features based on new plan
+    const allowedModules = this.planFeatureMapper.getModuleAccess(newPlan);
+    const planFeatures = this.planFeatureMapper.getPlanFeatures(newPlan);
+
+    this.logger.log(
+      `Updating organization features for plan change: ${subscription.plan.tier} -> ${newPlan.tier}`,
+    );
+    this.logger.debug(`New allowed modules: ${allowedModules.join(', ')}`);
+    this.logger.debug(`New features: ${planFeatures.join(', ')}`);
+
+    // Update subscription and organization features in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update subscription
+      const updatedSubscription = await tx.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          planId: dto.planId,
+          billingInterval: interval,
+          currentPeriodStart: now,
+          currentPeriodEnd: newPeriodEnd,
+          status: SubscriptionStatus.ACTIVE,
+          isTrialing: false,
+          trialStart: null,
+          trialEnd: null,
+        },
+        include: {
+          plan: true,
+          paymentMethod: true,
+        },
+      });
+
+      // Update organization features
+      await tx.organization.update({
+        where: { id: organizationId },
+        data: {
+          allowedModules,
+          features: planFeatures,
+        },
+      });
+
+      return updatedSubscription;
     });
 
     this.logger.log(
-      `Successfully changed plan for subscription: ${subscription.id}`,
+      `Successfully changed plan for subscription: ${subscription.id} and updated organization features`,
     );
 
-    return createJsonApiResource(updatedSubscription.id, 'subscriptions', {
-      ...updatedSubscription,
-      currentPeriodStart: updatedSubscription.currentPeriodStart.toISOString(),
-      currentPeriodEnd: updatedSubscription.currentPeriodEnd.toISOString(),
-      trialStart: updatedSubscription.trialStart?.toISOString() ?? null,
-      trialEnd: updatedSubscription.trialEnd?.toISOString() ?? null,
-      canceledAt: updatedSubscription.canceledAt?.toISOString() ?? null,
-      createdAt: updatedSubscription.createdAt.toISOString(),
-      updatedAt: updatedSubscription.updatedAt.toISOString(),
+    return createJsonApiResource(result.id, 'subscriptions', {
+      organizationId: result.organizationId,
+      planId: result.planId,
+      status: result.status,
+      currency: result.currency,
+      currentPeriodStart: result.currentPeriodStart.toISOString(),
+      currentPeriodEnd: result.currentPeriodEnd.toISOString(),
+      billingInterval: result.billingInterval,
+      trialStart: result.trialStart?.toISOString(),
+      trialEnd: result.trialEnd?.toISOString(),
+      isTrialing: result.isTrialing,
+      autoRenew: result.autoRenew,
+      paymentMethodId: result.paymentMethodId,
+      cancelAtPeriodEnd: result.cancelAtPeriodEnd,
+      canceledAt: result.canceledAt?.toISOString(),
+      cancelReason: result.cancelReason,
+      metadata: result.metadata,
+      createdAt: result.createdAt.toISOString(),
+      updatedAt: result.updatedAt.toISOString(),
     });
   }
 

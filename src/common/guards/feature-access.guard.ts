@@ -11,6 +11,8 @@ import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 import {
   hasModuleAccess,
 } from '@/common/config/organization-features.config';
+import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
+import { SubscriptionService } from '@/billing/services/subscription.service';
 
 // Metadata keys for feature requirements
 export const REQUIRE_FEATURE_KEY = 'requireFeature';
@@ -31,9 +33,13 @@ export const REQUIRE_ORG_TYPE_KEY = 'requireOrgType';
 export class FeatureAccessGuard implements CanActivate {
   private readonly logger = new Logger(FeatureAccessGuard.name);
 
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private planFeatureMapper: PlanFeatureMapperService,
+    private subscriptionService: SubscriptionService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Check if this route is public
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -64,7 +70,7 @@ export class FeatureAccessGuard implements CanActivate {
     );
 
     if (requiredFeature) {
-      this.checkFeatureAccess(user, requiredFeature);
+      await this.checkFeatureAccess(user, requiredFeature);
     }
 
     // Check required capability
@@ -90,7 +96,7 @@ export class FeatureAccessGuard implements CanActivate {
     return true;
   }
 
-  private checkFeatureAccess(user: CurrentUser, feature: string): void {
+  private async checkFeatureAccess(user: CurrentUser, feature: string): Promise<void> {
     const { organization } = user;
 
     // Special case: RBAC is available to all organizations
@@ -121,15 +127,32 @@ export class FeatureAccessGuard implements CanActivate {
       );
     }
 
-    // Check if feature is enabled in plan
-    // Special case: 'all_features' grants access to all features
-    if (!organization.features.includes('all_features') && !organization.features.includes(feature)) {
-      this.logger.warn(
-        `User ${user.email} attempted to access feature '${feature}' not in plan`,
+    // Check subscription plan features
+    try {
+      const subscription = await this.subscriptionService['getCurrentSubscriptionInternal'](
+        user.organizationId,
       );
-      throw new ForbiddenException(
-        `Feature '${feature}' is not included in your current plan. Please upgrade to access this feature.`,
-      );
+      
+      if (!this.planFeatureMapper.hasModule(subscription.plan, feature)) {
+        this.logger.warn(
+          `User ${user.email} attempted to access feature '${feature}' not in subscription plan`,
+        );
+        throw new ForbiddenException(
+          `Feature '${feature}' is not included in your current plan. Please upgrade to access this feature.`,
+        );
+      }
+    } catch (error) {
+      // If no subscription found, fall back to organization features
+      this.logger.warn(`No subscription found for organization ${user.organizationId}, using organization features`);
+      
+      if (!organization.features.includes('all_features') && !organization.features.includes(feature)) {
+        this.logger.warn(
+          `User ${user.email} attempted to access feature '${feature}' not in plan`,
+        );
+        throw new ForbiddenException(
+          `Feature '${feature}' is not included in your current plan. Please upgrade to access this feature.`,
+        );
+      }
     }
 
     this.logger.debug(

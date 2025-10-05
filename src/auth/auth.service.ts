@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/prisma/prisma.service';
 import { EmailVerificationService } from '@/auth/email-verification.service';
 import { BrevoService } from '@/external-service/brevo/brevo.service';
+import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
 import { UserMetadata } from './types/user-metadata.types';
@@ -76,6 +77,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailVerificationService: EmailVerificationService,
     private readonly brevoService: BrevoService,
+    private readonly planFeatureMapper: PlanFeatureMapperService,
   ) {
     this.JWT_EXPIRES_IN = this.configService.get<number>(
       'JWT_EXPIRES_IN_SECONDS',
@@ -101,9 +103,9 @@ export class AuthService {
     const hashedPassword = await this.hashPassword(password);
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // Initialize organization features based on type and plan
-      const { allowedModules, features } = await import('@/common/config/organization-features.config').then(m =>
-        m.initializeOrganizationFeatures(organizationType, 'basic')
+      const { allowedModules, features } = this.planFeatureMapper.getOrganizationFeatures(
+        organizationType,
+        'BASIC'
       );
 
       const organization = await tx.organization.create({
@@ -112,7 +114,7 @@ export class AuthService {
           type: organizationType,
           email,
           isActive: true,
-          plan: 'basic',
+          plan: 'BASIC',
           maxUsers: 5,
           maxFarms: 1,
           features,

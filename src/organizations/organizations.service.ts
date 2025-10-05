@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException, ConflictExc
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, Currency } from '@prisma/client';
 import { CurrencyService } from '../common/services/currency.service';
+import { PlanFeatureMapperService } from '../billing/services/plan-feature-mapper.service';
 import {
   CreateOrganizationRequest,
   UpdateOrganizationRequest,
@@ -21,6 +22,7 @@ export class OrganizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly currencyService: CurrencyService,
+    private readonly planFeatureMapper: PlanFeatureMapperService,
   ) {}
 
   // =============================================================================
@@ -1832,6 +1834,15 @@ export class OrganizationsService {
     const { attributes } = data;
 
     try {
+      // Determine plan tier - default to BASIC if not specified
+      const planTier = attributes.plan || 'BASIC';
+      
+      // Initialize organization features using PlanFeatureMapper
+      const { allowedModules, features } = this.planFeatureMapper.getOrganizationFeatures(
+        attributes.type,
+        planTier as any
+      );
+
       const organization = await this.prisma.organization.create({
         data: {
           name: attributes.name,
@@ -1840,10 +1851,11 @@ export class OrganizationsService {
           phone: attributes.phone,
           address: attributes.address,
           taxId: attributes.taxId,
-          plan: attributes.plan || 'basic',
+          plan: planTier,
           maxUsers: attributes.maxUsers || 5,
           maxFarms: attributes.maxFarms || 1,
-          features: attributes.features || [],
+          features: features,
+          allowedModules: allowedModules,
           isActive: true,
           isVerified: false,
         },

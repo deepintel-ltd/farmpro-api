@@ -178,15 +178,26 @@ export function initializeOrganizationFeatures(
 // Plan-based feature limits
 function getPlanFeatures(plan: string): string[] {
   const planFeatureMap: Record<string, string[]> = {
-    basic: [
+    // Support both old and new naming conventions
+    'basic': [
       'farm_management',
       'activities',
       'marketplace',
       'orders',
+      'inventory',
       'deliveries',
       'media',
     ],
-    professional: [
+    'BASIC': [
+      'farm_management',
+      'activities',
+      'marketplace',
+      'orders',
+      'inventory',
+      'deliveries',
+      'media',
+    ],
+    'professional': [
       'farm_management',
       'activities',
       'inventory',
@@ -200,7 +211,21 @@ function getPlanFeatures(plan: string): string[] {
       'intelligence',
       'media',
     ],
-    enterprise: [
+    'PRO': [
+      'farm_management',
+      'activities',
+      'inventory',
+      'analytics',
+      'marketplace',
+      'orders',
+      'trading',
+      'deliveries',
+      'observations',
+      'crop_cycles',
+      'intelligence',
+      'media',
+    ],
+    'enterprise': [
       'farm_management',
       'activities',
       'inventory',
@@ -219,7 +244,34 @@ function getPlanFeatures(plan: string): string[] {
       'intelligence',
       'media',
     ],
+    'ENTERPRISE': [
+      'farm_management',
+      'activities',
+      'inventory',
+      'analytics',
+      'marketplace',
+      'orders',
+      'trading',
+      'deliveries',
+      'observations',
+      'sensors',
+      'crop_cycles',
+      'areas',
+      'seasons',
+      'drivers',
+      'tracking',
+      'intelligence',
+      'media',
+    ],
+    'FREE': [
+      'farm_management',
+      'activities',
+      'marketplace',
+      'orders',
+      'inventory',
+      'media',
+    ],
   };
 
-  return planFeatureMap[plan] || planFeatureMap.basic;
+  return planFeatureMap[plan] || planFeatureMap['BASIC'];
 }

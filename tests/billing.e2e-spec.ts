@@ -566,4 +566,237 @@ describe('Billing E2E Tests', () => {
       });
     });
   });
+
+  describe('Subscription Plan Changes and Feature Updates', () => {
+    let testSubscription: any;
+
+    beforeEach(async () => {
+      // Create a test subscription
+      testSubscription = await testContext.prisma.subscription.create({
+        data: {
+          organizationId: testOrganization.id,
+          planId: testPlan.id,
+          status: SubscriptionStatus.ACTIVE,
+          currency: 'USD',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          billingInterval: 'MONTHLY',
+          isTrialing: false,
+          autoRenew: true,
+          cancelAtPeriodEnd: false,
+        },
+      });
+    });
+
+    describe('PATCH /billing/subscriptions/:id/change-plan', () => {
+      it('should update organization features when changing from FREE to PRO plan', async () => {
+        // Create FREE plan
+        const freePlan = await testContext.prisma.subscriptionPlan.create({
+          data: {
+            name: 'Free Plan',
+            tier: 'FREE',
+            description: 'Free plan for basic usage',
+            priceUSD: 0,
+            priceNGN: 0,
+            billingInterval: 'MONTHLY',
+            maxUsers: 1,
+            maxFarms: 1,
+            maxActivitiesPerMonth: 50,
+            maxActiveListings: 0,
+            storageGB: 1,
+            apiCallsPerDay: 100,
+            hasAdvancedAnalytics: false,
+            hasAIInsights: false,
+            hasAPIAccess: false,
+            hasCustomRoles: false,
+            hasPrioritySupport: false,
+            hasWhiteLabel: false,
+            isActive: true,
+            isPublic: true,
+          },
+        });
+
+        // Create PRO plan
+        const proPlan = await testContext.prisma.subscriptionPlan.create({
+          data: {
+            name: 'Pro Plan',
+            tier: 'PRO',
+            description: 'Professional plan for growing operations',
+            priceUSD: 99,
+            priceNGN: 40000,
+            billingInterval: 'MONTHLY',
+            maxUsers: 10,
+            maxFarms: 5,
+            maxActivitiesPerMonth: 1000,
+            maxActiveListings: 50,
+            storageGB: 50,
+            apiCallsPerDay: 5000,
+            hasAdvancedAnalytics: true,
+            hasAIInsights: true,
+            hasAPIAccess: true,
+            hasCustomRoles: true,
+            hasPrioritySupport: true,
+            hasWhiteLabel: false,
+            isActive: true,
+            isPublic: true,
+          },
+        });
+
+        // Update organization to FREE plan initially
+        await testContext.prisma.organization.update({
+          where: { id: testOrganization.id },
+          data: {
+            plan: 'FREE',
+            features: ['basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management'],
+            allowedModules: ['farm_management', 'activities', 'marketplace', 'orders', 'inventory', 'media'],
+          },
+        });
+
+        // Update subscription to FREE plan
+        await testContext.prisma.subscription.update({
+          where: { id: testSubscription.id },
+          data: { planId: freePlan.id },
+        });
+
+        // Change plan to PRO
+        const response = await testContext
+          .request()
+          .patch(`/billing/subscriptions/${testSubscription.id}/change-plan`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            planId: proPlan.id,
+            billingInterval: 'MONTHLY',
+          });
+
+        expect(response.status).toBe(200);
+
+        // Verify organization features were updated
+        const updatedOrg = await testContext.prisma.organization.findUnique({
+          where: { id: testOrganization.id },
+        });
+
+        expect(updatedOrg).toBeDefined();
+        expect(updatedOrg!.features).toContain('advanced_analytics');
+        expect(updatedOrg!.features).toContain('ai_insights');
+        expect(updatedOrg!.features).toContain('api_access');
+        expect(updatedOrg!.features).toContain('custom_roles');
+
+        expect(updatedOrg!.allowedModules).toContain('analytics');
+        expect(updatedOrg!.allowedModules).toContain('intelligence');
+        expect(updatedOrg!.allowedModules).toContain('trading');
+      });
+
+      it('should update organization features when changing from PRO to BASIC plan', async () => {
+        // Create PRO plan
+        const proPlan = await testContext.prisma.subscriptionPlan.create({
+          data: {
+            name: 'Pro Plan',
+            tier: 'PRO',
+            description: 'Professional plan for growing operations',
+            priceUSD: 99,
+            priceNGN: 40000,
+            billingInterval: 'MONTHLY',
+            maxUsers: 10,
+            maxFarms: 5,
+            maxActivitiesPerMonth: 1000,
+            maxActiveListings: 50,
+            storageGB: 50,
+            apiCallsPerDay: 5000,
+            hasAdvancedAnalytics: true,
+            hasAIInsights: true,
+            hasAPIAccess: true,
+            hasCustomRoles: true,
+            hasPrioritySupport: true,
+            hasWhiteLabel: false,
+            isActive: true,
+            isPublic: true,
+          },
+        });
+
+        // Create BASIC plan
+        const basicPlan = await testContext.prisma.subscriptionPlan.create({
+          data: {
+            name: 'Basic Plan',
+            tier: 'BASIC',
+            description: 'Basic plan for small operations',
+            priceUSD: 29,
+            priceNGN: 12000,
+            billingInterval: 'MONTHLY',
+            maxUsers: 3,
+            maxFarms: 2,
+            maxActivitiesPerMonth: 200,
+            maxActiveListings: 5,
+            storageGB: 5,
+            apiCallsPerDay: 500,
+            hasAdvancedAnalytics: false,
+            hasAIInsights: false,
+            hasAPIAccess: false,
+            hasCustomRoles: false,
+            hasPrioritySupport: false,
+            hasWhiteLabel: false,
+            isActive: true,
+            isPublic: true,
+          },
+        });
+
+        // Update organization to PRO plan initially
+        await testContext.prisma.organization.update({
+          where: { id: testOrganization.id },
+          data: {
+            plan: 'PRO',
+            features: [
+              'basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management',
+              'advanced_analytics', 'ai_insights', 'api_access', 'custom_roles'
+            ],
+            allowedModules: [
+              'farm_management', 'activities', 'marketplace', 'orders', 'inventory',
+              'analytics', 'trading', 'intelligence', 'media'
+            ],
+          },
+        });
+
+        // Update subscription to PRO plan
+        await testContext.prisma.subscription.update({
+          where: { id: testSubscription.id },
+          data: { planId: proPlan.id },
+        });
+
+        // Change plan to BASIC
+        const response = await testContext
+          .request()
+          .patch(`/billing/subscriptions/${testSubscription.id}/change-plan`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            planId: basicPlan.id,
+            billingInterval: 'MONTHLY',
+          });
+
+        expect(response.status).toBe(200);
+
+        // Verify organization features were updated
+        const updatedOrg = await testContext.prisma.organization.findUnique({
+          where: { id: testOrganization.id },
+        });
+
+        expect(updatedOrg).toBeDefined();
+        
+        // Should still have basic features
+        expect(updatedOrg!.features).toContain('basic_farm_management');
+        expect(updatedOrg!.features).toContain('marketplace_access');
+        expect(updatedOrg!.features).toContain('order_management');
+        expect(updatedOrg!.features).toContain('inventory_management');
+
+        // Should not have premium features
+        expect(updatedOrg!.features).not.toContain('advanced_analytics');
+        expect(updatedOrg!.features).not.toContain('ai_insights');
+        expect(updatedOrg!.features).not.toContain('api_access');
+        expect(updatedOrg!.features).not.toContain('custom_roles');
+
+        // Should not have premium modules
+        expect(updatedOrg!.allowedModules).not.toContain('analytics');
+        expect(updatedOrg!.allowedModules).not.toContain('intelligence');
+        expect(updatedOrg!.allowedModules).not.toContain('trading');
+      });
+    });
+  });
 });

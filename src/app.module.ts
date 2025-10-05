@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -23,6 +23,7 @@ import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 import { BillingModule } from '@/billing/billing.module';
 import { WeatherModule } from '@/weather/weather.module';
 import { UsersModule } from '@/users/users.module';
+import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware';
 
 @Module({
   imports: [
@@ -58,4 +59,10 @@ import { UsersModule } from '@/users/users.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(UsageLimitMiddleware)
+      .forRoutes('*'); // Apply to all routes
+  }
+}
