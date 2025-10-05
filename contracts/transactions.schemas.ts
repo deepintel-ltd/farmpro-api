@@ -82,13 +82,13 @@ export const TransactionFiltersSchema = z.object({
   farmId: z.string().cuid().optional(),
   orderId: z.string().cuid().optional(),
   categoryId: z.string().cuid().optional(),
-  requiresApproval: z.boolean().optional(),
+  requiresApproval: z.coerce.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  minAmount: z.number().positive().optional(),
-  maxAmount: z.number().positive().optional(),
-  page: z.number().int().positive().default(1),
-  limit: z.number().int().positive().max(100).default(20)
+  minAmount: z.coerce.number().positive().optional(),
+  maxAmount: z.coerce.number().positive().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20)
 });
 
 export const TransactionSummarySchema = z.object({
