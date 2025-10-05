@@ -2678,6 +2678,392 @@ async function upsertOrder(order: { orderNumber: string; title: string; type: st
 }
 
 // =============================================================================
+// TASK/ACTIVITY DEMO DATA INITIALIZATION
+// =============================================================================
+
+async function initializeTaskDemoData(farms: any[], users: any[]) {
+  console.log('📋 Initializing comprehensive task demo data...');
+  
+  const tasks = [];
+  let taskNotesCount = 0;
+  let taskAssignmentsCount = 0;
+  let taskCostsCount = 0;
+  
+  // Get farm and user data for task creation
+  const farm = farms[0]; // Use first farm
+  const farmUsers = users.filter(user => user.organizationId === farm.organizationId);
+  
+  // Define comprehensive task scenarios
+  const taskScenarios = [
+    // Field Preparation Tasks
+    {
+      name: 'Soil Testing - Field A',
+      description: 'Conduct comprehensive soil testing across Field A to determine nutrient levels and pH balance',
+      type: 'MONITORING',
+      status: 'COMPLETED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      completedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
+      estimatedDuration: 4,
+      actualDuration: 3.5,
+      percentComplete: 100,
+      estimatedCost: 150,
+      actualCost: 145,
+      instructions: 'Use soil testing kit to collect samples from 10 different locations across Field A. Test for pH, nitrogen, phosphorus, and potassium levels.',
+      safetyNotes: 'Wear protective gloves when handling soil samples. Ensure testing equipment is properly calibrated.',
+      location: { lat: 40.7128, lng: -74.006 },
+      results: {
+        quality: 'excellent',
+        quantityAchieved: 10,
+        notes: 'Soil pH is optimal at 6.8. Nitrogen levels are adequate, but phosphorus needs supplementation.'
+      },
+      issues: null,
+      recommendations: 'Apply phosphorus-rich fertilizer before next planting cycle. Consider adding organic matter to improve soil structure.',
+      assignedUsers: [farmUsers[0]?.id, farmUsers[1]?.id].filter(Boolean),
+      notes: [
+        {
+          content: 'Soil samples collected from all 10 designated locations. Testing completed successfully.',
+          type: 'OBSERVATION',
+          isPrivate: false,
+          attachments: []
+        },
+        {
+          content: 'pH levels are within optimal range for corn cultivation. No immediate concerns.',
+          type: 'RECOMMENDATION',
+          isPrivate: false,
+          attachments: []
+        }
+      ],
+      costs: [
+        {
+          type: 'LABOR',
+          description: 'Field technician time for soil sampling',
+          amount: 120,
+          quantity: 3.5,
+          unit: 'hours',
+          vendor: 'Internal'
+        },
+        {
+          type: 'MATERIAL',
+          description: 'Soil testing kit and supplies',
+          amount: 25,
+          quantity: 1,
+          unit: 'kit',
+          vendor: 'AgriSupply Co.'
+        }
+      ]
+    },
+    
+    // Planting Tasks
+    {
+      name: 'Corn Planting - Field B',
+      description: 'Plant corn seeds in Field B using precision planting equipment',
+      type: 'PLANTING',
+      status: 'IN_PROGRESS',
+      priority: 'URGENT',
+      scheduledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      startedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      estimatedDuration: 8,
+      actualDuration: null,
+      percentComplete: 65,
+      estimatedCost: 800,
+      actualCost: 520,
+      instructions: 'Plant corn seeds at 30-inch row spacing with 6-inch seed spacing. Ensure proper seed depth of 1.5 inches.',
+      safetyNotes: 'Ensure all planting equipment is properly maintained. Check for any mechanical issues before starting.',
+      location: { lat: 40.7130, lng: -74.008 },
+      results: null,
+      issues: 'Planting equipment had minor mechanical issues that caused 2-hour delay. Issue resolved.',
+      recommendations: 'Schedule equipment maintenance before next planting season.',
+      assignedUsers: [farmUsers[1]?.id, farmUsers[2]?.id].filter(Boolean),
+      notes: [
+        {
+          content: 'Planting started on schedule. Equipment performing well initially.',
+          type: 'OBSERVATION',
+          isPrivate: false,
+          attachments: []
+        },
+        {
+          content: 'Minor mechanical issue with seed dispenser. Repaired and continued planting.',
+          type: 'ISSUE',
+          isPrivate: false,
+          attachments: []
+        },
+        {
+          content: '65% of field completed. On track to finish by tomorrow.',
+          type: 'GENERAL',
+          isPrivate: false,
+          attachments: []
+        }
+      ],
+      costs: [
+        {
+          type: 'LABOR',
+          description: 'Planting crew wages',
+          amount: 400,
+          quantity: 8,
+          unit: 'hours',
+          vendor: 'Internal'
+        },
+        {
+          type: 'EQUIPMENT',
+          description: 'Tractor and planter rental',
+          amount: 120,
+          quantity: 1,
+          unit: 'day',
+          vendor: 'Farm Equipment Rentals'
+        }
+      ]
+    },
+    
+    // Irrigation Tasks
+    {
+      name: 'Irrigation System Check - Field C',
+      description: 'Inspect and test irrigation system in Field C for proper water distribution',
+      type: 'IRRIGATION',
+      status: 'PLANNED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+      estimatedDuration: 3,
+      actualDuration: null,
+      percentComplete: 0,
+      estimatedCost: 200,
+      actualCost: null,
+      instructions: 'Check all irrigation sprinklers for proper operation. Test water pressure and coverage area.',
+      safetyNotes: 'Turn off water supply before inspecting sprinkler heads. Use proper tools for adjustments.',
+      location: { lat: 40.7125, lng: -74.004 },
+      results: null,
+      issues: null,
+      recommendations: null,
+      assignedUsers: [farmUsers[0]?.id].filter(Boolean),
+      notes: [],
+      costs: []
+    },
+    
+    // Harvesting Tasks
+    {
+      name: 'Wheat Harvest - Field D',
+      description: 'Harvest mature wheat crop from Field D using combine harvester',
+      type: 'HARVESTING',
+      status: 'SCHEDULED',
+      priority: 'HIGH',
+      scheduledAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      estimatedDuration: 12,
+      actualDuration: null,
+      percentComplete: 0,
+      estimatedCost: 1200,
+      actualCost: null,
+      instructions: 'Harvest wheat when moisture content is below 14%. Use combine harvester with proper settings for wheat.',
+      safetyNotes: 'Ensure all safety guards are in place on combine. Check weather conditions before starting.',
+      location: { lat: 40.7140, lng: -74.010 },
+      results: null,
+      issues: null,
+      recommendations: null,
+      assignedUsers: [farmUsers[1]?.id, farmUsers[2]?.id, farmUsers[3]?.id].filter(Boolean),
+      notes: [],
+      costs: []
+    },
+    
+    // Maintenance Tasks
+    {
+      name: 'Equipment Maintenance - Tractor Fleet',
+      description: 'Perform routine maintenance on all tractors in the fleet',
+      type: 'MAINTENANCE',
+      status: 'COMPLETED',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+      completedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000), // 9 days ago
+      estimatedDuration: 6,
+      actualDuration: 5.5,
+      percentComplete: 100,
+      estimatedCost: 500,
+      actualCost: 480,
+      instructions: 'Change oil, check filters, inspect belts and hoses, test all hydraulic systems.',
+      safetyNotes: 'Ensure tractors are properly supported during maintenance. Use appropriate safety equipment.',
+      location: { lat: 40.7120, lng: -74.002 },
+      results: {
+        quality: 'good',
+        quantityAchieved: 3,
+        notes: 'All tractors serviced successfully. Minor belt replacement needed on one unit.'
+      },
+      issues: 'One tractor had worn belt that needed replacement. All other units in good condition.',
+      recommendations: 'Schedule next maintenance in 3 months. Keep spare belts in inventory.',
+      assignedUsers: [farmUsers[0]?.id, farmUsers[1]?.id].filter(Boolean),
+      notes: [
+        {
+          content: 'Maintenance completed on all 3 tractors. All systems functioning properly.',
+          type: 'OBSERVATION',
+          isPrivate: false,
+          attachments: []
+        },
+        {
+          content: 'Belt replacement completed on Tractor #2. No other issues found.',
+          type: 'GENERAL',
+          isPrivate: false,
+          attachments: []
+        }
+      ],
+      costs: [
+        {
+          type: 'LABOR',
+          description: 'Mechanic labor for maintenance',
+          amount: 300,
+          quantity: 5.5,
+          unit: 'hours',
+          vendor: 'Internal'
+        },
+        {
+          type: 'MATERIAL',
+          description: 'Oil, filters, and replacement parts',
+          amount: 180,
+          quantity: 1,
+          unit: 'service',
+          vendor: 'Farm Supply Store'
+        }
+      ]
+    },
+    
+    // Pest Control Tasks
+    {
+      name: 'Pest Monitoring - All Fields',
+      description: 'Weekly pest monitoring across all fields to identify potential issues',
+      type: 'PEST_CONTROL',
+      status: 'IN_PROGRESS',
+      priority: 'NORMAL',
+      scheduledAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      startedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      estimatedDuration: 2,
+      actualDuration: null,
+      percentComplete: 80,
+      estimatedCost: 100,
+      actualCost: 80,
+      instructions: 'Walk through all fields and check for signs of pest damage. Document findings and take photos if needed.',
+      safetyNotes: 'Wear appropriate clothing and use insect repellent. Be aware of any chemical applications in the area.',
+      location: { lat: 40.7128, lng: -74.006 },
+      results: null,
+      issues: 'Found minor aphid damage in Field A. No immediate action needed.',
+      recommendations: 'Continue monitoring. Consider beneficial insects if aphid population increases.',
+      assignedUsers: [farmUsers[2]?.id].filter(Boolean),
+      notes: [
+        {
+          content: 'Completed monitoring of Fields A, B, and C. Field D scheduled for tomorrow.',
+          type: 'OBSERVATION',
+          isPrivate: false,
+          attachments: []
+        },
+        {
+          content: 'Minor aphid damage found in Field A. Population appears stable.',
+          type: 'ISSUE',
+          isPrivate: false,
+          attachments: []
+        }
+      ],
+      costs: [
+        {
+          type: 'LABOR',
+          description: 'Field monitoring time',
+          amount: 80,
+          quantity: 2,
+          unit: 'hours',
+          vendor: 'Internal'
+        }
+      ]
+    }
+  ];
+  
+  // Create tasks and related data
+  for (const taskData of taskScenarios) {
+    const task = await prisma.farmActivity.create({
+      data: {
+        farmId: farm.id,
+        type: taskData.type as any,
+        name: taskData.name,
+        description: taskData.description,
+        status: taskData.status as any,
+        priority: taskData.priority as any,
+        scheduledAt: taskData.scheduledAt,
+        startedAt: taskData.startedAt,
+        completedAt: taskData.completedAt,
+        estimatedDuration: taskData.estimatedDuration,
+        actualDuration: taskData.actualDuration,
+        cost: taskData.actualCost || taskData.estimatedCost,
+        createdById: farmUsers[0]?.id || users[0].id,
+        metadata: {
+          taskType: 'field_operation',
+          complexity: taskData.priority === 'URGENT' ? 'high' : 'medium',
+          weatherDependent: ['PLANTING', 'HARVESTING', 'IRRIGATION'].includes(taskData.type),
+          instructions: taskData.instructions,
+          safetyNotes: taskData.safetyNotes,
+          location: taskData.location,
+          results: taskData.results,
+          issues: taskData.issues,
+          recommendations: taskData.recommendations,
+          percentComplete: taskData.percentComplete,
+          estimatedCost: taskData.estimatedCost,
+          actualCost: taskData.actualCost
+        }
+      }
+    });
+    
+    // Create task assignments
+    for (const userId of taskData.assignedUsers) {
+      if (userId) {
+        await prisma.activityAssignment.create({
+          data: {
+            activityId: task.id,
+            userId: userId,
+            assignedById: farmUsers[0]?.id || users[0].id,
+            role: 'ASSIGNED' as any,
+            isActive: true
+          }
+        });
+        taskAssignmentsCount++;
+      }
+    }
+    
+    // Create task notes
+    for (const noteData of taskData.notes) {
+        await prisma.activityNote.create({
+          data: {
+            activityId: task.id,
+            userId: farmUsers[0]?.id || users[0].id,
+            content: noteData.content,
+            type: noteData.type as any,
+            isPrivate: noteData.isPrivate,
+            attachments: noteData.attachments
+          }
+        });
+        taskNotesCount++;
+    }
+    
+    // Create task costs
+    for (const costData of taskData.costs) {
+      await prisma.activityCost.create({
+        data: {
+          activityId: task.id,
+          type: costData.type as any,
+          description: costData.description,
+          amount: costData.amount,
+          quantity: costData.quantity,
+          unit: costData.unit,
+          vendor: costData.vendor,
+          createdById: farmUsers[0]?.id || users[0].id
+        }
+      });
+      taskCostsCount++;
+    }
+    
+    tasks.push(task);
+  }
+  
+  console.log(`✅ Created ${tasks.length} comprehensive task scenarios`);
+  console.log(`   • ${taskNotesCount} task notes created`);
+  console.log(`   • ${taskAssignmentsCount} task assignments created`);
+  console.log(`   • ${taskCostsCount} cost entries created`);
+  
+  return tasks;
+}
+
+// =============================================================================
 // MAIN INITIALIZATION FUNCTION
 // =============================================================================
 
@@ -2694,6 +3080,7 @@ async function initializeDatabase() {
     const commodities = await initializeSampleCommodities();
     const activities = await initializeSampleActivities(farms, users);
     const activityTemplates = await initializeActivityTemplates(organizations);
+    const taskDemoData = await initializeTaskDemoData(farms, users);
     const inventory = await initializeSampleInventory(organizations, farms, commodities, users);
     const orders = await initializeSampleOrders(organizations, farms, commodities, users);
     const transactions = await initializeSampleTransactions(organizations, farms, orders);
@@ -2708,6 +3095,7 @@ async function initializeDatabase() {
     console.log(`   • ${commodities.length} sample commodities created`);
     console.log(`   • ${activities.length} comprehensive sample activities created`);
     console.log(`   • ${activityTemplates.length} activity templates created`);
+    console.log(`   • ${taskDemoData.length} comprehensive task scenarios created`);
     console.log(`   • ${inventory.length} comprehensive inventory items created`);
     console.log(`   • ${orders.length} comprehensive sample orders created`);
     console.log(`   • ${transactions.length} sample transactions created`);
@@ -2722,6 +3110,8 @@ async function initializeDatabase() {
     console.log('   • Activities with various statuses (PLANNED, SCHEDULED, IN_PROGRESS, COMPLETED) and priorities (LOW, NORMAL, HIGH, URGENT)');
     console.log('   • Detailed resource tracking (equipment, labor, materials) and cost breakdowns');
     console.log('   • Activity assignments, progress logs, notes, and results tracking');
+    console.log('   • 6 comprehensive task scenarios with realistic field operations (soil testing, planting, irrigation, harvesting, maintenance, pest control)');
+    console.log('   • Task scenarios include detailed notes, cost tracking, user assignments, and progress monitoring');
     console.log('   • 13 activity templates (10 system + 3 organization-specific) for common farming operations');
     console.log('   • 12+ comprehensive inventory items across 5 commodities (Wheat, Corn, Soybeans, Tomatoes, Potatoes)');
     console.log('   • Inventory with different statuses (AVAILABLE, RESERVED, SOLD, CONSUMED, EXPIRED) and quality grades (premium, grade_a, grade_b, standard)');
