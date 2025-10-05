@@ -36,10 +36,18 @@ export class ErrorResponseUtil {
    * Check if error is a validation/bad request error
    */
   static isBadRequest(error: unknown): boolean {
+    // Check for BadRequestException instance
+    if (error && typeof error === 'object' && 'constructor' in error) {
+      const errorConstructor = (error as any).constructor;
+      if (errorConstructor && errorConstructor.name === 'BadRequestException') {
+        return true;
+      }
+    }
+
     if (!(error instanceof Error)) return false;
-    
+
     const message = error.message.toLowerCase();
-    return message.includes('validation') || 
+    return message.includes('validation') ||
            message.includes('required') ||
            message.includes('cannot be empty') ||
            message.includes('is required') ||

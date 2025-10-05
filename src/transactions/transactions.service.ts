@@ -51,7 +51,11 @@ export class TransactionsService {
         orderId: attributes.orderId,
         farmId: attributes.farmId,
         dueDate: attributes.dueDate ? new Date(attributes.dueDate) : null,
-        metadata: attributes.metadata || {},
+        metadata: {
+          ...(attributes.metadata || {}),
+          createdBy: user.userId,
+          createdAt: new Date().toISOString()
+        },
         reference: this.generateReference(attributes.type)
       },
       include: {
@@ -66,28 +70,7 @@ export class TransactionsService {
 
     this.logger.log(`Successfully created transaction ${transaction.id}`);
 
-    return {
-      data: {
-        id: transaction.id,
-        type: 'transactions' as const,
-        attributes: {
-          id: transaction.id,
-          organizationId: transaction.organizationId,
-          orderId: transaction.orderId,
-          farmId: transaction.farmId,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount.toString()),
-          currency: transaction.currency,
-          status: transaction.status,
-          description: transaction.description,
-          reference: transaction.reference,
-          dueDate: transaction.dueDate?.toISOString(),
-          paidDate: transaction.paidDate?.toISOString(),
-          metadata: transaction.metadata,
-          createdAt: transaction.createdAt.toISOString(),
-        }
-      }
-    };
+    return this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -115,28 +98,7 @@ export class TransactionsService {
       throw new NotFoundException(`Transaction ${transactionId} not found`);
     }
 
-    return {
-      data: {
-        id: transaction.id,
-        type: 'transactions' as const,
-        attributes: {
-          id: transaction.id,
-          organizationId: transaction.organizationId,
-          orderId: transaction.orderId,
-          farmId: transaction.farmId,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount.toString()),
-          currency: transaction.currency,
-          status: transaction.status,
-          description: transaction.description,
-          reference: transaction.reference,
-          dueDate: transaction.dueDate?.toISOString(),
-          paidDate: transaction.paidDate?.toISOString(),
-          metadata: transaction.metadata,
-          createdAt: transaction.createdAt.toISOString(),
-        }
-      }
-    };
+    return this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -148,68 +110,63 @@ export class TransactionsService {
     const { data: requestData } = data;
     const { attributes } = requestData;
 
-    // Check if transaction exists and user has access
-    const existingTransaction = await this.prisma.transaction.findFirst({
-      where: {
-        id: transactionId,
-        organizationId: user.organizationId
-      }
-    });
-
-    if (!existingTransaction) {
-      throw new NotFoundException(`Transaction ${transactionId} not found`);
-    }
-
-    // Validate status transitions
-    if (attributes.status && existingTransaction.status !== attributes.status) {
-      this.validateStatusTransition(existingTransaction.status, attributes.status as TransactionStatus);
-    }
-
-    const updateData: Prisma.TransactionUpdateInput = {};
-    
-    if (attributes.status) updateData.status = attributes.status as TransactionStatus;
-    if (attributes.amount) updateData.amount = attributes.amount;
-    if (attributes.description) updateData.description = attributes.description;
-    if (attributes.paidDate) updateData.paidDate = new Date(attributes.paidDate);
-    if (attributes.metadata) updateData.metadata = attributes.metadata;
-
-    const transaction = await this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: updateData,
-      include: {
-        order: {
-          select: { id: true, orderNumber: true, title: true }
-        },
-        organization: {
-          select: { id: true, name: true }
+    // Use transaction with locking to prevent race conditions
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      // Lock the transaction record for update
+      const existingTransaction = await tx.transaction.findFirst({
+        where: {
+          id: transactionId,
+          organizationId: user.organizationId
         }
+      });
+
+      if (!existingTransaction) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
       }
+
+      // Validate status transitions
+      if (attributes.status && existingTransaction.status !== attributes.status) {
+        this.validateStatusTransition(existingTransaction.status, attributes.status as TransactionStatus);
+      }
+
+      const updateData: Prisma.TransactionUpdateInput = {};
+
+      if (attributes.status) updateData.status = attributes.status as TransactionStatus;
+      if (attributes.amount) updateData.amount = attributes.amount;
+      if (attributes.description) updateData.description = attributes.description;
+      if (attributes.paidDate) updateData.paidDate = new Date(attributes.paidDate);
+      if (attributes.metadata) {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          ...attributes.metadata,
+          updatedBy: user.userId,
+          updatedAt: new Date().toISOString()
+        };
+      } else {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          updatedBy: user.userId,
+          updatedAt: new Date().toISOString()
+        };
+      }
+
+      return await tx.transaction.update({
+        where: { id: transactionId },
+        data: updateData,
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
+        }
+      });
     });
 
     this.logger.log(`Successfully updated transaction ${transaction.id}`);
 
-    return {
-      data: {
-        id: transaction.id,
-        type: 'transactions' as const,
-        attributes: {
-          id: transaction.id,
-          organizationId: transaction.organizationId,
-          orderId: transaction.orderId,
-          farmId: transaction.farmId,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount.toString()),
-          currency: transaction.currency,
-          status: transaction.status,
-          description: transaction.description,
-          reference: transaction.reference,
-          dueDate: transaction.dueDate?.toISOString(),
-          paidDate: transaction.paidDate?.toISOString(),
-          metadata: transaction.metadata,
-          createdAt: transaction.createdAt.toISOString(),
-        }
-      }
-    };
+    return this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -259,26 +216,7 @@ export class TransactionsService {
     const totalPages = Math.ceil(total / filters.limit);
 
     return {
-      data: transactions.map(transaction => ({
-        id: transaction.id,
-        type: 'transactions' as const,
-        attributes: {
-          id: transaction.id,
-          organizationId: transaction.organizationId,
-          orderId: transaction.orderId,
-          farmId: transaction.farmId,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount.toString()),
-          currency: transaction.currency,
-          status: transaction.status,
-          description: transaction.description,
-          reference: transaction.reference,
-          dueDate: transaction.dueDate?.toISOString(),
-          paidDate: transaction.paidDate?.toISOString(),
-          metadata: transaction.metadata,
-          createdAt: transaction.createdAt.toISOString(),
-        }
-      })),
+      data: transactions.map(transaction => this.mapTransactionToResponse(transaction).data),
       meta: {
         page: filters.page,
         limit: filters.limit,
@@ -309,6 +247,20 @@ export class TransactionsService {
       where.createdAt = {};
       if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
       if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+    }
+
+    // Check for mixed currencies
+    const currencyCheck = await this.prisma.transaction.findMany({
+      where,
+      select: { currency: true },
+      distinct: ['currency']
+    });
+
+    if (currencyCheck.length > 1) {
+      throw new BadRequestException(
+        `Cannot generate summary with mixed currencies: ${currencyCheck.map(c => c.currency).join(', ')}. ` +
+        'Please filter by a specific currency or convert all transactions to the same currency.'
+      );
     }
 
     const [revenueData, expenseData, pendingData, completedData, totalCount] = await Promise.all([
@@ -358,71 +310,61 @@ export class TransactionsService {
     const { data: requestData } = data;
     const { attributes } = requestData;
 
-    const existingTransaction = await this.prisma.transaction.findFirst({
-      where: {
-        id: transactionId,
-        organizationId: user.organizationId
-      }
-    });
-
-    if (!existingTransaction) {
-      throw new NotFoundException(`Transaction ${transactionId} not found`);
-    }
-
-    if (existingTransaction.status === TransactionStatus.COMPLETED) {
-      throw new BadRequestException('Transaction is already completed');
-    }
-
-    const updateData: Prisma.TransactionUpdateInput = {
-      status: TransactionStatus.COMPLETED,
-      paidDate: attributes.paidDate ? new Date(attributes.paidDate) : new Date()
-    };
-
-    if (attributes.reference) updateData.reference = attributes.reference;
-    if (attributes.metadata) {
-      updateData.metadata = {
-        ...(existingTransaction.metadata as Record<string, any> || {}),
-        ...attributes.metadata
-      };
-    }
-
-    const transaction = await this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: updateData,
-      include: {
-        order: {
-          select: { id: true, orderNumber: true, title: true }
-        },
-        organization: {
-          select: { id: true, name: true }
+    // Use transaction with locking to prevent race conditions
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      const existingTransaction = await tx.transaction.findFirst({
+        where: {
+          id: transactionId,
+          organizationId: user.organizationId
         }
+      });
+
+      if (!existingTransaction) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
       }
+
+      if (existingTransaction.status === TransactionStatus.COMPLETED) {
+        throw new BadRequestException('Transaction is already completed');
+      }
+
+      const updateData: Prisma.TransactionUpdateInput = {
+        status: TransactionStatus.COMPLETED,
+        paidDate: attributes.paidDate ? new Date(attributes.paidDate) : new Date()
+      };
+
+      if (attributes.reference) updateData.reference = attributes.reference;
+      if (attributes.metadata) {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          ...attributes.metadata,
+          paidBy: user.userId,
+          paidAt: new Date().toISOString()
+        };
+      } else {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          paidBy: user.userId,
+          paidAt: new Date().toISOString()
+        };
+      }
+
+      return await tx.transaction.update({
+        where: { id: transactionId },
+        data: updateData,
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
+        }
+      });
     });
 
     this.logger.log(`Successfully marked transaction ${transaction.id} as paid`);
 
-    return {
-      data: {
-        id: transaction.id,
-        type: 'transactions' as const,
-        attributes: {
-          id: transaction.id,
-          organizationId: transaction.organizationId,
-          orderId: transaction.orderId,
-          farmId: transaction.farmId,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount.toString()),
-          currency: transaction.currency,
-          status: transaction.status,
-          description: transaction.description,
-          reference: transaction.reference,
-          dueDate: transaction.dueDate?.toISOString(),
-          paidDate: transaction.paidDate?.toISOString(),
-          metadata: transaction.metadata,
-          createdAt: transaction.createdAt.toISOString(),
-        }
-      }
-    };
+    return this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -434,81 +376,65 @@ export class TransactionsService {
     const { data: requestData } = data;
     const { attributes } = requestData;
 
-    const existingTransaction = await this.prisma.transaction.findFirst({
-      where: {
-        id: transactionId,
-        organizationId: user.organizationId
-      }
-    });
-
-    if (!existingTransaction) {
-      throw new NotFoundException(`Transaction ${transactionId} not found`);
-    }
-
-    if (existingTransaction.status === TransactionStatus.COMPLETED) {
-      throw new BadRequestException('Cannot cancel a completed transaction');
-    }
-
-    if (existingTransaction.status === TransactionStatus.CANCELLED) {
-      throw new BadRequestException('Transaction is already cancelled');
-    }
-
-    const updateData: Prisma.TransactionUpdateInput = {
-      status: TransactionStatus.CANCELLED
-    };
-
-    if (attributes.metadata) {
-      updateData.metadata = {
-        ...(existingTransaction.metadata as Record<string, any> || {}),
-        ...attributes.metadata,
-        cancellationReason: attributes.reason,
-        cancelledAt: new Date().toISOString()
-      };
-    } else {
-      updateData.metadata = {
-        ...(existingTransaction.metadata as Record<string, any> || {}),
-        cancellationReason: attributes.reason,
-        cancelledAt: new Date().toISOString()
-      };
-    }
-
-    const transaction = await this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: updateData,
-      include: {
-        order: {
-          select: { id: true, orderNumber: true, title: true }
-        },
-        organization: {
-          select: { id: true, name: true }
+    // Use transaction with locking to prevent race conditions
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      const existingTransaction = await tx.transaction.findFirst({
+        where: {
+          id: transactionId,
+          organizationId: user.organizationId
         }
+      });
+
+      if (!existingTransaction) {
+        throw new NotFoundException(`Transaction ${transactionId} not found`);
       }
+
+      if (existingTransaction.status === TransactionStatus.COMPLETED) {
+        throw new BadRequestException('Cannot cancel a completed transaction');
+      }
+
+      if (existingTransaction.status === TransactionStatus.CANCELLED) {
+        throw new BadRequestException('Transaction is already cancelled');
+      }
+
+      const updateData: Prisma.TransactionUpdateInput = {
+        status: TransactionStatus.CANCELLED
+      };
+
+      if (attributes.metadata) {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          ...attributes.metadata,
+          cancellationReason: attributes.reason,
+          cancelledBy: user.userId,
+          cancelledAt: new Date().toISOString()
+        };
+      } else {
+        updateData.metadata = {
+          ...(existingTransaction.metadata as Record<string, any> || {}),
+          cancellationReason: attributes.reason,
+          cancelledBy: user.userId,
+          cancelledAt: new Date().toISOString()
+        };
+      }
+
+      return await tx.transaction.update({
+        where: { id: transactionId },
+        data: updateData,
+        include: {
+          order: {
+            select: { id: true, orderNumber: true, title: true }
+          },
+          organization: {
+            select: { id: true, name: true }
+          }
+        }
+      });
     });
 
     this.logger.log(`Successfully cancelled transaction ${transaction.id}`);
 
-    return {
-      data: {
-        id: transaction.id,
-        type: 'transactions' as const,
-        attributes: {
-          id: transaction.id,
-          organizationId: transaction.organizationId,
-          orderId: transaction.orderId,
-          farmId: transaction.farmId,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount.toString()),
-          currency: transaction.currency,
-          status: transaction.status,
-          description: transaction.description,
-          reference: transaction.reference,
-          dueDate: transaction.dueDate?.toISOString(),
-          paidDate: transaction.paidDate?.toISOString(),
-          metadata: transaction.metadata,
-          createdAt: transaction.createdAt.toISOString(),
-        }
-      }
-    };
+    return this.mapTransactionToResponse(transaction);
   }
 
   // =============================================================================
@@ -542,7 +468,10 @@ export class TransactionsService {
     const order = await this.prisma.order.findFirst({
       where: {
         id: orderId,
-        buyerOrgId: organizationId
+        OR: [
+          { buyerOrgId: organizationId },
+          { supplierOrgId: organizationId }
+        ]
       }
     });
 
@@ -572,10 +501,35 @@ export class TransactionsService {
                    type === TransactionType.FARM_EXPENSE ? 'EXP' :
                    type === TransactionType.ORDER_PAYMENT ? 'PAY' :
                    type === TransactionType.PLATFORM_FEE ? 'FEE' : 'REF';
-    
+
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substr(2, 5);
-    
+
     return `${prefix}-${timestamp}-${random}`.toUpperCase();
+  }
+
+  private mapTransactionToResponse(transaction: any) {
+    return {
+      data: {
+        id: transaction.id,
+        type: 'transactions' as const,
+        attributes: {
+          id: transaction.id,
+          organizationId: transaction.organizationId,
+          orderId: transaction.orderId,
+          farmId: transaction.farmId,
+          type: transaction.type,
+          amount: parseFloat(transaction.amount.toString()),
+          currency: transaction.currency,
+          status: transaction.status,
+          description: transaction.description,
+          reference: transaction.reference,
+          dueDate: transaction.dueDate?.toISOString(),
+          paidDate: transaction.paidDate?.toISOString(),
+          metadata: transaction.metadata,
+          createdAt: transaction.createdAt.toISOString(),
+        }
+      }
+    };
   }
 }
