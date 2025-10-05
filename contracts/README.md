@@ -273,6 +273,206 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - 🐛 Issues: [GitHub Issues](https://github.com/deepintel-ltd/farmpro-api-contracts/issues)
 - 📖 Documentation: [API Documentation](https://docs.farmpro.com)
 
+## Publishing Guide
+
+### Quick Start
+
+```bash
+# Build contracts
+npm run contracts:build
+
+# Validate contracts
+npm run contracts:validate
+
+# Create GitHub release tag (for version tracking)
+npm run contracts:publish:github
+
+# Publish to NPM registry
+npm run contracts:publish:npm
+
+# Full publish (NPM + GitHub tag)
+npm run contracts:publish:all
+```
+
+### Available Publishing Commands
+
+| Command | Description |
+|---------|-------------|
+| `contracts:install` | Install contracts dependencies |
+| `contracts:build` | Build contracts package |
+| `contracts:build:watch` | Build contracts in watch mode |
+| `contracts:clean` | Clean contracts build artifacts |
+| `contracts:type-check` | Run TypeScript type checking |
+| `contracts:type-check:strict` | Run strict TypeScript type checking |
+| `contracts:lint` | Lint contracts code |
+| `contracts:lint:fix` | Fix linting issues |
+| `contracts:test:types` | Run type safety tests |
+| `contracts:test:runtime` | Run runtime validation tests |
+| `contracts:validate` | Run all validation checks |
+| `contracts:publish:build` | Build contracts only |
+| `contracts:publish:validate` | Validate contracts only |
+| `contracts:publish:version` | Update version (patch) |
+| `contracts:publish:github` | Publish to GitHub only |
+| `contracts:publish:npm` | Publish to NPM only |
+| `contracts:publish:all` | Full publish workflow |
+
+### Publishing Workflows
+
+#### 1. Development Workflow
+
+```bash
+# Make changes to contracts
+# ...
+
+# Build and validate
+npm run contracts:build
+npm run contracts:validate
+
+# Test locally
+npm run contracts:test:types
+npm run contracts:test:runtime
+```
+
+#### 2. Version Bump Workflow
+
+```bash
+# Bump patch version (1.0.0 -> 1.0.1)
+npm run contracts:publish:version
+
+# Bump minor version (1.0.0 -> 1.1.0)
+node scripts/publish-contracts.js version minor
+
+# Bump major version (1.0.0 -> 2.0.0)
+node scripts/publish-contracts.js version major
+```
+
+#### 3. Full Publishing Workflow
+
+```bash
+# Complete publish workflow
+npm run contracts:publish:all
+
+# Or with specific version bump
+node scripts/publish-contracts.js all minor
+
+# This will:
+# 1. Check git status
+# 2. Update version
+# 3. Build contracts
+# 4. Validate contracts
+# 5. Commit and tag changes
+# 6. Push to GitHub
+# 7. Publish to NPM
+```
+
+### Advanced Publishing
+
+```bash
+# Using the Node.js script
+node scripts/publish-contracts.js [command] [options]
+
+# Using the shell script
+./scripts/publish-contracts.sh [command] [options]
+```
+
+#### Available Commands
+
+| Command | Description | Options |
+|---------|-------------|---------|
+| `build` | Build contracts package only | - |
+| `validate` | Validate contracts package only | - |
+| `version` | Update package version | `patch`, `minor`, `major` |
+| `github` | Publish to GitHub (create tag and push) | - |
+| `npm` | Publish to NPM registry | - |
+| `all` | Full publish workflow | `patch`, `minor`, `major` |
+
+### Configuration
+
+The contracts package is configured in `contracts/package.json`:
+
+```json
+{
+  "name": "@deepintel-ltd/farmpro-api-contracts",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./schemas": {
+      "import": "./dist/schemas.mjs",
+      "require": "./dist/schemas.js"
+    },
+    "./contracts": {
+      "import": "./dist/contracts.mjs",
+      "require": "./dist/contracts.js"
+    }
+  }
+}
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Git working directory not clean**
+   ```bash
+   # Commit or stash changes first
+   git add .
+   git commit -m "Your changes"
+   # Then run publishing commands
+   ```
+
+2. **NPM authentication required**
+   ```bash
+   # Login to NPM first
+   npm login
+   # Then run publishing commands
+   ```
+
+3. **TypeScript errors**
+   ```bash
+   # Check for type errors
+   npm run contracts:type-check:strict
+   # Fix errors before publishing
+   ```
+
+4. **Build failures**
+   ```bash
+   # Clean and rebuild
+   npm run contracts:clean
+   npm run contracts:build
+   ```
+
+### Best Practices
+
+1. **Always validate before publishing**
+   ```bash
+   npm run contracts:validate
+   ```
+
+2. **Test locally first**
+   ```bash
+   npm run contracts:build
+   npm run contracts:test:types
+   npm run contracts:test:runtime
+   ```
+
+3. **Use semantic versioning**
+   - `patch`: Bug fixes (1.0.0 -> 1.0.1)
+   - `minor`: New features (1.0.0 -> 1.1.0)
+   - `major`: Breaking changes (1.0.0 -> 2.0.0)
+
+4. **Keep git clean**
+   - Commit changes before publishing
+   - Use meaningful commit messages
+
+5. **Document changes**
+   - Update CHANGELOG.md in contracts folder
+   - Update README.md if needed
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes.
