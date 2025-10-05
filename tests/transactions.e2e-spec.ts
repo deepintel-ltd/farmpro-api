@@ -2,6 +2,16 @@ import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
 import { TransactionType, TransactionStatus } from '@prisma/client';
 
+// Utility function to generate valid CUIDs for testing
+function generateValidCUID(): string {
+  const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+  let result = 'c';
+  for (let i = 0; i < 24; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 describe('Transactions E2E Tests', () => {
   let testContext: TestContext;
   let testOrganization: any;
@@ -267,7 +277,7 @@ describe('Transactions E2E Tests', () => {
         .post('/transactions')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(transactionData)
-        .expect(404);
+        .expect(400);
     });
 
     it('should fail to create transaction with invalid order ID', async () => {
@@ -288,7 +298,7 @@ describe('Transactions E2E Tests', () => {
         .post('/transactions')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(transactionData)
-        .expect(404);
+        .expect(400);
     });
   });
 
@@ -324,8 +334,9 @@ describe('Transactions E2E Tests', () => {
     });
 
     it('should return 404 for non-existent transaction', async () => {
+      const nonExistentId = generateValidCUID();
       await testContext.request()
-        .get('/transactions/non-existent-id')
+        .get(`/transactions/${nonExistentId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
     });
@@ -390,6 +401,7 @@ describe('Transactions E2E Tests', () => {
     });
 
     it('should fail to update non-existent transaction', async () => {
+      const nonExistentId = generateValidCUID();
       const updateData = {
         data: {
           type: 'transactions',
@@ -400,7 +412,7 @@ describe('Transactions E2E Tests', () => {
       };
 
       await testContext.request()
-        .patch('/transactions/non-existent-id')
+        .patch(`/transactions/${nonExistentId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(404);
