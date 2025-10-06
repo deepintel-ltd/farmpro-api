@@ -983,7 +983,7 @@ export class TransactionsService {
       }
 
       const updateData: Prisma.TransactionUpdateInput = {
-        approvedBy: attributes.approvedBy.id,
+        approvedBy: user.userId,
         approvedAt: new Date()
       };
 
