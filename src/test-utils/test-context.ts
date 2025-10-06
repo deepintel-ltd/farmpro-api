@@ -19,7 +19,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppModule } from '../app.module';
 import * as request from 'supertest';
 import { MockOpenAIService } from './mocks/openai.mock';
+import { MockBrevoService } from './mocks/brevo.mock';
 import { OpenAIService } from '@/intelligence/openai.service';
+import { BrevoService } from '@/external-service/brevo/brevo.service';
 import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
 import { SubscriptionTier } from '@prisma/client';  
 
@@ -132,6 +134,8 @@ export class TestContext {
       .useValue(this._prisma)
       .overrideProvider(OpenAIService)
       .useValue(new MockOpenAIService())
+      .overrideProvider(BrevoService)
+      .useValue(new MockBrevoService())
       .compile();
 
     // Create NestJS application instance
@@ -190,6 +194,13 @@ export class TestContext {
    */
   request(): request.SuperTest<request.Test> {
     return request(this.app.getHttpServer()) as unknown as request.SuperTest<request.Test>;
+  }
+
+  /**
+   * Get the mock Brevo service for email testing assertions
+   */
+  getMockBrevoService(): MockBrevoService {
+    return this._module.get<MockBrevoService>(BrevoService) as MockBrevoService;
   }
 
   // Factory Methods for Test Entities
