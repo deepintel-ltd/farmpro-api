@@ -66,7 +66,11 @@ export const PlatformAdminOrganizationSchema = z.object({
 });
 
 export const PlatformAdminOrganizationListResponseSchema = z.object({
-  data: z.array(PlatformAdminOrganizationSchema),
+  data: z.array(z.object({
+    id: z.string(),
+    type: z.literal('organizations'),
+    attributes: PlatformAdminOrganizationSchema,
+  })),
   meta: z.object({
     page: z.number(),
     limit: z.number(),

@@ -307,7 +307,11 @@ export class PlatformAdminService {
     ]);
 
     return {
-      data: organizations.map(org => this.formatOrganization(org)),
+      data: organizations.map(org => ({
+        id: org.id,
+        type: 'organizations' as const,
+        attributes: this.formatOrganization(org),
+      })),
       meta: {
         page,
         limit,
