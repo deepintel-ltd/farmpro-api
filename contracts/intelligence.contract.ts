@@ -221,10 +221,11 @@ export const intelligenceContract = c.router({
     path: '/intelligence/health',
     responses: {
       200: z.object({
-        status: z.enum(['healthy', 'unhealthy']),
+        status: z.enum(['healthy', 'unhealthy', 'disabled']),
         timestamp: z.date(),
         version: z.string(),
         models: z.array(z.string()).describe('Available AI models'),
+        enabled: z.boolean().describe('Whether OpenAI functionality is enabled'),
       }),
       500: IntelligenceErrorSchema,
     },

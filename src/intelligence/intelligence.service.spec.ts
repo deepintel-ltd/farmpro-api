@@ -473,6 +473,7 @@ describe('IntelligenceService', () => {
       mockOpenAIService.healthCheck.mockResolvedValue({
         status: 'healthy',
         models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        enabled: true,
       });
 
       const result = await service.healthCheck();
@@ -481,6 +482,7 @@ describe('IntelligenceService', () => {
         status: 'healthy',
         version: '1.0.0',
         models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        enabled: true,
       });
       expect(result.timestamp).toBeInstanceOf(Date);
     });
@@ -494,6 +496,7 @@ describe('IntelligenceService', () => {
         status: 'unhealthy',
         version: '1.0.0',
         models: [],
+        enabled: false,
       });
       expect(result.timestamp).toBeInstanceOf(Date);
     });

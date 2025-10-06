@@ -30,6 +30,20 @@ export class IntelligenceService {
   ) {}
 
   /**
+   * Check if OpenAI is enabled
+   */
+  isOpenAIEnabled(): boolean {
+    return this.openaiService.isOpenAIEnabled();
+  }
+
+  /**
+   * Get OpenAI service health status
+   */
+  async getOpenAIHealth(): Promise<{ status: 'healthy' | 'unhealthy' | 'disabled'; models: string[]; enabled: boolean }> {
+    return this.openaiService.healthCheck();
+  }
+
+  /**
    * Generate AI response for general queries
    */
   async generateResponse(request: IntelligenceRequest): Promise<IntelligenceResponse> {
@@ -463,6 +477,7 @@ export class IntelligenceService {
         timestamp: new Date(),
         version: '1.0.0',
         models: health.models,
+        enabled: health.enabled,
       };
     } catch (error) {
       this.logger.error('Health check failed:', error);
@@ -471,6 +486,7 @@ export class IntelligenceService {
         timestamp: new Date(),
         version: '1.0.0',
         models: [],
+        enabled: false,
       };
     }
   }

@@ -29,7 +29,11 @@ describe('OpenAIService', () => {
   beforeEach(() => {
     // Create deep mock for ConfigService
     mockConfigService = {
-      get: jest.fn().mockReturnValue('test-api-key'),
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'OPENAI_API_KEY') return 'test-api-key';
+        if (key === 'OPENAI_ENABLED') return 'true';
+        return undefined;
+      }),
     } as any;
 
     // Create service instance with mocked dependencies
@@ -363,6 +367,7 @@ describe('OpenAIService', () => {
       expect(result).toEqual({
         status: 'healthy',
         models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        enabled: true,
       });
     });
 
@@ -374,6 +379,7 @@ describe('OpenAIService', () => {
       expect(result).toEqual({
         status: 'unhealthy',
         models: [],
+        enabled: true,
       });
     });
   });
@@ -479,6 +485,90 @@ describe('OpenAIService', () => {
       });
 
       await expect(service.createChatCompletion(options)).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
+  describe('disabled state', () => {
+    let disabledService: OpenAIService;
+
+    beforeEach(() => {
+      const disabledConfigService = {
+        get: jest.fn().mockImplementation((key: string) => {
+          if (key === 'OPENAI_API_KEY') return 'test-api-key';
+          if (key === 'OPENAI_ENABLED') return 'false';
+          return undefined;
+        }),
+      } as any;
+
+      disabledService = new OpenAIService(disabledConfigService);
+    });
+
+    it('should return false for isOpenAIEnabled when disabled', () => {
+      expect(disabledService.isOpenAIEnabled()).toBe(false);
+    });
+
+    it('should return fallback response when disabled', async () => {
+      const options = {
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'user' as const, content: 'Analyze my farm data' },
+        ],
+      };
+
+      const result = await disabledService.createChatCompletion(options);
+
+      expect(result.content).toContain('currently unavailable');
+      expect(result.usage.totalTokens).toBe(0);
+    });
+
+    it('should return farm-specific fallback for farm queries', async () => {
+      const options = {
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'user' as const, content: 'Help me with my farm analysis' },
+        ],
+      };
+
+      const result = await disabledService.createChatCompletion(options);
+
+      expect(result.content).toContain('farm analysis');
+      expect(result.content).toContain('unavailable');
+    });
+
+    it('should return market-specific fallback for market queries', async () => {
+      const options = {
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'user' as const, content: 'What are the market prices for corn?' },
+        ],
+      };
+
+      const result = await disabledService.createChatCompletion(options);
+
+      expect(result.content).toContain('Market analysis');
+      expect(result.content).toContain('unavailable');
+    });
+
+    it('should return optimization-specific fallback for optimization queries', async () => {
+      const options = {
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'user' as const, content: 'Help me optimize my farm activities' },
+        ],
+      };
+
+      const result = await disabledService.createChatCompletion(options);
+
+      expect(result.content).toContain('optimization');
+      expect(result.content).toContain('disabled');
+    });
+
+    it('should return disabled status in health check', async () => {
+      const health = await disabledService.healthCheck();
+
+      expect(health.status).toBe('disabled');
+      expect(health.enabled).toBe(false);
+      expect(health.models).toEqual([]);
     });
   });
 });

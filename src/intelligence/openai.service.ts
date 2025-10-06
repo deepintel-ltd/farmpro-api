@@ -27,11 +27,15 @@ export interface OpenAIChatCompletionResponse {
 export class OpenAIService {
   private readonly logger = new Logger(OpenAIService.name);
   private readonly openai: OpenAI;
+  private readonly isEnabled: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-    if (!apiKey) {
-      // throw new Error('OPENAI_API_KEY environment variable is required');
+    this.isEnabled = this.configService.get<string>('OPENAI_ENABLED', 'true').toLowerCase() === 'true';
+    
+    if (!this.isEnabled) {
+      this.logger.warn('OpenAI functionality is disabled via OPENAI_ENABLED environment variable.');
+    } else if (!apiKey) {
       this.logger.warn('OPENAI_API_KEY environment variable is not set. OpenAI functionality will be limited.');
     } else {
       this.openai = new OpenAI({
@@ -41,9 +45,68 @@ export class OpenAIService {
   }
 
   /**
+   * Check if OpenAI service is enabled
+   */
+  isOpenAIEnabled(): boolean {
+    return this.isEnabled && !!this.openai;
+  }
+
+  /**
+   * Generate a fallback response when OpenAI is disabled
+   */
+  private generateFallbackResponse(options: OpenAIChatCompletionOptions): OpenAIChatCompletionResponse {
+    const fallbackContent = this.buildFallbackContent(options.messages);
+    
+    return {
+      content: fallbackContent,
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      },
+    };
+  }
+
+  /**
+   * Build fallback content based on the user's message
+   */
+  private buildFallbackContent(messages: OpenAIChatMessage[]): string {
+    const userMessage = messages.find(msg => msg.role === 'user')?.content || '';
+    const systemMessage = messages.find(msg => msg.role === 'system')?.content || '';
+    const combinedMessage = `${systemMessage} ${userMessage}`.toLowerCase();
+    
+    // Check for market analysis keywords
+    if (combinedMessage.includes('market') || combinedMessage.includes('price') || 
+        combinedMessage.includes('commodity') || combinedMessage.includes('trading')) {
+      return "Market analysis features are temporarily unavailable. Please check back later for AI-powered market insights.";
+    }
+    
+    // Check for optimization keywords
+    if (combinedMessage.includes('optimization') || combinedMessage.includes('optimize') || 
+        combinedMessage.includes('plan') || combinedMessage.includes('schedule') ||
+        combinedMessage.includes('activity optimization')) {
+      return "Activity optimization features are currently disabled. Please try again later for AI-powered farm planning assistance.";
+    }
+    
+    // Check for farm analysis keywords
+    if (combinedMessage.includes('farm') || combinedMessage.includes('agriculture') ||
+        combinedMessage.includes('crop') || combinedMessage.includes('yield') ||
+        combinedMessage.includes('farm analysis')) {
+      return "I'm currently unavailable for AI-powered farm analysis. Please try again later or contact support for assistance with your agricultural queries.";
+    }
+    
+    return "AI-powered features are temporarily unavailable. Please try again later or contact support for assistance.";
+  }
+
+  /**
    * Generate chat completion using OpenAI API
    */
   async createChatCompletion(options: OpenAIChatCompletionOptions): Promise<OpenAIChatCompletionResponse> {
+    if (!this.isOpenAIEnabled()) {
+      this.logger.warn('OpenAI is disabled, returning fallback response');
+      return this.generateFallbackResponse(options);
+    }
+
     try {
       this.logger.log(`Creating chat completion with model: ${options.model}`);
 
@@ -182,7 +245,23 @@ export class OpenAIService {
   /**
    * Check OpenAI API health
    */
-  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; models: string[] }> {
+  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy' | 'disabled'; models: string[]; enabled: boolean }> {
+    if (!this.isEnabled) {
+      return {
+        status: 'disabled',
+        models: [],
+        enabled: false,
+      };
+    }
+
+    if (!this.openai) {
+      return {
+        status: 'unhealthy',
+        models: [],
+        enabled: false,
+      };
+    }
+
     try {
       this.logger.log('Checking OpenAI API health');
       await this.openai.models.list();
@@ -190,12 +269,14 @@ export class OpenAIService {
       return {
         status: 'healthy',
         models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        enabled: true,
       };
     } catch (error) {
       this.logger.error('OpenAI health check failed:', error);
       return {
         status: 'unhealthy',
         models: [],
+        enabled: true,
       };
     }
   }
