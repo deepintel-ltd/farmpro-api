@@ -233,10 +233,6 @@ export const ApprovalRequestSchema = z.object({
   data: z.object({
     type: z.literal('transaction-approvals'),
     attributes: z.object({
-      approvedBy: z.object({
-        id: z.string().cuid(),
-        name: z.string()
-      }),
       approvalNotes: z.string().max(500).optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -247,10 +243,6 @@ export const RejectionRequestSchema = z.object({
   data: z.object({
     type: z.literal('transaction-approvals'),
     attributes: z.object({
-      rejectedBy: z.object({
-        id: z.string().cuid(),
-        name: z.string()
-      }),
       rejectionReason: z.string().min(1).max(500),
       metadata: z.record(z.any()).optional()
     })
