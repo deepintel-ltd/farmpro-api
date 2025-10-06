@@ -1,6 +1,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { JsonApiErrorResponseSchema } from './common';
+import { JsonApiCollectionSchema } from './schemas';
 
 const c = initContract();
 
@@ -356,7 +357,7 @@ export const transactionsContract = c.router({
     path: '/transactions',
     responses: {
       200: z.object({
-        data: z.array(TransactionSchema),
+        data: JsonApiCollectionSchema(TransactionSchema),
         meta: PaginationMetaSchema
       }),
       400: JsonApiErrorResponseSchema,
