@@ -2479,6 +2479,14 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
 async function initializeTransactionCategories(organizations: any[]) {
   console.log('📂 Initializing transaction categories...');
   
+  // Check if transaction_categories table exists
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM "transaction_categories" LIMIT 1`;
+  } catch {
+    console.log('⚠️  Transaction categories table does not exist, skipping category creation...');
+    return [];
+  }
+  
   const categories = [];
   
   // Define default transaction categories for each organization
@@ -2645,6 +2653,14 @@ async function initializeTransactionCategories(organizations: any[]) {
 
 async function initializeSampleTransactions(organizations: any[], farms: any[], orders: any[]) {
   console.log('💰 Initializing comprehensive sample transactions...');
+  
+  // Check if transactions table exists and has required columns
+  try {
+    await prisma.$queryRaw`SELECT "requiresApproval" FROM "transactions" LIMIT 1`;
+  } catch {
+    console.log('⚠️  Transactions table missing required columns, skipping transaction creation...');
+    return [];
+  }
   
   const transactions = [];
   const farmOrg = organizations.find(o => o.type === 'FARM_OPERATION');
@@ -3235,6 +3251,7 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
         dueDate: transactionInfo.dueDate,
         paidDate: transactionInfo.paidDate,
         reference: reference,
+        requiresApproval: false,
         metadata: transactionInfo.metadata || {}
       }
     });
