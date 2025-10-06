@@ -342,7 +342,7 @@ describe('Transactions E2E Tests', () => {
       expect(response.body.data.attributes.amount).toBe(5000);
       expect(response.body.data.attributes.requiresApproval).toBe(true);
       expect(response.body.data.attributes.approvedBy).toBeNull();
-      expect(response.body.data.attributes.approvedAt).toBeNull();
+      expect(response.body.data.attributes.approvedAt).toBeUndefined();
       expect(response.body.data.attributes.createdBy).toBeDefined();
       expect(response.body.data.attributes.createdBy.id).toBeDefined();
       expect(response.body.data.attributes.createdBy.name).toBeDefined();

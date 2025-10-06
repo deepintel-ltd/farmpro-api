@@ -636,8 +636,8 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     query: z.object({
-      page: z.number().int().positive().default(1),
-      limit: z.number().int().positive().max(100).default(20),
+      page: z.coerce.number().int().positive().default(1),
+      limit: z.coerce.number().int().positive().max(100).default(20),
       priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
       farmId: z.string().cuid().optional()
     }),

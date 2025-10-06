@@ -70,25 +70,6 @@ export class TransactionsController {
     });
   }
 
-  @TsRestHandler(transactionsContract.getTransaction)
-  public getTransaction(
-    @GetCurrentUser() user: CurrentUser
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(transactionsContract.getTransaction, async ({ params }) => {
-      try {
-        const result = await this.transactionsService.getTransaction(user, params.id);
-        return { status: 200 as const, body: result };
-      } catch (error: unknown) {
-        return ErrorResponseUtil.handleCommonError(error, {
-          notFoundMessage: 'Transaction not found',
-          notFoundCode: 'TRANSACTION_NOT_FOUND',
-          internalErrorMessage: 'Failed to retrieve transaction',
-          internalErrorCode: 'GET_TRANSACTION_FAILED',
-        });
-      }
-    });
-  }
-
   @TsRestHandler(transactionsContract.updateTransaction)
   public updateTransaction(
     @GetCurrentUser() user: CurrentUser
@@ -360,6 +341,25 @@ export class TransactionsController {
           badRequestCode: 'INVALID_QUERY_PARAMETERS',
           internalErrorMessage: 'Failed to get pending approvals',
           internalErrorCode: 'GET_PENDING_APPROVALS_FAILED',
+        });
+      }
+    });
+  }
+
+  @TsRestHandler(transactionsContract.getTransaction)
+  public getTransaction(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.getTransaction, async ({ params }) => {
+      try {
+        const result = await this.transactionsService.getTransaction(user, params.id);
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          notFoundMessage: 'Transaction not found',
+          notFoundCode: 'TRANSACTION_NOT_FOUND',
+          internalErrorMessage: 'Failed to retrieve transaction',
+          internalErrorCode: 'GET_TRANSACTION_FAILED',
         });
       }
     });
