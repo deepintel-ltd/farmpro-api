@@ -11,6 +11,12 @@ if [ -n "$DATABASE_URL" ]; then
     }
 fi
 
+# Fix any failed migrations first
+echo "🔧 Fixing migration issues..."
+node scripts/fix-production-migrations.js || {
+    echo "⚠️  Migration fix failed, continuing..."
+}
+
 # Run database migrations
 echo "📊 Running database migrations..."
 npx prisma migrate deploy
