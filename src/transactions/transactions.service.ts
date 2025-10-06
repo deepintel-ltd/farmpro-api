@@ -1,19 +1,20 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, TransactionType, TransactionStatus, Currency } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { 
-  CreateTransactionRequest, 
-  UpdateTransactionRequest, 
-  TransactionFilters,
-  BulkUpdateRequest,
-  BulkDeleteRequest,
-  BulkMarkPaidRequest,
-  CreateCategoryRequest,
-  UpdateCategoryRequest,
-  ApprovalRequest,
-  RejectionRequest
-} from '@contracts/transactions.schemas';
+  CreateTransactionRequestSchema, 
+  UpdateTransactionRequestSchema, 
+  TransactionFiltersSchema,
+  BulkUpdateRequestSchema,
+  BulkDeleteRequestSchema,
+  BulkMarkPaidRequestSchema,
+  CreateCategoryRequestSchema,
+  UpdateCategoryRequestSchema,
+  ApprovalRequestSchema,
+  RejectionRequestSchema
+} from '@contracts/transactions.contract';
 import { TransactionsContract } from '@contracts/transactions.contract';
 import { ExtractRequestBodyType } from '@contracts/type-safety';
 
@@ -30,7 +31,7 @@ export class TransactionsService {
   /**
    * Create a new transaction
    */
-  async createTransaction(user: CurrentUser, data: CreateTransactionRequest) {
+  async createTransaction(user: CurrentUser, data: z.infer<typeof CreateTransactionRequestSchema>) {
     this.logger.log(`Creating transaction for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -60,11 +61,8 @@ export class TransactionsService {
         categoryId: attributes.categoryId,
         dueDate: attributes.dueDate ? new Date(attributes.dueDate) : null,
         requiresApproval: attributes.requiresApproval || false,
-        metadata: {
-          ...(attributes.metadata || {}),
-          createdBy: user.userId,
-          createdAt: new Date().toISOString()
-        },
+        createdById: user.userId,
+        metadata: attributes.metadata || {},
         reference: this.generateReference(attributes.type)
       },
       include: {
@@ -73,13 +71,16 @@ export class TransactionsService {
         },
         organization: {
           select: { id: true, name: true }
+        },
+        createdBy: {
+          select: { id: true, name: true }
         }
       }
     });
 
     this.logger.log(`Successfully created transaction ${transaction.id}`);
 
-    return this.mapTransactionToResponse(transaction);
+    return await this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -100,6 +101,9 @@ export class TransactionsService {
           },
           organization: {
             select: { id: true, name: true }
+          },
+          createdBy: {
+            select: { id: true, name: true }
           }
         }
       });
@@ -108,7 +112,7 @@ export class TransactionsService {
         throw new NotFoundException(`Transaction ${transactionId} not found`);
       }
 
-      return this.mapTransactionToResponse(transaction);
+      return await this.mapTransactionToResponse(transaction);
     } catch (error) {
       // If it's already a NotFoundException, rethrow it
       if (error instanceof NotFoundException) {
@@ -130,7 +134,7 @@ export class TransactionsService {
   /**
    * Update transaction
    */
-  async updateTransaction(user: CurrentUser, transactionId: string, data: UpdateTransactionRequest) {
+  async updateTransaction(user: CurrentUser, transactionId: string, data: z.infer<typeof UpdateTransactionRequestSchema>) {
     this.logger.log(`Updating transaction ${transactionId} for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -198,7 +202,7 @@ export class TransactionsService {
 
       this.logger.log(`Successfully updated transaction ${transaction.id}`);
 
-      return this.mapTransactionToResponse(transaction);
+      return await this.mapTransactionToResponse(transaction);
     } catch (error) {
       // If it's already a NotFoundException or BadRequestException, rethrow it
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
@@ -220,7 +224,7 @@ export class TransactionsService {
   /**
    * List transactions with filters
    */
-  async listTransactions(user: CurrentUser, filters: TransactionFilters) {
+  async listTransactions(user: CurrentUser, filters: z.infer<typeof TransactionFiltersSchema>) {
     this.logger.log(`Listing transactions for user: ${user.userId}`);
 
     const where: Prisma.TransactionWhereInput = {
@@ -254,6 +258,9 @@ export class TransactionsService {
           },
           organization: {
             select: { id: true, name: true }
+          },
+          createdBy: {
+            select: { id: true, name: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -266,7 +273,7 @@ export class TransactionsService {
     const totalPages = Math.ceil(total / filters.limit);
 
     return {
-      data: transactions.map(transaction => this.mapTransactionToResponse(transaction).data),
+      data: await Promise.all(transactions.map(async transaction => (await this.mapTransactionToResponse(transaction)).data)),
       meta: {
         page: filters.page,
         limit: filters.limit,
@@ -339,6 +346,9 @@ export class TransactionsService {
     const pendingAmount = parseFloat(pendingData._sum.amount?.toString() || '0');
     const completedAmount = parseFloat(completedData._sum.amount?.toString() || '0');
 
+    // Get the currency from the first transaction (all should be the same due to validation)
+    const currency = currencyCheck.length > 0 ? currencyCheck[0].currency : 'NGN';
+
     return {
       data: {
         totalRevenue,
@@ -346,7 +356,8 @@ export class TransactionsService {
         netProfit,
         transactionCount: totalCount,
         pendingAmount,
-        completedAmount
+        completedAmount,
+        currency
       }
     };
   }
@@ -414,7 +425,7 @@ export class TransactionsService {
 
     this.logger.log(`Successfully marked transaction ${transaction.id} as paid`);
 
-    return this.mapTransactionToResponse(transaction);
+    return await this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -484,7 +495,7 @@ export class TransactionsService {
 
     this.logger.log(`Successfully cancelled transaction ${transaction.id}`);
 
-    return this.mapTransactionToResponse(transaction);
+    return await this.mapTransactionToResponse(transaction);
   }
 
   // =============================================================================
@@ -494,7 +505,7 @@ export class TransactionsService {
   /**
    * Bulk update transactions
    */
-  async bulkUpdateTransactions(user: CurrentUser, data: BulkUpdateRequest) {
+  async bulkUpdateTransactions(user: CurrentUser, data: z.infer<typeof BulkUpdateRequestSchema>) {
     this.logger.log(`Bulk updating transactions for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -570,7 +581,7 @@ export class TransactionsService {
   /**
    * Bulk delete transactions
    */
-  async bulkDeleteTransactions(user: CurrentUser, data: BulkDeleteRequest) {
+  async bulkDeleteTransactions(user: CurrentUser, data: z.infer<typeof BulkDeleteRequestSchema>) {
     this.logger.log(`Bulk deleting transactions for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -632,7 +643,7 @@ export class TransactionsService {
   /**
    * Bulk mark transactions as paid
    */
-  async bulkMarkAsPaid(user: CurrentUser, data: BulkMarkPaidRequest) {
+  async bulkMarkAsPaid(user: CurrentUser, data: z.infer<typeof BulkMarkPaidRequestSchema>) {
     this.logger.log(`Bulk marking transactions as paid for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -756,7 +767,7 @@ export class TransactionsService {
   /**
    * Create transaction category
    */
-  async createTransactionCategory(user: CurrentUser, data: CreateCategoryRequest) {
+  async createTransactionCategory(user: CurrentUser, data: z.infer<typeof CreateCategoryRequestSchema>) {
     this.logger.log(`Creating transaction category for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -806,7 +817,7 @@ export class TransactionsService {
   /**
    * Update transaction category
    */
-  async updateTransactionCategory(user: CurrentUser, categoryId: string, data: UpdateCategoryRequest) {
+  async updateTransactionCategory(user: CurrentUser, categoryId: string, data: z.infer<typeof UpdateCategoryRequestSchema>) {
     this.logger.log(`Updating transaction category ${categoryId} for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -918,7 +929,7 @@ export class TransactionsService {
   /**
    * Approve transaction
    */
-  async approveTransaction(user: CurrentUser, transactionId: string, data: ApprovalRequest) {
+  async approveTransaction(user: CurrentUser, transactionId: string, data: z.infer<typeof ApprovalRequestSchema>) {
     this.logger.log(`Approving transaction ${transactionId} for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -946,7 +957,7 @@ export class TransactionsService {
       }
 
       const updateData: Prisma.TransactionUpdateInput = {
-        approvedBy: attributes.approvedBy,
+        approvedBy: attributes.approvedBy.id,
         approvedAt: new Date()
       };
 
@@ -983,13 +994,13 @@ export class TransactionsService {
 
     this.logger.log(`Successfully approved transaction ${transaction.id}`);
 
-    return this.mapTransactionToResponse(transaction);
+    return await this.mapTransactionToResponse(transaction);
   }
 
   /**
    * Reject transaction
    */
-  async rejectTransaction(user: CurrentUser, transactionId: string, data: RejectionRequest) {
+  async rejectTransaction(user: CurrentUser, transactionId: string, data: z.infer<typeof RejectionRequestSchema>) {
     this.logger.log(`Rejecting transaction ${transactionId} for user: ${user.userId}`);
 
     const { data: requestData } = data;
@@ -1053,7 +1064,7 @@ export class TransactionsService {
 
     this.logger.log(`Successfully rejected transaction ${transaction.id}`);
 
-    return this.mapTransactionToResponse(transaction);
+    return await this.mapTransactionToResponse(transaction);
   }
 
   /**
@@ -1085,6 +1096,9 @@ export class TransactionsService {
           },
           organization: {
             select: { id: true, name: true }
+          },
+          createdBy: {
+            select: { id: true, name: true }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -1097,18 +1111,22 @@ export class TransactionsService {
     const totalPages = Math.ceil(total / filters.limit);
 
     return {
-      data: transactions.map(transaction => ({
-        id: transaction.id,
-        organizationId: transaction.organizationId,
-        transactionId: transaction.id,
-        requestedBy: (transaction.metadata as any)?.createdBy || 'Unknown',
-        requestedAt: transaction.createdAt.toISOString(),
-        amount: parseFloat(transaction.amount.toString()),
-        currency: transaction.currency,
-        description: transaction.description,
-        priority: (transaction.metadata as any)?.priority || 'medium',
-        metadata: transaction.metadata
-      })),
+      data: transactions.map(transaction => {
+        const createdByUser = this.getCreatedByUser(transaction);
+        
+        return {
+          id: transaction.id,
+          organizationId: transaction.organizationId,
+          transactionId: transaction.id,
+          requestedBy: createdByUser,
+          requestedAt: transaction.createdAt.toISOString(),
+          amount: parseFloat(transaction.amount.toString()),
+          currency: transaction.currency,
+          description: transaction.description,
+          priority: (transaction.metadata as any)?.priority || 'medium',
+          metadata: transaction.metadata
+        };
+      }),
       meta: {
         page: filters.page,
         limit: filters.limit,
@@ -1121,6 +1139,72 @@ export class TransactionsService {
   // =============================================================================
   // Private Helper Methods
   // =============================================================================
+
+  /**
+   * Get createdBy user information from transaction relation
+   */
+  private getCreatedByUser(transaction: any): { id: string; name: string } {
+    if (transaction.createdBy) {
+      return {
+        id: transaction.createdBy.id,
+        name: transaction.createdBy.name
+      };
+    }
+    
+    // Fallback for transactions without createdBy relation
+    return {
+      id: 'unknown',
+      name: 'Unknown User'
+    };
+  }
+
+  /**
+   * Get user information by ID
+   */
+  private async getUserById(userId: string): Promise<{ id: string; name: string } | null> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true }
+      });
+
+      if (!user) {
+        return null;
+      }
+
+      return {
+        id: user.id,
+        name: user.name
+      };
+    } catch (error) {
+      this.logger.warn(`Failed to fetch user ${userId}: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Get multiple users by IDs
+   */
+  private async getUsersByIds(userIds: string[]): Promise<Array<{ id: string; name: string }>> {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    try {
+      const users = await this.prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true }
+      });
+
+      return users.map(user => ({
+        id: user.id,
+        name: user.name
+      }));
+    } catch (error) {
+      this.logger.warn(`Failed to fetch users: ${error}`);
+      return [];
+    }
+  }
 
   private async validateOrganizationAccess(organizationId: string) {
     const organization = await this.prisma.organization.findUnique({
@@ -1223,7 +1307,7 @@ export class TransactionsService {
     return `${prefix}-${timestamp}-${random}`.toUpperCase();
   }
 
-  private mapTransactionToResponse(transaction: any) {
+  private async mapTransactionToResponse(transaction: any) {
     return {
       data: {
         id: transaction.id,
@@ -1243,7 +1327,8 @@ export class TransactionsService {
           dueDate: transaction.dueDate?.toISOString(),
           paidDate: transaction.paidDate?.toISOString(),
           requiresApproval: transaction.requiresApproval,
-          approvedBy: transaction.approvedBy,
+          createdBy: this.getCreatedByUser(transaction),
+          approvedBy: transaction.approvedBy ? await this.getUserById(transaction.approvedBy) : null,
           approvedAt: transaction.approvedAt?.toISOString(),
           metadata: transaction.metadata,
           createdAt: transaction.createdAt.toISOString(),

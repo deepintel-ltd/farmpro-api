@@ -170,6 +170,9 @@ describe('Transactions E2E Tests', () => {
       expect(response.body.data.attributes.status).toBe('PENDING');
       expect(response.body.data.attributes.farmId).toBe(testFarm.id);
       expect(response.body.data.attributes.reference).toMatch(/^EXP-/);
+      expect(response.body.data.attributes.createdBy).toBeDefined();
+      expect(response.body.data.attributes.createdBy.id).toBeDefined();
+      expect(response.body.data.attributes.createdBy.name).toBeDefined();
     });
 
     it('should create a farm revenue transaction', async () => {
@@ -201,6 +204,9 @@ describe('Transactions E2E Tests', () => {
       expect(response.body.data.attributes.amount).toBe(5000);
       expect(response.body.data.attributes.orderId).toBe(testOrder.id);
       expect(response.body.data.attributes.reference).toMatch(/^REV-/);
+      expect(response.body.data.attributes.createdBy).toBeDefined();
+      expect(response.body.data.attributes.createdBy.id).toBeDefined();
+      expect(response.body.data.attributes.createdBy.name).toBeDefined();
     });
 
     it('should create an order payment transaction', async () => {
@@ -229,6 +235,9 @@ describe('Transactions E2E Tests', () => {
       expect(response.body.data.attributes.type).toBe('ORDER_PAYMENT');
       expect(response.body.data.attributes.orderId).toBe(testOrder.id);
       expect(response.body.data.attributes.reference).toMatch(/^PAY-/);
+      expect(response.body.data.attributes.createdBy).toBeDefined();
+      expect(response.body.data.attributes.createdBy.id).toBeDefined();
+      expect(response.body.data.attributes.createdBy.name).toBeDefined();
     });
 
     it('should create a platform fee transaction', async () => {
@@ -299,6 +308,44 @@ describe('Transactions E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send(transactionData)
         .expect(400);
+    });
+
+    it('should create a transaction that requires approval', async () => {
+      const transactionData = {
+        data: {
+          type: 'transactions',
+          attributes: {
+            type: 'FARM_EXPENSE',
+            amount: 5000,
+            currency: 'NGN',
+            description: 'Large equipment purchase requiring approval',
+            farmId: testFarm.id,
+            requiresApproval: true,
+            metadata: {
+              category: 'equipment',
+              vendor: 'XYZ Equipment Co.',
+              priority: 'high'
+            }
+          }
+        }
+      };
+
+      const response = await testContext.request()
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(transactionData)
+        .expect(201);
+
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.type).toBe('transactions');
+      expect(response.body.data.attributes.type).toBe('FARM_EXPENSE');
+      expect(response.body.data.attributes.amount).toBe(5000);
+      expect(response.body.data.attributes.requiresApproval).toBe(true);
+      expect(response.body.data.attributes.approvedBy).toBeNull();
+      expect(response.body.data.attributes.approvedAt).toBeNull();
+      expect(response.body.data.attributes.createdBy).toBeDefined();
+      expect(response.body.data.attributes.createdBy.id).toBeDefined();
+      expect(response.body.data.attributes.createdBy.name).toBeDefined();
     });
   });
 
@@ -580,6 +627,7 @@ describe('Transactions E2E Tests', () => {
       expect(response.body.data.transactionCount).toBe(4);
       expect(response.body.data.pendingAmount).toBe(4000); // 3000 + 1000
       expect(response.body.data.completedAmount).toBe(7000); // 5000 + 2000
+      expect(response.body.data.currency).toBe('NGN'); // Default currency
     });
 
     it('should get transaction summary filtered by farm', async () => {
@@ -589,6 +637,114 @@ describe('Transactions E2E Tests', () => {
         .expect(200);
 
       expect(response.body.data.transactionCount).toBe(4);
+    });
+  });
+
+  describe('Transaction Approval Workflow', () => {
+    let testTransaction: any;
+    let testUser: any;
+
+    beforeEach(async () => {
+      // Create a test user for approval
+      testUser = await testContext.prisma.user.create({
+        data: {
+          email: 'approver@test.com',
+          name: 'Test Approver',
+          organizationId: testOrganization.id,
+          hashedPassword: await hash('password123'),
+          isActive: true
+        }
+      });
+
+      // Create a transaction that requires approval
+      testTransaction = await testContext.prisma.transaction.create({
+        data: {
+          organizationId: testOrganization.id,
+          type: TransactionType.FARM_EXPENSE,
+          amount: 5000,
+          currency: 'NGN',
+          status: TransactionStatus.PENDING,
+          description: 'Large equipment purchase requiring approval',
+          farmId: testFarm.id,
+          requiresApproval: true,
+          reference: 'APPROVAL-TEST-001',
+          createdById: testUser.id,
+          metadata: {
+            priority: 'high'
+          }
+        }
+      });
+    });
+
+    it('should approve a transaction with user object', async () => {
+      const approvalData = {
+        data: {
+          type: 'transaction-approvals',
+          attributes: {
+            approvedBy: {
+              id: testUser.id,
+              name: testUser.name
+            },
+            approvalNotes: 'Approved for equipment purchase',
+            metadata: {
+              approvedAt: new Date().toISOString()
+            }
+          }
+        }
+      };
+
+      const response = await testContext.request()
+        .patch(`/transactions/${testTransaction.id}/approve`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(approvalData)
+        .expect(200);
+
+      expect(response.body.data.attributes.approvedBy).toEqual({
+        id: testUser.id,
+        name: testUser.name
+      });
+      expect(response.body.data.attributes.approvedAt).toBeDefined();
+    });
+
+    it('should reject a transaction with user object', async () => {
+      const rejectionData = {
+        data: {
+          type: 'transaction-approvals',
+          attributes: {
+            rejectedBy: {
+              id: testUser.id,
+              name: testUser.name
+            },
+            rejectionReason: 'Budget constraints - defer to next quarter',
+            metadata: {
+              rejectedAt: new Date().toISOString()
+            }
+          }
+        }
+      };
+
+      const response = await testContext.request()
+        .patch(`/transactions/${testTransaction.id}/reject`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(rejectionData)
+        .expect(200);
+
+      expect(response.body.data.attributes.status).toBe('CANCELLED');
+    });
+
+    it('should get pending approvals with user objects', async () => {
+      const response = await testContext.request()
+        .get('/transactions/pending-approvals')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0].requestedBy).toEqual({
+        id: testUser.id,
+        name: testUser.name
+      });
+      expect(response.body.data[0].amount).toBe(5000);
+      expect(response.body.data[0].currency).toBe('NGN');
     });
   });
 

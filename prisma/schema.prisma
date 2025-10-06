@@ -50,6 +50,7 @@ model User {
   @@index([organizationId])
   @@index([email])
   @@map("users")
+  Transaction Transaction[]
 }
 
 model EmailVerification {
@@ -162,7 +163,7 @@ model Organization {
   allowedModules    String[]             @default([])
   featureFlags      Json?
   allowCustomRoles  Boolean              @default(false)
-  currency          Currency             @default(NGN)
+  currency          Currency             @default(USD)
   suspendedAt       DateTime?
   suspensionReason  String?
   verifiedAt        DateTime?
@@ -490,7 +491,7 @@ model Inventory {
   quality        String?
   location       String?
   status         InventoryStatus      @default(AVAILABLE)
-  currency       Currency             @default(NGN)
+  currency       Currency             @default(USD)
   metadata       Json?
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
@@ -521,7 +522,7 @@ model Order {
   deliveryLocation String
   terms            Json?
   totalAmount      Decimal?
-  currency         Currency      @default(NGN)
+  currency         Currency      @default(USD)
   buyerOrgId       String
   supplierOrgId    String?
   createdById      String
@@ -625,7 +626,7 @@ model Transaction {
   categoryId     String?
   type           TransactionType
   amount         Decimal
-  currency       Currency          @default(NGN)
+  currency       Currency          @default(USD)
   status         TransactionStatus
   description    String
   reference      String?
@@ -634,6 +635,8 @@ model Transaction {
   requiresApproval Boolean         @default(false)
   approvedBy     String?
   approvedAt     DateTime?
+  createdBy      User?             @relation(fields: [createdById], references: [id])
+  createdById    String?
   metadata       Json?
   createdAt      DateTime          @default(now())
   order          Order?            @relation(fields: [orderId], references: [id])
@@ -940,7 +943,7 @@ model MarketplaceListing {
   isPublic        Boolean          @default(true)
   images          String[]
   status          ListingStatus    @default(ACTIVE)
-  currency        Currency         @default(NGN)
+  currency        Currency         @default(USD)
   views           Int              @default(0)
   inquiries       Int              @default(0)
   createdAt       DateTime         @default(now())

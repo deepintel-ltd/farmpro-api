@@ -38,7 +38,14 @@ export const TransactionSchema = z.object({
   dueDate: z.string().datetime().optional(),
   paidDate: z.string().datetime().optional(),
   requiresApproval: z.boolean().default(false),
-  approvedBy: z.string().cuid().optional(),
+  createdBy: z.object({
+    id: z.string().cuid(),
+    name: z.string()
+  }),
+  approvedBy: z.object({
+    id: z.string().cuid(),
+    name: z.string()
+  }).optional(),
   approvedAt: z.string().datetime().optional(),
   metadata: z.record(z.any()).optional(),
   createdAt: z.string().datetime()
@@ -61,6 +68,10 @@ export const CreateTransactionRequestSchema = z.object({
       categoryId: z.string().cuid().optional(),
       dueDate: z.string().datetime().optional(),
       requiresApproval: z.boolean().default(false),
+      createdBy: z.object({
+        id: z.string().cuid(),
+        name: z.string()
+      }).optional(),
       metadata: z.record(z.any()).optional()
     })
   })
@@ -108,7 +119,8 @@ export const TransactionSummarySchema = z.object({
   netProfit: z.number(),
   transactionCount: z.number(),
   pendingAmount: z.number(),
-  completedAmount: z.number()
+  completedAmount: z.number(),
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD')
 });
 
 export const PaginationMetaSchema = z.object({
@@ -204,7 +216,10 @@ export const ApprovalRequestSchema = z.object({
   data: z.object({
     type: z.literal('transaction-approvals'),
     attributes: z.object({
-      approvedBy: z.string().cuid(),
+      approvedBy: z.object({
+        id: z.string().cuid(),
+        name: z.string()
+      }),
       approvalNotes: z.string().max(500).optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -215,7 +230,10 @@ export const RejectionRequestSchema = z.object({
   data: z.object({
     type: z.literal('transaction-approvals'),
     attributes: z.object({
-      rejectedBy: z.string().cuid(),
+      rejectedBy: z.object({
+        id: z.string().cuid(),
+        name: z.string()
+      }),
       rejectionReason: z.string().min(1).max(500),
       metadata: z.record(z.any()).optional()
     })
@@ -226,7 +244,10 @@ export const PendingApprovalSchema = z.object({
   id: z.string().cuid(),
   organizationId: z.string().cuid(),
   transactionId: z.string().cuid(),
-  requestedBy: z.string().cuid(),
+  requestedBy: z.object({
+    id: z.string().cuid(),
+    name: z.string()
+  }),
   requestedAt: z.string().datetime(),
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']),
