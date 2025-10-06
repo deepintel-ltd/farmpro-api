@@ -24,4 +24,5 @@ export default {
   ],
   coverageDirectory: '../coverage-e2e',
   coverageReporters: ['text', 'lcov', 'html'],
+  forceExit: true, // Force Jest to exit after all tests complete
 };
