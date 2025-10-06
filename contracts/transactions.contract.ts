@@ -356,8 +356,7 @@ export const transactionsContract = c.router({
     method: 'GET',
     path: '/transactions',
     responses: {
-      200: z.object({
-        data: JsonApiCollectionSchema(TransactionSchema),
+      200: JsonApiCollectionSchema(TransactionSchema).extend({
         meta: PaginationMetaSchema
       }),
       400: JsonApiErrorResponseSchema,

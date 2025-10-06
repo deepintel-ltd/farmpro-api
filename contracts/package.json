@@ -1,6 +1,6 @@
 {
   "name": "@deepintel-ltd/farmpro-api-contracts",
-  "version": "1.2.11",
+  "version": "1.2.12",
   "description": "Type-safe API contracts for FarmPro agricultural platform",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
