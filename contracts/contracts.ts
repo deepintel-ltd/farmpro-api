@@ -31,6 +31,7 @@ import { activitiesAnalyticsContract } from './activities-analytics.contract';
 import { mobileFieldContract } from './mobile-field.contract';
 import { weatherContract, type WeatherContract } from './weather.contract';
 import { transactionsContract, type TransactionsContract } from './transactions.contract';
+import { executiveDashboardContract, type ExecutiveDashboardContract } from './executive-dashboard.contract';
 
 // Import common utilities
 import { initContract } from '@ts-rest/core';
@@ -110,6 +111,7 @@ export const apiContract: ApiContractDefinition = c.router({
   mobile: mobileFieldContract,
   weather: weatherContract,
   transactions: transactionsContract,
+  executiveDashboard: executiveDashboardContract,
   health: healthContract,
 });
 
@@ -145,6 +147,7 @@ export type PlatformAdminEndpoints = ApiContractType['platformAdmin'];
 export type MobileEndpoints = ApiContractType['mobile'];
 export type WeatherEndpoints = ApiContractType['weather'];
 export type TransactionsEndpoints = ApiContractType['transactions'];
+export type ExecutiveDashboardEndpoints = ApiContractType['executiveDashboard'];
 
 // Export contract type for use in NestJS controllers
 export type { ApiContractType as ApiContract };

@@ -30,7 +30,8 @@ export type {
   PlatformAdminEndpoints,
   MobileEndpoints,
   WeatherEndpoints,
-  TransactionsEndpoints
+  TransactionsEndpoints,
+  ExecutiveDashboardEndpoints
 } from './contracts';
 
 // =============================================================================
@@ -133,6 +134,10 @@ export type { MediaContract } from './media.contract';
 // Transactions contract
 export { transactionsContract } from './transactions.contract';
 export type { TransactionsContract } from './transactions.contract';
+
+// Executive Dashboard contract
+export { executiveDashboardContract } from './executive-dashboard.contract';
+export type { ExecutiveDashboardContract } from './executive-dashboard.contract';
 
 // =============================================================================
 // Schema Exports
