@@ -1,6 +1,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { CommonQueryParams, CommonErrorResponses } from './common';
+import { JsonApiResourceSchema, JsonApiCollectionSchema } from './schemas';
 
 const c = initContract();
 
@@ -26,7 +27,13 @@ export const RiskIndicatorSchema = z.object({
   overallRisk: z.enum(['Low', 'Medium', 'High', 'Critical']),
   riskTrend: z.number(), // percentage change
   indicators: z.object({
-    overduePayments: z.number(),
+    overduePayments: z.object({
+      count: z.number(),
+      totalAmount: z.object({
+        amount: z.number(),
+        currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+      }),
+    }),
     budgetVariance: z.number(), // percentage over/under budget
     cashFlowRisk: z.enum(['Low', 'Medium', 'High']),
     marketRisk: z.enum(['Low', 'Medium', 'High']),
@@ -45,15 +52,33 @@ export const RiskIndicatorSchema = z.object({
 });
 
 export const CashFlowAnalysisSchema = z.object({
-  currentCashFlow: z.number(),
-  projectedCashFlow: z.number(),
+  currentCashFlow: z.object({
+    amount: z.number(),
+    currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+  }),
+  projectedCashFlow: z.object({
+    amount: z.number(),
+    currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+  }),
   trend: z.number(), // percentage change
   breakdown: z.object({
-    operating: z.number(),
-    investing: z.number(),
-    financing: z.number(),
+    operating: z.object({
+      amount: z.number(),
+      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    }),
+    investing: z.object({
+      amount: z.number(),
+      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    }),
+    financing: z.object({
+      amount: z.number(),
+      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    }),
   }),
-  burnRate: z.number(), // monthly cash burn
+  burnRate: z.object({
+    amount: z.number(), // monthly cash burn
+    currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+  }),
   runway: z.number(), // months of runway remaining
   lastCalculated: z.string().datetime(),
 });
@@ -61,7 +86,14 @@ export const CashFlowAnalysisSchema = z.object({
 export const ExecutiveMetricSchema = z.object({
   id: z.string().cuid(),
   name: z.string(),
-  value: z.union([z.string(), z.number()]),
+  value: z.union([
+    z.string(), 
+    z.number(),
+    z.object({
+      amount: z.number(),
+      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    })
+  ]),
   unit: z.string().optional(),
   trend: z.number(),
   trendDirection: z.enum(['up', 'down', 'stable']),
@@ -104,6 +136,7 @@ export const ExecutiveDashboardSchema = z.object({
 
 export const ExecutiveDashboardQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
   includeInsights: z.coerce.boolean().optional().default(true),
   includeProjections: z.coerce.boolean().optional().default(true),
   useCache: z.coerce.boolean().optional().default(true),
@@ -111,11 +144,13 @@ export const ExecutiveDashboardQuerySchema = z.object({
 
 export const FinancialHealthQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
   includeBreakdown: z.coerce.boolean().optional().default(true),
   useCache: z.coerce.boolean().optional().default(true),
 }).merge(CommonQueryParams);
 
 export const RiskIndicatorsQuerySchema = z.object({
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
   includeAlerts: z.coerce.boolean().optional().default(true),
   alertSeverity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   useCache: z.coerce.boolean().optional().default(true),
@@ -123,6 +158,7 @@ export const RiskIndicatorsQuerySchema = z.object({
 
 export const CashFlowQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
+  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
   includeProjections: z.coerce.boolean().optional().default(true),
   projectionMonths: z.number().min(1).max(12).optional().default(6),
   useCache: z.coerce.boolean().optional().default(true),
@@ -142,13 +178,7 @@ export const executiveDashboardContract = c.router({
     path: '/organizations/executive-dashboard',
     query: ExecutiveDashboardQuerySchema,
     responses: {
-      200: z.object({
-        data: z.object({
-          type: z.literal('executive-dashboard'),
-          id: z.string(),
-          attributes: ExecutiveDashboardSchema,
-        }),
-      }),
+      200: JsonApiResourceSchema(ExecutiveDashboardSchema),
       ...CommonErrorResponses,
     },
     summary: 'Get comprehensive executive dashboard overview',
@@ -164,13 +194,7 @@ export const executiveDashboardContract = c.router({
     path: '/organizations/financial-health',
     query: FinancialHealthQuerySchema,
     responses: {
-      200: z.object({
-        data: z.object({
-          type: z.literal('financial-health'),
-          id: z.string(),
-          attributes: FinancialHealthScoreSchema,
-        }),
-      }),
+      200: JsonApiResourceSchema(FinancialHealthScoreSchema),
       ...CommonErrorResponses,
     },
     summary: 'Get organization financial health score',
@@ -186,13 +210,7 @@ export const executiveDashboardContract = c.router({
     path: '/organizations/risk-indicators',
     query: RiskIndicatorsQuerySchema,
     responses: {
-      200: z.object({
-        data: z.object({
-          type: z.literal('risk-indicators'),
-          id: z.string(),
-          attributes: RiskIndicatorSchema,
-        }),
-      }),
+      200: JsonApiResourceSchema(RiskIndicatorSchema),
       ...CommonErrorResponses,
     },
     summary: 'Get organization risk indicators and alerts',
@@ -208,13 +226,7 @@ export const executiveDashboardContract = c.router({
     path: '/organizations/cash-flow',
     query: CashFlowQuerySchema,
     responses: {
-      200: z.object({
-        data: z.object({
-          type: z.literal('cash-flow'),
-          id: z.string(),
-          attributes: CashFlowAnalysisSchema,
-        }),
-      }),
+      200: JsonApiResourceSchema(CashFlowAnalysisSchema),
       ...CommonErrorResponses,
     },
     summary: 'Get organization cash flow analysis',
@@ -235,26 +247,15 @@ export const executiveDashboardContract = c.router({
       useCache: z.coerce.boolean().optional().default(true),
     }).merge(CommonQueryParams),
     responses: {
-      200: z.object({
-        data: z.array(z.object({
-          type: z.literal('pending-action'),
-          id: z.string(),
-          attributes: z.object({
-            type: z.enum(['approval', 'review', 'decision', 'follow_up']),
-            title: z.string(),
-            description: z.string(),
-            priority: z.enum(['low', 'medium', 'high', 'urgent']),
-            dueDate: z.string().datetime().optional(),
-            assignedTo: z.string().optional(),
-            createdAt: z.string().datetime(),
-          }),
-        })),
-        meta: z.object({
-          total: z.number(),
-          page: z.number(),
-          limit: z.number(),
-        }),
-      }),
+      200: JsonApiCollectionSchema(z.object({
+        type: z.enum(['approval', 'review', 'decision', 'follow_up']),
+        title: z.string(),
+        description: z.string(),
+        priority: z.enum(['low', 'medium', 'high', 'urgent']),
+        dueDate: z.string().datetime().optional(),
+        assignedTo: z.string().optional(),
+        createdAt: z.string().datetime(),
+      })),
       ...CommonErrorResponses,
     },
     summary: 'Get pending executive actions',
@@ -276,27 +277,16 @@ export const executiveDashboardContract = c.router({
       useCache: z.coerce.boolean().optional().default(true),
     }).merge(CommonQueryParams),
     responses: {
-      200: z.object({
-        data: z.array(z.object({
-          type: z.literal('executive-insight'),
-          id: z.string(),
-          attributes: z.object({
-            category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']),
-            title: z.string(),
-            description: z.string(),
-            impact: z.enum(['low', 'medium', 'high']),
-            confidence: z.number().min(0).max(1),
-            actionable: z.boolean(),
-            recommendations: z.array(z.string()).optional(),
-            createdAt: z.string().datetime(),
-          }),
-        })),
-        meta: z.object({
-          total: z.number(),
-          page: z.number(),
-          limit: z.number(),
-        }),
-      }),
+      200: JsonApiCollectionSchema(z.object({
+        category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']),
+        title: z.string(),
+        description: z.string(),
+        impact: z.enum(['low', 'medium', 'high']),
+        confidence: z.number().min(0).max(1),
+        actionable: z.boolean(),
+        recommendations: z.array(z.string()).optional(),
+        createdAt: z.string().datetime(),
+      })),
       ...CommonErrorResponses,
     },
     summary: 'Get executive insights and recommendations',

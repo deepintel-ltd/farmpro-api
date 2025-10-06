@@ -78,6 +78,7 @@ export interface ApiContractDefinition {
   mobile: typeof mobileFieldContract;
   weather: typeof weatherContract;
   transactions: typeof transactionsContract;
+  executiveDashboard: typeof executiveDashboardContract;
   health: typeof healthContract;
 }
 
