@@ -92,6 +92,7 @@ export const UpdateTransactionRequestSchema = z.object({
 });
 
 export const TransactionFiltersSchema = z.object({
+  // Direct field filters
   type: TransactionTypeSchema.optional(),
   status: TransactionStatusSchema.optional(),
   farmId: z.string().cuid().optional(),
@@ -102,6 +103,21 @@ export const TransactionFiltersSchema = z.object({
   endDate: z.string().datetime().optional(),
   minAmount: z.coerce.number().positive().optional(),
   maxAmount: z.coerce.number().positive().optional(),
+  
+  // JSON:API compliant filter syntax
+  'filter[type]': TransactionTypeSchema.optional(),
+  'filter[status]': TransactionStatusSchema.optional(),
+  'filter[farmId]': z.string().cuid().optional(),
+  'filter[orderId]': z.string().cuid().optional(),
+  'filter[categoryId]': z.string().cuid().optional(),
+  'filter[requiresApproval]': z.coerce.boolean().optional(),
+  'filter[startDate]': z.string().datetime().optional(),
+  'filter[endDate]': z.string().datetime().optional(),
+  'filter[minAmount]': z.coerce.number().positive().optional(),
+  'filter[maxAmount]': z.coerce.number().positive().optional(),
+  
+  // Income/Expense filtering using JSON:API filter syntax
+  'filter[transactionCategory]': z.enum(['income', 'expense']).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20)
 });

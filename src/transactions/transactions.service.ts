@@ -231,22 +231,48 @@ export class TransactionsService {
       organizationId: user.organizationId
     };
 
-    // Apply filters
-    if (filters.type) where.type = filters.type as TransactionType;
-    if (filters.status) where.status = filters.status as TransactionStatus;
-    if (filters.farmId) where.farmId = filters.farmId;
-    if (filters.orderId) where.orderId = filters.orderId;
-    if (filters.categoryId) where.categoryId = filters.categoryId;
-    if (filters.requiresApproval !== undefined) where.requiresApproval = filters.requiresApproval;
-    if (filters.startDate || filters.endDate) {
+    // Apply filters (support both legacy and JSON:API filter syntax)
+    const typeFilter = filters.type || filters['filter[type]'];
+    const statusFilter = filters.status || filters['filter[status]'];
+    const farmIdFilter = filters.farmId || filters['filter[farmId]'];
+    const orderIdFilter = filters.orderId || filters['filter[orderId]'];
+    const categoryIdFilter = filters.categoryId || filters['filter[categoryId]'];
+    const requiresApprovalFilter = filters.requiresApproval !== undefined ? filters.requiresApproval : filters['filter[requiresApproval]'];
+    const startDateFilter = filters.startDate || filters['filter[startDate]'];
+    const endDateFilter = filters.endDate || filters['filter[endDate]'];
+    const minAmountFilter = filters.minAmount || filters['filter[minAmount]'];
+    const maxAmountFilter = filters.maxAmount || filters['filter[maxAmount]'];
+    const transactionCategoryFilter = filters['filter[transactionCategory]'];
+
+    if (typeFilter) where.type = typeFilter as TransactionType;
+    if (statusFilter) where.status = statusFilter as TransactionStatus;
+    if (farmIdFilter) where.farmId = farmIdFilter;
+    if (orderIdFilter) where.orderId = orderIdFilter;
+    if (categoryIdFilter) where.categoryId = categoryIdFilter;
+    if (requiresApprovalFilter !== undefined) where.requiresApproval = requiresApprovalFilter;
+    
+    if (startDateFilter || endDateFilter) {
       where.createdAt = {};
-      if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+      if (startDateFilter) where.createdAt.gte = new Date(startDateFilter);
+      if (endDateFilter) where.createdAt.lte = new Date(endDateFilter);
     }
-    if (filters.minAmount || filters.maxAmount) {
+    
+    if (minAmountFilter || maxAmountFilter) {
       where.amount = {};
-      if (filters.minAmount) where.amount.gte = filters.minAmount;
-      if (filters.maxAmount) where.amount.lte = filters.maxAmount;
+      if (minAmountFilter) where.amount.gte = minAmountFilter;
+      if (maxAmountFilter) where.amount.lte = maxAmountFilter;
+    }
+
+    // Apply income/expense filtering using JSON:API filter syntax
+    if (transactionCategoryFilter) {
+      const incomeTypes = [TransactionType.FARM_REVENUE, TransactionType.ORDER_PAYMENT, TransactionType.REFUND];
+      const expenseTypes = [TransactionType.FARM_EXPENSE, TransactionType.PLATFORM_FEE];
+
+      if (transactionCategoryFilter === 'income') {
+        where.type = { in: incomeTypes };
+      } else if (transactionCategoryFilter === 'expense') {
+        where.type = { in: expenseTypes };
+      }
     }
 
     const [transactions, total] = await Promise.all([

@@ -2476,6 +2476,173 @@ async function initializeSampleOrders(organizations: any[], farms: any[], commod
   return orders;
 }
 
+async function initializeTransactionCategories(organizations: any[]) {
+  console.log('📂 Initializing transaction categories...');
+  
+  const categories = [];
+  
+  // Define default transaction categories for each organization
+  const defaultCategories = [
+    // Income Categories
+    {
+      name: 'Crop Sales',
+      description: 'Revenue from selling harvested crops',
+      color: '#10B981', // Green
+      isDefault: true
+    },
+    {
+      name: 'Livestock Sales',
+      description: 'Revenue from selling livestock and animal products',
+      color: '#059669', // Darker green
+      isDefault: true
+    },
+    {
+      name: 'Service Revenue',
+      description: 'Revenue from providing farming services',
+      color: '#34D399', // Light green
+      isDefault: true
+    },
+    {
+      name: 'Government Subsidies',
+      description: 'Government payments and agricultural subsidies',
+      color: '#6EE7B7', // Very light green
+      isDefault: true
+    },
+    
+    // Expense Categories
+    {
+      name: 'Seeds & Planting',
+      description: 'Costs for seeds, seedlings, and planting materials',
+      color: '#EF4444', // Red
+      isDefault: true
+    },
+    {
+      name: 'Fertilizers & Soil',
+      description: 'Fertilizers, soil amendments, and soil testing',
+      color: '#F87171', // Light red
+      isDefault: true
+    },
+    {
+      name: 'Pest Control',
+      description: 'Pesticides, herbicides, and pest management',
+      color: '#FCA5A5', // Very light red
+      isDefault: true
+    },
+    {
+      name: 'Equipment & Machinery',
+      description: 'Equipment purchases, rentals, and maintenance',
+      color: '#DC2626', // Dark red
+      isDefault: true
+    },
+    {
+      name: 'Labor & Wages',
+      description: 'Employee wages, contractor payments, and labor costs',
+      color: '#B91C1C', // Darker red
+      isDefault: true
+    },
+    {
+      name: 'Fuel & Energy',
+      description: 'Fuel, electricity, and energy costs',
+      color: '#991B1B', // Very dark red
+      isDefault: true
+    },
+    {
+      name: 'Transportation',
+      description: 'Shipping, delivery, and transportation costs',
+      color: '#7F1D1D', // Darkest red
+      isDefault: true
+    },
+    {
+      name: 'Insurance',
+      description: 'Farm insurance, equipment insurance, and liability coverage',
+      color: '#FEE2E2', // Very light red
+      isDefault: true
+    },
+    {
+      name: 'Utilities',
+      description: 'Water, electricity, internet, and other utilities',
+      color: '#FECACA', // Light red
+      isDefault: true
+    },
+    {
+      name: 'Professional Services',
+      description: 'Legal, accounting, consulting, and professional services',
+      color: '#FCA5A5', // Medium light red
+      isDefault: true
+    },
+    {
+      name: 'Marketing & Sales',
+      description: 'Marketing materials, advertising, and sales expenses',
+      color: '#F87171', // Medium red
+      isDefault: true
+    },
+    {
+      name: 'Office & Administration',
+      description: 'Office supplies, software, and administrative costs',
+      color: '#EF4444', // Standard red
+      isDefault: true
+    },
+    {
+      name: 'Repairs & Maintenance',
+      description: 'Building repairs, equipment maintenance, and upkeep',
+      color: '#DC2626', // Dark red
+      isDefault: true
+    },
+    {
+      name: 'Training & Education',
+      description: 'Training programs, courses, and educational materials',
+      color: '#B91C1C', // Darker red
+      isDefault: true
+    },
+    {
+      name: 'Miscellaneous',
+      description: 'Other expenses that don\'t fit into specific categories',
+      color: '#991B1B', // Very dark red
+      isDefault: true
+    }
+  ];
+
+  // Create categories for each organization
+  for (const organization of organizations) {
+    console.log(`   Creating categories for ${organization.name}...`);
+    
+    for (const categoryData of defaultCategories) {
+      try {
+        const category = await prisma.transactionCategory.upsert({
+          where: {
+            name_organizationId: {
+              name: categoryData.name,
+              organizationId: organization.id
+            }
+          },
+          update: {
+            description: categoryData.description,
+            color: categoryData.color,
+            isDefault: categoryData.isDefault
+          },
+          create: {
+            organizationId: organization.id,
+            name: categoryData.name,
+            description: categoryData.description,
+            color: categoryData.color,
+            isDefault: categoryData.isDefault
+          }
+        });
+        
+        categories.push(category);
+      } catch (error) {
+        console.log(`   ⚠️  Failed to create category "${categoryData.name}" for ${organization.name}:`, error.message);
+      }
+    }
+  }
+
+  console.log(`✅ Created ${categories.length} transaction categories across ${organizations.length} organizations`);
+  console.log(`   - Income categories: ${defaultCategories.filter(c => ['Crop Sales', 'Livestock Sales', 'Service Revenue', 'Government Subsidies'].includes(c.name)).length} per organization`);
+  console.log(`   - Expense categories: ${defaultCategories.filter(c => !['Crop Sales', 'Livestock Sales', 'Service Revenue', 'Government Subsidies'].includes(c.name)).length} per organization`);
+  
+  return categories;
+}
+
 async function initializeSampleTransactions(organizations: any[], farms: any[], orders: any[]) {
   console.log('💰 Initializing comprehensive sample transactions...');
   
@@ -3742,6 +3909,7 @@ async function initializeDatabase() {
     const taskDemoData = await initializeTaskDemoData(farms, users);
     const inventory = await initializeSampleInventory(organizations, farms, commodities, users);
     const orders = await initializeSampleOrders(organizations, farms, commodities, users);
+    const transactionCategories = await initializeTransactionCategories(organizations);
     const transactions = await initializeSampleTransactions(organizations, farms, orders);
     
     console.log('\n🎉 Database initialization completed successfully!');
@@ -3757,6 +3925,7 @@ async function initializeDatabase() {
     console.log(`   • ${taskDemoData.length} comprehensive task scenarios created`);
     console.log(`   • ${inventory.length} comprehensive inventory items created`);
     console.log(`   • ${orders.length} comprehensive sample orders created`);
+    console.log(`   • ${transactionCategories.length} transaction categories created`);
     console.log(`   • ${transactions.length} comprehensive sample transactions created`);
     
     console.log('\n🔑 Sample Login Credentials:');
@@ -3778,6 +3947,8 @@ async function initializeDatabase() {
     console.log('   • 10+ comprehensive orders covering both BUY and SELL transactions across all order statuses');
     console.log('   • Orders with different statuses (PENDING, CONFIRMED, IN_TRANSIT, DELIVERED, CANCELLED) and payment terms');
     console.log('   • Detailed order terms, quality specifications, delivery tracking, and marketplace integration');
+    console.log('   • 20 transaction categories per organization (4 income + 16 expense categories) with color coding');
+    console.log('   • Transaction categories include: Crop Sales, Livestock Sales, Equipment & Machinery, Labor & Wages, etc.');
     console.log('   • 31+ comprehensive financial transactions covering all types and statuses with realistic cost allocations');
     console.log('   • Complete activity lifecycle from planning to completion with realistic timelines');
     

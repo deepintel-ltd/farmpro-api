@@ -500,6 +500,16 @@ describe('Transactions E2E Tests', () => {
             description: 'Expense 2',
             farmId: testFarm.id,
             reference: 'EXP-002'
+          },
+          {
+            organizationId: testOrganization.id,
+            type: TransactionType.ORDER_PAYMENT,
+            amount: 3000,
+            currency: 'NGN',
+            status: TransactionStatus.COMPLETED,
+            description: 'Order Payment 1',
+            farmId: testFarm.id,
+            reference: 'ORD-001'
           }
         ]
       });
@@ -511,8 +521,8 @@ describe('Transactions E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(3);
-      expect(response.body.meta.total).toBe(3);
+      expect(response.body.data).toHaveLength(4);
+      expect(response.body.meta.total).toBe(4);
       expect(response.body.meta.page).toBe(1);
     });
 
@@ -534,7 +544,7 @@ describe('Transactions E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(2);
+      expect(response.body.data).toHaveLength(3); // 3 COMPLETED transactions (FARM_REVENUE, FARM_EXPENSE, ORDER_PAYMENT)
       response.body.data.forEach((transaction: any) => {
         expect(transaction.attributes.status).toBe('COMPLETED');
       });
@@ -546,7 +556,7 @@ describe('Transactions E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(3);
+      expect(response.body.data).toHaveLength(4); // 4 transactions for this farm
       response.body.data.forEach((transaction: any) => {
         expect(transaction.attributes.farmId).toBe(testFarm.id);
       });
@@ -561,8 +571,76 @@ describe('Transactions E2E Tests', () => {
       expect(response.body.data).toHaveLength(2);
       expect(response.body.meta.page).toBe(1);
       expect(response.body.meta.limit).toBe(2);
-      expect(response.body.meta.total).toBe(3);
+      expect(response.body.meta.total).toBe(4);
       expect(response.body.meta.totalPages).toBe(2);
+    });
+
+    it('should filter transactions by income using JSON:API filter syntax', async () => {
+      const response = await testContext.request()
+        .get('/transactions?filter[transactionCategory]=income')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveLength(2); // FARM_REVENUE and ORDER_PAYMENT
+      expect(response.body.meta.total).toBe(2);
+      
+      // Verify all returned transactions are income types
+      response.body.data.forEach((transaction: any) => {
+        expect(['FARM_REVENUE', 'ORDER_PAYMENT', 'REFUND']).toContain(transaction.attributes.type);
+      });
+    });
+
+    it('should filter transactions by expenses using JSON:API filter syntax', async () => {
+      const response = await testContext.request()
+        .get('/transactions?filter[transactionCategory]=expense')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveLength(2); // 2 FARM_EXPENSE transactions
+      expect(response.body.meta.total).toBe(2);
+      
+      // Verify all returned transactions are expense types
+      response.body.data.forEach((transaction: any) => {
+        expect(['FARM_EXPENSE', 'PLATFORM_FEE']).toContain(transaction.attributes.type);
+      });
+    });
+
+    it('should combine income filter with other filters using JSON:API syntax', async () => {
+      const response = await testContext.request()
+        .get('/transactions?filter[transactionCategory]=income&filter[farmId]=' + testFarm.id)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveLength(2); // FARM_REVENUE and ORDER_PAYMENT for this farm
+      expect(response.body.meta.total).toBe(2);
+      
+      // Verify all returned transactions are income types and belong to the farm
+      response.body.data.forEach((transaction: any) => {
+        expect(['FARM_REVENUE', 'ORDER_PAYMENT', 'REFUND']).toContain(transaction.attributes.type);
+        expect(transaction.attributes.farmId).toBe(testFarm.id);
+      });
+    });
+
+    it('should support legacy filter syntax for backward compatibility', async () => {
+      const response = await testContext.request()
+        .get('/transactions?type=FARM_REVENUE')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.meta.total).toBe(1);
+      expect(response.body.data[0].attributes.type).toBe('FARM_REVENUE');
+    });
+
+    it('should support JSON:API filter syntax for type filtering', async () => {
+      const response = await testContext.request()
+        .get('/transactions?filter[type]=FARM_REVENUE')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.meta.total).toBe(1);
+      expect(response.body.data[0].attributes.type).toBe('FARM_REVENUE');
     });
   });
 
