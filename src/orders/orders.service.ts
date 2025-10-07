@@ -4,8 +4,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   OrderType, 
   OrderStatus,
-  Prisma,
-  Currency
+  Prisma
 } from '@prisma/client';
 import { CurrencyAwareService } from '../common/services/currency-aware.service';
 import { CurrencyService } from '../common/services/currency.service';

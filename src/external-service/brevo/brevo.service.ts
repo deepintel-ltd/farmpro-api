@@ -361,7 +361,7 @@ export class BrevoService {
         subject: 'Welcome to FarmPro!',
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Welcome email template not found for ${email}`);
     }
   }
@@ -400,7 +400,7 @@ export class BrevoService {
         subject: 'Reset Your FarmPro Password',
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Password reset email template not found for ${email}`);
     }
   }
@@ -447,7 +447,7 @@ export class BrevoService {
         subject: `You've been invited to join ${userData.companyName ?? 'a company'} on FarmPro`,
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Invitation email template not found for ${email}`);
     }
   }
@@ -501,7 +501,7 @@ export class BrevoService {
         subject: `New team member joined ${userData.companyName ?? 'your company'}`,
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`New user notification email template not found for ${adminEmail}`);
     }
   }
@@ -559,7 +559,7 @@ export class BrevoService {
         subject: `Your FarmPro subscription expires in ${userData.daysRemaining ?? 7} days`,
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Subscription expiration warning email template not found for ${email}`);
     }
   }
@@ -604,7 +604,7 @@ export class BrevoService {
         subject: 'Your FarmPro subscription has expired',
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Subscription expired email template not found for ${email}`);
     }
   }
@@ -649,7 +649,7 @@ export class BrevoService {
         subject: `Your FarmPro trial expires in ${userData.daysRemaining ?? 3} days`,
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Trial expiration warning email template not found for ${email}`);
     }
   }
@@ -696,7 +696,7 @@ export class BrevoService {
         subject: 'Your FarmPro subscription has been renewed',
         htmlContent,
       });
-    } catch (error) {
+    } catch {
       this.logger.warn(`Subscription renewal success email template not found for ${email}`);
     }
   }

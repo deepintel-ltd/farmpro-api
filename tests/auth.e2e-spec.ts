@@ -709,7 +709,7 @@ describe('Auth E2E Tests', () => {
 
     it('should invalidate expired token', async () => {
       // Create an expired token by generating one with past expiration
-      const { JwtService } = require('@nestjs/jwt');
+      const { JwtService } = await import('@nestjs/jwt');
       const jwtService = new JwtService({
         secret: process.env.JWT_SECRET || 'test-secret',
         signOptions: { expiresIn: '-1h' }, // Expired 1 hour ago
@@ -822,7 +822,7 @@ describe('Auth E2E Tests', () => {
 
       // Since OAuth users don't have passwords, we'll manually generate a token
       // This would normally come from the OAuth callback
-      const { JwtService } = require('@nestjs/jwt');
+      const { JwtService } = await import('@nestjs/jwt');
       const jwtService = new JwtService({
         secret: process.env.JWT_SECRET || 'test-secret',
         signOptions: { expiresIn: '1h' },
@@ -980,7 +980,7 @@ describe('Auth E2E Tests', () => {
     });
 
     it('should create organization with correct features based on type', async () => {
-      const response = await testContext
+      await testContext
         .request()
         .post('/auth/complete-profile')
         .set('Authorization', `Bearer ${accessToken}`)
@@ -1110,7 +1110,7 @@ describe('Auth E2E Tests', () => {
       });
 
       // 2. Generate token (simulating OAuth callback)
-      const { JwtService } = require('@nestjs/jwt');
+      const { JwtService } = await import('@nestjs/jwt');
       const jwtService = new JwtService({
         secret: process.env.JWT_SECRET || 'test-secret',
         signOptions: { expiresIn: '1h' },

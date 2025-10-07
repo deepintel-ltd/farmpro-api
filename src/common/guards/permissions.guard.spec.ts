@@ -2,7 +2,6 @@ import { Reflector } from '@nestjs/core';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { PermissionsGuard } from './permissions.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 
 describe('PermissionsGuard', () => {
   let guard: PermissionsGuard;

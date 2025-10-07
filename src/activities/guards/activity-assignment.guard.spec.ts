@@ -1,8 +1,6 @@
 import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ActivityAssignmentGuard } from './activity-assignment.guard';
-import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { createMock, DeepMocked } from '@golevelup/ts-jest';
 
 describe('ActivityAssignmentGuard', () => {
   let guard: ActivityAssignmentGuard;

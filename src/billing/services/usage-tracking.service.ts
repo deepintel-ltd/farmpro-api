@@ -137,7 +137,7 @@ export class UsageTrackingService {
           features,
         }
       );
-    } catch (error) {
+    } catch {
       // If no subscription exists, return empty usage stats
       this.logger.warn(`No subscription found for organization: ${organizationId}`);
       

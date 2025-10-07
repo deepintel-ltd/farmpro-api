@@ -1,307 +1,224 @@
-import { Controller, Get, Query, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
+import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { Request as ExpressRequest } from 'express';
+import { ExecutiveDashboardService } from './executive-dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { ExecutiveDashboardService } from './executive-dashboard.service';
-import { 
-  ExecutiveDashboardQuerySchema,
-  FinancialHealthQuerySchema,
-  RiskIndicatorsQuerySchema,
-  CashFlowQuerySchema,
-  PendingActionsQuerySchema,
-  ExecutiveInsightsQuerySchema,
-} from '@contracts/executive-dashboard.contract';
-import { z } from 'zod';
+import { executiveDashboardContract } from '../../contracts/executive-dashboard.contract';
+import { ErrorResponseUtil } from '../common/utils/error-response.util';
+import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import {
+  RequireFeature,
+  RequirePermission,
+} from '../common/decorators/authorization.decorators';
+import { PERMISSIONS } from '../common/constants';
+
+interface AuthenticatedRequest extends ExpressRequest {
+  user: CurrentUser;
+}
 
 @ApiTags('Executive Dashboard')
-@Controller('organizations')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
+@Controller()
+@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+@RequireFeature('analytics')
 export class ExecutiveDashboardController {
+  private readonly logger = new Logger(ExecutiveDashboardController.name);
+
   constructor(
     private readonly executiveDashboardService: ExecutiveDashboardService,
   ) {}
 
-  @Get('executive-dashboard')
-  @ApiOperation({ 
-    summary: 'Get comprehensive executive dashboard overview',
-    description: 'Provides executive-level metrics, financial health, risk indicators, and actionable insights for strategic decision-making'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Executive dashboard data retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', example: 'executive-dashboard' },
-            id: { type: 'string', example: 'org-123' },
-            attributes: {
-              type: 'object',
-              properties: {
-                financialHealth: { $ref: '#/components/schemas/FinancialHealthScore' },
-                riskIndicators: { $ref: '#/components/schemas/RiskIndicator' },
-                cashFlow: { $ref: '#/components/schemas/CashFlowAnalysis' },
-                keyMetrics: { type: 'array', items: { $ref: '#/components/schemas/ExecutiveMetric' } },
-                pendingActions: { type: 'array', items: { $ref: '#/components/schemas/PendingAction' } },
-                insights: { type: 'array', items: { $ref: '#/components/schemas/ExecutiveInsight' } },
-                lastUpdated: { type: 'string', format: 'date-time' }
-              }
-            }
-          }
-        }
+  @TsRestHandler(executiveDashboardContract.getExecutiveDashboard)
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
+  public getExecutiveDashboard(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getExecutiveDashboard, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.getExecutiveDashboard(req.user, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              type: 'executive-dashboard',
+              id: req.user.organizationId,
+              attributes: data,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get executive dashboard failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve executive dashboard',
+          'GET_EXECUTIVE_DASHBOARD_FAILED',
+        );
       }
-    }
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getExecutiveDashboard(
-    @CurrentUser() user: any,
-    @Query(new ValidationPipe({ transform: true })) query: z.infer<typeof ExecutiveDashboardQuerySchema>
-  ) {
-    const data = await this.executiveDashboardService.getExecutiveDashboard(user, query);
-    
-    return {
-      data: {
-        type: 'executive-dashboard',
-        id: user.organizationId,
-        attributes: data,
-      },
-    };
+    });
   }
 
-  @Get('financial-health')
-  @ApiOperation({ 
-    summary: 'Get organization financial health score',
-    description: 'Calculates and returns a comprehensive financial health score based on cash flow, profitability, growth, and efficiency metrics'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Financial health data retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', example: 'financial-health' },
-            id: { type: 'string', example: 'org-123' },
-            attributes: { $ref: '#/components/schemas/FinancialHealthScore' }
-          }
-        }
+  @TsRestHandler(executiveDashboardContract.getFinancialHealth)
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
+  public getFinancialHealth(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getFinancialHealth, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.calculateFinancialHealth(req.user, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              type: 'financial-health',
+              id: req.user.organizationId,
+              attributes: data,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get financial health failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve financial health',
+          'GET_FINANCIAL_HEALTH_FAILED',
+        );
       }
-    }
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getFinancialHealth(
-    @CurrentUser() user: any,
-    @Query(new ValidationPipe({ transform: true })) query: z.infer<typeof FinancialHealthQuerySchema>
-  ) {
-    const data = await this.executiveDashboardService.calculateFinancialHealth(user, query);
-    
-    return {
-      data: {
-        type: 'financial-health',
-        id: user.organizationId,
-        attributes: data,
-      },
-    };
+    });
   }
 
-  @Get('risk-indicators')
-  @ApiOperation({ 
-    summary: 'Get organization risk indicators and alerts',
-    description: 'Provides comprehensive risk assessment including financial, operational, and market risks with actionable alerts'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Risk indicators data retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', example: 'risk-indicators' },
-            id: { type: 'string', example: 'org-123' },
-            attributes: { $ref: '#/components/schemas/RiskIndicator' }
-          }
-        }
+  @TsRestHandler(executiveDashboardContract.getRiskIndicators)
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
+  public getRiskIndicators(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getRiskIndicators, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.calculateRiskIndicators(req.user, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              type: 'risk-indicators',
+              id: req.user.organizationId,
+              attributes: data,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get risk indicators failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve risk indicators',
+          'GET_RISK_INDICATORS_FAILED',
+        );
       }
-    }
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getRiskIndicators(
-    @CurrentUser() user: any,
-    @Query(new ValidationPipe({ transform: true })) query: z.infer<typeof RiskIndicatorsQuerySchema>
-  ) {
-    const data = await this.executiveDashboardService.calculateRiskIndicators(user, query);
-    
-    return {
-      data: {
-        type: 'risk-indicators',
-        id: user.organizationId,
-        attributes: data,
-      },
-    };
+    });
   }
 
-  @Get('cash-flow')
-  @ApiOperation({ 
-    summary: 'Get organization cash flow analysis',
-    description: 'Provides detailed cash flow analysis including current status, projections, burn rate, and runway calculations'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Cash flow data retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', example: 'cash-flow' },
-            id: { type: 'string', example: 'org-123' },
-            attributes: { $ref: '#/components/schemas/CashFlowAnalysis' }
-          }
-        }
+  @TsRestHandler(executiveDashboardContract.getCashFlowAnalysis)
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
+  public getCashFlowAnalysis(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getCashFlowAnalysis, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.calculateCashFlowAnalysis(req.user, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              type: 'cash-flow',
+              id: req.user.organizationId,
+              attributes: data,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get cash flow analysis failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve cash flow analysis',
+          'GET_CASH_FLOW_ANALYSIS_FAILED',
+        );
       }
-    }
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getCashFlowAnalysis(
-    @CurrentUser() user: any,
-    @Query(new ValidationPipe({ transform: true })) query: z.infer<typeof CashFlowQuerySchema>
-  ) {
-    const data = await this.executiveDashboardService.calculateCashFlowAnalysis(user, query);
-    
-    return {
-      data: {
-        type: 'cash-flow',
-        id: user.organizationId,
-        attributes: data,
-      },
-    };
+    });
   }
 
-  @Get('pending-actions')
-  @ApiOperation({ 
-    summary: 'Get pending executive actions',
-    description: 'Retrieves all pending actions requiring executive attention, including approvals, reviews, and decisions'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Pending actions retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              type: { type: 'string', example: 'pending-action' },
-              id: { type: 'string', example: 'action-123' },
-              attributes: { $ref: '#/components/schemas/PendingAction' }
-            }
-          }
-        },
-        meta: {
-          type: 'object',
-          properties: {
-            total: { type: 'number', example: 5 },
-            page: { type: 'number', example: 1 },
-            limit: { type: 'number', example: 10 }
-          }
-        }
+  @TsRestHandler(executiveDashboardContract.getPendingActions)
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
+  public getPendingActions(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getPendingActions, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.getPendingActions(req.user, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: (data as Array<{id: string; type: string; title: string; description: string; priority: string; dueDate?: string; assignedTo?: string; createdAt: string}>).map((action, index) => ({
+              type: 'pending-action',
+              id: action.id || `action-${index}`,
+              attributes: action,
+            })),
+            meta: {
+              total: (data as Array<{id: string; type: string; title: string; description: string; priority: string; dueDate?: string; assignedTo?: string; createdAt: string}>).length,
+              page: 1,
+              limit: query.limit || 10,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get pending actions failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve pending actions',
+          'GET_PENDING_ACTIONS_FAILED',
+        );
       }
-    }
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getPendingActions(
-    @CurrentUser() user: any,
-    @Query(new ValidationPipe({ transform: true })) query: z.infer<typeof PendingActionsQuerySchema>
-  ) {
-    const data = await this.executiveDashboardService.getPendingActions(user, query);
-    
-    return {
-      data: data.map((action, index) => ({
-        type: 'pending-action',
-        id: action.id || `action-${index}`,
-        attributes: action,
-      })),
-      meta: {
-        total: data.length,
-        page: 1,
-        limit: query.limit || 10,
-      },
-    };
+    });
   }
 
-  @Get('executive-insights')
-  @ApiOperation({ 
-    summary: 'Get executive insights and recommendations',
-    description: 'Provides AI-powered insights and recommendations for strategic decision-making'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Executive insights retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              type: { type: 'string', example: 'executive-insight' },
-              id: { type: 'string', example: 'insight-123' },
-              attributes: { $ref: '#/components/schemas/ExecutiveInsight' }
-            }
-          }
-        },
-        meta: {
-          type: 'object',
-          properties: {
-            total: { type: 'number', example: 3 },
-            page: { type: 'number', example: 1 },
-            limit: { type: 'number', example: 10 }
-          }
-        }
+  @TsRestHandler(executiveDashboardContract.getExecutiveInsights)
+  @RequirePermission(...PERMISSIONS.ANALYTICS.READ)
+  public getExecutiveInsights(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getExecutiveInsights, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.getExecutiveInsights(req.user, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: (data as Array<{id: string; category: string; title: string; description: string; impact: string; confidence: number; actionable: boolean; recommendations?: string[]; createdAt: string}>).map((insight, index) => ({
+              type: 'executive-insight',
+              id: insight.id || `insight-${index}`,
+              attributes: insight,
+            })),
+            meta: {
+              total: (data as Array<{id: string; category: string; title: string; description: string; impact: string; confidence: number; actionable: boolean; recommendations?: string[]; createdAt: string}>).length,
+              page: 1,
+              limit: query.limit || 10,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get executive insights failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve executive insights',
+          'GET_EXECUTIVE_INSIGHTS_FAILED',
+        );
       }
-    }
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 500, description: 'Internal server error' })
-  async getExecutiveInsights(
-    @CurrentUser() user: any,
-    @Query(new ValidationPipe({ transform: true })) query: z.infer<typeof ExecutiveInsightsQuerySchema>
-  ) {
-    const data = await this.executiveDashboardService.getExecutiveInsights(user, query);
-    
-    return {
-      data: data.map((insight, index) => ({
-        type: 'executive-insight',
-        id: insight.id || `insight-${index}`,
-        attributes: insight,
-      })),
-      meta: {
-        total: data.length,
-        page: 1,
-        limit: query.limit || 10,
-      },
-    };
+    });
   }
 }

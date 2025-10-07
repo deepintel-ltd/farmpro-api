@@ -1,6 +1,4 @@
 import { EmailVerificationService } from './email-verification.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { BrevoService } from '../external-service/brevo/brevo.service';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 
 describe('EmailVerificationService', () => {

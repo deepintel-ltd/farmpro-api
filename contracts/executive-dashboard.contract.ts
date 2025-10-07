@@ -164,6 +164,21 @@ export const CashFlowQuerySchema = z.object({
   useCache: z.coerce.boolean().optional().default(true),
 }).merge(CommonQueryParams);
 
+export const PendingActionsQuerySchema = z.object({
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  type: z.enum(['approval', 'review', 'decision', 'follow_up']).optional(),
+  limit: z.coerce.number().min(1).max(50).optional().default(10),
+  useCache: z.coerce.boolean().optional().default(true),
+}).merge(CommonQueryParams);
+
+export const ExecutiveInsightsQuerySchema = z.object({
+  category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']).optional(),
+  impact: z.enum(['low', 'medium', 'high']).optional(),
+  actionable: z.coerce.boolean().optional(),
+  limit: z.coerce.number().min(1).max(20).optional().default(10),
+  useCache: z.coerce.boolean().optional().default(true),
+}).merge(CommonQueryParams);
+
 // =============================================================================
 // Contract Definition
 // =============================================================================
@@ -175,7 +190,7 @@ export const executiveDashboardContract = c.router({
   
   getExecutiveDashboard: {
     method: 'GET',
-    path: '/organizations/executive-dashboard',
+    path: '/executive-dashboard',
     query: ExecutiveDashboardQuerySchema,
     responses: {
       200: JsonApiResourceSchema(ExecutiveDashboardSchema),
@@ -191,7 +206,7 @@ export const executiveDashboardContract = c.router({
   
   getFinancialHealth: {
     method: 'GET',
-    path: '/organizations/financial-health',
+    path: '/executive-dashboard/financial-health',
     query: FinancialHealthQuerySchema,
     responses: {
       200: JsonApiResourceSchema(FinancialHealthScoreSchema),
@@ -207,7 +222,7 @@ export const executiveDashboardContract = c.router({
   
   getRiskIndicators: {
     method: 'GET',
-    path: '/organizations/risk-indicators',
+    path: '/executive-dashboard/risk-indicators',
     query: RiskIndicatorsQuerySchema,
     responses: {
       200: JsonApiResourceSchema(RiskIndicatorSchema),
@@ -223,7 +238,7 @@ export const executiveDashboardContract = c.router({
   
   getCashFlowAnalysis: {
     method: 'GET',
-    path: '/organizations/cash-flow',
+    path: '/executive-dashboard/cash-flow',
     query: CashFlowQuerySchema,
     responses: {
       200: JsonApiResourceSchema(CashFlowAnalysisSchema),
@@ -239,7 +254,7 @@ export const executiveDashboardContract = c.router({
   
   getPendingActions: {
     method: 'GET',
-    path: '/organizations/pending-actions',
+    path: '/executive-dashboard/pending-actions',
     query: z.object({
       priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
       type: z.enum(['approval', 'review', 'decision', 'follow_up']).optional(),
@@ -268,7 +283,7 @@ export const executiveDashboardContract = c.router({
   
   getExecutiveInsights: {
     method: 'GET',
-    path: '/organizations/executive-insights',
+    path: '/executive-dashboard/executive-insights',
     query: z.object({
       category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']).optional(),
       impact: z.enum(['low', 'medium', 'high']).optional(),

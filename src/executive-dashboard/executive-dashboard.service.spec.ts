@@ -13,26 +13,65 @@ describe('ExecutiveDashboardService', () => {
     userId: 'user-123',
     organizationId: 'org-123',
     email: 'test@example.com',
-  };
+    name: 'Test User',
+    isPlatformAdmin: false,
+    roles: ['USER'],
+    organization: {
+      id: 'org-123',
+      name: 'Test Organization',
+      plan: 'BASIC',
+      status: 'ACTIVE',
+    },
+    permissions: [],
+    capabilities: [],
+  } as any;
 
   const mockTransactions = [
     {
       id: 'tx-1',
-      type: 'FARM_REVENUE',
-      amount: 10000,
-      currency: 'USD',
-      status: 'COMPLETED',
+      organizationId: 'org-123',
+      orderId: 'order-1',
+      farmId: 'farm-1',
+      categoryId: 'cat-1',
+      type: 'FARM_REVENUE' as any,
+      amount: 10000 as any,
+      currency: 'USD' as any,
+      status: 'COMPLETED' as any,
+      description: 'Test transaction',
+      dueDate: null,
+      paidAt: null,
+      metadata: {},
       createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+      reference: 'REF-001',
+      paidDate: null,
+      requiresApproval: false,
+      approvedBy: null,
+      approvedAt: null,
     },
     {
       id: 'tx-2',
-      type: 'FARM_EXPENSE',
-      amount: 6000,
-      currency: 'USD',
-      status: 'COMPLETED',
+      organizationId: 'org-123',
+      orderId: 'order-2',
+      farmId: 'farm-1',
+      categoryId: 'cat-2',
+      type: 'FARM_EXPENSE' as any,
+      amount: 6000 as any,
+      currency: 'USD' as any,
+      status: 'COMPLETED' as any,
+      description: 'Test transaction',
+      dueDate: null,
+      paidAt: null,
+      metadata: {},
       createdAt: new Date('2024-01-02'),
+      updatedAt: new Date('2024-01-02'),
+      reference: 'REF-002',
+      paidDate: null,
+      requiresApproval: false,
+      approvedBy: null,
+      approvedAt: null,
     },
-  ];
+  ] as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -87,13 +126,13 @@ describe('ExecutiveDashboardService', () => {
         useCache: false,
       });
 
-      expect(result.score).toBeDefined();
-      expect(result.grade).toBeDefined();
-      expect(result.factors).toBeDefined();
-      expect(result.factors.cashFlow).toBeGreaterThanOrEqual(0);
-      expect(result.factors.profitability).toBeGreaterThanOrEqual(0);
-      expect(result.factors.growth).toBeGreaterThanOrEqual(0);
-      expect(result.factors.efficiency).toBeGreaterThanOrEqual(0);
+      expect((result as any).score).toBeDefined();
+      expect((result as any).grade).toBeDefined();
+      expect((result as any).factors).toBeDefined();
+      expect((result as any).factors.cashFlow).toBeGreaterThanOrEqual(0);
+      expect((result as any).factors.profitability).toBeGreaterThanOrEqual(0);
+      expect((result as any).factors.growth).toBeGreaterThanOrEqual(0);
+      expect((result as any).factors.efficiency).toBeGreaterThanOrEqual(0);
     });
 
     it('should return cached result when available', async () => {
@@ -137,13 +176,13 @@ describe('ExecutiveDashboardService', () => {
         useCache: false,
       });
 
-      expect(result.overallRisk).toBeDefined();
-      expect(result.indicators).toBeDefined();
-      expect(result.indicators.overduePayments).toBeDefined();
-      expect(result.indicators.budgetVariance).toBeDefined();
-      expect(result.indicators.cashFlowRisk).toBeDefined();
-      expect(result.indicators.marketRisk).toBeDefined();
-      expect(result.indicators.operationalRisk).toBeDefined();
+      expect((result as any).overallRisk).toBeDefined();
+      expect((result as any).indicators).toBeDefined();
+      expect((result as any).indicators.overduePayments).toBeDefined();
+      expect((result as any).indicators.budgetVariance).toBeDefined();
+      expect((result as any).indicators.cashFlowRisk).toBeDefined();
+      expect((result as any).indicators.marketRisk).toBeDefined();
+      expect((result as any).indicators.operationalRisk).toBeDefined();
     });
   });
 
@@ -160,15 +199,15 @@ describe('ExecutiveDashboardService', () => {
         useCache: false,
       });
 
-      expect(result.currentCashFlow).toBeDefined();
-      expect(result.currentCashFlow.amount).toBeDefined();
-      expect(result.currentCashFlow.currency).toBe('USD');
-      expect(result.breakdown).toBeDefined();
-      expect(result.breakdown.operating).toBeDefined();
-      expect(result.breakdown.investing).toBeDefined();
-      expect(result.breakdown.financing).toBeDefined();
-      expect(result.burnRate).toBeDefined();
-      expect(result.runway).toBeDefined();
+      expect((result as any).currentCashFlow).toBeDefined();
+      expect((result as any).currentCashFlow.amount).toBeDefined();
+      expect((result as any).currentCashFlow.currency).toBe('USD');
+      expect((result as any).breakdown).toBeDefined();
+      expect((result as any).breakdown.operating).toBeDefined();
+      expect((result as any).breakdown.investing).toBeDefined();
+      expect((result as any).breakdown.financing).toBeDefined();
+      expect((result as any).burnRate).toBeDefined();
+      expect((result as any).runway).toBeDefined();
     });
   });
 
@@ -177,12 +216,27 @@ describe('ExecutiveDashboardService', () => {
       const mockPendingTransactions = [
         {
           id: 'tx-pending-1',
+          organizationId: 'org-123',
+          orderId: 'order-3',
+          farmId: 'farm-1',
+          categoryId: 'cat-3',
+          type: 'FARM_EXPENSE' as any,
+          amount: 1000 as any,
+          currency: 'USD' as any,
+          status: 'PENDING' as any,
           description: 'Test transaction',
-          amount: 1000,
           dueDate: new Date('2024-12-31'),
-          createdBy: { name: 'Test User', email: 'test@example.com' },
+          paidAt: null,
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          reference: 'REF-003',
+          paidDate: null,
+          requiresApproval: false,
+          approvedBy: null,
+          approvedAt: null,
         },
-      ];
+      ] as any;
 
       jest.spyOn(prismaService.transaction, 'findMany').mockResolvedValue(mockPendingTransactions);
       jest.spyOn(cacheService, 'get').mockResolvedValue(null);
@@ -193,7 +247,7 @@ describe('ExecutiveDashboardService', () => {
       });
 
       expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBeGreaterThanOrEqual(0);
+      expect((result as any).length).toBeGreaterThanOrEqual(0);
     });
   });
 

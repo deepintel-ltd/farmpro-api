@@ -1,6 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Currency } from '@prisma/client';
 import * as crypto from 'crypto';
 
 interface PaystackCustomer {

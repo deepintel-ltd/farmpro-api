@@ -53,7 +53,7 @@ export class MediaService {
     // Check if file is a video and compress if needed
     let fileBuffer = uploadData.file.buffer;
     let fileMimeType = uploadData.file.mimetype;
-    let originalSize = uploadData.file.size;
+    const originalSize = uploadData.file.size;
     let compressionInfo = null;
 
     if (this.isVideoFile(uploadData.file.mimetype)) {
@@ -603,7 +603,7 @@ export class MediaService {
 
       if (result.success && result.outputPath) {
         // Read the compressed file
-        const fs = require('fs').promises;
+        const { promises: fs } = await import('fs');
         const compressedBuffer = await fs.readFile(result.outputPath);
         
         return {

@@ -1,11 +1,10 @@
 import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
-import { SubscriptionPlan, SubscriptionStatus, SubscriptionTier } from '@prisma/client';
+import { SubscriptionPlan, SubscriptionTier } from '@prisma/client';
 
 describe('Usage Limit Enforcement E2E Tests', () => {
   let testContext: TestContext;
   let testOrganizations: any[] = [];
-  let testUsers: any[] = [];
   let testPlans: SubscriptionPlan[] = [];
 
   beforeAll(async () => {

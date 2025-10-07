@@ -141,7 +141,7 @@ export class FeatureAccessGuard implements CanActivate {
           `Feature '${feature}' is not included in your current plan. Please upgrade to access this feature.`,
         );
       }
-    } catch (error) {
+    } catch {
       // If no subscription found, fall back to organization features
       this.logger.warn(`No subscription found for organization ${user.organizationId}, using organization features`);
       

@@ -254,7 +254,7 @@ export class VideoCompressionService {
         if (code === 0) {
           try {
             resolve(JSON.parse(output));
-          } catch (error) {
+          } catch {
             reject(new Error('Failed to parse FFprobe output'));
           }
         } else {

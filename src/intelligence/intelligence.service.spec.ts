@@ -1,7 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IntelligenceService } from './intelligence.service';
 import { OpenAIService } from './openai.service';
-import { PrismaService } from '@/prisma/prisma.service';
 import { UnifiedStorageService } from '../common/services/storage.service';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 

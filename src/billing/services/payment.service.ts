@@ -10,12 +10,10 @@ import { PaystackProvider } from '../providers/paystack.provider';
 import { InvoiceService } from './invoice.service';
 import { PaymentMethodService } from './payment-method.service';
 import {
-  Currency,
   PaymentProvider,
   PaymentStatus,
   InvoiceStatus,
 } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class PaymentService {

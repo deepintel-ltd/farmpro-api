@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/services/cache.service';
 import { CurrencyAwareService } from '../common/services/currency-aware.service';
@@ -11,22 +11,11 @@ import {
   CashFlowQuerySchema,
   PendingActionsQuerySchema,
   ExecutiveInsightsQuerySchema,
-  ExecutiveDashboardSchema,
-  FinancialHealthScoreSchema,
-  RiskIndicatorSchema,
-  CashFlowAnalysisSchema,
-  ExecutiveMetricSchema,
 } from '@contracts/executive-dashboard.contract';
 import { z } from 'zod';
 import { TransactionType, TransactionStatus, Currency } from '@prisma/client';
 
-// Type definitions
-type ExecutiveDashboardQuery = z.infer<typeof ExecutiveDashboardQuerySchema>;
-type FinancialHealthQuery = z.infer<typeof FinancialHealthQuerySchema>;
-type RiskIndicatorsQuery = z.infer<typeof RiskIndicatorsQuerySchema>;
-type CashFlowQuery = z.infer<typeof CashFlowQuerySchema>;
-type PendingActionsQuery = z.infer<typeof PendingActionsQuerySchema>;
-type ExecutiveInsightsQuery = z.infer<typeof ExecutiveInsightsQuerySchema>;
+// Type definitions are now inferred directly from schemas
 
 @Injectable()
 export class ExecutiveDashboardService extends CurrencyAwareService {
@@ -43,7 +32,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Get comprehensive executive dashboard overview
    */
-  async getExecutiveDashboard(user: CurrentUser, query: ExecutiveDashboardQuery) {
+  async getExecutiveDashboard(user: CurrentUser, query: z.infer<typeof ExecutiveDashboardQuerySchema>) {
     const startTime = Date.now();
     this.logger.log(`Getting executive dashboard for user: ${user.userId}`);
 
@@ -84,7 +73,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
           projectionMonths: 6,
           useCache: query.useCache,
         }),
-        this.calculateKeyMetrics(user, query.period, query.currency),
+        this.calculateKeyMetrics(user.userId, query.period, query.currency),
         this.getPendingActions(user, {
           limit: 10,
           useCache: query.useCache,
@@ -120,7 +109,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Calculate financial health score
    */
-  async calculateFinancialHealth(user: CurrentUser, query: FinancialHealthQuery) {
+  async calculateFinancialHealth(user: CurrentUser, query: z.infer<typeof FinancialHealthQuerySchema>) {
     const startTime = Date.now();
     this.logger.log(`Calculating financial health for user: ${user.userId}`);
 
@@ -160,7 +149,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
           efficiency: efficiencyScore,
         },
         grade: this.getGrade(overallScore),
-        recommendations: this.generateRecommendations(overallScore, transactions),
+        recommendations: this.generateRecommendations(overallScore),
         lastCalculated: new Date().toISOString(),
       };
 
@@ -179,7 +168,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Calculate risk indicators
    */
-  async calculateRiskIndicators(user: CurrentUser, query: RiskIndicatorsQuery) {
+  async calculateRiskIndicators(user: CurrentUser, query: z.infer<typeof RiskIndicatorsQuerySchema>) {
     const startTime = Date.now();
     this.logger.log(`Calculating risk indicators for user: ${user.userId}`);
 
@@ -217,7 +206,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       const budgetVariance = this.calculateBudgetVariance(transactions, query.currency);
       const cashFlowRisk = this.assessCashFlowRisk(transactions, query.currency);
       const marketRisk = this.assessMarketRisk(orders);
-      const operationalRisk = this.assessOperationalRisk(user.organizationId);
+      const operationalRisk = this.assessOperationalRisk();
       
       // Calculate overall risk
       const overallRisk = this.calculateOverallRisk({
@@ -230,7 +219,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       
       const result = {
         overallRisk,
-        riskTrend: this.calculateRiskTrend(transactions, query.currency),
+        riskTrend: this.calculateRiskTrend(transactions),
         indicators: {
           overduePayments,
           budgetVariance,
@@ -257,7 +246,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Calculate cash flow analysis
    */
-  async calculateCashFlowAnalysis(user: CurrentUser, query: CashFlowQuery) {
+  async calculateCashFlowAnalysis(user: CurrentUser, query: z.infer<typeof CashFlowQuerySchema>) {
     const startTime = Date.now();
     this.logger.log(`Calculating cash flow analysis for user: ${user.userId}`);
 
@@ -321,7 +310,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Get pending executive actions
    */
-  async getPendingActions(user: CurrentUser, query: PendingActionsQuery) {
+  async getPendingActions(user: CurrentUser, query: z.infer<typeof PendingActionsQuerySchema>) {
     const startTime = Date.now();
     this.logger.log(`Getting pending actions for user: ${user.userId}`);
 
@@ -352,12 +341,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
         }
       });
 
-      const actions = pendingTransactions.map((transaction, index) => ({
+      const actions = pendingTransactions.map((transaction) => ({
         id: transaction.id,
         type: 'approval' as const,
         title: `Transaction Approval Required`,
         description: transaction.description,
-        priority: this.determinePriority(transaction.amount, transaction.dueDate),
+        priority: this.determinePriority(Number(transaction.amount), transaction.dueDate),
         dueDate: transaction.dueDate?.toISOString(),
         assignedTo: transaction.createdBy?.name || 'Unknown',
         createdAt: transaction.createdAt.toISOString(),
@@ -380,7 +369,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Get executive insights
    */
-  async getExecutiveInsights(user: CurrentUser, query: ExecutiveInsightsQuery) {
+  async getExecutiveInsights(user: CurrentUser, query: z.infer<typeof ExecutiveInsightsQuerySchema>) {
     const startTime = Date.now();
     this.logger.log(`Getting executive insights for user: ${user.userId}`);
 
@@ -396,7 +385,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
 
     try {
       // Generate insights based on current data
-      const insights = await this.generateInsights(user.organizationId, query);
+      const insights = await this.generateInsights(user.organizationId);
       
       const result = insights.slice(0, query.limit);
 
@@ -413,7 +402,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   }
 
   // Helper methods for calculations
-  private async getTransactionsByPeriod(organizationId: string, period: string, currency: Currency) {
+  private async getTransactionsByPeriod(organizationId: string, period: string, currency: any) {
     const now = new Date();
     let startDate: Date;
     
@@ -501,7 +490,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     return 'F';
   }
 
-  private generateRecommendations(score: number, transactions: any[]): string[] {
+  private generateRecommendations(score: number): string[] {
     const recommendations = [];
     
     if (score < 70) {
@@ -591,7 +580,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     return 'High';
   }
 
-  private assessOperationalRisk(organizationId: string): 'Low' | 'Medium' | 'High' {
+  private assessOperationalRisk(): 'Low' | 'Medium' | 'High' {
     // Simplified operational risk assessment
     // In production, this would consider various operational factors
     return 'Low';
@@ -613,7 +602,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     return 'Low';
   }
 
-  private calculateRiskTrend(transactions: any[], currency: string): number {
+  private calculateRiskTrend(transactions: any[]): number {
     // Calculate risk trend based on transaction patterns
     const overdueCount = transactions.filter(t => 
       t.dueDate && new Date(t.dueDate) < new Date() && t.status === TransactionStatus.PENDING
@@ -729,7 +718,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   }
 
   private async calculateKeyMetrics(organizationId: string, period: string, currency: string) {
-    const transactions = await this.getTransactionsByPeriod(organizationId, period, currency as Currency);
+    const transactions = await this.getTransactionsByPeriod(organizationId, period, currency as any);
     
     const revenue = this.sumTransactionsByType(transactions, TransactionType.FARM_REVENUE, currency);
     const expenses = this.sumTransactionsByType(transactions, TransactionType.FARM_EXPENSE, currency);
@@ -780,7 +769,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     return 'low';
   }
 
-  private async generateInsights(organizationId: string, query: ExecutiveInsightsQuery) {
+  private async generateInsights(organizationId: string) {
     // Generate insights based on current data
     const insights = [];
     

@@ -1,7 +1,6 @@
 import { AnalyticsService } from './analytics.service';
 import { CacheService } from '../common/services/cache.service';
 import { IntelligenceService } from '../intelligence/intelligence.service';
-import { PrismaService } from '../prisma/prisma.service';
 import { JobQueueService } from '../common/services/job-queue.service';
 import { CurrencyService } from '../common/services/currency.service';
 import { MonitoringService } from '../common/services/monitoring.service';

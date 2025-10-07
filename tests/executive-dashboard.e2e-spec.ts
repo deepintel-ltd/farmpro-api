@@ -29,7 +29,7 @@ describe('Executive Dashboard (e2e)', () => {
     const organization = await prismaService.organization.create({
       data: {
         name: 'Test Organization',
-        type: 'FARM',
+        type: 'FARM_OPERATION',
         email: 'test@example.com',
         currency: Currency.USD,
       },

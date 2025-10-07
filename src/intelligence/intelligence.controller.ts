@@ -242,7 +242,7 @@ export class IntelligenceController {
 
   @TsRestHandler(intelligenceContract.exportIntelligence)
   @RequirePermission(...PERMISSIONS.INTELLIGENCE.READ)
-  async exportIntelligence(@Request() req: AuthenticatedRequest) {
+  async exportIntelligence() {
     return tsRestHandler(intelligenceContract.exportIntelligence, async ({ body }) => {
       const response = await this.intelligenceService.exportIntelligence(body);
       

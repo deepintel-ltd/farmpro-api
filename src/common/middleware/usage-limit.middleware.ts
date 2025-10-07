@@ -144,7 +144,7 @@ export class UsageLimitMiddleware implements NestMiddleware {
         });
         break;
 
-      case 'activities':
+      case 'activities': {
         // Count activities for current billing period
         const subscription = await this.subscriptionService['getCurrentSubscriptionInternal'](organizationId);
         count = await this.prisma.farmActivity.count({
@@ -157,6 +157,7 @@ export class UsageLimitMiddleware implements NestMiddleware {
           },
         });
         break;
+      }
 
       case 'listings':
         count = await this.prisma.marketplaceListing.count({

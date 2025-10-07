@@ -1,6 +1,5 @@
 import { FarmsController } from './farms.controller';
 import { FarmsService } from './farms.service';
-import { PrismaService } from '../prisma/prisma.service';
 
 describe('FarmsController', () => {
   let controller: FarmsController;
