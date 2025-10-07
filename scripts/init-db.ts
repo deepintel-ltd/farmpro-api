@@ -425,7 +425,7 @@ const SAMPLE_ORGANIZATIONS = [
   },
   {
     name: 'AgriTech Solutions',
-    type: 'TECHNOLOGY_PROVIDER',
+    type: 'INTEGRATED_FARM',
     email: 'contact@agritech.solutions',
     phone: '+1-555-0106',
     address: {
@@ -463,7 +463,7 @@ const SAMPLE_ORGANIZATIONS = [
   },
   {
     name: 'Family Farm Co-op',
-    type: 'COOPERATIVE',
+    type: 'FARM_OPERATION',
     email: 'coop@familyfarm.org',
     phone: '+1-555-0108',
     address: {
