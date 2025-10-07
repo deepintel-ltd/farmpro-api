@@ -73,7 +73,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
           projectionMonths: 6,
           useCache: query.useCache,
         }),
-        this.calculateKeyMetrics(user.userId, query.period, query.currency),
+        this.calculateKeyMetrics(user.organizationId, query.period, query.currency),
         this.getPendingActions(user, {
           limit: 10,
           useCache: query.useCache,
