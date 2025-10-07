@@ -2673,9 +2673,10 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
   }
 
   // Comprehensive transaction data covering all types and scenarios
+  // Enhanced for DashboardPage testing with diverse time periods and amounts
   const transactionData = [
     // =============================================================================
-    // FARM REVENUE TRANSACTIONS
+    // FARM REVENUE TRANSACTIONS - Enhanced for Dashboard Testing
     // =============================================================================
     {
       type: 'FARM_REVENUE',
@@ -3198,30 +3199,124 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
       }
     },
 
-    // Historical Data for Analytics
+    // =============================================================================
+    // ENHANCED HISTORICAL DATA FOR DASHBOARD TRENDS TESTING
+    // =============================================================================
+    
+    // Last 6 months of data for comprehensive trend analysis
+    {
+      type: 'FARM_REVENUE',
+      amount: 8500,
+      description: 'Historical wheat sale - 6 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), // 6 months ago
+      metadata: {
+        commodity: 'wheat',
+        quantity: 170,
+        quality: 'premium',
+        buyer: 'GrainCo Ltd',
+        season: 'winter_harvest',
+        historical: true,
+        period: '6_months_ago'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 7200,
+      description: 'Historical corn sale - 5 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000), // 5 months ago
+      metadata: {
+        commodity: 'corn',
+        quantity: 120,
+        quality: 'standard',
+        buyer: 'FeedMill Inc',
+        season: 'spring_harvest',
+        historical: true,
+        period: '5_months_ago'
+      }
+    },
     {
       type: 'FARM_REVENUE',
       amount: 6800,
-      description: 'Historical wheat sale - Previous month',
+      description: 'Historical soybean sale - 4 months ago',
       farmId: farm.id,
       status: 'COMPLETED',
-      paidDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
+      paidDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000), // 4 months ago
+      metadata: {
+        commodity: 'soybean',
+        quantity: 85,
+        quality: 'organic',
+        buyer: 'Organic Foods Ltd',
+        season: 'summer_harvest',
+        historical: true,
+        period: '4_months_ago'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 9200,
+      description: 'Historical rice sale - 3 months ago',
+      farmId: secondFarm?.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 3 months ago
+      metadata: {
+        commodity: 'rice',
+        variety: 'basmati',
+        quantity: 115,
+        quality: 'premium',
+        buyer: 'RiceTraders Co',
+        season: 'monsoon_harvest',
+        historical: true,
+        period: '3_months_ago'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 7500,
+      description: 'Historical tomato sale - 2 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 2 months ago
+      metadata: {
+        commodity: 'tomato',
+        variety: 'cherry',
+        quantity: 150,
+        quality: 'premium',
+        buyer: 'FreshMarket Chain',
+        season: 'greenhouse',
+        historical: true,
+        period: '2_months_ago'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 6800,
+      description: 'Historical wheat sale - 1 month ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 1 month ago
       metadata: {
         commodity: 'wheat',
         quantity: 136,
         quality: 'premium',
         buyer: 'GrainCo Ltd',
         season: 'winter_harvest',
-        historical: true
+        historical: true,
+        period: '1_month_ago'
       }
     },
+
+    // Historical Expenses for Trend Analysis
     {
       type: 'FARM_EXPENSE',
-      amount: 1800,
-      description: 'Historical equipment purchase - Tractor maintenance',
+      amount: 3200,
+      description: 'Historical equipment purchase - 6 months ago',
       farmId: farm.id,
       status: 'COMPLETED',
-      paidDate: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000), // 50 days ago
+      paidDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), // 6 months ago
       metadata: {
         category: 'equipment',
         type: 'major_repair',
@@ -3229,7 +3324,290 @@ async function initializeSampleTransactions(organizations: any[], farms: any[], 
         serviceType: 'engine_overhaul',
         vendor: 'HeavyMach Solutions',
         warranty: '6_months',
-        historical: true
+        historical: true,
+        period: '6_months_ago'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 2800,
+      description: 'Historical fertilizer purchase - 5 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000), // 5 months ago
+      metadata: {
+        category: 'fertilizer',
+        type: 'NPK_blend',
+        quantity: 150,
+        unit: 'kg',
+        vendor: 'AgriChem Supplies',
+        historical: true,
+        period: '5_months_ago'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1800,
+      description: 'Historical equipment purchase - 4 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000), // 4 months ago
+      metadata: {
+        category: 'equipment',
+        type: 'irrigation_system',
+        equipment: 'sprinkler_system',
+        vendor: 'Irrigation Solutions Ltd',
+        historical: true,
+        period: '4_months_ago'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 2200,
+      description: 'Historical seed purchase - 3 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 3 months ago
+      metadata: {
+        category: 'seeds',
+        type: 'hybrid_corn',
+        quantity: 50,
+        unit: 'kg',
+        vendor: 'SeedMaster Corp',
+        historical: true,
+        period: '3_months_ago'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1500,
+      description: 'Historical labor costs - 2 months ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 2 months ago
+      metadata: {
+        category: 'labor',
+        type: 'seasonal_workers',
+        workers: 8,
+        hours: 320,
+        rate: 4.69,
+        historical: true,
+        period: '2_months_ago'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 1800,
+      description: 'Historical equipment purchase - 1 month ago',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 1 month ago
+      metadata: {
+        category: 'equipment',
+        type: 'major_repair',
+        equipment: 'tractor',
+        serviceType: 'engine_overhaul',
+        vendor: 'HeavyMach Solutions',
+        warranty: '6_months',
+        historical: true,
+        period: '1_month_ago'
+      }
+    },
+
+    // =============================================================================
+    // ADDITIONAL REVENUE TRANSACTIONS FOR BETTER DASHBOARD TESTING
+    // =============================================================================
+    
+    // High-value transactions for executive dashboard
+    {
+      type: 'FARM_REVENUE',
+      amount: 15000,
+      description: 'Premium wheat export - International buyer',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      metadata: {
+        commodity: 'wheat',
+        quantity: 300,
+        quality: 'premium',
+        buyer: 'International Grain Corp',
+        destination: 'Europe',
+        export: true,
+        certification: 'Organic Certified'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 12000,
+      description: 'Bulk corn sale - Feed mill contract',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      metadata: {
+        commodity: 'corn',
+        quantity: 200,
+        quality: 'standard',
+        buyer: 'FeedMill Inc',
+        contract: 'annual_supply',
+        volume: 'bulk'
+      }
+    },
+    {
+      type: 'FARM_REVENUE',
+      amount: 8500,
+      description: 'Organic soybean premium sale',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      metadata: {
+        commodity: 'soybean',
+        quantity: 100,
+        quality: 'organic',
+        buyer: 'Organic Foods Ltd',
+        certification: 'USDA Organic',
+        premium: true
+      }
+    },
+
+    // =============================================================================
+    // ADDITIONAL EXPENSE TRANSACTIONS FOR BETTER DASHBOARD TESTING
+    // =============================================================================
+    
+    // High-value expenses for executive dashboard
+    {
+      type: 'FARM_EXPENSE',
+      amount: 8500,
+      description: 'Major equipment purchase - New irrigation system',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      metadata: {
+        category: 'equipment',
+        type: 'major_purchase',
+        equipment: 'irrigation_system',
+        vendor: 'Irrigation Solutions Ltd',
+        warranty: '2_years',
+        installation: 'included'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 6500,
+      description: 'Bulk fertilizer purchase - Seasonal stock',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
+      metadata: {
+        category: 'fertilizer',
+        type: 'NPK_blend',
+        quantity: 500,
+        unit: 'kg',
+        vendor: 'AgriChem Supplies',
+        bulk_discount: true
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 4200,
+      description: 'Labor costs - Harvest season workers',
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
+      metadata: {
+        category: 'labor',
+        type: 'harvest_workers',
+        workers: 15,
+        hours: 600,
+        rate: 7.0,
+        season: 'harvest'
+      }
+    },
+
+    // =============================================================================
+    // PENDING TRANSACTIONS FOR EXECUTIVE DASHBOARD TESTING
+    // =============================================================================
+    
+    // High-value pending transactions
+    {
+      type: 'FARM_REVENUE',
+      amount: 25000,
+      description: 'Major wheat contract - Pending payment',
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      metadata: {
+        commodity: 'wheat',
+        quantity: 500,
+        quality: 'premium',
+        buyer: 'GrainCo Ltd',
+        contract: 'major_supply',
+        payment_terms: '30_days'
+      }
+    },
+    {
+      type: 'FARM_EXPENSE',
+      amount: 12000,
+      description: 'Equipment lease payment - Due soon',
+      farmId: farm.id,
+      status: 'PENDING',
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+      metadata: {
+        category: 'equipment',
+        type: 'lease_payment',
+        equipment: 'tractor_lease',
+        vendor: 'Equipment Leasing Co',
+        monthly_payment: true
+      }
+    },
+
+    // =============================================================================
+    // PLATFORM FEES FOR EXECUTIVE DASHBOARD TESTING
+    // =============================================================================
+    
+    // High-value platform fees
+    {
+      type: 'PLATFORM_FEE',
+      amount: 875,
+      description: 'Platform commission - Major wheat sale',
+      orderId: orders[0]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      metadata: {
+        feeType: 'commission',
+        rate: 0.035, // 3.5%
+        baseAmount: 25000,
+        calculation: '25000 * 0.035 = 875'
+      }
+    },
+    {
+      type: 'PLATFORM_FEE',
+      amount: 420,
+      description: 'Platform commission - Corn sale',
+      orderId: orders[1]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      metadata: {
+        feeType: 'commission',
+        rate: 0.035, // 3.5%
+        baseAmount: 12000,
+        calculation: '12000 * 0.035 = 420'
+      }
+    },
+    {
+      type: 'PLATFORM_FEE',
+      amount: 297,
+      description: 'Platform commission - Soybean sale',
+      orderId: orders[2]?.id,
+      farmId: farm.id,
+      status: 'COMPLETED',
+      paidDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      metadata: {
+        feeType: 'commission',
+        rate: 0.035, // 3.5%
+        baseAmount: 8500,
+        calculation: '8500 * 0.035 = 297'
       }
     }
   ];
