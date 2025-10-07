@@ -58,7 +58,7 @@ export const platformAdminContract = c.router({
     method: 'GET',
     path: '/platform-admin/organizations',
     query: PaginationQuery.merge(OrganizationFiltersQuery).extend({
-      'filter[selectable]': z.boolean().optional(),
+      'filter[selectable]': z.coerce.boolean().optional(),
     }),
     responses: {
       200: PlatformAdminOrganizationListResponseSchema,
