@@ -140,21 +140,79 @@ export class AuthService {
         },
       });
 
-      const adminRole = await tx.role.create({
-        data: {
-          name: 'admin',
-          description: 'Organization administrator',
-          organizationId: organization.id,
-          level: 100,
-          isActive: true,
-          isSystemRole: false,
+      const organizationOwnerRole = await tx.role.findFirst({
+        where: {
+          name: 'Organization Owner',
+          isSystemRole: true,
+          scope: 'ORGANIZATION',
         },
       });
 
-      await tx.userRole.create({
-        data: {
+      if (!organizationOwnerRole) {
+        throw new BadRequestException('Organization Owner role not found. Please contact support.');
+      }
+
+      const adminRole = await tx.role.upsert({
+        where: {
+          name_organizationId: {
+            name: 'Organization Owner',
+            organizationId: organization.id,
+          },
+        },
+        create: {
+          name: 'Organization Owner',
+          description: 'Full control over organization and all resources',
+          organizationId: organization.id,
+          level: 90,
+          isActive: true,
+          isSystemRole: false,
+          scope: 'ORGANIZATION',
+        },
+        update: {}, // No update needed - role already exists with correct values
+      });
+
+      const systemRolePermissions = await tx.rolePermission.findMany({
+        where: { roleId: organizationOwnerRole.id },
+        include: { permission: true },
+      });
+
+      await Promise.all(
+        systemRolePermissions.map(rolePermission =>
+          tx.rolePermission.upsert({
+            where: {
+              roleId_permissionId: {
+                roleId: adminRole.id,
+                permissionId: rolePermission.permissionId,
+              },
+            },
+            create: {
+              roleId: adminRole.id,
+              permissionId: rolePermission.permissionId,
+              granted: rolePermission.granted,
+              conditions: rolePermission.conditions,
+            },
+            update: {
+              granted: rolePermission.granted,
+              conditions: rolePermission.conditions,
+            },
+          })
+        )
+      );
+
+      await tx.userRole.upsert({
+        where: {
+          userId_roleId_farmId: {
+            userId: user.id,
+            roleId: adminRole.id,
+            farmId: null,
+          },
+        },
+        create: {
           userId: user.id,
           roleId: adminRole.id,
+          isActive: true,
+        },
+        update: {
           isActive: true,
         },
       });

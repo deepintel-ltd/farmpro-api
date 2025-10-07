@@ -8,7 +8,8 @@ import { PlatformAdminGuard } from '@/common/guards/platform-admin.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { BypassOrgIsolation } from '@/common/decorators/authorization.decorators';
 import { platformAdminContract } from '../../contracts/platform-admin.contract';
-import { OrganizationValidationService } from '@/common/services/organization-validation.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { getSelectableOrganizations } from '@/common/utils/organization.utils';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -30,7 +31,7 @@ export class PlatformAdminController {
 
   constructor(
     private readonly platformAdminService: PlatformAdminService,
-    private readonly organizationValidationService: OrganizationValidationService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @TsRestHandler(platformAdminContract.getAllOrganizations)
@@ -39,7 +40,8 @@ export class PlatformAdminController {
       try {
         // Check if this is a request for selectable organizations
         if (query['filter[selectable]']) {
-          const organizations = await this.organizationValidationService.getSelectableOrganizations(
+          const organizations = await getSelectableOrganizations(
+            this.prisma,
             req.user,
           );
           

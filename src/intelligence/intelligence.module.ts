@@ -4,10 +4,9 @@ import { IntelligenceService } from './intelligence.service';
 import { OpenAIService } from './openai.service';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { UnifiedStorageService } from '../common/services/storage.service';
-import { CommonModule } from '../common/common.module';
 
 @Module({
-  imports: [PrismaModule, CommonModule],
+  imports: [PrismaModule],
   controllers: [IntelligenceController],
   providers: [IntelligenceService, OpenAIService, UnifiedStorageService],
   exports: [IntelligenceService, OpenAIService, UnifiedStorageService],

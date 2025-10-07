@@ -7,8 +7,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { hasOrganizationScope } from '@/common/utils/permission.utils';
 import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
-import { OrganizationValidationService } from '@/common/services/organization-validation.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { validateOrganizationAccess } from '@/common/utils/organization.utils';
 
 // Metadata key for bypassing organization isolation
 export const BYPASS_ORG_ISOLATION_KEY = 'bypassOrgIsolation';
@@ -27,7 +29,7 @@ export class OrganizationIsolationGuard implements CanActivate {
 
   constructor(
     private reflector: Reflector,
-    private organizationValidationService: OrganizationValidationService,
+    private prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -66,7 +68,8 @@ export class OrganizationIsolationGuard implements CanActivate {
       
       if (selectedOrgId) {
         // Validate the selected organization
-        const org = await this.organizationValidationService.validateOrganizationAccess(
+        const org = await validateOrganizationAccess(
+          this.prisma,
           selectedOrgId,
           user,
         );
@@ -97,6 +100,14 @@ export class OrganizationIsolationGuard implements CanActivate {
     // Regular users must have organization context
     if (!user.organizationId) {
       throw new ForbiddenException('User must belong to an organization');
+    }
+
+    // Check if user has appropriate scope for organization access
+    if (!hasOrganizationScope(user.roles)) {
+      this.logger.warn(
+        `User ${user.email} attempted to access organization resource without proper scope. User roles: ${JSON.stringify(user.roles.map(r => ({ name: r.name, scope: r.scope })))}`
+      );
+      throw new ForbiddenException('User does not have organization-level access');
     }
 
     // Organization is suspended

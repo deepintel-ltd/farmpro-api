@@ -13,14 +13,12 @@ import { MobileFieldService } from './mobile-field.service';
 import { WeatherModule } from '../weather/weather.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ActivityAssignmentGuard } from './guards';
-import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
     PrismaModule, 
     MarketModule,
     WeatherModule,
-    CommonModule,
     JwtModule.registerAsync({
       useFactory: () => ({
         secret: process.env.JWT_SECRET,

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { hasPermission as checkUserPermission } from '../common/utils/permission.utils';
 import {
   CreateRoleDto,
   UpdateRoleDto,
@@ -374,7 +375,32 @@ export class RbacService {
       throw new BadRequestException('Action cannot be empty');
     }
 
-    const hasPermission = await this.hasPermission(user.userId, data.resource, data.action);
+    // Create context for scope validation - always required
+    const context = {
+      organizationId: user.organizationId || undefined,
+      farmId: data.resourceId || undefined, // Use resourceId as farmId if provided
+    };
+
+    // Ensure we have the minimum required context
+    if (!context.organizationId && !user.isPlatformAdmin) {
+      this.logger.warn(`Permission check for ${data.resource}:${data.action} requires organization context for user ${user.userId}`);
+      return {
+        data: {
+          id: 'permission-check',
+          type: 'permission-check' as const,
+          attributes: {
+            resource: data.resource,
+            action: data.action,
+            resourceId: data.resourceId || null,
+            granted: false,
+            reason: 'Organization context required for permission check',
+            matchedRole: undefined,
+          },
+        },
+      };
+    }
+
+    const hasPermission = await this.hasPermission(user.userId, data.resource, data.action, context);
 
     const result: PermissionCheckResult = {
       resource: data.resource,
@@ -416,10 +442,33 @@ export class RbacService {
 
     const results = await Promise.all(
       data.permissions.map(async (permission, index) => {
+        // Create context for scope validation - always required
+        const context = {
+          organizationId: user.organizationId || undefined,
+          farmId: permission.resourceId || undefined,
+        };
+
+        // Ensure we have the minimum required context
+        if (!context.organizationId && !user.isPlatformAdmin) {
+          return {
+            id: `permission-check-${index}`,
+            type: 'permission-check' as const,
+            attributes: {
+              resource: permission.resource,
+              action: permission.action,
+              resourceId: permission.resourceId || null,
+              granted: false,
+              reason: 'Organization context required for permission check',
+              matchedRole: undefined,
+            },
+          };
+        }
+
         const hasPermission = await this.hasPermission(
           user.userId,
           permission.resource,
-          permission.action
+          permission.action,
+          context
         );
 
         return {
@@ -684,36 +733,19 @@ export class RbacService {
   // Helper Methods
   // =============================================================================
 
-  private async hasPermission(
+  async hasPermission(
     userId: string,
     resource: string,
     action: string,
+    context?: { organizationId?: string; farmId?: string },
   ): Promise<boolean> {
-    const userRoles = await this.prisma.userRole.findMany({
-      where: {
-        userId,
-        isActive: true,
-      },
-      include: {
-        role: {
-          include: {
-            permissions: {
-              include: {
-                permission: true,
-              },
-            },
-          },
-        },
-      },
+    return checkUserPermission({
+      prisma: this.prisma,
+      userId,
+      resource,
+      action,
+      context,
     });
-
-    return userRoles.some(userRole =>
-      userRole.role.permissions.some(rolePermission =>
-        rolePermission.permission.resource === resource &&
-        rolePermission.permission.action === action &&
-        rolePermission.granted
-      )
-    );
   }
 
   private formatRoleResponse(role: any): any {
