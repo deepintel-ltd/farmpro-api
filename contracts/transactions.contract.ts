@@ -650,6 +650,48 @@ export const transactionsContract = c.router({
       farmId: z.string().cuid().optional()
     }),
     summary: 'Get transactions pending approval'
+  },
+
+  // Get transaction trends
+  getTransactionTrends: {
+    method: 'GET',
+    path: '/transactions/trends',
+    responses: {
+      200: z.object({
+        data: z.array(z.object({
+          period: z.string(),          // e.g., "2025-10", "2025-W41"
+          periodLabel: z.string(),     // e.g., "October 2025"
+          revenue: z.number(),
+          expenses: z.number(),
+          profit: z.number(),
+          transactionCount: z.number(),
+        })),
+        meta: z.object({
+          totalRevenue: z.number(),
+          totalExpenses: z.number(),
+          totalProfit: z.number(),
+          totalTransactions: z.number(),
+          period: z.object({
+            startDate: z.string().datetime(),
+            endDate: z.string().datetime(),
+            groupBy: z.enum(['day', 'week', 'month', 'quarter'])
+          })
+        })
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    query: z.object({
+      startDate: z.string().datetime(),
+      endDate: z.string().datetime(),
+      groupBy: z.enum(['day', 'week', 'month', 'quarter']).default('month'),
+      type: z.enum(['FARM_EXPENSE', 'FARM_REVENUE', 'all']).optional(),
+      farmId: z.string().cuid().optional(),
+      organizationId: z.string().cuid().optional()
+    }),
+    summary: 'Get transaction trends aggregated by time period'
   }
 });
 

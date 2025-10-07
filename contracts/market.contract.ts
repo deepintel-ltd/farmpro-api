@@ -389,6 +389,93 @@ export const marketContract = c.router({
     },
     summary: 'Get marketplace listing details',
   },
+
+  // =============================================================================
+  // Farm-to-Market Integration - Market Intelligence
+  // =============================================================================
+
+  // Get market intelligence for farm-to-market integration
+  getMarketIntelligence: {
+    method: 'GET',
+    path: '/marketplace/intelligence',
+    query: CommonQueryParams.extend({
+      commodities: z.array(z.string()).optional(),
+      region: z.string().optional(),
+      includePriceForecasts: z.boolean().default(true),
+      includeDemandForecasts: z.boolean().default(true),
+      includeCompetitorAnalysis: z.boolean().default(false),
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('market_intelligence'),
+          id: z.string(),
+          attributes: z.object({
+            // Price Intelligence
+            priceIntelligence: z.object({
+              currentPrices: z.array(z.object({
+                commodity: z.string(),
+                price: z.number(),
+                currency: z.string(),
+                unit: z.string(),
+                trend: z.enum(['up', 'down', 'stable']),
+                change: z.number(),
+                lastUpdated: z.string().datetime(),
+              })),
+              priceForecasts: z.array(z.object({
+                commodity: z.string(),
+                forecast: z.array(z.object({
+                  date: z.string(),
+                  predictedPrice: z.number(),
+                  confidence: z.number(),
+                  factors: z.array(z.string()),
+                })),
+              })),
+              priceAlerts: z.array(z.object({
+                commodity: z.string(),
+                type: z.enum(['price_drop', 'price_spike', 'opportunity']),
+                message: z.string(),
+                severity: z.enum(['low', 'medium', 'high']),
+                actionable: z.boolean(),
+              })),
+            }),
+            
+            // Demand Intelligence
+            demandIntelligence: z.object({
+              currentDemand: z.array(z.object({
+                commodity: z.string(),
+                demandLevel: z.enum(['low', 'medium', 'high']),
+                confidence: z.number(),
+                factors: z.array(z.string()),
+              })),
+              demandForecasts: z.array(z.object({
+                commodity: z.string(),
+                forecast: z.array(z.object({
+                  period: z.string(),
+                  predictedDemand: z.enum(['low', 'medium', 'high']),
+                  confidence: z.number(),
+                  drivers: z.array(z.string()),
+                })),
+              })),
+              marketOpportunities: z.array(z.object({
+                commodity: z.string(),
+                opportunity: z.string(),
+                potentialRevenue: z.number(),
+                confidence: z.number(),
+                timeframe: z.string(),
+                requirements: z.array(z.string()),
+              })),
+            }),
+            
+            lastUpdated: z.string().datetime(),
+          }),
+        }),
+      }),
+      ...CommonErrorResponses,
+    },
+    summary: 'Get market intelligence for farm-to-market integration',
+    description: 'Comprehensive market intelligence including price trends, demand forecasts, and market opportunities',
+  },
 });
 
 export type MarketContract = typeof marketContract;

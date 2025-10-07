@@ -647,6 +647,121 @@ export const inventoryContract = c.router({
     },
     summary: 'Generate inventory reports',
   },
+  // =============================================================================
+  // Farm-to-Market Integration - Commodities Value Tracking
+  // =============================================================================
+
+  // Get commodities value for farm-to-market integration
+  getCommoditiesValue: {
+    method: 'GET',
+    path: '/inventory/commodities-value',
+    query: CommonQueryParams.extend({
+      organizationId: z.string().cuid().optional(),
+      farmId: z.string().cuid().optional(),
+      commodityId: z.string().cuid().optional(),
+      includeProjections: z.boolean().default(true),
+      includeMarketPricing: z.boolean().default(true),
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('commodities_value'),
+          id: z.string(),
+          attributes: z.object({
+            // Current Inventory Value
+            currentValue: z.object({
+              totalValue: z.number(),
+              currency: z.string(),
+              lastUpdated: z.string().datetime(),
+              breakdown: z.array(z.object({
+                commodity: z.string(),
+                quantity: z.number(),
+                unit: z.string(),
+                currentPrice: z.number(),
+                totalValue: z.number(),
+                qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']),
+                location: z.string(),
+                expiryDate: z.string().datetime().optional(),
+              })),
+            }),
+            
+            // Market Pricing Intelligence
+            marketPricing: z.object({
+              averageMarketPrice: z.number(),
+              priceTrend: z.enum(['up', 'down', 'stable']),
+              priceChange: z.number(),
+              marketPremium: z.number(), // Premium for quality grades
+              competitivePosition: z.enum(['above_market', 'at_market', 'below_market']),
+              pricingRecommendations: z.array(z.object({
+                commodity: z.string(),
+                recommendedPrice: z.number(),
+                reasoning: z.string(),
+                confidence: z.number(),
+              })),
+            }),
+            
+            // Value Projections
+            valueProjections: z.object({
+              projectedValue: z.array(z.object({
+                period: z.string(),
+                projectedValue: z.number(),
+                confidence: z.number(),
+                factors: z.array(z.string()),
+              })),
+              depreciationRates: z.array(z.object({
+                commodity: z.string(),
+                dailyDepreciation: z.number(),
+                weeklyDepreciation: z.number(),
+                monthlyDepreciation: z.number(),
+              })),
+              optimalSellingWindows: z.array(z.object({
+                commodity: z.string(),
+                startDate: z.string().datetime(),
+                endDate: z.string().datetime(),
+                expectedValue: z.number(),
+                reasoning: z.string(),
+              })),
+            }),
+            
+            // Inventory Analytics
+            inventoryAnalytics: z.object({
+              totalInventoryValue: z.number(),
+              inventoryTurnover: z.number(),
+              averageHoldingPeriod: z.number(),
+              qualityDistribution: z.array(z.object({
+                grade: z.string(),
+                quantity: z.number(),
+                value: z.number(),
+                percentage: z.number(),
+              })),
+              locationDistribution: z.array(z.object({
+                location: z.string(),
+                quantity: z.number(),
+                value: z.number(),
+                percentage: z.number(),
+              })),
+            }),
+            
+            // Recommendations
+            recommendations: z.array(z.object({
+              category: z.enum(['pricing', 'timing', 'quality', 'storage']),
+              title: z.string(),
+              description: z.string(),
+              impact: z.enum(['low', 'medium', 'high']),
+              confidence: z.number(),
+              actionable: z.boolean(),
+              estimatedValue: z.number().optional(),
+            })),
+            
+            lastUpdated: z.string().datetime(),
+          }),
+        }),
+      }),
+      ...CommonErrorResponses,
+    },
+    summary: 'Get commodities value for farm-to-market integration',
+    description: 'Comprehensive inventory value tracking including market pricing, projections, and optimization recommendations',
+  },
 });
 
 export type InventoryContract = typeof inventoryContract;

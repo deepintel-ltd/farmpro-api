@@ -301,6 +301,108 @@ export const analyticsContract = c.router({
     summary: 'Generate comprehensive analytics report',
     description: 'Generate detailed reports with charts, insights, and recommendations',
   },
+
+  // =============================================================================
+  // Farm-to-Market Integration - Customer Insights
+  // =============================================================================
+
+  // Get customer insights for farm-to-market integration
+  getCustomerInsights: {
+    method: 'GET',
+    path: '/analytics/customer-insights',
+    query: BaseAnalyticsQuerySchema.merge(CommonQueryParams).extend({
+      organizationId: z.string().cuid().optional(),
+      farmId: z.string().cuid().optional(),
+      includeSegmentation: z.boolean().default(true),
+      includeBehaviorAnalysis: z.boolean().default(true),
+      includeRetentionMetrics: z.boolean().default(true),
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          type: z.literal('customer_insights'),
+          id: z.string(),
+          attributes: z.object({
+            // Customer Overview
+            customerOverview: z.object({
+              totalCustomers: z.number(),
+              repeatCustomers: z.number(),
+              newCustomers: z.number(),
+              averageOrderValue: z.number(),
+              customerRetentionRate: z.number(),
+              customerLifetimeValue: z.number(),
+            }),
+            
+            // Customer Segmentation
+            customerSegments: z.array(z.object({
+              segment: z.string(),
+              count: z.number(),
+              revenue: z.number(),
+              growth: z.number(),
+              characteristics: z.array(z.string()),
+              averageOrderValue: z.number(),
+              retentionRate: z.number(),
+            })),
+            
+            // Top Customers
+            topCustomers: z.array(z.object({
+              name: z.string(),
+              totalOrders: z.number(),
+              totalRevenue: z.number(),
+              lastOrder: z.string().datetime(),
+              averageOrderValue: z.number(),
+              customerSince: z.string().datetime(),
+              preferredCommodities: z.array(z.string()),
+            })),
+            
+            // Customer Behavior Analysis
+            behaviorAnalysis: z.object({
+              purchasePatterns: z.array(z.object({
+                pattern: z.string(),
+                frequency: z.number(),
+                description: z.string(),
+              })),
+              seasonalTrends: z.array(z.object({
+                season: z.string(),
+                activity: z.enum(['high', 'medium', 'low']),
+                popularCommodities: z.array(z.string()),
+              })),
+              priceSensitivity: z.enum(['low', 'medium', 'high']),
+              orderFrequency: z.object({
+                average: z.number(),
+                trend: z.enum(['increasing', 'stable', 'decreasing']),
+              }),
+            }),
+            
+            // Retention Metrics
+            retentionMetrics: z.object({
+              monthlyRetention: z.number(),
+              quarterlyRetention: z.number(),
+              annualRetention: z.number(),
+              churnRate: z.number(),
+              reactivationRate: z.number(),
+            }),
+            
+            // Recommendations
+            recommendations: z.array(z.object({
+              category: z.enum(['retention', 'acquisition', 'upselling', 'pricing']),
+              title: z.string(),
+              description: z.string(),
+              impact: z.enum(['low', 'medium', 'high']),
+              confidence: z.number(),
+              actionable: z.boolean(),
+              estimatedValue: z.number().optional(),
+            })),
+            
+            lastUpdated: z.string().datetime(),
+          }),
+        }),
+      }),
+      ...CommonErrorResponses,
+    },
+    summary: 'Get customer insights for farm-to-market integration',
+    description: 'Comprehensive customer analytics including segmentation, behavior analysis, and retention metrics',
+  },
 });
 
 // =============================================================================
