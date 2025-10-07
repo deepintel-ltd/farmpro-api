@@ -211,6 +211,7 @@ const SYSTEM_ROLES = [
     level: 100,
     isSystemRole: true,
     isPlatformAdmin: true,
+    scope: 'PLATFORM',
     permissions: [
       'user:manage', 'organization:manage', 'farm:manage', 'activity:manage',
       'inventory:manage', 'order:manage', 'commodity:manage', 'analytics:manage',
@@ -225,6 +226,7 @@ const SYSTEM_ROLES = [
     description: 'Full control over organization and all resources',
     level: 90,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:manage', 'organization:update', 'farm:manage', 'activity:manage',
       'inventory:manage', 'order:manage', 'commodity:manage', 'analytics:manage',
@@ -239,6 +241,7 @@ const SYSTEM_ROLES = [
     description: 'Manage farm operations and team',
     level: 80,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:read', 'farm:read', 'farm:update', 'activity:manage',
       'inventory:manage', 'order:read', 'order:create', 'commodity:manage',
@@ -252,6 +255,7 @@ const SYSTEM_ROLES = [
     description: 'Execute farm activities and tasks',
     level: 60,
     isSystemRole: true,
+    scope: 'FARM',
     permissions: [
       'user:read', 'farm:read', 'activity:read', 'activity:execute',
       'inventory:read', 'inventory:update', 'order:read', 'commodity:read',
@@ -265,6 +269,7 @@ const SYSTEM_ROLES = [
     description: 'Manage commodity trading and orders',
     level: 70,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:read', 'organization:read', 'order:manage', 'commodity:manage',
       'inventory:read', 'analytics:read', 'media:read', 'transaction:read'
@@ -277,6 +282,7 @@ const SYSTEM_ROLES = [
     description: 'Purchase commodities and manage orders',
     level: 50,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:read', 'order:read', 'order:create', 'commodity:read',
       'analytics:read', 'media:read', 'transaction:read'
@@ -289,6 +295,7 @@ const SYSTEM_ROLES = [
     description: 'Supply commodities and fulfill orders',
     level: 50,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:read', 'order:read', 'order:update', 'commodity:read',
       'inventory:read', 'analytics:read', 'media:read', 'transaction:read'
@@ -301,6 +308,7 @@ const SYSTEM_ROLES = [
     description: 'Handle delivery and logistics',
     level: 40,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:read', 'order:read', 'order:update', 'media:read'
     ]
@@ -312,6 +320,7 @@ const SYSTEM_ROLES = [
     description: 'Read-only access to relevant information',
     level: 10,
     isSystemRole: true,
+    scope: 'ORGANIZATION',
     permissions: [
       'user:read', 'farm:read', 'activity:read', 'inventory:read',
       'order:read', 'commodity:read', 'analytics:read', 'media:read'
@@ -3888,7 +3897,7 @@ async function upsertPermission(permission: { resource: string; action: string; 
   });
 }
 
-async function upsertRole(role: { name: string; description: string; isSystemRole: boolean; organizationId?: string; isPlatformAdmin?: boolean; level?: number }) {
+async function upsertRole(role: { name: string; description: string; isSystemRole: boolean; organizationId?: string; isPlatformAdmin?: boolean; level?: number; scope?: string }) {
   return await prisma.role.upsert({
     where: {
       name_organizationId: {
@@ -3900,7 +3909,8 @@ async function upsertRole(role: { name: string; description: string; isSystemRol
       description: role.description,
       isSystemRole: role.isSystemRole,
       isPlatformAdmin: role.isPlatformAdmin ?? false,
-      level: role.level ?? 0
+      level: role.level ?? 0,
+      scope: (role.scope as any) || 'ORGANIZATION'
     },
     create: {
       name: role.name,
@@ -3908,7 +3918,8 @@ async function upsertRole(role: { name: string; description: string; isSystemRol
       isSystemRole: role.isSystemRole,
       organizationId: role.organizationId,
       isPlatformAdmin: role.isPlatformAdmin ?? false,
-      level: role.level ?? 0
+      level: role.level ?? 0,
+      scope: (role.scope as any) || 'ORGANIZATION'
     }
   });
 }
