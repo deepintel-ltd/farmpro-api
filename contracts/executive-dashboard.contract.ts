@@ -31,7 +31,7 @@ export const RiskIndicatorSchema = z.object({
       count: z.number(),
       totalAmount: z.object({
         amount: z.number(),
-        currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+        currency: z.enum(['NGN', 'USD']).default('USD'),
       }),
     }),
     budgetVariance: z.number(), // percentage over/under budget
@@ -54,30 +54,30 @@ export const RiskIndicatorSchema = z.object({
 export const CashFlowAnalysisSchema = z.object({
   currentCashFlow: z.object({
     amount: z.number(),
-    currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    currency: z.enum(['NGN', 'USD']).default('USD'),
   }),
   projectedCashFlow: z.object({
     amount: z.number(),
-    currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    currency: z.enum(['NGN', 'USD']).default('USD'),
   }),
   trend: z.number(), // percentage change
   breakdown: z.object({
     operating: z.object({
       amount: z.number(),
-      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+      currency: z.enum(['NGN', 'USD']).default('USD'),
     }),
     investing: z.object({
       amount: z.number(),
-      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+      currency: z.enum(['NGN', 'USD']).default('USD'),
     }),
     financing: z.object({
       amount: z.number(),
-      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+      currency: z.enum(['NGN', 'USD']).default('USD'),
     }),
   }),
   burnRate: z.object({
     amount: z.number(), // monthly cash burn
-    currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+    currency: z.enum(['NGN', 'USD']).default('USD'),
   }),
   runway: z.number(), // months of runway remaining
   lastCalculated: z.string().datetime(),
@@ -91,7 +91,7 @@ export const ExecutiveMetricSchema = z.object({
     z.number(),
     z.object({
       amount: z.number(),
-      currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('USD'),
+      currency: z.enum(['NGN', 'USD']).default('USD'),
     })
   ]),
   unit: z.string().optional(),
@@ -136,7 +136,7 @@ export const ExecutiveDashboardSchema = z.object({
 
 export const ExecutiveDashboardQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
-  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
+  currency: z.enum(['NGN', 'USD']).optional().default('USD'),
   includeInsights: z.coerce.boolean().optional().default(true),
   includeProjections: z.coerce.boolean().optional().default(true),
   useCache: z.coerce.boolean().optional().default(true),
@@ -144,13 +144,13 @@ export const ExecutiveDashboardQuerySchema = z.object({
 
 export const FinancialHealthQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
-  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
+  currency: z.enum(['NGN', 'USD']).optional().default('USD'),
   includeBreakdown: z.coerce.boolean().optional().default(true),
   useCache: z.coerce.boolean().optional().default(true),
 }).merge(CommonQueryParams);
 
 export const RiskIndicatorsQuerySchema = z.object({
-  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
+  currency: z.enum(['NGN', 'USD']).optional().default('USD'),
   includeAlerts: z.coerce.boolean().optional().default(true),
   alertSeverity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   useCache: z.coerce.boolean().optional().default(true),
@@ -158,9 +158,9 @@ export const RiskIndicatorsQuerySchema = z.object({
 
 export const CashFlowQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
-  currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).optional().default('USD'),
+  currency: z.enum(['NGN', 'USD']).optional().default('USD'),
   includeProjections: z.coerce.boolean().optional().default(true),
-  projectionMonths: z.number().min(1).max(12).optional().default(6),
+  projectionMonths: z.coerce.number().min(1).max(12).optional().default(6),
   useCache: z.coerce.boolean().optional().default(true),
 }).merge(CommonQueryParams);
 

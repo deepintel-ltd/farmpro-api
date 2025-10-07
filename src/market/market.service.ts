@@ -142,7 +142,7 @@ export class MarketService extends CurrencyAwareService {
       this.prisma.inventory.count({ where }),
     ]);
 
-    const data = inventories.map((inventory) => ({
+    const data = await Promise.all(inventories.map(async (inventory) => ({
       id: inventory.id,
       type: 'marketplace-commodities' as const,
       attributes: {
@@ -153,16 +153,11 @@ export class MarketService extends CurrencyAwareService {
         pricePerUnit: this.calculatePricePerUnit(inventory),
         unit: inventory.unit,
         availableQuantity: inventory.quantity,
-        location: {
-          latitude: 40.7128, // Mock coordinates - would use actual farm location
-          longitude: -74.0060,
-          address: '123 Farm Road, City, State',
-          region: 'North America',
-        },
+        location: this.getFarmLocation(inventory.farm),
         supplier: {
           id: inventory.farm.organizationId,
           name: inventory.farm.organization.name,
-          rating: 4.5, // Mock rating - would come from reviews
+          rating: await this.getSupplierRating(inventory.farm.organizationId),
           verificationStatus: 'verified' as 'verified' | 'pending' | 'rejected',
         },
         certifications: this.extractCertifications(inventory.metadata),
@@ -172,7 +167,7 @@ export class MarketService extends CurrencyAwareService {
         images: this.extractImages(inventory.metadata),
         description: inventory.commodity.description,
       },
-    }));
+    })));
 
     return {
       data,
@@ -242,7 +237,7 @@ export class MarketService extends CurrencyAwareService {
       this.prisma.organization.count({ where }),
     ]);
 
-    const data = organizations.map((org) => ({
+    const data = await Promise.all(organizations.map(async (org) => ({
       id: org.id,
       type: 'marketplace-suppliers' as const,
       attributes: {
@@ -250,7 +245,7 @@ export class MarketService extends CurrencyAwareService {
         businessName: (org as any).name, // Using name as businessName since businessName doesn't exist
         description: (org as any).description || '',
         location: this.getOrganizationLocation(org),
-        rating: 4.5, // Mock rating
+        rating: await this.getSupplierRating(org.id),
         totalRatings: 25, // Mock count
         verificationStatus: 'verified' as 'verified' | 'pending' | 'rejected',
         certifications: this.extractOrgCertifications(org),
@@ -267,7 +262,7 @@ export class MarketService extends CurrencyAwareService {
         totalTransactions: 150, // Mock count
         responseTime: '2-4 hours',
       },
-    }));
+    })));
 
     return {
       data,
@@ -308,7 +303,7 @@ export class MarketService extends CurrencyAwareService {
         businessName: (organization as any).businessName,
         description: (organization as any).description,
           location: this.getOrganizationLocation(organization),
-          rating: 4.5,
+          rating: await this.getSupplierRating(organization.id),
           totalRatings: 25,
           verificationStatus: 'verified' as 'verified' | 'pending' | 'rejected',
           certifications: this.extractOrgCertifications(organization),
@@ -363,7 +358,7 @@ export class MarketService extends CurrencyAwareService {
       this.prisma.organization.count({ where }),
     ]);
 
-    const data = organizations.map((org) => ({
+    const data = await Promise.all(organizations.map(async (org) => ({
       id: org.id,
       type: 'marketplace-buyers' as const,
       attributes: {
@@ -371,7 +366,7 @@ export class MarketService extends CurrencyAwareService {
         businessName: (org as any).name, // Using name as businessName since businessName doesn't exist
         description: (org as any).description || '',
         location: this.getOrganizationLocation(org),
-        rating: 4.5,
+        rating: await this.getSupplierRating(org.id),
         totalRatings: 25,
         verificationStatus: 'verified' as 'verified' | 'pending' | 'rejected',
         orderVolume: this.calculateOrderVolume(org.buyerOrders || []),
@@ -384,7 +379,7 @@ export class MarketService extends CurrencyAwareService {
         establishedDate: org.createdAt.toISOString(),
         totalTransactions: org.buyerOrders?.length || 0,
       },
-    }));
+    })));
 
     return {
       data,
@@ -453,8 +448,8 @@ export class MarketService extends CurrencyAwareService {
         percentage: 2.14,
         direction: 'up' as const,
       },
-      data: this.generateMockPriceData(),
-      forecast: this.generateMockForecastData(),
+      data: await this.generateMockPriceData({ name: 'Wheat' }),
+      forecast: await this.generateMockForecastData({ name: 'Wheat' }),
       insights: [
         'Price increased due to weather concerns',
         'Strong demand from export markets',
@@ -1196,7 +1191,7 @@ export class MarketService extends CurrencyAwareService {
     ];
   }
 
-  private generateMockPriceData(): any[] {
+  private async generateMockPriceData(commodity: any): Promise<any[]> {
     const data = [];
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
@@ -1204,7 +1199,7 @@ export class MarketService extends CurrencyAwareService {
       date.setDate(date.getDate() - i);
       data.push({
         date: date.toISOString(),
-        price: 250 + Math.random() * 20 - 10,
+        price: await this.getRealCommodityPrice(commodity.name),
         volume: Math.floor(Math.random() * 1000) + 100,
         grade: 'premium',
       });
@@ -1212,7 +1207,7 @@ export class MarketService extends CurrencyAwareService {
     return data;
   }
 
-  private generateMockForecastData(): any[] {
+  private async generateMockForecastData(commodity: any): Promise<any[]> {
     const data = [];
     const now = new Date();
     for (let i = 7; i >= 0; i--) {
@@ -1220,7 +1215,7 @@ export class MarketService extends CurrencyAwareService {
       date.setDate(date.getDate() + i);
       data.push({
         date: date.toISOString(),
-        price: 255 + Math.random() * 10 - 5,
+        price: await this.getRealCommodityPrice(commodity.name),
         volume: Math.floor(Math.random() * 500) + 50,
         grade: 'premium',
       });
@@ -1266,16 +1261,18 @@ export class MarketService extends CurrencyAwareService {
     } = query;
 
     // Generate mock market intelligence data
+    const currentPrices = await Promise.all(commodities.map(async commodity => ({
+      commodity,
+      price: await this.getRealCommodityPrice(commodity),
+      currency: 'USD',
+      unit: 'bushel',
+      trend: Math.random() > 0.5 ? 'up' : 'down',
+      change: (Math.random() - 0.5) * 10,
+      lastUpdated: new Date().toISOString()
+    })));
+
     const priceIntelligence = {
-      currentPrices: commodities.map(commodity => ({
-        commodity,
-        price: 200 + Math.random() * 100,
-        currency: 'USD',
-        unit: 'bushel',
-        trend: Math.random() > 0.5 ? 'up' : 'down',
-        change: (Math.random() - 0.5) * 10,
-        lastUpdated: new Date().toISOString()
-      })),
+      currentPrices,
       priceForecasts: includePriceForecasts ? commodities.map(commodity => ({
         commodity,
         forecast: this.generatePriceForecast()
@@ -1361,5 +1358,178 @@ export class MarketService extends CurrencyAwareService {
       timeframe: ['1-2 weeks', '1 month', '2-3 months'][Math.floor(Math.random() * 3)],
       requirements: ['Quality certification', 'Bulk quantity', 'Fast delivery']
     }));
+  }
+
+  /**
+   * Get real commodity price from recent orders
+   */
+  private async getRealCommodityPrice(commodityName: string): Promise<number> {
+    try {
+      // Get recent orders for this commodity to calculate average price
+      const recentOrders = await this.prisma.order.findMany({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+          },
+          items: {
+            some: {
+              commodity: {
+                name: commodityName
+              }
+            }
+          }
+        },
+        include: {
+          items: {
+            where: {
+              commodity: {
+                name: commodityName
+              }
+            },
+            select: {
+              unitPrice: true,
+              quantity: true
+            }
+          }
+        },
+        take: 50 // Limit to recent 50 orders for performance
+      });
+
+      if (recentOrders.length === 0) {
+        // Fallback to base price if no recent orders
+        return this.getBaseCommodityPrice(commodityName);
+      }
+
+      // Calculate weighted average price
+      let totalValue = 0;
+      let totalQuantity = 0;
+
+      recentOrders.forEach(order => {
+        order.items.forEach(item => {
+          totalValue += Number(item.unitPrice || 0) * Number(item.quantity || 0);
+          totalQuantity += Number(item.quantity || 0);
+        });
+      });
+
+      if (totalQuantity === 0) {
+        return this.getBaseCommodityPrice(commodityName);
+      }
+
+      const averagePrice = totalValue / totalQuantity;
+      return Math.round(averagePrice * 100) / 100; // Round to 2 decimal places
+    } catch (error) {
+      this.logger.warn(`Failed to get real price for commodity ${commodityName}:`, error);
+      return this.getBaseCommodityPrice(commodityName);
+    }
+  }
+
+  /**
+   * Get base commodity price as fallback
+   */
+  private getBaseCommodityPrice(commodityName: string): number {
+    const basePrices: Record<string, number> = {
+      'wheat': 250,
+      'corn': 200,
+      'soybean': 300,
+      'rice': 400,
+      'tomato': 150,
+      'potato': 100,
+      'carrot': 120,
+      'lettuce': 80,
+      'onion': 90,
+      'pepper': 200
+    };
+
+    return basePrices[commodityName.toLowerCase()] || 200; // Default price
+  }
+
+  /**
+   * Get real supplier rating from order reviews
+   */
+  private async getSupplierRating(organizationId: string): Promise<number> {
+    try {
+      // Get ratings for this organization as supplier
+      const ratings = await this.prisma.rating.findMany({
+        where: {
+          toOrgId: organizationId
+        },
+        select: {
+          score: true
+        }
+      });
+
+      if (ratings.length === 0) {
+        return 0; // No ratings yet
+      }
+
+      // Calculate average rating
+      const totalScore = ratings.reduce((sum, rating) => sum + rating.score, 0);
+      const averageRating = totalScore / ratings.length;
+      
+      return Math.round(averageRating * 10) / 10; // Round to 1 decimal place
+    } catch (error) {
+      this.logger.warn(`Failed to get supplier rating for organization ${organizationId}:`, error);
+      return 0; // Return 0 if there's an error
+    }
+  }
+
+  /**
+   * Get real farm location data from Prisma
+   */
+  private getFarmLocation(farm: any): {
+    latitude: number;
+    longitude: number;
+    address: string;
+    region: string;
+  } {
+    if (!farm || !farm.location) {
+      // Return default location if no farm data available
+      return {
+        latitude: 0,
+        longitude: 0,
+        address: 'Location not available',
+        region: 'Unknown'
+      };
+    }
+
+    const location = farm.location;
+    
+    // Handle different location data formats
+    if (typeof location === 'object') {
+      return {
+        latitude: location.latitude || 0,
+        longitude: location.longitude || 0,
+        address: location.address || 'Address not available',
+        region: location.region || location.country || 'Unknown'
+      };
+    }
+
+    // If location is a string, try to parse it
+    if (typeof location === 'string') {
+      try {
+        const parsedLocation = JSON.parse(location);
+        return {
+          latitude: parsedLocation.latitude || 0,
+          longitude: parsedLocation.longitude || 0,
+          address: parsedLocation.address || 'Address not available',
+          region: parsedLocation.region || parsedLocation.country || 'Unknown'
+        };
+      } catch {
+        return {
+          latitude: 0,
+          longitude: 0,
+          address: location,
+          region: 'Unknown'
+        };
+      }
+    }
+
+    // Fallback to default
+    return {
+      latitude: 0,
+      longitude: 0,
+      address: 'Location not available',
+      region: 'Unknown'
+    };
   }
 }

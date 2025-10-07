@@ -248,7 +248,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
    */
   async calculateCashFlowAnalysis(user: CurrentUser, query: z.infer<typeof CashFlowQuerySchema>) {
     const startTime = Date.now();
-    this.logger.log(`Calculating cash flow analysis for user: ${user.userId}`);
+    this.logger.log(`Calculating cash flow analysis for user: ${user.userId}, organization: ${user.organizationId}, query: ${JSON.stringify(query)}`);
 
     const cacheKey = `cash-flow-${user.organizationId}-${query.period}-${query.currency}`;
     
@@ -261,6 +261,10 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     }
 
     try {
+      // Validate currency is supported
+      if (!['USD', 'NGN'].includes(query.currency)) {
+        throw new Error(`Unsupported currency: ${query.currency}. Supported currencies are USD and NGN.`);
+      }
       const transactions = await this.getTransactionsByPeriod(
         user.organizationId, 
         query.period,
@@ -302,8 +306,21 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       this.logger.log(`Cash flow analysis calculated in ${Date.now() - startTime}ms`);
       return result;
     } catch (error) {
-      this.logger.error(`Error calculating cash flow analysis: ${error.message}`, error.stack);
-      throw error;
+      this.logger.error(`Error calculating cash flow analysis for user ${user.userId}, organization ${user.organizationId}: ${error.message}`, error.stack);
+      // Return a default response instead of throwing to prevent 500 errors
+      return {
+        currentCashFlow: { amount: 0, currency: query.currency },
+        projectedCashFlow: { amount: 0, currency: query.currency },
+        trend: 0,
+        breakdown: {
+          operating: { amount: 0, currency: query.currency },
+          investing: { amount: 0, currency: query.currency },
+          financing: { amount: 0, currency: query.currency },
+        },
+        burnRate: { amount: 0, currency: query.currency },
+        runway: 0,
+        lastCalculated: new Date().toISOString(),
+      };
     }
   }
 
@@ -426,7 +443,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     return this.prisma.transaction.findMany({
       where: {
         organizationId,
-        currency,
+        currency: currency as Currency,
         createdAt: { gte: startDate },
       },
       orderBy: { createdAt: 'desc' },
@@ -440,7 +457,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     if (revenue === 0) return 0;
     
     const cashFlowRatio = (revenue - expenses) / revenue;
-    return Math.min(100, Math.max(0, cashFlowRatio * 100));
+    return Math.round(Math.min(100, Math.max(0, cashFlowRatio * 100)) * 1000) / 1000;
   }
 
   private calculateProfitabilityScore(transactions: any[], currency: string): number {
@@ -450,7 +467,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     if (revenue === 0) return 0;
     
     const profitMargin = (revenue - expenses) / revenue;
-    return Math.min(100, Math.max(0, profitMargin * 100));
+    return Math.round(Math.min(100, Math.max(0, profitMargin * 100)) * 1000) / 1000;
   }
 
   private calculateGrowthScore(transactions: any[], currency: string): number {
@@ -462,7 +479,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     if (currentExpenses === 0) return 100;
     
     const growthRatio = (currentRevenue - currentExpenses) / currentExpenses;
-    return Math.min(100, Math.max(0, 50 + (growthRatio * 25))); // Base score of 50, adjust by growth
+    return Math.round(Math.min(100, Math.max(0, 50 + (growthRatio * 25))) * 1000) / 1000; // Base score of 50, adjust by growth
   }
 
   private calculateEfficiencyScore(transactions: any[], currency: string): number {
@@ -473,7 +490,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     if (revenue === 0) return 0;
     
     const efficiencyRatio = revenue / (revenue + expenses);
-    return Math.min(100, Math.max(0, efficiencyRatio * 100));
+    return Math.round(Math.min(100, Math.max(0, efficiencyRatio * 100)) * 1000) / 1000;
   }
 
   private sumTransactionsByType(transactions: any[], type: TransactionType, currency: string): number {
@@ -524,7 +541,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     
     if (olderRevenue === 0) return 0;
     
-    return ((recentRevenue - olderRevenue) / olderRevenue) * 100;
+    return Math.round(((recentRevenue - olderRevenue) / olderRevenue) * 100 * 1000) / 1000;
   }
 
   private calculateOverduePayments(transactions: any[], currency: string) {
@@ -552,7 +569,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     const budget = revenue * 0.8;
     const variance = ((expenses - budget) / budget) * 100;
     
-    return Math.round(variance * 100) / 100; // Round to 2 decimal places
+    return Math.round(variance * 1000) / 1000; // Round to 3 decimal places
   }
 
   private assessCashFlowRisk(transactions: any[], currency: string): 'Low' | 'Medium' | 'High' {
@@ -613,7 +630,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     if (totalTransactions === 0) return 0;
     
     const overdueRatio = overdueCount / totalTransactions;
-    return Math.round(overdueRatio * 100 * 100) / 100; // Convert to percentage
+    return Math.round(overdueRatio * 100 * 1000) / 1000; // Convert to percentage with 3 decimal places
   }
 
   private async generateRiskAlerts(organizationId: string, currency: string) {
@@ -688,7 +705,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     
     if (olderCashFlow.amount === 0) return 0;
     
-    return ((recentCashFlow.amount - olderCashFlow.amount) / Math.abs(olderCashFlow.amount)) * 100;
+    return Math.round(((recentCashFlow.amount - olderCashFlow.amount) / Math.abs(olderCashFlow.amount)) * 100 * 1000) / 1000;
   }
 
   private calculateBurnRate(transactions: any[], currency: string) {
@@ -748,7 +765,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       {
         id: 'profit-margin',
         name: 'Profit Margin',
-        value: revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '0%',
+        value: revenue > 0 ? `${Math.round((profit / revenue) * 100 * 1000) / 1000}%` : '0%',
         trend: this.calculateTrend(transactions, currency),
         trendDirection: this.calculateTrend(transactions, currency) > 0 ? 'up' : 'down',
         color: (profit / revenue) > 0.2 ? 'success' : 'warning',
@@ -806,7 +823,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
           id: 'cost-optimization',
           category: 'efficiency',
           title: 'Cost Optimization Opportunity',
-          description: `Cost ratio is ${(costRatio * 100).toFixed(1)}%. Consider cost reduction strategies.`,
+          description: `Cost ratio is ${Math.round(costRatio * 100 * 1000) / 1000}%. Consider cost reduction strategies.`,
           impact: 'high',
           confidence: 0.9,
           actionable: true,

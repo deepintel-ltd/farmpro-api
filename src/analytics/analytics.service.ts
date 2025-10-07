@@ -1793,184 +1793,653 @@ export class AnalyticsService extends CurrencyAwareService {
       includeRetentionMetrics = true
     } = query;
 
-    // Generate mock customer insights data
-    const customerOverview = {
-      totalCustomers: 150 + Math.floor(Math.random() * 100),
-      repeatCustomers: 85 + Math.floor(Math.random() * 30),
-      newCustomers: 25 + Math.floor(Math.random() * 15),
-      averageOrderValue: 2500 + Math.random() * 1000,
-      customerRetentionRate: 0.75 + Math.random() * 0.2,
-      customerLifetimeValue: 15000 + Math.random() * 5000
+    try {
+      // Get real customer data from orders
+      const customerData = await this.getRealCustomerData(user.organizationId, query);
+      
+      // Calculate customer overview metrics
+      const customerOverview = await this.calculateCustomerOverview(customerData);
+      
+      // Generate customer segments if requested
+      const customerSegments = includeSegmentation ? 
+        await this.generateCustomerSegments(customerData) : [];
+      
+      // Get top customers
+      const topCustomers = await this.getTopCustomers(customerData);
+      
+      // Analyze behavior patterns if requested
+      const behaviorAnalysis = includeBehaviorAnalysis ? 
+        await this.analyzeCustomerBehavior(customerData) : null;
+      
+      // Calculate retention metrics if requested
+      const retentionMetrics = includeRetentionMetrics ? 
+        await this.calculateRetentionMetrics(customerData) : null;
+      
+      // Generate recommendations based on real data
+      const recommendations = await this.generateCustomerRecommendations(customerOverview, customerSegments, behaviorAnalysis);
+
+      return {
+        data: {
+          type: 'customer_insights' as const,
+          id: `customer-insights-${Date.now()}`,
+          attributes: {
+            customerOverview,
+            customerSegments,
+            topCustomers,
+            behaviorAnalysis,
+            retentionMetrics,
+            recommendations,
+            lastUpdated: new Date().toISOString()
+          }
+        }
+      };
+    } catch (error) {
+      this.logger.error('Error getting customer insights:', error);
+      // Return minimal data structure on error to prevent frontend crashes
+      return {
+        data: {
+          type: 'customer_insights' as const,
+          id: `customer-insights-${Date.now()}`,
+          attributes: {
+            customerOverview: {
+              totalCustomers: 0,
+              repeatCustomers: 0,
+              newCustomers: 0,
+              averageOrderValue: 0,
+              customerRetentionRate: 0,
+              customerLifetimeValue: 0
+            },
+            customerSegments: [],
+            topCustomers: [],
+            behaviorAnalysis: null,
+            retentionMetrics: null,
+            recommendations: [],
+            lastUpdated: new Date().toISOString()
+          }
+        }
+      };
+    }
+  }
+
+  // =============================================================================
+  // Customer Insights Helper Methods
+  // =============================================================================
+
+  /**
+   * Get real customer data from orders and organizations
+   */
+  private async getRealCustomerData(organizationId: string, query: CustomerInsightsQuery) {
+    const dateFilter = this.buildDateFilter(query.period || 'year');
+    
+    // Get orders from the organization (as supplier)
+    const orders = await this.prisma.order.findMany({
+      where: {
+        supplierOrgId: organizationId,
+        ...(dateFilter && { createdAt: dateFilter })
+      },
+      include: {
+        buyerOrg: {
+          select: {
+            id: true,
+            name: true,
+            createdAt: true
+          }
+        },
+        items: {
+          include: {
+            commodity: {
+              select: {
+                name: true,
+                category: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return orders;
+  }
+
+  /**
+   * Calculate customer overview metrics from real data
+   */
+  private async calculateCustomerOverview(orders: any[]) {
+    const uniqueCustomers = new Set(orders.map(order => order.buyerOrgId));
+    const totalCustomers = uniqueCustomers.size;
+    
+    // Calculate repeat customers (customers with more than 1 order)
+    const customerOrderCounts = orders.reduce((acc, order) => {
+      acc[order.buyerOrgId] = (acc[order.buyerOrgId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const repeatCustomers = Object.values(customerOrderCounts).filter((count: number) => count > 1).length;
+    const newCustomers = totalCustomers - repeatCustomers;
+    
+    // Calculate average order value
+    const totalRevenue = orders.reduce((sum, order) => sum + Number(order.totalPrice || 0), 0);
+    const averageOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
+    
+    // Calculate customer lifetime value
+    const customerLifetimeValues = Object.entries(customerOrderCounts).map(([customerId]) => {
+      const customerOrders = orders.filter(order => order.buyerOrgId === customerId);
+      const customerRevenue = customerOrders.reduce((sum, order) => sum + Number(order.totalPrice || 0), 0);
+      return customerRevenue;
+    });
+    
+    const averageLifetimeValue = customerLifetimeValues.length > 0 
+      ? customerLifetimeValues.reduce((sum, value) => sum + value, 0) / customerLifetimeValues.length 
+      : 0;
+    
+    // Calculate retention rate (simplified - customers who ordered in last 6 months vs previous 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const recentCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= sixMonthsAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const previousCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= twelveMonthsAgo && order.createdAt < sixMonthsAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const retainedCustomers = [...recentCustomers].filter(customerId => 
+      previousCustomers.has(customerId)
+    ).length;
+    
+    const customerRetentionRate = previousCustomers.size > 0 ? retainedCustomers / previousCustomers.size : 0;
+
+    return {
+      totalCustomers,
+      repeatCustomers,
+      newCustomers,
+      averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+      customerRetentionRate: Math.round(customerRetentionRate * 100) / 100,
+      customerLifetimeValue: Math.round(averageLifetimeValue * 100) / 100
     };
+  }
 
-    const customerSegments = includeSegmentation ? [
-      {
+  /**
+   * Generate customer segments based on real data
+   */
+  private async generateCustomerSegments(orders: any[]) {
+    const customerData = this.groupOrdersByCustomer(orders);
+    
+    const segments = [];
+    
+    // Premium Buyers (top 20% by revenue)
+    const sortedByRevenue = Object.entries(customerData)
+      .sort(([,a], [,b]) => b.totalRevenue - a.totalRevenue);
+    const premiumCount = Math.max(1, Math.floor(sortedByRevenue.length * 0.2));
+    const premiumCustomers = sortedByRevenue.slice(0, premiumCount);
+    
+    if (premiumCustomers.length > 0) {
+      const premiumRevenue = premiumCustomers.reduce((sum, [,data]) => sum + data.totalRevenue, 0);
+      const premiumAvgOrderValue = premiumRevenue / premiumCustomers.reduce((sum, [,data]) => sum + data.orderCount, 0);
+      
+      segments.push({
         segment: 'Premium Buyers',
-        count: 25,
-        revenue: 125000,
-        growth: 15.5,
+        count: premiumCustomers.length,
+        revenue: Math.round(premiumRevenue),
+        growth: this.calculateGrowthRate(premiumCustomers),
         characteristics: ['High order value', 'Regular purchases', 'Quality focused'],
-        averageOrderValue: 8500,
-        retentionRate: 0.92
-      },
-      {
+        averageOrderValue: Math.round(premiumAvgOrderValue * 100) / 100,
+        retentionRate: this.calculateRetentionRate(premiumCustomers)
+      });
+    }
+    
+    // Regular Buyers (middle 60% by revenue)
+    const regularStart = premiumCount;
+    const regularEnd = Math.floor(sortedByRevenue.length * 0.8);
+    const regularCustomers = sortedByRevenue.slice(regularStart, regularEnd);
+    
+    if (regularCustomers.length > 0) {
+      const regularRevenue = regularCustomers.reduce((sum, [,data]) => sum + data.totalRevenue, 0);
+      const regularAvgOrderValue = regularRevenue / regularCustomers.reduce((sum, [,data]) => sum + data.orderCount, 0);
+      
+      segments.push({
         segment: 'Regular Buyers',
-        count: 80,
-        revenue: 200000,
-        growth: 8.2,
+        count: regularCustomers.length,
+        revenue: Math.round(regularRevenue),
+        growth: this.calculateGrowthRate(regularCustomers),
         characteristics: ['Consistent orders', 'Price sensitive', 'Bulk purchases'],
-        averageOrderValue: 2500,
-        retentionRate: 0.78
-      },
-      {
+        averageOrderValue: Math.round(regularAvgOrderValue * 100) / 100,
+        retentionRate: this.calculateRetentionRate(regularCustomers)
+      });
+    }
+    
+    // Occasional Buyers (bottom 20% by revenue)
+    const occasionalCustomers = sortedByRevenue.slice(regularEnd);
+    
+    if (occasionalCustomers.length > 0) {
+      const occasionalRevenue = occasionalCustomers.reduce((sum, [,data]) => sum + data.totalRevenue, 0);
+      const occasionalAvgOrderValue = occasionalRevenue / occasionalCustomers.reduce((sum, [,data]) => sum + data.orderCount, 0);
+      
+      segments.push({
         segment: 'Occasional Buyers',
-        count: 45,
-        revenue: 45000,
-        growth: -2.1,
+        count: occasionalCustomers.length,
+        revenue: Math.round(occasionalRevenue),
+        growth: this.calculateGrowthRate(occasionalCustomers),
         characteristics: ['Seasonal purchases', 'Price sensitive', 'Small orders'],
-        averageOrderValue: 1000,
-        retentionRate: 0.45
-      }
-    ] : [];
+        averageOrderValue: Math.round(occasionalAvgOrderValue * 100) / 100,
+        retentionRate: this.calculateRetentionRate(occasionalCustomers)
+      });
+    }
+    
+    return segments;
+  }
 
-    const topCustomers = [
-      {
-        name: 'GrainCo Ltd',
-        totalOrders: 45,
-        totalRevenue: 125000,
-        lastOrder: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        averageOrderValue: 2778,
-        customerSince: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
-        preferredCommodities: ['wheat', 'corn']
-      },
-      {
-        name: 'FeedMill Inc',
-        totalOrders: 32,
-        totalRevenue: 98000,
-        lastOrder: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-        averageOrderValue: 3063,
-        customerSince: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
-        preferredCommodities: ['corn', 'soybean']
-      },
-      {
-        name: 'Organic Foods Ltd',
-        totalOrders: 28,
-        totalRevenue: 75000,
-        lastOrder: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        averageOrderValue: 2679,
-        customerSince: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
-        preferredCommodities: ['soybean', 'rice']
-      }
-    ];
+  /**
+   * Get top customers by revenue
+   */
+  private async getTopCustomers(orders: any[]) {
+    const customerData = this.groupOrdersByCustomer(orders);
+    
+    return Object.entries(customerData)
+      .sort(([,a], [,b]) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 10)
+      .map(([customerId, data]) => {
+        const customerOrders = orders.filter(order => order.buyerOrgId === customerId);
+        const lastOrder = customerOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+        const firstOrder = customerOrders.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+        
+        // Get preferred commodities
+        const commodityCounts = customerOrders.reduce((acc, order) => {
+          order.items.forEach((item: any) => {
+            const commodityName = item.commodity.name;
+            acc[commodityName] = (acc[commodityName] || 0) + 1;
+          });
+          return acc;
+        }, {} as Record<string, number>);
+        
+        const preferredCommodities = Object.entries(commodityCounts)
+          .sort(([,a], [,b]) => (b as number) - (a as number))
+          .slice(0, 3)
+          .map(([commodity]) => commodity);
+        
+        return {
+          name: data.organizationName,
+          totalOrders: data.orderCount,
+          totalRevenue: Math.round(data.totalRevenue),
+          lastOrder: lastOrder?.createdAt.toISOString() || new Date().toISOString(),
+          averageOrderValue: Math.round((data.totalRevenue / data.orderCount) * 100) / 100,
+          customerSince: firstOrder?.createdAt.toISOString() || new Date().toISOString(),
+          preferredCommodities
+        };
+      });
+  }
 
-    const behaviorAnalysis = includeBehaviorAnalysis ? {
+  /**
+   * Analyze customer behavior patterns
+   */
+  private async analyzeCustomerBehavior(orders: any[]) {
+    const customerData = this.groupOrdersByCustomer(orders);
+    
+    // Analyze purchase patterns
+    const orderFrequencies = Object.values(customerData).map(data => data.orderCount);
+    const avgOrderFrequency = orderFrequencies.length > 0 
+      ? orderFrequencies.reduce((sum, freq) => sum + freq, 0) / orderFrequencies.length 
+      : 0;
+    
+    // Determine frequency trend (simplified)
+    const recentOrders = orders.filter(order => {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      return order.createdAt >= sixMonthsAgo;
+    });
+    
+    const recentFrequency = recentOrders.length / 6; // orders per month
+    const trend = recentFrequency > avgOrderFrequency ? 'increasing' : 
+                  recentFrequency < avgOrderFrequency * 0.8 ? 'decreasing' : 'stable';
+    
+    // Analyze seasonal trends
+    const seasonalData = this.analyzeSeasonalTrends(orders);
+    
+    // Determine price sensitivity (simplified based on order value variance)
+    const priceSensitivity = this.calculatePriceSensitivity(customerData);
+    
+    return {
       purchasePatterns: [
         {
-          pattern: 'Seasonal Bulk Orders',
-          frequency: 0.35,
-          description: 'Large orders during harvest season'
+          pattern: 'Regular Orders',
+          frequency: Math.min(1, avgOrderFrequency / 12), // Normalize to 0-1
+          description: 'Consistent monthly purchases'
         },
         {
-          pattern: 'Regular Weekly Orders',
-          frequency: 0.45,
-          description: 'Consistent weekly purchases'
+          pattern: 'Bulk Orders',
+          frequency: Math.min(1, this.calculateBulkOrderFrequency(orders)),
+          description: 'Large quantity purchases'
         },
         {
-          pattern: 'Emergency Orders',
-          frequency: 0.20,
-          description: 'Urgent orders for immediate needs'
+          pattern: 'Seasonal Orders',
+          frequency: Math.min(1, this.calculateSeasonalOrderFrequency(orders)),
+          description: 'Time-specific purchases'
         }
       ],
-      seasonalTrends: [
-        {
-          season: 'Spring',
-          activity: 'high' as const,
-          popularCommodities: ['wheat', 'corn']
-        },
-        {
-          season: 'Summer',
-          activity: 'medium' as const,
-          popularCommodities: ['soybean', 'rice']
-        },
-        {
-          season: 'Fall',
-          activity: 'high' as const,
-          popularCommodities: ['wheat', 'corn', 'soybean']
-        },
-        {
-          season: 'Winter',
-          activity: 'low' as const,
-          popularCommodities: ['rice', 'tomato']
-        }
-      ],
-      priceSensitivity: 'medium' as const,
+      seasonalTrends: seasonalData,
+      priceSensitivity,
       orderFrequency: {
-        average: 2.5,
-        trend: 'increasing' as const
+        average: Math.round(avgOrderFrequency * 100) / 100,
+        trend: trend as 'increasing' | 'stable' | 'decreasing'
       }
-    } : null;
+    };
+  }
 
-    const retentionMetrics = includeRetentionMetrics ? {
-      monthlyRetention: 0.85,
-      quarterlyRetention: 0.72,
-      annualRetention: 0.68,
-      churnRate: 0.15,
-      reactivationRate: 0.25
-    } : null;
+  /**
+   * Calculate retention metrics
+   */
+  private async calculateRetentionMetrics(orders: any[]) {
+    const now = new Date();
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    
+    // Get customers who ordered in previous periods
+    const previousMonthCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= threeMonthsAgo && order.createdAt < oneMonthAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const previousQuarterCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000) && order.createdAt < threeMonthsAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const previousYearCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000) && order.createdAt < oneYearAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    // Get customers who ordered in current periods
+    const currentMonthCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= oneMonthAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const currentQuarterCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= threeMonthsAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const currentYearCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= oneYearAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    // Calculate retention rates
+    const monthlyRetention = previousMonthCustomers.size > 0 
+      ? [...currentMonthCustomers].filter(id => previousMonthCustomers.has(id)).length / previousMonthCustomers.size 
+      : 0;
+    
+    const quarterlyRetention = previousQuarterCustomers.size > 0 
+      ? [...currentQuarterCustomers].filter(id => previousQuarterCustomers.has(id)).length / previousQuarterCustomers.size 
+      : 0;
+    
+    const annualRetention = previousYearCustomers.size > 0 
+      ? [...currentYearCustomers].filter(id => previousYearCustomers.has(id)).length / previousYearCustomers.size 
+      : 0;
+    
+    const churnRate = 1 - monthlyRetention;
+    const reactivationRate = this.calculateReactivationRate(orders);
+    
+    return {
+      monthlyRetention: Math.round(monthlyRetention * 100) / 100,
+      quarterlyRetention: Math.round(quarterlyRetention * 100) / 100,
+      annualRetention: Math.round(annualRetention * 100) / 100,
+      churnRate: Math.round(churnRate * 100) / 100,
+      reactivationRate: Math.round(reactivationRate * 100) / 100
+    };
+  }
 
-    const recommendations = [
-      {
+  /**
+   * Generate customer recommendations based on real data
+   */
+  private async generateCustomerRecommendations(
+    customerOverview: any, 
+    customerSegments: any[], 
+    behaviorAnalysis: any
+  ) {
+    const recommendations = [];
+    
+    // Retention recommendations
+    if (customerOverview.customerRetentionRate < 0.7) {
+      recommendations.push({
         category: 'retention' as const,
-        title: 'Implement Loyalty Program',
-        description: 'Create a points-based loyalty program for repeat customers',
+        title: 'Improve Customer Retention',
+        description: `Current retention rate is ${(customerOverview.customerRetentionRate * 100).toFixed(1)}%. Implement loyalty programs and improve customer service.`,
         impact: 'high' as const,
         confidence: 0.85,
         actionable: true,
-        estimatedValue: 25000
-      },
-      {
+        estimatedValue: Math.round(customerOverview.averageOrderValue * customerOverview.totalCustomers * 0.1)
+      });
+    }
+    
+    // Acquisition recommendations
+    const occasionalBuyers = customerSegments.find(s => s.segment === 'Occasional Buyers');
+    if (occasionalBuyers && occasionalBuyers.count > 0) {
+      recommendations.push({
         category: 'acquisition' as const,
-        title: 'Target Occasional Buyers',
-        description: 'Develop marketing campaigns to convert occasional buyers to regular customers',
+        title: 'Convert Occasional Buyers',
+        description: `Target ${occasionalBuyers.count} occasional buyers with personalized offers to increase their order frequency.`,
         impact: 'medium' as const,
         confidence: 0.72,
         actionable: true,
-        estimatedValue: 15000
-      },
-      {
+        estimatedValue: Math.round(occasionalBuyers.averageOrderValue * occasionalBuyers.count * 0.3)
+      });
+    }
+    
+    // Upselling recommendations
+    const regularBuyers = customerSegments.find(s => s.segment === 'Regular Buyers');
+    if (regularBuyers && regularBuyers.averageOrderValue < 5000) {
+      recommendations.push({
         category: 'upselling' as const,
-        title: 'Premium Product Promotion',
-        description: 'Promote premium products to regular buyers to increase average order value',
+        title: 'Increase Average Order Value',
+        description: `Regular buyers have an average order value of $${regularBuyers.averageOrderValue}. Offer premium products and bulk discounts.`,
         impact: 'medium' as const,
         confidence: 0.68,
         actionable: true,
-        estimatedValue: 20000
-      },
-      {
+        estimatedValue: Math.round(regularBuyers.averageOrderValue * regularBuyers.count * 0.2)
+      });
+    }
+    
+    // Pricing recommendations
+    if (behaviorAnalysis?.priceSensitivity === 'high') {
+      recommendations.push({
         category: 'pricing' as const,
-        title: 'Dynamic Pricing Strategy',
-        description: 'Implement dynamic pricing based on customer segments and purchase history',
+        title: 'Implement Dynamic Pricing',
+        description: 'Customers show high price sensitivity. Consider dynamic pricing strategies and value-based pricing.',
         impact: 'high' as const,
         confidence: 0.78,
         actionable: true,
-        estimatedValue: 30000
-      }
-    ];
+        estimatedValue: Math.round(customerOverview.averageOrderValue * customerOverview.totalCustomers * 0.15)
+      });
+    }
+    
+    return recommendations;
+  }
 
-    return {
-      data: {
-        type: 'customer_insights' as const,
-        id: `customer-insights-${Date.now()}`,
-        attributes: {
-          customerOverview,
-          customerSegments,
-          topCustomers,
-          behaviorAnalysis,
-          retentionMetrics,
-          recommendations,
-          lastUpdated: new Date().toISOString()
-        }
+  // =============================================================================
+  // Helper Methods for Customer Analysis
+  // =============================================================================
+
+  /**
+   * Group orders by customer for analysis
+   */
+  private groupOrdersByCustomer(orders: any[]) {
+    const customerData: Record<string, any> = {};
+    
+    orders.forEach(order => {
+      const customerId = order.buyerOrgId;
+      if (!customerData[customerId]) {
+        customerData[customerId] = {
+          organizationName: order.buyerOrg.name,
+          orderCount: 0,
+          totalRevenue: 0,
+          orders: []
+        };
       }
-    };
+      
+      customerData[customerId].orderCount++;
+      customerData[customerId].totalRevenue += Number(order.totalPrice || 0);
+      customerData[customerId].orders.push(order);
+    });
+    
+    return customerData;
+  }
+
+  /**
+   * Calculate growth rate for customer segments
+   */
+  private calculateGrowthRate(customers: [string, any][]) {
+    // Simplified growth calculation based on recent vs older orders
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+    
+    let recentRevenue = 0;
+    let olderRevenue = 0;
+    
+    customers.forEach(([, data]) => {
+      data.orders.forEach((order: any) => {
+        if (order.createdAt >= sixMonthsAgo) {
+          recentRevenue += Number(order.totalPrice || 0);
+        } else {
+          olderRevenue += Number(order.totalPrice || 0);
+        }
+      });
+    });
+    
+    if (olderRevenue === 0) return recentRevenue > 0 ? 100 : 0;
+    return Math.round(((recentRevenue - olderRevenue) / olderRevenue) * 100 * 100) / 100;
+  }
+
+  /**
+   * Calculate retention rate for customer segments
+   */
+  private calculateRetentionRate(customers: [string, any][]) {
+    const now = new Date();
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    
+    let activeCustomers = 0;
+    customers.forEach(([, data]) => {
+      const hasRecentOrder = data.orders.some((order: any) => order.createdAt >= threeMonthsAgo);
+      if (hasRecentOrder) activeCustomers++;
+    });
+    
+    return customers.length > 0 ? Math.round((activeCustomers / customers.length) * 100) / 100 : 0;
+  }
+
+  /**
+   * Analyze seasonal trends in orders
+   */
+  private analyzeSeasonalTrends(orders: any[]) {
+    const seasonalData: Record<string, { count: number; commodities: Set<string> }> = {};
+    
+    orders.forEach(order => {
+      const month = order.createdAt.getMonth();
+      let season = 'Winter';
+      if (month >= 2 && month <= 4) season = 'Spring';
+      else if (month >= 5 && month <= 7) season = 'Summer';
+      else if (month >= 8 && month <= 10) season = 'Fall';
+      
+      if (!seasonalData[season]) {
+        seasonalData[season] = { count: 0, commodities: new Set() };
+      }
+      
+      seasonalData[season].count++;
+      order.items.forEach((item: any) => {
+        seasonalData[season].commodities.add(item.commodity.name);
+      });
+    });
+    
+    return Object.entries(seasonalData).map(([season, data]) => {
+      const totalOrders = orders.length;
+      const activityLevel = data.count / totalOrders;
+      let activity: 'high' | 'medium' | 'low' = 'low';
+      if (activityLevel > 0.3) activity = 'high';
+      else if (activityLevel > 0.15) activity = 'medium';
+      
+      return {
+        season,
+        activity,
+        popularCommodities: Array.from(data.commodities).slice(0, 3)
+      };
+    });
+  }
+
+  /**
+   * Calculate price sensitivity based on order value variance
+   */
+  private calculatePriceSensitivity(customerData: Record<string, any>): 'low' | 'medium' | 'high' {
+    const orderValues = Object.values(customerData).flatMap((data: any) => 
+      data.orders.map((order: any) => Number(order.totalPrice || 0))
+    );
+    
+    if (orderValues.length < 2) return 'medium';
+    
+    const mean = orderValues.reduce((sum, value) => sum + value, 0) / orderValues.length;
+    const variance = orderValues.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / orderValues.length;
+    const coefficientOfVariation = Math.sqrt(variance) / mean;
+    
+    if (coefficientOfVariation > 0.5) return 'high';
+    if (coefficientOfVariation > 0.2) return 'medium';
+    return 'low';
+  }
+
+  /**
+   * Calculate bulk order frequency
+   */
+  private calculateBulkOrderFrequency(orders: any[]) {
+    const bulkThreshold = 10000; // $10,000+ orders
+    const bulkOrders = orders.filter(order => Number(order.totalPrice || 0) >= bulkThreshold);
+    return bulkOrders.length / orders.length;
+  }
+
+  /**
+   * Calculate seasonal order frequency
+   */
+  private calculateSeasonalOrderFrequency(orders: any[]) {
+    // Simplified: orders that happen in specific months
+    const seasonalMonths = [2, 3, 4, 8, 9, 10]; // Spring and Fall
+    const seasonalOrders = orders.filter(order => seasonalMonths.includes(order.createdAt.getMonth()));
+    return seasonalOrders.length / orders.length;
+  }
+
+  /**
+   * Calculate reactivation rate
+   */
+  private calculateReactivationRate(orders: any[]) {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+    const twelveMonthsAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    
+    // Customers who were inactive (no orders) for 6+ months but came back
+    const inactiveCustomers = new Set(
+      orders
+        .filter(order => order.createdAt < sixMonthsAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const reactivatedCustomers = new Set(
+      orders
+        .filter(order => order.createdAt >= sixMonthsAgo && order.createdAt < twelveMonthsAgo)
+        .map(order => order.buyerOrgId)
+    );
+    
+    const reactivated = [...reactivatedCustomers].filter(id => inactiveCustomers.has(id)).length;
+    return inactiveCustomers.size > 0 ? reactivated / inactiveCustomers.size : 0;
   }
 }

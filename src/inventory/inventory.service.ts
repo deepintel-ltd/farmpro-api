@@ -2910,54 +2910,8 @@ export class InventoryService {
       includeMarketPricing = true
     } = query;
 
-    // Generate mock commodities value data
-    const currentValue = {
-      totalValue: 250000 + Math.random() * 100000,
-      currency: 'USD',
-      lastUpdated: new Date().toISOString(),
-      breakdown: [
-        {
-          commodity: 'wheat',
-          quantity: 500,
-          unit: 'bushels',
-          currentPrice: 8.50,
-          totalValue: 4250,
-          qualityGrade: 'premium',
-          location: 'Main Storage',
-          expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          commodity: 'corn',
-          quantity: 800,
-          unit: 'bushels',
-          currentPrice: 6.25,
-          totalValue: 5000,
-          qualityGrade: 'grade_a',
-          location: 'Secondary Storage',
-          expiryDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          commodity: 'soybean',
-          quantity: 300,
-          unit: 'bushels',
-          currentPrice: 12.75,
-          totalValue: 3825,
-          qualityGrade: 'organic',
-          location: 'Organic Storage',
-          expiryDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          commodity: 'rice',
-          quantity: 200,
-          unit: 'bushels',
-          currentPrice: 15.50,
-          totalValue: 3100,
-          qualityGrade: 'premium',
-          location: 'Premium Storage',
-          expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ]
-    };
+    // Get real commodities value data from inventory
+    const currentValue = await this.calculateRealCommoditiesValue(user.organizationId, query);
 
     const marketPricing = includeMarketPricing ? {
       averageMarketPrice: 10.75,
@@ -3157,5 +3111,181 @@ export class InventoryService {
         }
       }
     };
+  }
+
+  /**
+   * Calculate real commodities value from inventory data
+   */
+  private async calculateRealCommoditiesValue(
+    organizationId: string,
+    query: {
+      farmId?: string;
+      commodityId?: string;
+      includeProjections?: boolean;
+      includeMarketPricing?: boolean;
+    }
+  ) {
+    try {
+      // Build where clause for inventory query
+      const where: any = {
+        farm: {
+          organizationId: organizationId
+        },
+        status: 'AVAILABLE',
+        quantity: { gt: 0 }
+      };
+
+      if (query.farmId) {
+        where.farmId = query.farmId;
+      }
+
+      if (query.commodityId) {
+        where.commodityId = query.commodityId;
+      }
+
+      // Get inventory items with commodity and farm data
+      const inventories = await this.prisma.inventory.findMany({
+        where,
+        include: {
+          commodity: true,
+          farm: {
+            include: {
+              organization: true
+            }
+          }
+        }
+      });
+
+      if (inventories.length === 0) {
+        return {
+          totalValue: 0,
+          currency: 'USD',
+          lastUpdated: new Date().toISOString(),
+          breakdown: []
+        };
+      }
+
+      // Calculate total value and breakdown
+      let totalValue = 0;
+      const breakdown = [];
+
+      for (const inventory of inventories) {
+        // Get current market price for this commodity
+        const currentPrice = await this.getCurrentMarketPrice(inventory.commodity.name);
+        
+        const itemValue = Number(inventory.quantity) * currentPrice;
+        totalValue += itemValue;
+
+        breakdown.push({
+          commodity: inventory.commodity.name,
+          quantity: Number(inventory.quantity),
+          unit: inventory.unit,
+          currentPrice: currentPrice,
+          totalValue: Math.round(itemValue * 100) / 100,
+          qualityGrade: this.extractQualityGrade(inventory.quality),
+          location: inventory.location || 'Unknown',
+          expiryDate: null // Inventory model doesn't have expiryDate field
+        });
+      }
+
+      return {
+        totalValue: Math.round(totalValue * 100) / 100,
+        currency: 'USD',
+        lastUpdated: new Date().toISOString(),
+        breakdown: breakdown.sort((a, b) => b.totalValue - a.totalValue) // Sort by value descending
+      };
+    } catch (error) {
+      this.logger.error('Error calculating real commodities value:', error);
+      // Return minimal data structure on error
+      return {
+        totalValue: 0,
+        currency: 'USD',
+        lastUpdated: new Date().toISOString(),
+        breakdown: []
+      };
+    }
+  }
+
+  /**
+   * Get current market price for a commodity
+   */
+  private async getCurrentMarketPrice(commodityName: string): Promise<number> {
+    try {
+      // Try to get recent market price from orders
+      const recentOrder = await this.prisma.order.findFirst({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+          },
+          items: {
+            some: {
+              commodity: {
+                name: commodityName
+              }
+            }
+          }
+        },
+        include: {
+          items: {
+            where: {
+              commodity: {
+                name: commodityName
+              }
+            },
+            select: {
+              unitPrice: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      if (recentOrder && recentOrder.items.length > 0) {
+        return Number(recentOrder.items[0].unitPrice || 0);
+      }
+
+      // Fallback to base prices if no recent orders
+      return this.getBaseCommodityPrice(commodityName);
+    } catch (error) {
+      this.logger.warn(`Failed to get market price for ${commodityName}:`, error);
+      return this.getBaseCommodityPrice(commodityName);
+    }
+  }
+
+  /**
+   * Get base commodity price as fallback
+   */
+  private getBaseCommodityPrice(commodityName: string): number {
+    const basePrices: Record<string, number> = {
+      'wheat': 8.50,
+      'corn': 6.25,
+      'soybean': 12.75,
+      'rice': 15.50,
+      'tomato': 3.50,
+      'potato': 2.25,
+      'carrot': 1.75,
+      'lettuce': 2.00,
+      'onion': 1.50,
+      'pepper': 4.25
+    };
+
+    return basePrices[commodityName.toLowerCase()] || 5.00; // Default price
+  }
+
+  /**
+   * Extract quality grade from quality string
+   */
+  private extractQualityGrade(quality: string | null): string {
+    if (!quality) return 'standard';
+    
+    const qualityLower = quality.toLowerCase();
+    if (qualityLower.includes('premium')) return 'premium';
+    if (qualityLower.includes('grade_a') || qualityLower.includes('grade a')) return 'grade_a';
+    if (qualityLower.includes('grade_b') || qualityLower.includes('grade b')) return 'grade_b';
+    if (qualityLower.includes('organic')) return 'organic';
+    
+    return 'standard';
   }
 }
