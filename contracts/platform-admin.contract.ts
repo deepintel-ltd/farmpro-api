@@ -6,6 +6,7 @@ import {
   UserDetailsResponseSchema,
   UpdateOrganizationRequestSchema,
   JsonApiOrganizationResponseSchema,
+  SelectableOrganizationsResponseSchema,
 } from './platform-admin.schemas';
 
 const c = initContract();
@@ -57,15 +58,17 @@ export const platformAdminContract = c.router({
   getAllOrganizations: {
     method: 'GET',
     path: '/platform-admin/organizations',
-    query: PaginationQuery.merge(OrganizationFiltersQuery),
+    query: PaginationQuery.merge(OrganizationFiltersQuery).extend({
+      'filter[selectable]': z.boolean().optional(),
+    }),
     responses: {
-      200: PlatformAdminOrganizationListResponseSchema,
+      200: z.union([PlatformAdminOrganizationListResponseSchema, SelectableOrganizationsResponseSchema]),
       400: ErrorResponse,
       401: ErrorResponse,
       403: ErrorResponse,
     },
     summary: 'Get all organizations with filtering and pagination',
-    description: 'Retrieve a paginated list of all organizations with optional filtering by type, status, and verification state.',
+    description: 'Retrieve a paginated list of all organizations with optional filtering by type, status, and verification state. Use filter[selectable]=true to get only organizations available for platform admin selection.',
   },
 
   /**
@@ -129,6 +132,7 @@ export const platformAdminContract = c.router({
     summary: 'Get user details across organizations',
     description: 'Retrieve detailed information about a specific user, including their roles and permissions across all organizations.',
   },
+
 });
 
 export type PlatformAdminContract = typeof platformAdminContract;

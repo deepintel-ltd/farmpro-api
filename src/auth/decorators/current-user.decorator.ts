@@ -5,7 +5,7 @@ export interface CurrentUser {
   userId: string;
   email: string;
   name: string;
-  organizationId: string;
+  organizationId: string | null; // Optional for platform admins
 
   // Enhanced authorization context
   isPlatformAdmin: boolean;
@@ -26,7 +26,7 @@ export interface CurrentUser {
     allowedModules: string[];
     isVerified: boolean;
     isSuspended: boolean;
-  };
+  } | null; // Optional for platform admins
 
   permissions: string[];  // Flattened list of permissions (resource:action)
   capabilities: string[]; // Organization type capabilities

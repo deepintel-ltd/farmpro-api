@@ -492,7 +492,7 @@ const SAMPLE_USERS = [
     email: 'admin@farmpro.app',
     name: 'FarmPro Admin',
     phone: '+1-555-1001',
-    organizationIndex: 0,
+    organizationIndex: null, // Platform admins are not tied to specific organizations
     role: 'Platform Admin',
     password: 'FarmProAdmin123!'
   },
@@ -526,7 +526,7 @@ const SAMPLE_USERS = [
     email: 'admin@grainsparkles.com',
     name: 'GrainSparkles Admin',
     phone: '+1-555-2001',
-    organizationIndex: 1,
+    organizationIndex: null, // Platform admins are not tied to specific organizations
     role: 'Platform Admin',
     password: 'GrainSparklesAdmin123!'
   },
@@ -795,7 +795,8 @@ async function initializeUsers(organizations: any[]) {
   
   const users = [];
   for (const userData of SAMPLE_USERS) {
-    const organization = organizations[userData.organizationIndex];
+    // Platform admins are not tied to specific organizations
+    const organization = userData.organizationIndex !== null ? organizations[userData.organizationIndex] : null;
     
     const user = await upsertUser({
       email: userData.email,
@@ -803,7 +804,7 @@ async function initializeUsers(organizations: any[]) {
       phone: userData.phone,
       password: userData.password,
       isActive: true,
-      organizationId: organization.id,
+      organizationId: organization?.id || null, // Platform admins can have null organizationId
       emailVerified: true
     });
     
@@ -3973,7 +3974,7 @@ async function upsertOrganization(org: {
   }
 }
 
-async function upsertUser(user: { email: string; name: string; phone?: string; password: string; isActive: boolean; organizationId?: string; emailVerified?: boolean }) {
+async function upsertUser(user: { email: string; name: string; phone?: string; password: string; isActive: boolean; organizationId?: string | null; emailVerified?: boolean }) {
   const hashedPassword = await hash(user.password);
   return await prisma.user.upsert({
     where: { email: user.email },

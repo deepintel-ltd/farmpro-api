@@ -146,6 +146,26 @@ export const JsonApiOrganizationResponseSchema = z.object({
   }),
 });
 
+// Selectable organizations schema for platform admin organization switching
+export const SelectableOrganizationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.enum(['FARM_OPERATION', 'COMMODITY_TRADER', 'LOGISTICS_PROVIDER', 'INTEGRATED_FARM']),
+  plan: z.string(),
+  isVerified: z.boolean(),
+  createdAt: z.string(),
+  userCount: z.number(),
+  farmCount: z.number(),
+});
+
+export const SelectableOrganizationsResponseSchema = z.object({
+  data: z.array(z.object({
+    type: z.literal('organizations'),
+    id: z.string(),
+    attributes: SelectableOrganizationSchema,
+  })),
+});
+
 // Export types
 export type UpdateOrganizationRequest = z.infer<typeof UpdateOrganizationRequestSchema>;
 export type JsonApiOrganizationResponse = z.infer<typeof JsonApiOrganizationResponseSchema>;
@@ -153,3 +173,5 @@ export type PlatformAdminOrganization = z.infer<typeof PlatformAdminOrganization
 export type PlatformAdminOrganizationListResponse = z.infer<typeof PlatformAdminOrganizationListResponseSchema>;
 export type SystemAnalyticsResponse = z.infer<typeof SystemAnalyticsResponseSchema>;
 export type UserDetailsResponse = z.infer<typeof UserDetailsResponseSchema>;
+export type SelectableOrganization = z.infer<typeof SelectableOrganizationSchema>;
+export type SelectableOrganizationsResponse = z.infer<typeof SelectableOrganizationsResponseSchema>;

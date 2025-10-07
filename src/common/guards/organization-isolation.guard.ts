@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
+import { OrganizationValidationService } from '@/common/services/organization-validation.service';
 
 // Metadata key for bypassing organization isolation
 export const BYPASS_ORG_ISOLATION_KEY = 'bypassOrgIsolation';
@@ -24,9 +25,12 @@ export const BYPASS_ORG_ISOLATION_KEY = 'bypassOrgIsolation';
 export class OrganizationIsolationGuard implements CanActivate {
   private readonly logger = new Logger(OrganizationIsolationGuard.name);
 
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private organizationValidationService: OrganizationValidationService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Check if this route is public
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -57,9 +61,36 @@ export class OrganizationIsolationGuard implements CanActivate {
 
     // Platform admins can access all organizations
     if (user.isPlatformAdmin) {
-      this.logger.debug(
-        `Platform admin ${user.email} accessing resource - org isolation bypassed`,
-      );
+      // Check if platform admin has selected a specific organization
+      const selectedOrgId = request.headers['x-organization-id'];
+      
+      if (selectedOrgId) {
+        // Validate the selected organization
+        const org = await this.organizationValidationService.validateOrganizationAccess(
+          selectedOrgId,
+          user,
+        );
+        
+        if (org) {
+          // Set organization filter for the selected organization
+          request.organizationFilter = {
+            organizationId: selectedOrgId,
+          };
+          this.logger.debug(
+            `Platform admin ${user.email} accessing resource with selected org ${selectedOrgId}`,
+          );
+        } else {
+          this.logger.warn(
+            `Platform admin ${user.email} attempted to access invalid organization ${selectedOrgId}`,
+          );
+          throw new ForbiddenException('Invalid organization selected');
+        }
+      } else {
+        this.logger.debug(
+          `Platform admin ${user.email} accessing resource without organization selection`,
+        );
+      }
+      
       return true;
     }
 
@@ -69,7 +100,7 @@ export class OrganizationIsolationGuard implements CanActivate {
     }
 
     // Organization is suspended
-    if (user.organization.isSuspended) {
+    if (user.organization?.isSuspended) {
       throw new ForbiddenException(
         'Your organization has been suspended. Please contact support.',
       );

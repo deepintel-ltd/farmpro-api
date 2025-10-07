@@ -79,13 +79,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    // Check if organization is suspended
-    if (user.organization.suspendedAt) {
-      throw new UnauthorizedException('Organization is suspended');
-    }
+    // Check if user is platform admin
+    const isPlatformAdmin = user.userRoles.some(
+      (ur) => ur.role.isPlatformAdmin,
+    );
 
-    if (!user.organization.isActive) {
-      throw new UnauthorizedException('Organization is inactive');
+    // For platform admins, organization is optional
+    if (!isPlatformAdmin) {
+      // Regular users must have organization
+      if (!user.organization) {
+        throw new UnauthorizedException('User must belong to an organization');
+      }
+
+      // Check if organization is suspended
+      if (user.organization.suspendedAt) {
+        throw new UnauthorizedException('Organization is suspended');
+      }
+
+      if (!user.organization.isActive) {
+        throw new UnauthorizedException('Organization is inactive');
+      }
     }
 
     // Check if user has been logged out after this token was issued
@@ -98,11 +111,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException('Token invalidated by logout');
       }
     }
-
-    // Check if user is platform admin
-    const isPlatformAdmin = user.userRoles.some(
-      (ur) => ur.role.isPlatformAdmin,
-    );
 
     // Extract roles
     const roles = user.userRoles.map((ur) => ({
@@ -122,9 +130,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
     const permissions = Array.from(permissionsSet);
 
-    // Get capabilities based on organization type
-    const capabilities =
-      ORGANIZATION_FEATURES[user.organization.type].capabilities;
+    // Get capabilities based on organization type (if organization exists)
+    const capabilities = user.organization 
+      ? ORGANIZATION_FEATURES[user.organization.type].capabilities
+      : []; // Platform admins get empty capabilities by default
 
     return {
       userId: user.id,
@@ -133,7 +142,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       organizationId: user.organizationId,
       isPlatformAdmin,
       roles,
-      organization: {
+      organization: user.organization ? {
         id: user.organization.id,
         name: user.organization.name,
         type: user.organization.type,
@@ -142,7 +151,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         allowedModules: user.organization.allowedModules,
         isVerified: user.organization.isVerified,
         isSuspended: !!user.organization.suspendedAt,
-      },
+      } : null,
       permissions,
       capabilities,
     };

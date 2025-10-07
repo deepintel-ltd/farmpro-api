@@ -8,6 +8,7 @@ import { PlatformAdminGuard } from '@/common/guards/platform-admin.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { BypassOrgIsolation } from '@/common/decorators/authorization.decorators';
 import { platformAdminContract } from '../../contracts/platform-admin.contract';
+import { OrganizationValidationService } from '@/common/services/organization-validation.service';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -27,12 +28,42 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class PlatformAdminController {
   private readonly logger = new Logger(PlatformAdminController.name);
 
-  constructor(private readonly platformAdminService: PlatformAdminService) {}
+  constructor(
+    private readonly platformAdminService: PlatformAdminService,
+    private readonly organizationValidationService: OrganizationValidationService,
+  ) {}
 
   @TsRestHandler(platformAdminContract.getAllOrganizations)
   async getAllOrganizations(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(platformAdminContract.getAllOrganizations, async ({ query }) => {
       try {
+        // Check if this is a request for selectable organizations
+        if (query['filter[selectable]']) {
+          const organizations = await this.organizationValidationService.getSelectableOrganizations(
+            req.user,
+          );
+          
+          return {
+            status: 200 as const,
+            body: {
+              data: organizations.map(org => ({
+                type: 'organizations' as const,
+                id: org.id,
+                attributes: {
+                  name: org.name,
+                  type: org.type,
+                  plan: org.plan,
+                  isVerified: org.isVerified,
+                  createdAt: org.createdAt.toISOString(),
+                  userCount: org.userCount,
+                  farmCount: org.farmCount,
+                },
+              })),
+            },
+          };
+        }
+
+        // Regular organization listing
         const result = await this.platformAdminService.getAllOrganizations(
           req.user,
           query,
@@ -104,4 +135,5 @@ export class PlatformAdminController {
       }
     });
   }
+
 }

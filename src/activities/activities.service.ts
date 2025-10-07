@@ -106,12 +106,16 @@ export class ActivitiesService {
   // =============================================================================
 
   private getOrganizationIdFromRequest(request: any): string {
-    // Get organizationId from request.organizationFilter added by OrganizationIsolationGuard
+    // For platform admins, check if organization is selected via header
+    if (request.user?.isPlatformAdmin && request.organizationFilter?.organizationId) {
+      return request.organizationFilter.organizationId;
+    }
+    
+    // Regular flow for non-platform admins
     if (request.organizationFilter?.organizationId) {
       return request.organizationFilter.organizationId;
     }
     
-    // Fallback to user.organizationId if organizationFilter is not available
     if (request.user?.organizationId) {
       return request.user.organizationId;
     }
