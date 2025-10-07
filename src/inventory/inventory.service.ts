@@ -2889,4 +2889,273 @@ export class InventoryService {
       throw new BadRequestException('Invalid operation type');
     }
   }
+
+  /**
+   * Get commodities value for farm-to-market integration
+   */
+  async getCommoditiesValue(
+    user: CurrentUser,
+    query: {
+      organizationId?: string;
+      farmId?: string;
+      commodityId?: string;
+      includeProjections?: boolean;
+      includeMarketPricing?: boolean;
+    }
+  ) {
+    this.logger.log(`Getting commodities value for user: ${user.userId}`);
+
+    const {
+      includeProjections = true,
+      includeMarketPricing = true
+    } = query;
+
+    // Generate mock commodities value data
+    const currentValue = {
+      totalValue: 250000 + Math.random() * 100000,
+      currency: 'USD',
+      lastUpdated: new Date().toISOString(),
+      breakdown: [
+        {
+          commodity: 'wheat',
+          quantity: 500,
+          unit: 'bushels',
+          currentPrice: 8.50,
+          totalValue: 4250,
+          qualityGrade: 'premium',
+          location: 'Main Storage',
+          expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          commodity: 'corn',
+          quantity: 800,
+          unit: 'bushels',
+          currentPrice: 6.25,
+          totalValue: 5000,
+          qualityGrade: 'grade_a',
+          location: 'Secondary Storage',
+          expiryDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          commodity: 'soybean',
+          quantity: 300,
+          unit: 'bushels',
+          currentPrice: 12.75,
+          totalValue: 3825,
+          qualityGrade: 'organic',
+          location: 'Organic Storage',
+          expiryDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          commodity: 'rice',
+          quantity: 200,
+          unit: 'bushels',
+          currentPrice: 15.50,
+          totalValue: 3100,
+          qualityGrade: 'premium',
+          location: 'Premium Storage',
+          expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ]
+    };
+
+    const marketPricing = includeMarketPricing ? {
+      averageMarketPrice: 10.75,
+      priceTrend: 'up',
+      priceChange: 2.5,
+      marketPremium: 1.25,
+      competitivePosition: 'above_market',
+      pricingRecommendations: [
+        {
+          commodity: 'wheat',
+          recommendedPrice: 8.75,
+          reasoning: 'Market demand is high, premium quality justifies higher price',
+          confidence: 0.85
+        },
+        {
+          commodity: 'corn',
+          recommendedPrice: 6.50,
+          reasoning: 'Stable market conditions, slight premium for quality',
+          confidence: 0.78
+        },
+        {
+          commodity: 'soybean',
+          recommendedPrice: 13.25,
+          reasoning: 'Organic certification commands premium pricing',
+          confidence: 0.92
+        }
+      ]
+    } : null;
+
+    const valueProjections = includeProjections ? {
+      projectedValue: [
+        {
+          period: '1 week',
+          projectedValue: 255000,
+          confidence: 0.85,
+          factors: ['Stable market conditions', 'Quality maintenance']
+        },
+        {
+          period: '1 month',
+          projectedValue: 265000,
+          confidence: 0.78,
+          factors: ['Seasonal demand increase', 'Storage optimization']
+        },
+        {
+          period: '3 months',
+          projectedValue: 280000,
+          confidence: 0.65,
+          factors: ['Market growth', 'Premium positioning']
+        }
+      ],
+      depreciationRates: [
+        {
+          commodity: 'wheat',
+          dailyDepreciation: 0.5,
+          weeklyDepreciation: 3.5,
+          monthlyDepreciation: 15.0
+        },
+        {
+          commodity: 'corn',
+          dailyDepreciation: 0.3,
+          weeklyDepreciation: 2.1,
+          monthlyDepreciation: 9.0
+        },
+        {
+          commodity: 'soybean',
+          dailyDepreciation: 0.8,
+          weeklyDepreciation: 5.6,
+          monthlyDepreciation: 24.0
+        }
+      ],
+      optimalSellingWindows: [
+        {
+          commodity: 'wheat',
+          startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
+          expectedValue: 4500,
+          reasoning: 'Peak demand period for wheat exports'
+        },
+        {
+          commodity: 'corn',
+          startDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString(),
+          expectedValue: 5200,
+          reasoning: 'Feed mill demand peak season'
+        }
+      ]
+    } : null;
+
+    const inventoryAnalytics = {
+      totalInventoryValue: currentValue.totalValue,
+      inventoryTurnover: 4.2,
+      averageHoldingPeriod: 87,
+      qualityDistribution: [
+        {
+          grade: 'premium',
+          quantity: 700,
+          value: 7350,
+          percentage: 35
+        },
+        {
+          grade: 'grade_a',
+          quantity: 800,
+          value: 5000,
+          percentage: 40
+        },
+        {
+          grade: 'organic',
+          quantity: 300,
+          value: 3825,
+          percentage: 15
+        },
+        {
+          grade: 'standard',
+          quantity: 200,
+          value: 1000,
+          percentage: 10
+        }
+      ],
+      locationDistribution: [
+        {
+          location: 'Main Storage',
+          quantity: 500,
+          value: 4250,
+          percentage: 25
+        },
+        {
+          location: 'Secondary Storage',
+          quantity: 800,
+          value: 5000,
+          percentage: 40
+        },
+        {
+          location: 'Organic Storage',
+          quantity: 300,
+          value: 3825,
+          percentage: 15
+        },
+        {
+          location: 'Premium Storage',
+          quantity: 200,
+          value: 3100,
+          percentage: 20
+        }
+      ]
+    };
+
+    const recommendations = [
+      {
+        category: 'pricing',
+        title: 'Optimize Wheat Pricing Strategy',
+        description: 'Increase wheat prices by 3% to capitalize on current market demand',
+        impact: 'high',
+        confidence: 0.85,
+        actionable: true,
+        estimatedValue: 1275
+      },
+      {
+        category: 'timing',
+        title: 'Accelerate Soybean Sales',
+        description: 'Sell soybean inventory within 2 weeks to avoid quality depreciation',
+        impact: 'medium',
+        confidence: 0.78,
+        actionable: true,
+        estimatedValue: 500
+      },
+      {
+        category: 'quality',
+        title: 'Upgrade Storage Conditions',
+        description: 'Improve storage facilities to maintain premium quality grades',
+        impact: 'high',
+        confidence: 0.72,
+        actionable: true,
+        estimatedValue: 2000
+      },
+      {
+        category: 'storage',
+        title: 'Optimize Inventory Distribution',
+        description: 'Redistribute inventory across facilities for better space utilization',
+        impact: 'medium',
+        confidence: 0.68,
+        actionable: true,
+        estimatedValue: 800
+      }
+    ];
+
+    return {
+      data: {
+        type: 'commodities_value',
+        id: `commodities-value-${Date.now()}`,
+        attributes: {
+          currentValue,
+          marketPricing,
+          valueProjections,
+          inventoryAnalytics,
+          recommendations,
+          lastUpdated: new Date().toISOString()
+        }
+      }
+    };
+  }
 }

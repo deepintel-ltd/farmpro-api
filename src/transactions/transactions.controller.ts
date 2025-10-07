@@ -364,4 +364,34 @@ export class TransactionsController {
       }
     });
   }
+
+  // =============================================================================
+  // Transaction Trends
+  // =============================================================================
+
+  @TsRestHandler(transactionsContract.getTransactionTrends)
+  public getTransactionTrends(
+    @GetCurrentUser() user: CurrentUser
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(transactionsContract.getTransactionTrends, async ({ query }) => {
+      try {
+        const result = await this.transactionsService.getTransactionTrends(user, {
+          startDate: query.startDate,
+          endDate: query.endDate,
+          groupBy: query.groupBy,
+          type: query.type,
+          farmId: query.farmId,
+          organizationId: query.organizationId
+        });
+        return { status: 200 as const, body: result };
+      } catch (error: unknown) {
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Invalid query parameters',
+          badRequestCode: 'INVALID_QUERY_PARAMETERS',
+          internalErrorMessage: 'Failed to get transaction trends',
+          internalErrorCode: 'GET_TRANSACTION_TRENDS_FAILED',
+        });
+      }
+    });
+  }
 }

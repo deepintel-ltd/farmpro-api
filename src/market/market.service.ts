@@ -1243,4 +1243,123 @@ export class MarketService extends CurrencyAwareService {
     }
     return data;
   }
+
+  /**
+   * Get market intelligence for farm-to-market integration
+   */
+  async getMarketIntelligence(
+    user: CurrentUser,
+    query: {
+      commodities?: string[];
+      region?: string;
+      includePriceForecasts?: boolean;
+      includeDemandForecasts?: boolean;
+      includeCompetitorAnalysis?: boolean;
+    }
+  ) {
+    this.logger.log(`Getting market intelligence for user: ${user.userId}`);
+
+    const {
+      commodities = ['wheat', 'corn', 'soybean', 'rice', 'tomato'],
+      includePriceForecasts = true,
+      includeDemandForecasts = true
+    } = query;
+
+    // Generate mock market intelligence data
+    const priceIntelligence = {
+      currentPrices: commodities.map(commodity => ({
+        commodity,
+        price: 200 + Math.random() * 100,
+        currency: 'USD',
+        unit: 'bushel',
+        trend: Math.random() > 0.5 ? 'up' : 'down',
+        change: (Math.random() - 0.5) * 10,
+        lastUpdated: new Date().toISOString()
+      })),
+      priceForecasts: includePriceForecasts ? commodities.map(commodity => ({
+        commodity,
+        forecast: this.generatePriceForecast()
+      })) : [],
+      priceAlerts: this.generatePriceAlerts(commodities)
+    };
+
+    const demandIntelligence = {
+      currentDemand: commodities.map(commodity => ({
+        commodity,
+        demandLevel: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+        confidence: 0.7 + Math.random() * 0.3,
+        factors: ['Seasonal patterns', 'Market trends', 'Weather conditions']
+      })),
+      demandForecasts: includeDemandForecasts ? commodities.map(commodity => ({
+        commodity,
+        forecast: this.generateDemandForecast()
+      })) : [],
+      marketOpportunities: this.generateMarketOpportunities(commodities)
+    };
+
+    return {
+      data: {
+        type: 'market_intelligence',
+        id: `intelligence-${Date.now()}`,
+        attributes: {
+          priceIntelligence,
+          demandIntelligence,
+          lastUpdated: new Date().toISOString()
+        }
+      }
+    };
+  }
+
+  private generatePriceForecast() {
+    const forecast = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + i);
+      forecast.push({
+        date: date.toISOString(),
+        predictedPrice: 250 + Math.random() * 20 - 10,
+        confidence: 0.6 + Math.random() * 0.4,
+        factors: ['Weather forecast', 'Supply chain', 'Market sentiment']
+      });
+    }
+    return forecast;
+  }
+
+  private generateDemandForecast() {
+    const forecast = [];
+    const now = new Date();
+    for (let i = 0; i < 4; i++) {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() + i);
+      forecast.push({
+        period: date.toISOString().slice(0, 7),
+        predictedDemand: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+        confidence: 0.7 + Math.random() * 0.3,
+        drivers: ['Seasonal demand', 'Economic factors', 'Consumer trends']
+      });
+    }
+    return forecast;
+  }
+
+  private generatePriceAlerts(commodities: string[]) {
+    return commodities.slice(0, 2).map(commodity => ({
+      commodity,
+      type: ['price_drop', 'price_spike', 'opportunity'][Math.floor(Math.random() * 3)],
+      message: `${commodity} prices have ${Math.random() > 0.5 ? 'increased' : 'decreased'} significantly`,
+      severity: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+      actionable: Math.random() > 0.3
+    }));
+  }
+
+  private generateMarketOpportunities(commodities: string[]) {
+    return commodities.slice(0, 3).map(commodity => ({
+      commodity,
+      opportunity: `High demand for premium ${commodity} in ${['Europe', 'Asia', 'North America'][Math.floor(Math.random() * 3)]}`,
+      potentialRevenue: 50000 + Math.random() * 100000,
+      confidence: 0.6 + Math.random() * 0.4,
+      timeframe: ['1-2 weeks', '1 month', '2-3 months'][Math.floor(Math.random() * 3)],
+      requirements: ['Quality certification', 'Bulk quantity', 'Fast delivery']
+    }));
+  }
 }

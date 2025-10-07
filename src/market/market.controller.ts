@@ -345,6 +345,36 @@ export class MarketController {
     });
   }
 
+  @TsRestHandler(marketContract.getMarketIntelligence)
+  @RequirePermission(...PERMISSIONS.MARKETPLACE.BROWSE)
+  public getMarketIntelligence(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(marketContract.getMarketIntelligence, async ({ query }) => {
+      try {
+        const result = await this.marketService.getMarketIntelligence(req.user, query);
+        this.logger.log(
+          `Retrieved market intelligence for user: ${req.user.userId}`,
+        );
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error(
+          `Get market intelligence failed for user ${req.user.userId}:`,
+          error,
+        );
+
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'Failed to retrieve market intelligence',
+          badRequestCode: 'GET_MARKET_INTELLIGENCE_FAILED',
+        });
+      }
+    });
+  }
+
   // =============================================================================
   // Demand & Supply Matching
   // =============================================================================

@@ -110,6 +110,14 @@ export const FarmToMarketQuerySchema = BaseAnalyticsQuerySchema.extend({
   includePricing: z.coerce.boolean().optional().default(true),
 });
 
+export const CustomerInsightsQuerySchema = BaseAnalyticsQuerySchema.extend({
+  organizationId: z.string().cuid().optional(),
+  farmId: z.string().cuid().optional(),
+  includeSegmentation: z.boolean().default(true),
+  includeBehaviorAnalysis: z.boolean().default(true),
+  includeRetentionMetrics: z.boolean().default(true),
+});
+
 export const ExportRequestSchema = z.object({
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   format: z.enum(['csv', 'excel', 'json']),
@@ -310,13 +318,7 @@ export const analyticsContract = c.router({
   getCustomerInsights: {
     method: 'GET',
     path: '/analytics/customer-insights',
-    query: BaseAnalyticsQuerySchema.merge(CommonQueryParams).extend({
-      organizationId: z.string().cuid().optional(),
-      farmId: z.string().cuid().optional(),
-      includeSegmentation: z.boolean().default(true),
-      includeBehaviorAnalysis: z.boolean().default(true),
-      includeRetentionMetrics: z.boolean().default(true),
-    }),
+    query: CustomerInsightsQuerySchema.merge(CommonQueryParams),
     responses: {
       200: z.object({
         data: z.object({
@@ -417,6 +419,7 @@ export type FinancialQuery = z.infer<typeof FinancialQuerySchema>;
 export type ActivityQuery = z.infer<typeof ActivityQuerySchema>;
 export type MarketQuery = z.infer<typeof MarketQuerySchema>;
 export type FarmToMarketQuery = z.infer<typeof FarmToMarketQuerySchema>;
+export type CustomerInsightsQuery = z.infer<typeof CustomerInsightsQuerySchema>;
 export type ExportRequest = z.infer<typeof ExportRequestSchema>;
 export type ReportRequest = z.infer<typeof ReportRequestSchema>;
 

@@ -1333,6 +1333,238 @@ export class TransactionsService {
     return `${prefix}-${timestamp}-${random}`.toUpperCase();
   }
 
+  /**
+   * Get transaction trends aggregated by time period
+   */
+  async getTransactionTrends(
+    user: CurrentUser, 
+    query: {
+      startDate: string;
+      endDate: string;
+      groupBy: 'day' | 'week' | 'month' | 'quarter';
+      type?: 'FARM_EXPENSE' | 'FARM_REVENUE' | 'all';
+      farmId?: string;
+      organizationId?: string;
+    }
+  ) {
+    this.logger.log(`Getting transaction trends for user: ${user.userId}`);
+
+    const { startDate, endDate, groupBy, type, farmId, organizationId } = query;
+    
+    // Validate date range
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start >= end) {
+      throw new BadRequestException('Start date must be before end date');
+    }
+
+    // Determine organization scope
+    const targetOrgId = organizationId || user.organizationId;
+    if (!targetOrgId) {
+      throw new BadRequestException('Organization ID is required');
+    }
+
+    // Validate organization access
+    await this.validateOrganizationAccess(targetOrgId);
+
+    // Build where clause
+    const where: Prisma.TransactionWhereInput = {
+      organizationId: targetOrgId,
+      createdAt: {
+        gte: start,
+        lte: end
+      }
+    };
+
+    if (farmId) {
+      where.farmId = farmId;
+    }
+
+    if (type && type !== 'all') {
+      where.type = type as TransactionType;
+    }
+
+    // Get transactions
+    const transactions = await this.prisma.transaction.findMany({
+      where,
+      select: {
+        type: true,
+        amount: true,
+        createdAt: true,
+        status: true
+      }
+    });
+
+    // Group by time period
+    const groupedData = this.groupTransactionsByPeriod(transactions, groupBy, start, end);
+    
+    // Calculate totals
+    const totalRevenue = transactions
+      .filter(t => t.type === TransactionType.FARM_REVENUE && t.status === TransactionStatus.COMPLETED)
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+    
+    const totalExpenses = transactions
+      .filter(t => t.type === TransactionType.FARM_EXPENSE && t.status === TransactionStatus.COMPLETED)
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+
+    const totalProfit = totalRevenue - totalExpenses;
+    const totalTransactions = transactions.length;
+
+    return {
+      data: groupedData,
+      meta: {
+        totalRevenue,
+        totalExpenses,
+        totalProfit,
+        totalTransactions,
+        period: {
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          groupBy
+        }
+      }
+    };
+  }
+
+  private groupTransactionsByPeriod(
+    transactions: Array<{ type: TransactionType; amount: any; createdAt: Date; status: TransactionStatus }>,
+    groupBy: 'day' | 'week' | 'month' | 'quarter',
+    startDate: Date,
+    endDate: Date
+  ) {
+    const groups = new Map<string, {
+      period: string;
+      periodLabel: string;
+      revenue: number;
+      expenses: number;
+      profit: number;
+      transactionCount: number;
+    }>();
+
+    // Generate all periods in the range
+    const periods = this.generatePeriods(startDate, endDate, groupBy);
+    
+    // Initialize all periods
+    periods.forEach(period => {
+      groups.set(period.key, {
+        period: period.key,
+        periodLabel: period.label,
+        revenue: 0,
+        expenses: 0,
+        profit: 0,
+        transactionCount: 0
+      });
+    });
+
+    // Group transactions
+    transactions.forEach(transaction => {
+      const periodKey = this.getPeriodKey(transaction.createdAt, groupBy);
+      const group = groups.get(periodKey);
+      
+      if (group) {
+        group.transactionCount++;
+        
+        if (transaction.status === TransactionStatus.COMPLETED) {
+          const amount = parseFloat(transaction.amount.toString());
+          
+          if (transaction.type === TransactionType.FARM_REVENUE) {
+            group.revenue += amount;
+          } else if (transaction.type === TransactionType.FARM_EXPENSE) {
+            group.expenses += amount;
+          }
+          
+          group.profit = group.revenue - group.expenses;
+        }
+      }
+    });
+
+    return Array.from(groups.values()).sort((a, b) => a.period.localeCompare(b.period));
+  }
+
+  private generatePeriods(startDate: Date, endDate: Date, groupBy: 'day' | 'week' | 'month' | 'quarter') {
+    const periods: Array<{ key: string; label: string }> = [];
+    const current = new Date(startDate);
+
+    while (current <= endDate) {
+      const key = this.getPeriodKey(current, groupBy);
+      const label = this.getPeriodLabel(current, groupBy);
+      
+      periods.push({ key, label });
+      
+      // Move to next period
+      switch (groupBy) {
+        case 'day':
+          current.setDate(current.getDate() + 1);
+          break;
+        case 'week':
+          current.setDate(current.getDate() + 7);
+          break;
+        case 'month':
+          current.setMonth(current.getMonth() + 1);
+          break;
+        case 'quarter':
+          current.setMonth(current.getMonth() + 3);
+          break;
+      }
+    }
+
+    return periods;
+  }
+
+  private getPeriodKey(date: Date, groupBy: 'day' | 'week' | 'month' | 'quarter'): string {
+    switch (groupBy) {
+      case 'day':
+        return date.toISOString().split('T')[0]; // YYYY-MM-DD
+      case 'week': {
+        const year = date.getFullYear();
+        const week = this.getWeekNumber(date);
+        return `${year}-W${week.toString().padStart(2, '0')}`;
+      }
+      case 'month':
+        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      case 'quarter': {
+        const quarter = Math.floor(date.getMonth() / 3) + 1;
+        return `${date.getFullYear()}-Q${quarter}`;
+      }
+      default:
+        return date.toISOString().split('T')[0];
+    }
+  }
+
+  private getPeriodLabel(date: Date, groupBy: 'day' | 'week' | 'month' | 'quarter'): string {
+    switch (groupBy) {
+      case 'day':
+        return date.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      case 'week': {
+        const year = date.getFullYear();
+        const week = this.getWeekNumber(date);
+        return `Week ${week}, ${year}`;
+      }
+      case 'month':
+        return date.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+      case 'quarter': {
+        const quarter = Math.floor(date.getMonth() / 3) + 1;
+        return `Q${quarter} ${date.getFullYear()}`;
+      }
+      default:
+        return date.toLocaleDateString();
+    }
+  }
+
+  private getWeekNumber(date: Date): number {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  }
+
   private async mapTransactionToResponse(transaction: any) {
     return {
       data: {

@@ -13,6 +13,7 @@ import {
   ActivityQuery,
   MarketQuery,
   FarmToMarketQuery,
+  CustomerInsightsQuery,
   ExportRequest,
   ReportRequest,
   AnalyticsResponse,
@@ -1708,5 +1709,268 @@ export class AnalyticsService extends CurrencyAwareService {
       this.logger.warn('Failed to calculate environmental impact:', error);
       return 50;
     }
+  }
+
+  /**
+   * Get customer insights for farm-to-market integration
+   */
+  async getCustomerInsights(
+    user: CurrentUser,
+    query: CustomerInsightsQuery
+  ): Promise<{
+    data: {
+      type: 'customer_insights';
+      id: string;
+      attributes: {
+        customerOverview: {
+          totalCustomers: number;
+          repeatCustomers: number;
+          newCustomers: number;
+          averageOrderValue: number;
+          customerRetentionRate: number;
+          customerLifetimeValue: number;
+        };
+        customerSegments: Array<{
+          segment: string;
+          count: number;
+          revenue: number;
+          growth: number;
+          characteristics: string[];
+          averageOrderValue: number;
+          retentionRate: number;
+        }>;
+        topCustomers: Array<{
+          name: string;
+          totalOrders: number;
+          totalRevenue: number;
+          lastOrder: string;
+          averageOrderValue: number;
+          customerSince: string;
+          preferredCommodities: string[];
+        }>;
+        behaviorAnalysis: {
+          purchasePatterns: Array<{
+            pattern: string;
+            frequency: number;
+            description: string;
+          }>;
+          seasonalTrends: Array<{
+            season: string;
+            activity: 'high' | 'medium' | 'low';
+            popularCommodities: string[];
+          }>;
+          priceSensitivity: 'low' | 'medium' | 'high';
+          orderFrequency: {
+            average: number;
+            trend: 'increasing' | 'stable' | 'decreasing';
+          };
+        } | null;
+        retentionMetrics: {
+          monthlyRetention: number;
+          quarterlyRetention: number;
+          annualRetention: number;
+          churnRate: number;
+          reactivationRate: number;
+        } | null;
+        recommendations: Array<{
+          category: 'retention' | 'acquisition' | 'upselling' | 'pricing';
+          title: string;
+          description: string;
+          impact: 'low' | 'medium' | 'high';
+          confidence: number;
+          actionable: boolean;
+          estimatedValue?: number;
+        }>;
+        lastUpdated: string;
+      };
+    };
+  }> {
+    this.logger.log(`Getting customer insights for user: ${user.userId}`);
+
+    const {
+      includeSegmentation = true,
+      includeBehaviorAnalysis = true,
+      includeRetentionMetrics = true
+    } = query;
+
+    // Generate mock customer insights data
+    const customerOverview = {
+      totalCustomers: 150 + Math.floor(Math.random() * 100),
+      repeatCustomers: 85 + Math.floor(Math.random() * 30),
+      newCustomers: 25 + Math.floor(Math.random() * 15),
+      averageOrderValue: 2500 + Math.random() * 1000,
+      customerRetentionRate: 0.75 + Math.random() * 0.2,
+      customerLifetimeValue: 15000 + Math.random() * 5000
+    };
+
+    const customerSegments = includeSegmentation ? [
+      {
+        segment: 'Premium Buyers',
+        count: 25,
+        revenue: 125000,
+        growth: 15.5,
+        characteristics: ['High order value', 'Regular purchases', 'Quality focused'],
+        averageOrderValue: 8500,
+        retentionRate: 0.92
+      },
+      {
+        segment: 'Regular Buyers',
+        count: 80,
+        revenue: 200000,
+        growth: 8.2,
+        characteristics: ['Consistent orders', 'Price sensitive', 'Bulk purchases'],
+        averageOrderValue: 2500,
+        retentionRate: 0.78
+      },
+      {
+        segment: 'Occasional Buyers',
+        count: 45,
+        revenue: 45000,
+        growth: -2.1,
+        characteristics: ['Seasonal purchases', 'Price sensitive', 'Small orders'],
+        averageOrderValue: 1000,
+        retentionRate: 0.45
+      }
+    ] : [];
+
+    const topCustomers = [
+      {
+        name: 'GrainCo Ltd',
+        totalOrders: 45,
+        totalRevenue: 125000,
+        lastOrder: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        averageOrderValue: 2778,
+        customerSince: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+        preferredCommodities: ['wheat', 'corn']
+      },
+      {
+        name: 'FeedMill Inc',
+        totalOrders: 32,
+        totalRevenue: 98000,
+        lastOrder: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+        averageOrderValue: 3063,
+        customerSince: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
+        preferredCommodities: ['corn', 'soybean']
+      },
+      {
+        name: 'Organic Foods Ltd',
+        totalOrders: 28,
+        totalRevenue: 75000,
+        lastOrder: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        averageOrderValue: 2679,
+        customerSince: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
+        preferredCommodities: ['soybean', 'rice']
+      }
+    ];
+
+    const behaviorAnalysis = includeBehaviorAnalysis ? {
+      purchasePatterns: [
+        {
+          pattern: 'Seasonal Bulk Orders',
+          frequency: 0.35,
+          description: 'Large orders during harvest season'
+        },
+        {
+          pattern: 'Regular Weekly Orders',
+          frequency: 0.45,
+          description: 'Consistent weekly purchases'
+        },
+        {
+          pattern: 'Emergency Orders',
+          frequency: 0.20,
+          description: 'Urgent orders for immediate needs'
+        }
+      ],
+      seasonalTrends: [
+        {
+          season: 'Spring',
+          activity: 'high' as const,
+          popularCommodities: ['wheat', 'corn']
+        },
+        {
+          season: 'Summer',
+          activity: 'medium' as const,
+          popularCommodities: ['soybean', 'rice']
+        },
+        {
+          season: 'Fall',
+          activity: 'high' as const,
+          popularCommodities: ['wheat', 'corn', 'soybean']
+        },
+        {
+          season: 'Winter',
+          activity: 'low' as const,
+          popularCommodities: ['rice', 'tomato']
+        }
+      ],
+      priceSensitivity: 'medium' as const,
+      orderFrequency: {
+        average: 2.5,
+        trend: 'increasing' as const
+      }
+    } : null;
+
+    const retentionMetrics = includeRetentionMetrics ? {
+      monthlyRetention: 0.85,
+      quarterlyRetention: 0.72,
+      annualRetention: 0.68,
+      churnRate: 0.15,
+      reactivationRate: 0.25
+    } : null;
+
+    const recommendations = [
+      {
+        category: 'retention' as const,
+        title: 'Implement Loyalty Program',
+        description: 'Create a points-based loyalty program for repeat customers',
+        impact: 'high' as const,
+        confidence: 0.85,
+        actionable: true,
+        estimatedValue: 25000
+      },
+      {
+        category: 'acquisition' as const,
+        title: 'Target Occasional Buyers',
+        description: 'Develop marketing campaigns to convert occasional buyers to regular customers',
+        impact: 'medium' as const,
+        confidence: 0.72,
+        actionable: true,
+        estimatedValue: 15000
+      },
+      {
+        category: 'upselling' as const,
+        title: 'Premium Product Promotion',
+        description: 'Promote premium products to regular buyers to increase average order value',
+        impact: 'medium' as const,
+        confidence: 0.68,
+        actionable: true,
+        estimatedValue: 20000
+      },
+      {
+        category: 'pricing' as const,
+        title: 'Dynamic Pricing Strategy',
+        description: 'Implement dynamic pricing based on customer segments and purchase history',
+        impact: 'high' as const,
+        confidence: 0.78,
+        actionable: true,
+        estimatedValue: 30000
+      }
+    ];
+
+    return {
+      data: {
+        type: 'customer_insights' as const,
+        id: `customer-insights-${Date.now()}`,
+        attributes: {
+          customerOverview,
+          customerSegments,
+          topCustomers,
+          behaviorAnalysis,
+          retentionMetrics,
+          recommendations,
+          lastUpdated: new Date().toISOString()
+        }
+      }
+    };
   }
 }

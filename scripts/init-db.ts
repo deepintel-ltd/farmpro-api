@@ -403,6 +403,82 @@ const SAMPLE_ORGANIZATIONS = [
     currency: 'USD', // Large corporate farm uses USD
     // Features will be set by PlanFeatureMapper
     allowCustomRoles: true
+  },
+  {
+    name: 'GreenFields Agriculture',
+    type: 'FARM_OPERATION',
+    email: 'info@greenfields.ag',
+    phone: '+1-555-0105',
+    address: {
+      street: '2222 Organic Valley Road',
+      city: 'Green Valley',
+      state: 'OR',
+      zipCode: '97001',
+      country: 'USA'
+    },
+    description: 'Organic farming operation specializing in sustainable agriculture',
+    plan: 'PRO',
+    maxUsers: 15,
+    maxFarms: 2,
+    currency: 'USD',
+    allowCustomRoles: true
+  },
+  {
+    name: 'AgriTech Solutions',
+    type: 'TECHNOLOGY_PROVIDER',
+    email: 'contact@agritech.solutions',
+    phone: '+1-555-0106',
+    address: {
+      street: '3333 Innovation Drive',
+      city: 'Tech Valley',
+      state: 'CA',
+      zipCode: '94000',
+      country: 'USA'
+    },
+    description: 'Agricultural technology solutions and precision farming services',
+    plan: 'BASIC',
+    maxUsers: 30,
+    maxFarms: 0,
+    currency: 'USD',
+    allowCustomRoles: false
+  },
+  {
+    name: 'Global Commodities Ltd',
+    type: 'COMMODITY_TRADER',
+    email: 'trading@globalcommodities.com',
+    phone: '+1-555-0107',
+    address: {
+      street: '4444 Wall Street',
+      city: 'New York',
+      state: 'NY',
+      zipCode: '10001',
+      country: 'USA'
+    },
+    description: 'International commodity trading and market analysis firm',
+    plan: 'ENTERPRISE',
+    maxUsers: 150,
+    maxFarms: 0,
+    currency: 'USD',
+    allowCustomRoles: true
+  },
+  {
+    name: 'Family Farm Co-op',
+    type: 'COOPERATIVE',
+    email: 'coop@familyfarm.org',
+    phone: '+1-555-0108',
+    address: {
+      street: '5555 Cooperative Way',
+      city: 'Rural Town',
+      state: 'NE',
+      zipCode: '68001',
+      country: 'USA'
+    },
+    description: 'Family farming cooperative with shared resources and marketing',
+    plan: 'BASIC',
+    maxUsers: 40,
+    maxFarms: 5,
+    currency: 'USD',
+    allowCustomRoles: false
   }
 ];
 
@@ -505,6 +581,78 @@ const SAMPLE_USERS = [
     organizationIndex: 3,
     role: 'Farm Manager',
     password: 'FarmManager123!'
+  },
+
+  // GreenFields Agriculture Users
+  {
+    email: 'owner@greenfields.ag',
+    name: 'GreenFields Owner',
+    phone: '+1-555-5001',
+    organizationIndex: 4,
+    role: 'Organization Owner',
+    password: 'GreenFieldsOwner123!'
+  },
+  {
+    email: 'manager@greenfields.ag',
+    name: 'Organic Farm Manager',
+    phone: '+1-555-5002',
+    organizationIndex: 4,
+    role: 'Farm Manager',
+    password: 'OrganicManager123!'
+  },
+
+  // AgriTech Solutions Users
+  {
+    email: 'ceo@agritech.solutions',
+    name: 'AgriTech CEO',
+    phone: '+1-555-6001',
+    organizationIndex: 5,
+    role: 'Organization Owner',
+    password: 'AgriTechCEO123!'
+  },
+  {
+    email: 'tech@agritech.solutions',
+    name: 'Tech Specialist',
+    phone: '+1-555-6002',
+    organizationIndex: 5,
+    role: 'Technology Provider',
+    password: 'TechSpecialist123!'
+  },
+
+  // Global Commodities Ltd Users
+  {
+    email: 'ceo@globalcommodities.com',
+    name: 'Global Commodities CEO',
+    phone: '+1-555-7001',
+    organizationIndex: 6,
+    role: 'Organization Owner',
+    password: 'GlobalCEO123!'
+  },
+  {
+    email: 'trader@globalcommodities.com',
+    name: 'Senior Trader',
+    phone: '+1-555-7002',
+    organizationIndex: 6,
+    role: 'Commodity Trader',
+    password: 'SeniorTrader123!'
+  },
+
+  // Family Farm Co-op Users
+  {
+    email: 'president@familyfarm.org',
+    name: 'Co-op President',
+    phone: '+1-555-8001',
+    organizationIndex: 7,
+    role: 'Organization Owner',
+    password: 'CoopPresident123!'
+  },
+  {
+    email: 'member@familyfarm.org',
+    name: 'Co-op Member',
+    phone: '+1-555-8002',
+    organizationIndex: 7,
+    role: 'Farm Manager',
+    password: 'CoopMember123!'
   },
   {
     email: 'trading@grainsparkles.com',
@@ -718,11 +866,12 @@ async function initializeSampleFarms(organizations: any[]) {
   
   // Create farms for farm operations
   const farmOrgs = organizations.filter(org => 
-    org.type === 'FARM_OPERATION' || org.type === 'INTEGRATED_FARM'
+    org.type === 'FARM_OPERATION' || org.type === 'INTEGRATED_FARM' || org.type === 'COOPERATIVE'
   );
   
   for (const org of farmOrgs) {
-    const farm = await upsertFarm({
+    // Main farm for each organization
+    const mainFarm = await upsertFarm({
       organizationId: org.id,
       name: `${org.name} Main Farm`,
       totalArea: 100.5,
@@ -737,7 +886,60 @@ async function initializeSampleFarms(organizations: any[]) {
       certifications: ['Organic', 'Non-GMO'],
       isPublic: true
     });
-    farms.push(farm);
+    farms.push(mainFarm);
+
+    // Add additional farms for organizations that can have multiple farms
+    if (org.type === 'INTEGRATED_FARM' || org.type === 'COOPERATIVE') {
+      // Second farm for integrated operations
+      const secondFarm = await upsertFarm({
+        organizationId: org.id,
+        name: `${org.name} Secondary Farm`,
+        totalArea: 75.2,
+        location: {
+          latitude: 40.7589,
+          longitude: -73.9851,
+          address: {
+            street: `${org.address.street} - North Field`,
+            city: org.address.city,
+            state: org.address.state,
+            zipCode: org.address.zipCode,
+            country: org.address.country
+          }
+        },
+        timezone: 'America/New_York',
+        cropTypes: ['Rice', 'Tomatoes', 'Lettuce'],
+        establishedDate: new Date('2021-03-15'),
+        certifications: ['Organic'],
+        isPublic: true
+      });
+      farms.push(secondFarm);
+
+      // Third farm for large operations
+      if (org.type === 'INTEGRATED_FARM') {
+        const thirdFarm = await upsertFarm({
+          organizationId: org.id,
+          name: `${org.name} Research Farm`,
+          totalArea: 50.0,
+          location: {
+            latitude: 40.6892,
+            longitude: -74.0445,
+            address: {
+              street: `${org.address.street} - Research Center`,
+              city: org.address.city,
+              state: org.address.state,
+              zipCode: org.address.zipCode,
+              country: org.address.country
+            }
+          },
+          timezone: 'America/New_York',
+          cropTypes: ['Experimental Crops', 'Seed Production'],
+          establishedDate: new Date('2022-06-01'),
+          certifications: ['Research Grade'],
+          isPublic: false
+        });
+        farms.push(thirdFarm);
+      }
+    }
   }
   
   console.log(`✅ Created ${farms.length} sample farms`);

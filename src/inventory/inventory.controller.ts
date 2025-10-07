@@ -1201,4 +1201,44 @@ export class InventoryController {
       },
     );
   }
+
+  // =============================================================================
+  // Farm-to-Market Integration - Commodities Value
+  // =============================================================================
+
+  @TsRestHandler(inventoryContract.getCommoditiesValue)
+  @RequirePermission(...PERMISSIONS.INVENTORY.READ)
+  public getCommoditiesValue(
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return tsRestHandler(
+      inventoryContract.getCommoditiesValue,
+      async ({ query }) => {
+        try {
+          const result = await this.inventoryService.getCommoditiesValue(
+            req.user,
+            query,
+          );
+          this.logger.log(
+            `Retrieved commodities value for user: ${req.user.userId}`,
+          );
+
+          return {
+            status: 200 as const,
+            body: result,
+          };
+        } catch (error: unknown) {
+          this.logger.error(
+            `Get commodities value failed for user ${req.user.userId}:`,
+            error,
+          );
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            badRequestMessage: 'Failed to retrieve commodities value',
+            badRequestCode: 'GET_COMMODITIES_VALUE_FAILED',
+          });
+        }
+      },
+    );
+  }
 }
