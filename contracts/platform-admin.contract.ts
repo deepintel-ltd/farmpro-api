@@ -6,7 +6,6 @@ import {
   UserDetailsResponseSchema,
   UpdateOrganizationRequestSchema,
   JsonApiOrganizationResponseSchema,
-  SelectableOrganizationsResponseSchema,
 } from './platform-admin.schemas';
 
 const c = initContract();
@@ -62,7 +61,7 @@ export const platformAdminContract = c.router({
       'filter[selectable]': z.boolean().optional(),
     }),
     responses: {
-      200: z.union([PlatformAdminOrganizationListResponseSchema, SelectableOrganizationsResponseSchema]),
+      200: PlatformAdminOrganizationListResponseSchema,
       400: ErrorResponse,
       401: ErrorResponse,
       403: ErrorResponse,

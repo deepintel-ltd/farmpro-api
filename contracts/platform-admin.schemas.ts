@@ -154,8 +154,10 @@ export const SelectableOrganizationSchema = z.object({
   plan: z.string(),
   isVerified: z.boolean(),
   createdAt: z.string(),
-  userCount: z.number(),
-  farmCount: z.number(),
+  _count: z.object({
+    users: z.number(),
+    farms: z.number(),
+  }),
 });
 
 export const SelectableOrganizationsResponseSchema = z.object({
@@ -164,6 +166,12 @@ export const SelectableOrganizationsResponseSchema = z.object({
     id: z.string(),
     attributes: SelectableOrganizationSchema,
   })),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    pages: z.number(),
+  }),
 });
 
 // Export types

@@ -55,10 +55,18 @@ export class PlatformAdminController {
                   plan: org.plan,
                   isVerified: org.isVerified,
                   createdAt: org.createdAt.toISOString(),
-                  userCount: org.userCount,
-                  farmCount: org.farmCount,
+                  _count: {
+                    users: org.userCount,
+                    farms: org.farmCount,
+                  },
                 },
               })),
+              meta: {
+                page: query.page || 1,
+                limit: query.limit || 20,
+                total: organizations.length,
+                pages: 1,
+              },
             },
           };
         }
