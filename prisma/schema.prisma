@@ -186,11 +186,36 @@ model Organization {
   transactions      Transaction[]
   transactionCategories TransactionCategory[]
   users             User[]
+  invitations       Invitation[]
 
   @@index([type])
   @@index([isActive, suspendedAt])
   @@index([currency])
   @@map("organizations")
+}
+
+model Invitation {
+  id             String            @id @default(cuid())
+  email          String
+  organizationId String
+  token          String            @unique
+  tokenHash      String            @unique
+  status         InvitationStatus  @default(PENDING)
+  expiresAt      DateTime
+  inviterEmail   String
+  inviterName    String
+  roleName       String?
+  message        String?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([organizationId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("invitations")
 }
 
 model Farm {
@@ -1343,4 +1368,11 @@ enum PaymentStatus {
   FAILED
   CANCELED
   REFUNDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }
