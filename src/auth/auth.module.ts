@@ -12,12 +12,16 @@ import { LocalAuthGuard } from '@/auth/guards/local-auth.guard';
 import { EmailVerificationService } from '@/auth/email-verification.service';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { BrevoModule } from '@/external-service/brevo/brevo.module';
+import { BillingModule } from '@/billing/billing.module';
+import { OrganizationsModule } from '@/organizations/organizations.module';
 
 @Module({
   imports: [
     PassportModule,
     PrismaModule,
     BrevoModule,
+    BillingModule,
+    OrganizationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

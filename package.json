@@ -24,7 +24,6 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts",
     "contracts:install": "cd contracts && npm install",
     "contracts:build": "cd contracts && npm run build",
     "contracts:build:watch": "cd contracts && npm run build:watch",

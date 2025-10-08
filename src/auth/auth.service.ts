@@ -13,6 +13,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { EmailVerificationService } from '@/auth/email-verification.service';
 import { BrevoService } from '@/external-service/brevo/brevo.service';
 import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
+import { PlanRoleService } from '@/billing/services/plan-role.service';
+import { InvitationService } from '@/organizations/services/invitation.service';
 import { SubscriptionTier } from '@prisma/client';
 import { hash, verify } from '@node-rs/argon2';
 import { randomBytes, createHash } from 'crypto';
@@ -79,6 +81,8 @@ export class AuthService {
     private readonly emailVerificationService: EmailVerificationService,
     private readonly brevoService: BrevoService,
     private readonly planFeatureMapper: PlanFeatureMapperService,
+    private readonly planRoleService: PlanRoleService,
+    private readonly invitationService: InvitationService,
   ) {
     this.JWT_EXPIRES_IN = this.configService.get<number>(
       'JWT_EXPIRES_IN_SECONDS',
@@ -219,6 +223,20 @@ export class AuthService {
 
       return user;
     });
+
+    // Assign plan-based role to the user
+    try {
+      await this.planRoleService.assignPlanRoleToUser(
+        result.id,
+        result.organizationId!,
+        SubscriptionTier.FREE,
+      );
+      this.logger.log(`Assigned FREE plan role to user: ${result.id}`);
+    } catch (error) {
+      this.logger.error(`Failed to assign plan role to user: ${error.message}`);
+      // Don't throw error here as the user creation was successful
+      // Role assignment can be retried separately
+    }
 
     const tokens = await this.generateTokens(
       result.id,
@@ -987,6 +1005,20 @@ export class AuthService {
       return updatedUser;
     });
 
+    // Assign plan-based role to the user
+    try {
+      await this.planRoleService.assignPlanRoleToUser(
+        user.id,
+        result.organizationId!,
+        SubscriptionTier.FREE,
+      );
+      this.logger.log(`Assigned FREE plan role to user: ${user.id}`);
+    } catch (error) {
+      this.logger.error(`Failed to assign plan role to user: ${error.message}`);
+      // Don't throw error here as the user creation was successful
+      // Role assignment can be retried separately
+    }
+
     // Generate new tokens with updated user information
     const tokens = await this.generateTokens(
       result.id,
@@ -1113,5 +1145,244 @@ export class AuthService {
       );
       // Don't throw - allow registration to continue
     }
+  }
+
+  /**
+   * Initiate Google OAuth flow
+   */
+  async initiateGoogleOAuth(): Promise<{ authUrl: string; state: string }> {
+    const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const redirectUri = this.configService.get<string>('GOOGLE_REDIRECT_URI') || 
+      `${this.configService.get<string>('API_BASE_URL')}/auth/google/callback`;
+    const state = Math.random().toString(36).substring(2, 15);
+    
+    if (!googleClientId) {
+      throw new BadRequestException('Google OAuth not configured');
+    }
+    
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    googleAuthUrl.searchParams.set('client_id', googleClientId);
+    googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+    googleAuthUrl.searchParams.set('response_type', 'code');
+    googleAuthUrl.searchParams.set('scope', 'openid email profile');
+    googleAuthUrl.searchParams.set('state', state);
+    googleAuthUrl.searchParams.set('access_type', 'offline');
+    googleAuthUrl.searchParams.set('prompt', 'consent');
+
+    // TODO: Store state in database for validation
+    this.logger.log(`Generated Google OAuth URL for state: ${state}`);
+
+    return {
+      authUrl: googleAuthUrl.toString(),
+      state,
+    };
+  }
+
+  /**
+   * Handle Google OAuth callback
+   */
+  async handleGoogleOAuthCallback(query: {
+    code?: string;
+    state?: string;
+    error?: string;
+  }): Promise<{ redirectUrl: string }> {
+    const { code, error } = query;
+
+    if (error) {
+      this.logger.error(`Google OAuth error: ${error}`);
+      return {
+        redirectUrl: `${this.configService.get<string>('FRONTEND_URL')}/auth/error?error=${encodeURIComponent(error)}`,
+      };
+    }
+
+    if (!code) {
+      this.logger.error('No authorization code received from Google');
+      return {
+        redirectUrl: `${this.configService.get<string>('FRONTEND_URL')}/auth/error?error=no_code`,
+      };
+    }
+
+    // TODO: Validate state parameter
+    // const isValidState = await this.validateOAuthState(state);
+    // if (!isValidState) {
+    //   throw new BadRequestException('Invalid state parameter');
+    // }
+
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: this.configService.get<string>('GOOGLE_CLIENT_ID')!,
+        client_secret: this.configService.get<string>('GOOGLE_CLIENT_SECRET')!,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: this.configService.get<string>('GOOGLE_REDIRECT_URI') || 
+          `${this.configService.get<string>('API_BASE_URL')}/auth/google/callback`,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.text();
+      this.logger.error(`Token exchange failed: ${errorData}`);
+      throw new BadRequestException('Failed to exchange code for tokens');
+    }
+
+    const tokens = await tokenResponse.json();
+    
+    // Get user info from Google
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+      },
+    });
+
+    if (!userResponse.ok) {
+      const errorData = await userResponse.text();
+      this.logger.error(`User info fetch failed: ${errorData}`);
+      throw new BadRequestException('Failed to get user info from Google');
+    }
+
+    const googleUser = await userResponse.json();
+
+    // Handle OAuth user authentication/registration
+    const result = await this.handleOAuthUser({
+      email: googleUser.email,
+      name: googleUser.name,
+      provider: 'GOOGLE',
+      providerId: googleUser.id,
+      avatar: googleUser.picture,
+    });
+
+    // Redirect to frontend with tokens
+    const frontendUrl = `${this.configService.get<string>('FRONTEND_URL')}/auth/callback?access_token=${result.tokens.accessToken}&refresh_token=${result.tokens.refreshToken}`;
+    
+    return {
+      redirectUrl: frontendUrl,
+    };
+  }
+
+  /**
+   * Handle OAuth user authentication/registration
+   */
+  async handleOAuthUser(oauthData: {
+    email: string;
+    name: string;
+    provider: 'GOOGLE' | 'GITHUB';
+    providerId: string;
+    avatar?: string;
+  }): Promise<LoginResponse> {
+    const { email, name, provider, avatar } = oauthData;
+
+    // Check if user already exists
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        organization: true,
+        userRoles: {
+          include: {
+            role: true,
+          },
+          where: {
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    // If user doesn't exist, create them
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name,
+          avatar,
+          authProvider: provider,
+          isActive: true,
+          emailVerified: true, // OAuth users are pre-verified
+          profileComplete: false, // They'll need to complete profile
+        },
+        include: {
+          organization: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
+            where: {
+              isActive: true,
+            },
+          },
+        },
+      });
+    } else {
+      // Update existing user with OAuth info
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          authProvider: provider,
+          emailVerified: true,
+          avatar: avatar || user.avatar,
+        },
+        include: {
+          organization: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
+            where: {
+              isActive: true,
+            },
+          },
+        },
+      });
+    }
+
+    // Generate tokens
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.organizationId || '',
+    );
+
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+    const userResponse = this.formatUserResponse(user as UserWithOrganizationAndRoles);
+
+    return {
+      tokens,
+      user: userResponse,
+    };
+  }
+
+  /**
+   * Accept invitation and join organization
+   */
+  async acceptInvitation(token: string, userData: {
+    name: string;
+    password: string;
+    phone?: string;
+  }): Promise<{ user: any; tokens: any }> {
+    this.logger.log(`Accepting invitation with token: ${token.substring(0, 8)}...`);
+
+    // Use invitation service to handle the invitation acceptance
+    const result = await this.invitationService.acceptInvitation(token, userData);
+
+    // Generate tokens for the new user
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      result.user.organizationId,
+    );
+
+    await this.updateRefreshToken(result.user.id, tokens.refreshToken);
+
+    this.logger.log(`User ${result.user.email} successfully joined organization via invitation`);
+
+    return {
+      user: result.user,
+      tokens,
+    };
   }
 }

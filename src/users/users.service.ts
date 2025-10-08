@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PlanRoleService } from '../billing/services/plan-role.service';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly planRoleService: PlanRoleService,
+  ) {}
 
   // =============================================================================
   // Profile Management
@@ -366,6 +370,7 @@ export class UsersService {
     email?: string;
     phone?: string;
     isActive?: boolean;
+    organizationId?: string;
     metadata?: any;
   }) {
     this.logger.log(`User update requested by: ${currentUser.userId} for user: ${userId}`, { 
@@ -375,6 +380,12 @@ export class UsersService {
     // Authorization is now handled by guards and decorators
     await this.checkSameOrganization(currentUser, userId);
 
+    // Get current user data to check for organization changes
+    const currentUserData = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -382,6 +393,7 @@ export class UsersService {
         email: data.email,
         phone: data.phone,
         isActive: data.isActive,
+        organizationId: data.organizationId,
         metadata: data.metadata,
       },
       include: {
@@ -398,6 +410,17 @@ export class UsersService {
         },
       },
     });
+
+    // Handle organization change - assign plan role
+    if (data.organizationId && data.organizationId !== currentUserData?.organizationId) {
+      try {
+        await this.planRoleService.handleOrganizationMember(userId, data.organizationId);
+        this.logger.log(`Assigned plan role to user ${userId} for organization ${data.organizationId}`);
+      } catch (error) {
+        this.logger.error(`Failed to assign plan role to user ${userId}: ${error.message}`);
+        // Don't throw error as user update was successful
+      }
+    }
 
     this.logger.log(`Successfully updated user: ${userId}`);
 

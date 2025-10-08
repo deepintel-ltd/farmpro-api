@@ -1040,6 +1040,109 @@ export const organizationContract = c.router({
     summary: 'Soft delete organization',
     description: 'Deactivate an organization (admin only)',
   },
+
+  // =============================================================================
+  // Invitation Management
+  // =============================================================================
+
+  sendInvitation: {
+    method: 'POST',
+    path: '/organizations/invitations',
+    body: z.object({
+      data: z.object({
+        type: z.literal('invitations'),
+        attributes: z.object({
+          email: z.string().email(),
+          role: z.string().optional(),
+          message: z.string().optional(),
+        }),
+      }),
+    }),
+    responses: {
+      201: z.object({
+        data: z.object({
+          id: z.string(),
+          type: z.literal('invitations'),
+          attributes: z.object({
+            email: z.string(),
+            status: z.string(),
+            sentAt: z.string().datetime(),
+            expiresAt: z.string().datetime(),
+          }),
+        }),
+      }),
+      400: z.object({
+        errors: z.array(z.object({
+          status: z.literal('400'),
+          code: z.string(),
+          title: z.string(),
+          detail: z.string(),
+        })),
+      }),
+    },
+    summary: 'Send invitation to join organization',
+    description: 'Send an invitation to a user to join the organization',
+  },
+
+  getPendingInvitations: {
+    method: 'GET',
+    path: '/organizations/invitations',
+    responses: {
+      200: z.object({
+        data: z.array(z.object({
+          id: z.string(),
+          type: z.literal('invitations'),
+          attributes: z.object({
+            email: z.string(),
+            status: z.string(),
+            sentAt: z.string().datetime(),
+            expiresAt: z.string().datetime(),
+            role: z.string().optional(),
+            message: z.string().optional(),
+          }),
+        })),
+      }),
+      401: z.object({
+        errors: z.array(z.object({
+          status: z.literal('401'),
+          code: z.string(),
+          title: z.string(),
+          detail: z.string(),
+        })),
+      }),
+    },
+    summary: 'Get pending invitations',
+    description: 'Retrieve all pending invitations for the organization',
+  },
+
+  cancelInvitation: {
+    method: 'DELETE',
+    path: '/organizations/invitations/:id',
+    pathParams: z.object({
+      id: z.string(),
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          id: z.string(),
+          type: z.literal('invitations'),
+          attributes: z.object({
+            message: z.string(),
+          }),
+        }),
+      }),
+      404: z.object({
+        errors: z.array(z.object({
+          status: z.literal('404'),
+          code: z.string(),
+          title: z.string(),
+          detail: z.string(),
+        })),
+      }),
+    },
+    summary: 'Cancel invitation',
+    description: 'Cancel a pending invitation',
+  },
 });
 
 // =============================================================================

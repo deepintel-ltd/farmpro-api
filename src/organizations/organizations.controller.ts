@@ -9,6 +9,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { OrganizationsService } from './organizations.service';
+import { InvitationService } from './services/invitation.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Secured } from '../common/decorators/secured.decorator';
 import { FEATURES, PERMISSIONS } from '../common/constants';
@@ -28,7 +29,10 @@ interface AuthenticatedRequest extends ExpressRequest {
 export class OrganizationsController {
   private readonly logger = new Logger(OrganizationsController.name);
 
-  constructor(private readonly organizationsService: OrganizationsService) {}
+  constructor(
+    private readonly organizationsService: OrganizationsService,
+    private readonly invitationService: InvitationService,
+  ) {}
 
   // =============================================================================
   // Organization Profile & Settings
@@ -1126,6 +1130,151 @@ export class OrganizationsController {
             notFoundCode: 'ORGANIZATION_NOT_FOUND',
             internalErrorMessage: 'Failed to delete organization',
             internalErrorCode: 'DELETE_ORGANIZATION_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  // =============================================================================
+  // Team Invitations
+  // =============================================================================
+
+  @TsRestHandler(organizationContract.sendInvitation)
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequireRoleLevel(50)
+  public sendInvitation(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(
+      organizationContract.sendInvitation,
+      async ({ body }) => {
+        try {
+          const result = await this.invitationService.sendInvitation({
+            email: body.data.attributes.email,
+            organizationId: req.user.organizationId!,
+            roleName: body.data.attributes.role,
+            teamRoleType: body.data.attributes.role as any,
+            message: body.data.attributes.message,
+            inviterName: req.user.name,
+            inviterEmail: req.user.email,
+          });
+
+          this.logger.log(`Invitation sent to ${body.data.attributes.email} by user ${req.user.userId}`);
+
+          return {
+            status: 201 as const,
+            body: {
+              data: {
+                id: result.id,
+                type: 'invitations',
+                attributes: {
+                  email: result.email,
+                  status: result.status,
+                  sentAt: result.createdAt,
+                  expiresAt: result.expiresAt,
+                },
+              },
+            },
+          };
+        } catch (error: unknown) {
+          this.logger.error('Send invitation failed:', error);
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            conflictMessage: 'User already exists or invitation already sent',
+            conflictCode: 'INVITATION_CONFLICT',
+            badRequestMessage: 'Invalid invitation data',
+            badRequestCode: 'INVALID_INVITATION_DATA',
+            internalErrorMessage: 'Failed to send invitation',
+            internalErrorCode: 'SEND_INVITATION_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  @TsRestHandler(organizationContract.getPendingInvitations)
+  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequireRoleLevel(50)
+  public getPendingInvitations(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(
+      organizationContract.getPendingInvitations,
+      async () => {
+        try {
+          const invitations = await this.invitationService.getPendingInvitations(
+            req.user.organizationId!,
+          );
+
+          this.logger.log(`Retrieved ${invitations.length} pending invitations for organization ${req.user.organizationId}`);
+
+          return {
+            status: 200 as const,
+            body: {
+              data: invitations.map(invitation => ({
+                id: invitation.id,
+                type: 'invitations',
+                attributes: {
+                  email: invitation.email,
+                  status: invitation.status,
+                  sentAt: invitation.createdAt,
+                  expiresAt: invitation.expiresAt,
+                  role: (invitation as any).roleName,
+                  message: (invitation as any).message,
+                },
+              })),
+            },
+          };
+        } catch (error: unknown) {
+          this.logger.error('Get pending invitations failed:', error);
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            internalErrorMessage: 'Failed to retrieve invitations',
+            internalErrorCode: 'GET_INVITATIONS_FAILED',
+          });
+        }
+      },
+    );
+  }
+
+  @TsRestHandler(organizationContract.cancelInvitation)
+  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequireRoleLevel(50)
+  public cancelInvitation(
+    @Request() req: AuthenticatedRequest,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(
+      organizationContract.cancelInvitation,
+      async ({ params }) => {
+        try {
+          await this.invitationService.cancelInvitation(
+            params.id,
+            req.user.organizationId!,
+          );
+
+          this.logger.log(`Cancelled invitation ${params.id} by user ${req.user.userId}`);
+
+          return {
+            status: 200 as const,
+            body: {
+              data: {
+                id: params.id,
+                type: 'invitations',
+                attributes: {
+                  message: 'Invitation cancelled successfully',
+                },
+              },
+            },
+          };
+        } catch (error: unknown) {
+          this.logger.error('Cancel invitation failed:', error);
+
+          return ErrorResponseUtil.handleCommonError(error, {
+            notFoundMessage: 'Invitation not found',
+            notFoundCode: 'INVITATION_NOT_FOUND',
+            internalErrorMessage: 'Failed to cancel invitation',
+            internalErrorCode: 'CANCEL_INVITATION_FAILED',
           });
         }
       },

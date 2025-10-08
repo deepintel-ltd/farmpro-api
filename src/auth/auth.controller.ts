@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Logger, Request, Body } from '@nestjs/common';
+import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -10,17 +10,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { authContract } from '../../contracts/auth.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
-import {
-  RegisterDto,
-  LoginDto,
-  RefreshTokenDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
-  ChangePasswordDto,
-  VerifyEmailDto,
-  ValidateTokenDto,
-  CompleteProfileDto,
-} from './dto/auth.dto';
+// DTOs are handled by ts-rest contracts
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -78,24 +68,24 @@ export class AuthController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.register)
-  public register(@Body() body: RegisterDto): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.register, async () => {
+  public register(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.register, async ({ body: requestBody }) => {
       try {
-        const result = await this.authService.register(body);
-        this.logger.log(`User registered successfully: ${body.email}`);
+        const result = await this.authService.register(requestBody);
+        this.logger.log(`User registered successfully: ${requestBody.email}`);
 
         return {
           status: 201 as const,
           body: {
             data: {
-              id: 'register',
+              id: result.user.id,
               type: 'auth',
               attributes: result,
             },
           },
         };
       } catch (error: unknown) {
-        this.logger.error(`Registration failed for ${body.email}:`, error);
+        this.logger.error(`Registration failed for ${requestBody.email}:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           conflictMessage: 'User already exists',
@@ -146,24 +136,39 @@ export class AuthController {
   @Public()
   @UseGuards(LocalAuthGuard)
   @TsRestHandler(authContract.login)
-  public login(@Body() body: LoginDto): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.login, async () => {
+  public login(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.login, async ({ body: requestBody, headers }) => {
       try {
-        const result = await this.authService.login(body);
-        this.logger.log(`User logged in successfully: ${body.email}`);
+        // Extract session metadata from request headers
+        const forwardedFor = headers['x-forwarded-for'];
+        const realIp = headers['x-real-ip'];
+        const ipAddress = Array.isArray(forwardedFor) 
+          ? forwardedFor[0] 
+          : Array.isArray(realIp)
+          ? realIp[0]
+          : forwardedFor || realIp || 'Unknown IP';
+
+        const sessionInfo = {
+          deviceInfo: headers['user-agent'] || 'Unknown Device',
+          ipAddress: String(ipAddress),
+          userAgent: headers['user-agent'] || 'Unknown User Agent',
+        };
+
+        const result = await this.authService.login(requestBody, sessionInfo);
+        this.logger.log(`User logged in successfully: ${requestBody.email}`);
 
         return {
           status: 200 as const,
           body: {
             data: {
-              id: 'login',
+              id: result.user.id,
               type: 'auth',
               attributes: result,
             },
           },
         };
       } catch (error: unknown) {
-        this.logger.error(`Login failed for ${body.email}:`, error);
+        this.logger.error(`Login failed for ${requestBody.email}:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           unauthorizedMessage: 'Invalid credentials or account disabled',
@@ -175,14 +180,45 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Refresh access token',
+    description: 'Refresh JWT access token using refresh token'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Token refreshed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                accessToken: { type: 'string' },
+                refreshToken: { type: 'string' },
+                expiresIn: { type: 'number' },
+                tokenType: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid refresh token' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.refresh)
   public refresh(
-    @Body() body: RefreshTokenDto,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.refresh, async () => {
+    return tsRestHandler(authContract.refresh, async ({ body: requestBody }) => {
       try {
-        const result = await this.authService.refresh(body);
+        const result = await this.authService.refresh(requestBody);
         this.logger.log('Token refreshed successfully');
 
         return {
@@ -190,7 +226,7 @@ export class AuthController {
           body: {
             data: {
               id: 'refresh',
-              type: 'auth',
+              type: 'tokens',
               attributes: result,
             },
           },
@@ -206,6 +242,35 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Logout user',
+    description: 'Invalidate refresh token and logout user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Logout successful',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.logout)
   public logout(
@@ -220,7 +285,7 @@ export class AuthController {
           status: 200 as const,
           body: {
             data: {
-              id: 'logout',
+              id: req.user.userId,
               type: 'auth',
               attributes: result,
             },
@@ -237,6 +302,35 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Logout from all devices',
+    description: 'Invalidate all refresh tokens for user across all devices'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Logout from all devices successful',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.logoutAll)
   public logoutAll(
@@ -251,7 +345,7 @@ export class AuthController {
           status: 200 as const,
           body: {
             data: {
-              id: 'logout-all',
+              id: req.user.userId,
               type: 'auth',
               attributes: result,
             },
@@ -275,15 +369,43 @@ export class AuthController {
   // Password Management
   // =============================================================================
 
+  @ApiOperation({ 
+    summary: 'Request password reset',
+    description: 'Send password reset email to user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password reset email sent',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.forgotPassword)
   public forgotPassword(
-    @Body() body: ForgotPasswordDto,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.forgotPassword, async () => {
+    return tsRestHandler(authContract.forgotPassword, async ({ body: requestBody }) => {
       try {
-        const result = await this.authService.forgotPassword(body);
-        this.logger.log(`Password reset requested for: ${body.email}`);
+        const result = await this.authService.forgotPassword(requestBody);
+        this.logger.log(`Password reset requested for: ${requestBody.email}`);
 
         return {
           status: 200 as const,
@@ -296,7 +418,7 @@ export class AuthController {
           },
         };
       } catch (error: unknown) {
-        this.logger.error(`Forgot password failed for ${body.email}:`, error);
+        this.logger.error(`Forgot password failed for ${requestBody.email}:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           badRequestMessage: 'Password reset request failed',
@@ -306,14 +428,42 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Reset password',
+    description: 'Reset password using reset token from email'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password reset successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid or expired token' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.resetPassword)
   public resetPassword(
-    @Body() body: ResetPasswordDto,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.resetPassword, async () => {
+    return tsRestHandler(authContract.resetPassword, async ({ body: requestBody }) => {
       try {
-        const result = await this.authService.resetPassword(body);
+        const result = await this.authService.resetPassword(requestBody);
         this.logger.log('Password reset successfully');
 
         return {
@@ -337,17 +487,46 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Change password',
+    description: 'Change password for authenticated user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password changed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - current password incorrect' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.changePassword)
   public changePassword(
-    @Body() body: ChangePasswordDto,
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.changePassword, async () => {
+    return tsRestHandler(authContract.changePassword, async ({ body: requestBody }) => {
       try {
         const result = await this.authService.changePassword(
           req.user.userId,
-          body,
+          requestBody,
         );
         this.logger.log(`Password changed for user: ${req.user.userId}`);
 
@@ -355,7 +534,7 @@ export class AuthController {
           status: 200 as const,
           body: {
             data: {
-              id: 'change-password',
+              id: req.user.userId,
               type: 'auth',
               attributes: result,
             },
@@ -422,14 +601,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.completeProfile)
   public completeProfile(
-    @Body() body: CompleteProfileDto,
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.completeProfile, async () => {
+    return tsRestHandler(authContract.completeProfile, async ({ body: requestBody }) => {
       try {
         const result = await this.authService.completeProfile(
           req.user.userId,
-          body,
+          requestBody,
         );
         this.logger.log(`Profile completed for user: ${req.user.userId}`);
 
@@ -437,7 +615,7 @@ export class AuthController {
           status: 200 as const,
           body: {
             data: {
-              id: 'complete-profile',
+              id: result.user.id,
               type: 'auth',
               attributes: result,
             },
@@ -465,6 +643,36 @@ export class AuthController {
   // Email & Account Verification
   // =============================================================================
 
+  @ApiOperation({ 
+    summary: 'Send email verification',
+    description: 'Send email verification link to authenticated user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Verification email sent',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 409, description: 'Conflict - email already verified' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.sendVerification)
   public sendVerification(
@@ -479,7 +687,7 @@ export class AuthController {
           status: 200 as const,
           body: {
             data: {
-              id: 'send-verification',
+              id: req.user.userId,
               type: 'auth',
               attributes: result,
             },
@@ -501,14 +709,43 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Verify email',
+    description: 'Verify email address using verification token'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Email verified successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid or expired token' })
+  @ApiResponse({ status: 409, description: 'Conflict - email already verified' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.verifyEmail)
   public verifyEmail(
-    @Body() body: VerifyEmailDto,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.verifyEmail, async () => {
+    return tsRestHandler(authContract.verifyEmail, async ({ body: requestBody }) => {
       try {
-        const result = await this.authService.verifyEmail(body);
+        const result = await this.authService.verifyEmail(requestBody);
         this.logger.log('Email verified successfully');
 
         return {
@@ -534,15 +771,43 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Resend email verification',
+    description: 'Resend email verification link to user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Verification email resent',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.resendVerification)
   public resendVerification(
-    @Body() body: { email: string },
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.resendVerification, async () => {
+    return tsRestHandler(authContract.resendVerification, async ({ body: requestBody }) => {
       try {
-        const result = await this.emailVerificationService.resendEmailVerification(body.email);
-        this.logger.log(`Resend verification requested for email: ${body.email}`);
+        const result = await this.emailVerificationService.resendEmailVerification(requestBody.email);
+        this.logger.log(`Resend verification requested for email: ${requestBody.email}`);
 
         return {
           status: 200 as const,
@@ -555,7 +820,7 @@ export class AuthController {
           },
         };
       } catch (error: unknown) {
-        this.logger.error(`Resend verification failed for ${body.email}:`, error);
+        this.logger.error(`Resend verification failed for ${requestBody.email}:`, error);
 
         return ErrorResponseUtil.handleCommonError(error, {
           badRequestMessage: 'Failed to resend verification email',
@@ -569,6 +834,42 @@ export class AuthController {
   // Session Management
   // =============================================================================
 
+  @ApiOperation({ 
+    summary: 'Get current user profile',
+    description: 'Get current authenticated user profile with roles and permissions'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User profile retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+                organizationId: { type: 'string' },
+                isPlatformAdmin: { type: 'boolean' },
+                roles: { type: 'array' },
+                organization: { type: 'object' },
+                permissions: { type: 'array' },
+                capabilities: { type: 'array' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.me)
   public getCurrentUser(
@@ -611,21 +912,53 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Validate JWT token',
+    description: 'Validate JWT token and return user information'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Token is valid',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                name: { type: 'string' },
+                organizationId: { type: 'string' },
+                isActive: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid token' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
   @TsRestHandler(authContract.validateToken)
   public validateToken(
-    @Body() body: ValidateTokenDto,
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.validateToken, async () => {
+    return tsRestHandler(authContract.validateToken, async ({ body: requestBody }) => {
       try {
-        const result = await this.authService.validateToken(body);
+        const result = await this.authService.validateToken(requestBody);
 
         return {
           status: 200 as const,
           body: {
             data: {
               id: 'validate-token',
-              type: 'token',
+              type: 'tokens',
               attributes: result,
             },
           },
@@ -641,6 +974,49 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'List active sessions',
+    description: 'Get list of active sessions for the authenticated user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Sessions retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              type: { type: 'string' },
+              attributes: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  deviceInfo: { type: 'string' },
+                  ipAddress: { type: 'string' },
+                  userAgent: { type: 'string' },
+                  lastActivity: { type: 'string' },
+                  createdAt: { type: 'string' },
+                  isActive: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            totalCount: { type: 'number' }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.getSessions)
   public getSessions(
@@ -668,17 +1044,47 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Revoke specific session',
+    description: 'Revoke a specific session by session ID'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Session revoked successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                message: { type: 'string' },
+                success: { type: 'boolean' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 404, description: 'Not found - session not found' })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid session ID' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.revokeSession)
   public revokeSession(
     @Request() req: AuthenticatedRequest,
-    @Body() body: { sessionId: string },
   ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(authContract.revokeSession, async () => {
+    return tsRestHandler(authContract.revokeSession, async ({ params }) => {
       try {
         const result = await this.authService.revokeSession(
           req.user.userId,
-          body.sessionId,
+          params.sessionId,
         );
         this.logger.log(`Session revoked for user: ${req.user.userId}`);
 
@@ -686,8 +1092,8 @@ export class AuthController {
           status: 200 as const,
           body: {
             data: {
-              id: 'revoke-session',
-              type: 'auth',
+              id: params.sessionId,
+              type: 'messages',
               attributes: result,
             },
           },
@@ -710,6 +1116,37 @@ export class AuthController {
     });
   }
 
+  @ApiOperation({ 
+    summary: 'Update session status',
+    description: 'Update session status (active/revoked)'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Session updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            type: { type: 'string' },
+            id: { type: 'string' },
+            attributes: {
+              type: 'object',
+              properties: {
+                status: { type: 'string' },
+                message: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
+  @ApiResponse({ status: 404, description: 'Not found - session not found' })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid session status' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseGuards(JwtAuthGuard)
   @TsRestHandler(authContract.updateSession)
   public updateSession(
@@ -756,6 +1193,127 @@ export class AuthController {
           badRequestCode: 'INVALID_SESSION_STATUS',
           internalErrorMessage: 'Update session failed',
           internalErrorCode: 'UPDATE_SESSION_FAILED',
+        });
+      }
+    });
+  }
+
+
+  // =============================================================================
+  // OAuth Integration
+  // =============================================================================
+
+  @ApiOperation({ 
+    summary: 'Initiate Google OAuth',
+    description: 'Redirect to Google OAuth for authentication'
+  })
+  @ApiResponse({ 
+    status: 302, 
+    description: 'Redirect to Google OAuth'
+  })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Public()
+  @TsRestHandler(authContract.googleAuth)
+  public googleAuth(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.googleAuth, async () => {
+      try {
+        const result = await this.authService.initiateGoogleOAuth();
+        this.logger.log('Google OAuth initiated successfully');
+
+        return {
+          status: 302 as const,
+          body: null as never,
+          headers: {
+            Location: result.authUrl,
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Google OAuth initiation failed:', error);
+        return ErrorResponseUtil.handleCommonError(error, {
+          internalErrorMessage: 'Failed to initiate Google OAuth',
+          internalErrorCode: 'GOOGLE_OAUTH_FAILED',
+        });
+      }
+    });
+  }
+
+  @ApiOperation({ 
+    summary: 'Handle Google OAuth callback',
+    description: 'Process Google OAuth callback and authenticate user'
+  })
+  @ApiResponse({ 
+    status: 302, 
+    description: 'Redirect after OAuth processing'
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - OAuth error' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Public()
+  @TsRestHandler(authContract.googleCallback)
+  public googleCallback(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.googleCallback, async ({ query }) => {
+      try {
+        const result = await this.authService.handleGoogleOAuthCallback(query);
+        this.logger.log('Google OAuth callback processed successfully');
+
+        return {
+          status: 302 as const,
+          body: null as never,
+          headers: {
+            Location: result.redirectUrl,
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Google OAuth callback failed:', error);
+        return {
+          status: 302 as const,
+          body: null as never,
+          headers: {
+            Location: `${process.env.FRONTEND_URL}/auth/error?error=oauth_failed`,
+          },
+        };
+      }
+    });
+  }
+
+  @Public()
+  @TsRestHandler(authContract.githubAuth)
+  public githubAuth(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.githubAuth, async () => {
+      try {
+        // This should redirect to GitHub OAuth
+        // Implementation depends on your OAuth strategy
+        return {
+          status: 302 as const,
+          body: null as never,
+        };
+      } catch (error: unknown) {
+        this.logger.error('GitHub OAuth initiation failed:', error);
+        return ErrorResponseUtil.handleCommonError(error, {
+          internalErrorMessage: 'Failed to initiate GitHub OAuth',
+          internalErrorCode: 'GITHUB_OAUTH_FAILED',
+        });
+      }
+    });
+  }
+
+  @Public()
+  @TsRestHandler(authContract.githubCallback)
+  public githubCallback(): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(authContract.githubCallback, async () => {
+      try {
+        // Handle GitHub OAuth callback
+        // Implementation depends on your OAuth strategy
+        return {
+          status: 302 as const,
+          body: null as never,
+        };
+      } catch (error: unknown) {
+        this.logger.error('GitHub OAuth callback failed:', error);
+        return ErrorResponseUtil.handleCommonError(error, {
+          badRequestMessage: 'GitHub OAuth callback failed',
+          badRequestCode: 'GITHUB_OAUTH_CALLBACK_FAILED',
+          internalErrorMessage: 'GitHub OAuth callback processing failed',
+          internalErrorCode: 'GITHUB_OAUTH_CALLBACK_FAILED',
         });
       }
     });

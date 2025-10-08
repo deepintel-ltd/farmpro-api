@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { PlanService } from './plan.service';
 import { PlanFeatureMapperService } from './plan-feature-mapper.service';
+import { PlanRoleService } from './plan-role.service';
 import { BrevoService } from '../../external-service/brevo/brevo.service';
 import {
   CreateSubscriptionDto,
@@ -27,6 +28,7 @@ export class SubscriptionService {
     private readonly prisma: PrismaService,
     private readonly planService: PlanService,
     private readonly planFeatureMapper: PlanFeatureMapperService,
+    private readonly planRoleService: PlanRoleService,
     private readonly brevoService: BrevoService,
   ) {}
 
@@ -271,6 +273,18 @@ export class SubscriptionService {
 
       return updatedSubscription;
     });
+
+    // Update user roles for the new plan
+    try {
+      await this.planRoleService.updateUserRolesForPlanChange(
+        organizationId,
+        subscription.plan.tier,
+        newPlan.tier,
+      );
+      this.logger.log(`Updated user roles for plan change: ${subscription.plan.tier} -> ${newPlan.tier}`);
+    } catch (error) {
+      this.logger.error(`Failed to update user roles for plan change: ${error.message}`);
+    }
 
     this.logger.log(
       `Successfully changed plan for subscription: ${subscription.id} and updated organization features`,
