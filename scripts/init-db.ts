@@ -544,7 +544,7 @@ const SAMPLE_USERS = [
     name: 'Trading Manager',
     phone: '+1-555-2002',
     organizationIndex: 1,
-    role: 'Organization Owner',
+    role: 'Organization Owner (Enterprise)',
     password: 'TradingOwner123!'
   },
   {
@@ -580,7 +580,7 @@ const SAMPLE_USERS = [
     name: 'Operations Director',
     phone: '+1-555-4001',
     organizationIndex: 3,
-    role: 'Organization Owner',
+    role: 'Organization Owner (Enterprise)',
     password: 'OperationsOwner123!'
   },
   {
@@ -634,7 +634,7 @@ const SAMPLE_USERS = [
     name: 'Global Commodities CEO',
     phone: '+1-555-7001',
     organizationIndex: 6,
-    role: 'Organization Owner',
+    role: 'Organization Owner (Enterprise)',
     password: 'GlobalCEO123!'
   },
   {
@@ -689,7 +689,19 @@ function isAllowedPlatformAdminDomain(email: string): boolean {
 // =============================================================================
 
 async function initializePermissions() {
-  console.log('🔐 Initializing permissions...');
+  console.log('🔐 Checking permissions...');
+  
+  // Check if permissions already exist from migration
+  const existingPermissions = await prisma.permission.findMany({
+    where: { isSystemPermission: true }
+  });
+  
+  if (existingPermissions.length > 0) {
+    console.log(`✅ Found ${existingPermissions.length} existing system permissions from migration`);
+    return;
+  }
+  
+  console.log('🔐 Initializing permissions (not found in migration)...');
   
   for (const permission of SYSTEM_PERMISSIONS) {
     await upsertPermission({
@@ -702,7 +714,40 @@ async function initializePermissions() {
 }
 
 async function initializeRoles() {
-  console.log('👥 Initializing system roles...');
+  console.log('👥 Checking system roles...');
+  
+  // Check if system roles already exist from migration
+  const existingSystemRoles = await prisma.role.findMany({
+    where: { 
+      isSystemRole: true,
+      OR: [
+        { organizationId: null }, // System-scoped roles
+        { organization: { name: 'System' } } // System organization roles
+      ]
+    }
+  });
+  
+  if (existingSystemRoles.length > 0) {
+    console.log(`✅ Found ${existingSystemRoles.length} existing system roles from migration`);
+    
+    // Check if we need to add Organization Owner (Enterprise) role
+    const orgOwnerEnterprise = await prisma.role.findFirst({
+      where: {
+        name: 'Organization Owner (Enterprise)',
+        isSystemRole: true,
+        organizationId: null
+      }
+    });
+    
+    if (!orgOwnerEnterprise) {
+      console.log('🔧 Adding Organization Owner (Enterprise) role...');
+      await createOrganizationOwnerEnterpriseRole();
+    }
+    
+    return;
+  }
+  
+  console.log('👥 Initializing system roles (not found in migration)...');
   
   // First, create a system organization for system roles
   let systemOrg = await prisma.organization.findFirst({
@@ -770,7 +815,56 @@ async function initializeRoles() {
     }
   }
   
-  console.log(`✅ Created ${SYSTEM_ROLES.length} system roles`);
+  // Add Organization Owner (Enterprise) role
+  await createOrganizationOwnerEnterpriseRole();
+  
+  console.log(`✅ Created ${SYSTEM_ROLES.length} system roles + Organization Owner (Enterprise)`);
+}
+
+async function createOrganizationOwnerEnterpriseRole() {
+  console.log('🏢 Creating Organization Owner (Enterprise) role...');
+  
+  // Get all permissions for comprehensive access
+  const allPermissions = await prisma.permission.findMany({
+    where: { isSystemPermission: true }
+  });
+  
+  // Create the role
+  const role = await prisma.role.create({
+    data: {
+      name: 'Organization Owner (Enterprise)',
+      description: 'Full control over enterprise organization with all features and unlimited access',
+      level: 95,
+      isSystemRole: true,
+      isPlatformAdmin: false,
+      scope: 'ORGANIZATION',
+      organizationId: null, // System-scoped template
+      isActive: true,
+      metadata: {
+        planTier: 'ENTERPRISE',
+        isOrganizationOwner: true,
+        features: ['all_features'],
+        unlimitedAccess: true
+      }
+    }
+  });
+  
+  // Assign all permissions to this role
+  for (const permission of allPermissions) {
+    await prisma.rolePermission.create({
+      data: {
+        roleId: role.id,
+        permissionId: permission.id,
+        granted: true,
+        conditions: {
+          organizationScope: true,
+          enterpriseFeatures: true
+        }
+      }
+    });
+  }
+  
+  console.log(`✅ Created Organization Owner (Enterprise) role with ${allPermissions.length} permissions`);
 }
 
 async function initializeOrganizations() {
@@ -822,14 +916,23 @@ async function initializeUsers(organizations: any[]) {
     
     // Check if user is trying to be Platform Admin but doesn't have allowed domain
     if (userData.role === 'Platform Admin' && !isAllowedPlatformAdminDomain(userData.email)) {
-      console.log(`⚠️  User ${userData.email} cannot be Platform Admin - domain not whitelisted. Assigning Organization Owner instead.`);
-      roleToAssign = 'Organization Owner';
+      console.log(`⚠️  User ${userData.email} cannot be Platform Admin - domain not whitelisted. Assigning Organization Owner (Enterprise) instead.`);
+      roleToAssign = 'Organization Owner (Enterprise)';
+    }
+    
+    // Handle role mapping for enterprise users
+    if (userData.role === 'Organization Owner' && organization?.plan === 'ENTERPRISE') {
+      roleToAssign = 'Organization Owner (Enterprise)';
     }
     
     const role = await prisma.role.findFirst({
       where: {
         name: roleToAssign,
         isSystemRole: true,
+        OR: [
+          { organizationId: null }, // System-scoped roles
+          { organization: { name: 'System' } } // System organization roles
+        ],
         ...(roleToAssign === 'Platform Admin' && { isPlatformAdmin: true })
       }
     });
