@@ -270,8 +270,12 @@ export class TestContext {
       },
     });
 
-    // Assign a role with farm permissions to the user
-    await this.assignFarmManagerRole(user.id, organizationId);
+    // Debug: Check roles right after user creation
+    const rolesAfterUserCreation = await this.prisma.role.findMany();
+    console.log('Roles after user creation:', rolesAfterUserCreation.map(r => ({ name: r.name, isSystemRole: r.isSystemRole, scope: r.scope, organizationId: r.organizationId })));
+
+    // Assign the Organization Owner role to the user (has all permissions)
+    await this.assignOrganizationOwnerRole(user.id, organizationId);
 
     return user;
   }
@@ -909,6 +913,54 @@ export class TestContext {
    */
   async getDatabaseHealth(): Promise<{ healthy: boolean; error?: string }> {
     return await this._dbManager.getHealthStatus();
+  }
+
+  /**
+   * Assign Organization Owner role to user (has all permissions from init-test-db.ts)
+   */
+  async assignOrganizationOwnerRole(userId: string, organizationId: string): Promise<void> {
+    // Find the Organization Owner role (created by init-test-db.ts)
+    let organizationOwnerRole = await this.prisma.role.findFirst({
+      where: {
+        name: 'Organization Owner',
+        isSystemRole: true,
+        scope: 'ORGANIZATION',
+        organizationId: null, // System roles have null organizationId
+      },
+    });
+
+    if (!organizationOwnerRole) {
+      // Create the Organization Owner role with all permissions
+      organizationOwnerRole = await this.prisma.role.create({
+        data: {
+          name: 'Organization Owner',
+          description: 'Organization owner with full access to all features',
+          isSystemRole: true,
+          organizationId: null,
+          scope: 'ORGANIZATION',
+        },
+      });
+
+      // Get all permissions and assign them to the role
+      const allPermissions = await this.prisma.permission.findMany();
+      for (const permission of allPermissions) {
+        await this.prisma.rolePermission.create({
+          data: {
+            roleId: organizationOwnerRole.id,
+            permissionId: permission.id,
+          },
+        });
+      }
+    }
+
+    // Assign the role to the user
+    await this.prisma.userRole.create({
+      data: {
+        userId: userId,
+        roleId: organizationOwnerRole.id,
+        isActive: true,
+      },
+    });
   }
 
   /**

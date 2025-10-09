@@ -66,7 +66,7 @@ describe('Farms E2E Tests', () => {
     accessToken = loginResponse.body.data.attributes.tokens.accessToken;
   });
 
-  describe('GET /api/farms', () => {
+  describe('GET /farms', () => {
     it('should get farms list successfully', async () => {
       // Create test farms
       await testContext.createFarm({
@@ -100,7 +100,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .get('/api/farms')
+        .get('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -141,7 +141,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .get('/api/farms?search=Green')
+        .get('/farms?search=Green')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -180,7 +180,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .get('/api/farms?isActive=true')
+        .get('/farms?isActive=true')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -208,7 +208,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .get('/api/farms?page[number]=2&page[size]=5')
+        .get('/farms?page[number]=2&page[size]=5')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -221,12 +221,12 @@ describe('Farms E2E Tests', () => {
     it('should fail without authentication', async () => {
       await testContext
         .request()
-        .get('/api/farms')
+        .get('/farms')
         .expect(401);
     });
   });
 
-  describe('GET /api/farms/:id', () => {
+  describe('GET /farms/:id', () => {
     let farmId: string;
 
     beforeEach(async () => {
@@ -251,7 +251,7 @@ describe('Farms E2E Tests', () => {
     it('should get farm by ID successfully', async () => {
       const response = await testContext
         .request()
-        .get(`/api/farms/${farmId}`)
+        .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -268,7 +268,7 @@ describe('Farms E2E Tests', () => {
       
       await testContext
         .request()
-        .get(`/api/farms/${nonExistentId}`)
+        .get(`/farms/${nonExistentId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
     });
@@ -276,7 +276,7 @@ describe('Farms E2E Tests', () => {
     it('should fail with invalid farm ID format', async () => {
       await testContext
         .request()
-        .get('/api/farms/invalid-id')
+        .get('/farms/invalid-id')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(400);
     });
@@ -284,12 +284,12 @@ describe('Farms E2E Tests', () => {
     it('should fail without authentication', async () => {
       await testContext
         .request()
-        .get(`/api/farms/${farmId}`)
+        .get(`/farms/${farmId}`)
         .expect(401);
     });
   });
 
-  describe('POST /api/farms', () => {
+  describe('POST /farms', () => {
     it('should create farm successfully', async () => {
       const farmData = {
         data: {
@@ -311,7 +311,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .post('/api/farms')
+        .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(farmData)
         .expect(201);
@@ -344,7 +344,7 @@ describe('Farms E2E Tests', () => {
 
       await testContext
         .request()
-        .post('/api/farms')
+        .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(invalidFarmData)
         .expect(400);
@@ -363,7 +363,7 @@ describe('Farms E2E Tests', () => {
 
       await testContext
         .request()
-        .post('/api/farms')
+        .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(incompleteFarmData)
         .expect(400);
@@ -389,13 +389,13 @@ describe('Farms E2E Tests', () => {
 
       await testContext
         .request()
-        .post('/api/farms')
+        .post('/farms')
         .send(farmData)
         .expect(401);
     });
   });
 
-  describe('PATCH /api/farms/:id', () => {
+  describe('PATCH /farms/:id', () => {
     let farmId: string;
 
     beforeEach(async () => {
@@ -432,7 +432,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .patch(`/api/farms/${farmId}`)
+        .patch(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(200);
@@ -460,7 +460,7 @@ describe('Farms E2E Tests', () => {
 
       const response = await testContext
         .request()
-        .patch(`/api/farms/${farmId}`)
+        .patch(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(200);
@@ -484,7 +484,7 @@ describe('Farms E2E Tests', () => {
 
       await testContext
         .request()
-        .patch(`/api/farms/${nonExistentId}`)
+        .patch(`/farms/${nonExistentId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(404);
@@ -504,7 +504,7 @@ describe('Farms E2E Tests', () => {
 
       await testContext
         .request()
-        .patch(`/api/farms/${farmId}`)
+        .patch(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(invalidUpdateData)
         .expect(400);
@@ -523,13 +523,13 @@ describe('Farms E2E Tests', () => {
 
       await testContext
         .request()
-        .patch(`/api/farms/${farmId}`)
+        .patch(`/farms/${farmId}`)
         .send(updateData)
         .expect(401);
     });
   });
 
-  describe('DELETE /api/farms/:id', () => {
+  describe('DELETE /farms/:id', () => {
     let farmId: string;
 
     beforeEach(async () => {
@@ -553,7 +553,7 @@ describe('Farms E2E Tests', () => {
     it('should delete farm successfully', async () => {
       await testContext
         .request()
-        .delete(`/api/farms/${farmId}`)
+        .delete(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({})
         .expect(204);
@@ -561,7 +561,7 @@ describe('Farms E2E Tests', () => {
       // Verify farm is soft deleted (inactive)
       const response = await testContext
         .request()
-        .get(`/api/farms/${farmId}`)
+        .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -573,7 +573,7 @@ describe('Farms E2E Tests', () => {
       
       await testContext
         .request()
-        .delete(`/api/farms/${nonExistentId}`)
+        .delete(`/farms/${nonExistentId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({})
         .expect(404);
@@ -582,7 +582,7 @@ describe('Farms E2E Tests', () => {
     it('should fail with invalid farm ID format', async () => {
       await testContext
         .request()
-        .delete('/api/farms/invalid-id')
+        .delete('/farms/invalid-id')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({})
         .expect(400);
@@ -591,13 +591,13 @@ describe('Farms E2E Tests', () => {
     it('should fail without authentication', async () => {
       await testContext
         .request()
-        .delete(`/api/farms/${farmId}`)
+        .delete(`/farms/${farmId}`)
         .send({})
         .expect(401);
     });
   });
 
-  describe('GET /api/farms/:id/commodities', () => {
+  describe('GET /farms/:id/commodities', () => {
     let farmId: string;
 
     beforeEach(async () => {
@@ -646,7 +646,7 @@ describe('Farms E2E Tests', () => {
     it('should get farm commodities successfully', async () => {
       const response = await testContext
         .request()
-        .get(`/api/farms/${farmId}/commodities`)
+        .get(`/farms/${farmId}/commodities`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -660,7 +660,7 @@ describe('Farms E2E Tests', () => {
       
       await testContext
         .request()
-        .get(`/api/farms/${nonExistentId}/commodities`)
+        .get(`/farms/${nonExistentId}/commodities`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
     });
@@ -668,13 +668,13 @@ describe('Farms E2E Tests', () => {
     it('should fail without authentication', async () => {
       await testContext
         .request()
-        .get(`/api/farms/${farmId}/commodities`)
+        .get(`/farms/${farmId}/commodities`)
         .expect(401);
     });
   });
 
   // Note: Farm orders functionality is not implemented yet
-  // describe('GET /api/farms/:id/orders', () => {
+  // describe('GET /farms/:id/orders', () => {
   //   // Orders tests will be added when the functionality is implemented
   // });
 
@@ -683,7 +683,7 @@ describe('Farms E2E Tests', () => {
       // 1. Create farm
       const createResponse = await testContext
         .request()
-        .post('/api/farms')
+        .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           data: {
@@ -709,14 +709,14 @@ describe('Farms E2E Tests', () => {
       // 2. Get farm
       await testContext
         .request()
-        .get(`/api/farms/${farmId}`)
+        .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       // 3. Update farm
       await testContext
         .request()
-        .patch(`/api/farms/${farmId}`)
+        .patch(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           data: {
@@ -733,7 +733,7 @@ describe('Farms E2E Tests', () => {
       // 4. Verify update
       const getResponse = await testContext
         .request()
-        .get(`/api/farms/${farmId}`)
+        .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -743,7 +743,7 @@ describe('Farms E2E Tests', () => {
       // 5. Delete farm
       await testContext
         .request()
-        .delete(`/api/farms/${farmId}`)
+        .delete(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({})
         .expect(204);
@@ -751,7 +751,7 @@ describe('Farms E2E Tests', () => {
       // 6. Verify deletion (soft delete - farm should be inactive)
       const deleteResponse = await testContext
         .request()
-        .get(`/api/farms/${farmId}`)
+        .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -766,7 +766,7 @@ describe('Farms E2E Tests', () => {
         farmPromises.push(
           testContext
             .request()
-            .post('/api/farms')
+            .post('/farms')
             .set('Authorization', `Bearer ${accessToken}`)
             .send({
               data: {
@@ -815,7 +815,7 @@ describe('Farms E2E Tests', () => {
       // Verify farms were created in the database
       const listResponse = await testContext
         .request()
-        .get('/api/farms')
+        .get('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
