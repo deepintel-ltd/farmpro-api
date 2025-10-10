@@ -940,27 +940,46 @@ export class TestContext {
           scope: 'ORGANIZATION',
         },
       });
+    }
 
-      // Get all permissions and assign them to the role
+    // Ensure the role has all permissions (whether it was just created or already existed)
+    const existingPermissions = await this.prisma.rolePermission.findMany({
+      where: { roleId: organizationOwnerRole.id },
+    });
+
+    // Ensure the role has all permissions (whether it was just created or already existed)
+    if (existingPermissions.length === 0) {
       const allPermissions = await this.prisma.permission.findMany();
+
       for (const permission of allPermissions) {
         await this.prisma.rolePermission.create({
           data: {
             roleId: organizationOwnerRole.id,
             permissionId: permission.id,
+            granted: true,
           },
         });
       }
     }
 
-    // Assign the role to the user
-    await this.prisma.userRole.create({
-      data: {
+    // Check if user already has this role assigned
+    const existingUserRole = await this.prisma.userRole.findFirst({
+      where: {
         userId: userId,
         roleId: organizationOwnerRole.id,
-        isActive: true,
       },
     });
+
+    // Assign the role to the user if not already assigned
+    if (!existingUserRole) {
+      await this.prisma.userRole.create({
+        data: {
+          userId: userId,
+          roleId: organizationOwnerRole.id,
+          isActive: true,
+        },
+      });
+    }
   }
 
   /**

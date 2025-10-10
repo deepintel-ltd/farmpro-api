@@ -15,8 +15,8 @@
 
 export const FEATURES = {
   ORDERS: 'orders',
-  FARMS: 'farm_management',
-  ACTIVITIES: 'farm_management',
+  FARMS: 'basic_farm_management',
+  ACTIVITIES: 'basic_farm_management',
   INVENTORY: 'inventory',
   MARKETPLACE: 'marketplace',
   ANALYTICS: 'analytics',

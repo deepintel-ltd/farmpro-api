@@ -2,8 +2,7 @@ import { Controller, UseGuards, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Secured } from '../common/decorators/secured.decorator';
-import { FEATURES, PERMISSIONS } from '../common/constants';
+import { PERMISSIONS } from '../common/constants';
 import { FarmAccessGuard } from '../farms/guards/farm-access.guard';
 import { ActivityAssignmentGuard } from './guards/activity-assignment.guard';
 import {
@@ -94,7 +93,6 @@ function formatActivityResponse(activity: Activity) {
 }
 
 @Controller()
-@Secured(FEATURES.ACTIVITIES)
 export class ActivitiesController {
   constructor(
     private readonly activitiesService: ActivitiesService,

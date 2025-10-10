@@ -23,22 +23,22 @@ describe('Analytics E2E Tests', () => {
 
   beforeEach(async () => {
     // Clean up analytics-related tables before each test
-    await testContext.cleanupTables([
-      'transactions',
-      'farm_activities',
-      'crop_cycles',
-      'harvests',
-      'orders',
-      'user_roles',
-      'role_permissions',
-      'roles',
-      'permissions',
-      'users',
-      'organizations',
-      'seasons',
-      'areas',
-      'commodities'
-    ]);
+    // Note: We preserve system roles (isSystemRole = true) and permissions
+    await testContext.prisma.$executeRaw`SET session_replication_role = replica;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "transactions" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "farm_activities" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "crop_cycles" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "harvests" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "orders" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "seasons" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "areas" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "commodities" CASCADE;`;
+    await testContext.prisma.$executeRaw`DELETE FROM "user_roles";`;
+    await testContext.prisma.$executeRaw`DELETE FROM "users";`;
+    await testContext.prisma.$executeRaw`DELETE FROM "role_permissions" WHERE "roleId" IN (SELECT id FROM roles WHERE "isSystemRole" = false);`;
+    await testContext.prisma.$executeRaw`DELETE FROM "roles" WHERE "isSystemRole" = false;`;
+    await testContext.prisma.$executeRaw`DELETE FROM "organizations";`;
+    await testContext.prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
     
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));

@@ -21,16 +21,20 @@ describe('Activities E2E Tests', () => {
 
   beforeEach(async () => {
     // Clean up activities-related tables before each test
-    await testContext.cleanupTables([
-      'activity_notes',
-      'activity_costs',
-      'activity_assignments',
-      'farm_activities',
-      'farms',
-      'areas',
-      'users',
-      'organizations'
-    ]);
+    // Note: We preserve system roles and permissions
+    await testContext.prisma.$executeRaw`SET session_replication_role = replica;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_notes" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_costs" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_assignments" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "farm_activities" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "farms" CASCADE;`;
+    await testContext.prisma.$executeRaw`TRUNCATE TABLE "areas" CASCADE;`;
+    await testContext.prisma.$executeRaw`DELETE FROM "user_roles";`;
+    await testContext.prisma.$executeRaw`DELETE FROM "users";`;
+    await testContext.prisma.$executeRaw`DELETE FROM "role_permissions" WHERE "roleId" IN (SELECT id FROM roles WHERE "isSystemRole" = false);`;
+    await testContext.prisma.$executeRaw`DELETE FROM "roles" WHERE "isSystemRole" = false;`;
+    await testContext.prisma.$executeRaw`DELETE FROM "organizations";`;
+    await testContext.prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
     
     // Create test organization
     testOrganization = await testContext.createOrganization({
