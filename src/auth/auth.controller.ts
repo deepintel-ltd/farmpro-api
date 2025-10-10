@@ -877,7 +877,7 @@ export class AuthController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(authContract.me, async () => {
       try {
-        // Return the user data from the JWT strategy which includes features and modules
+        const user = await this.authService.getCurrentUser(req.user.userId);
         return {
           status: 200 as const,
           body: {
@@ -885,13 +885,9 @@ export class AuthController {
               id: req.user.userId,
               type: 'user',
               attributes: {
-                id: req.user.userId,
-                email: req.user.email,
-                name: req.user.name,
-                organizationId: req.user.organizationId,
+                ...user,
                 isPlatformAdmin: req.user.isPlatformAdmin,
                 roles: req.user.roles,
-                organization: req.user.organization,
                 permissions: req.user.permissions,
                 capabilities: req.user.capabilities,
               },

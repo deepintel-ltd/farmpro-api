@@ -30,6 +30,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         name: true,
         isActive: true,
         organizationId: true,
+        profileComplete: true,
         refreshTokenExpiresAt: true,
         metadata: true,
         organization: {
@@ -84,9 +85,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       (ur) => ur.role.isPlatformAdmin,
     );
 
-    // For platform admins, organization is optional
-    if (!isPlatformAdmin) {
-      // Regular users must have organization
+    // For platform admins and users with incomplete profiles, organization is optional
+    if (!isPlatformAdmin && user.profileComplete !== false) {
+      // Regular users with complete profiles must have organization
       if (!user.organization) {
         throw new UnauthorizedException('User must belong to an organization');
       }

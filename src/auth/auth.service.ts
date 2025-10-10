@@ -203,23 +203,30 @@ export class AuthService {
         )
       );
 
-      await tx.userRole.upsert({
+      // Check if user role already exists
+      const existingUserRole = await tx.userRole.findFirst({
         where: {
-          userId_roleId_farmId: {
+          userId: user.id,
+          roleId: adminRole.id,
+          farmId: null,
+        },
+      });
+
+      if (!existingUserRole) {
+        await tx.userRole.create({
+          data: {
             userId: user.id,
             roleId: adminRole.id,
             farmId: null,
+            isActive: true,
           },
-        },
-        create: {
-          userId: user.id,
-          roleId: adminRole.id,
-          isActive: true,
-        },
-        update: {
-          isActive: true,
-        },
-      });
+        });
+      } else {
+        await tx.userRole.update({
+          where: { id: existingUserRole.id },
+          data: { isActive: true },
+        });
+      }
 
       return user;
     });
