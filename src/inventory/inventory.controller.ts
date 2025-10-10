@@ -1,15 +1,14 @@
-// import { Controller, UseGuards, Logger, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Logger, Request, BadRequestException } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { InventoryService } from './inventory.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Secured } from '../common/decorators/secured.decorator';
-import { FEATURES, PERMISSIONS } from '../common/constants';
+import { FEATURES } from '../common/constants';
 import { inventoryContract } from '../../contracts/inventory.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
-// import { FarmAccessGuard } from '../farms/guards/farm-access.guard';import {
+import {
   RequirePermission,
-  RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 
 interface AuthenticatedRequest extends ExpressRequest {

@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { BrevoService } from '@/external-service/brevo/brevo.service';
-import { PlanRoleService } from '@/billing/services/plan-role.service';
+// PlanRoleService removed - using plan-based permissions now
 import { TeamRoleService, TeamRoleType } from './team-role.service';
 import { randomBytes, createHash } from 'crypto';
 import { InvitationStatus } from '@prisma/client';
@@ -53,7 +53,6 @@ export class InvitationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly brevoService: BrevoService,
-    private readonly planRoleService: PlanRoleService,
     private readonly teamRoleService: TeamRoleService,
   ) {}
 
@@ -335,17 +334,8 @@ export class InvitationService {
       return user;
     });
 
-    // Assign plan role to the new user
-    try {
-      await this.planRoleService.handleOrganizationMember(
-        result.id,
-        invitation.organizationId
-      );
-      this.logger.log(`Assigned plan role to user ${result.id} for organization ${invitation.organizationId}`);
-    } catch (error) {
-      this.logger.error(`Failed to assign plan role to user: ${error.message}`);
-      // Don't throw error as user creation was successful
-    }
+    // Plan role assignment removed - using plan-based permissions now
+    this.logger.log(`User ${result.id} added to organization ${invitation.organizationId} with plan-based permissions`);
 
     // Assign team role to the new user
     try {

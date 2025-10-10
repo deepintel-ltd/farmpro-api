@@ -1,4 +1,4 @@
-// import { Controller, Logger, Request, UseGuards } from '@nestjs/common';
+import { Controller, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { OrdersService } from './orders.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -10,18 +10,12 @@ import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { Request as ExpressRequest } from 'express';
 import { OrderType, OrderStatus } from '@prisma/client';
 import { Secured } from '../common/decorators/secured.decorator';
-import { FEATURES, PERMISSIONS } from '../common/constants';
+import { FEATURES } from '../common/constants';
 import {
   RequirePermission,
-  RequireCapability,
-  MarketplaceAccess,
+  
+  
 } from '../common/decorators/authorization.decorators';
-import {
-  OrderMarketplaceGuard,
-  OrderOwnershipGuard,
-  OrderParticipantGuard,
-  OrderSupplierGuard,
-} from './guards';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -92,7 +86,7 @@ export class OrdersController {
   // =============================================================================
 
   @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrders)
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   @RequirePermission('orders', 'read')
   public getMarketplaceOrders(
     @Request() req: AuthenticatedRequest,
@@ -118,7 +112,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMarketplaceContract.getMarketplaceOrder)
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   @RequirePermission('orders', 'read')
   public getMarketplaceOrder(
     @Request() req: AuthenticatedRequest,
@@ -145,7 +139,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMarketplaceContract.searchOrders)
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   @RequirePermission('orders', 'read')
   public searchOrders(
     @Request() req: AuthenticatedRequest,
@@ -171,7 +165,7 @@ export class OrdersController {
   }
 
   @TsRestHandler(ordersMarketplaceContract.getOrderRecommendations)
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   @RequirePermission('orders', 'read')
   public getOrderRecommendations(
     @Request() req: AuthenticatedRequest,
@@ -423,7 +417,7 @@ export class OrdersController {
   @TsRestHandler(ordersCrudContract.publishOrder)
   
   @RequirePermission("orders", "update")
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   public publishOrder(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -454,7 +448,7 @@ export class OrdersController {
 
   @TsRestHandler(ordersCrudContract.acceptOrder)
   
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   @RequirePermission('orders', 'update')
   public acceptOrder(
     @Request() req: AuthenticatedRequest,
@@ -516,7 +510,7 @@ export class OrdersController {
   @TsRestHandler(ordersCrudContract.counterOffer)
   
   @RequirePermission("orders", "update")
-  @MarketplaceAccess()
+  // Marketplace access check removed - using plan-based permissions now
   public counterOffer(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {

@@ -17,7 +17,7 @@ import { organizationContract } from '../../contracts/organizations.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import {
   RequirePermission,
-  RequireRoleLevel,
+  
 } from '../common/decorators/authorization.decorators';
 
 interface AuthenticatedRequest extends ExpressRequest {

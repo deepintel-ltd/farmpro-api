@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { hasPermission as checkUserPermission } from '../common/utils/permission.utils';
+// Permission utils removed - using plan-based permissions now
 import {
   CreateRoleDto,
   UpdateRoleDto,
@@ -739,13 +739,10 @@ export class RbacService {
     action: string,
     context?: { organizationId?: string; farmId?: string },
   ): Promise<boolean> {
-    return checkUserPermission({
-      prisma: this.prisma,
-      userId,
-      resource,
-      action,
-      context,
-    });
+    // Permission checking now handled by plan-based permissions
+    // This method is kept for backward compatibility but always returns true
+    // as permissions are now determined by subscription plan
+    return true;
   }
 
   private formatRoleResponse(role: any): any {

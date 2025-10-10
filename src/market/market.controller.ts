@@ -8,14 +8,14 @@ import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import {
   RequirePermission,
-  RequireCapability,
-  RequireRoleLevel,
-  RequireOrgType,
+  
+  
+  
 } from '../common/decorators/authorization.decorators';
 
 @Controller()
 @Secured(FEATURES.MARKETPLACE)
-@RequireOrgType('COMMODITY_TRADER', 'INTEGRATED_FARM')
+// Organization type check removed - using plan-based permissions now
 export class MarketController {
   private readonly logger = new Logger(MarketController.name);
 

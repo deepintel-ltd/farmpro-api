@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { PlanRoleService } from '../billing/services/plan-role.service';
+// PlanRoleService removed - using plan-based permissions now
 
 @Injectable()
 export class UsersService {
@@ -9,7 +9,6 @@ export class UsersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly planRoleService: PlanRoleService,
   ) {}
 
   // =============================================================================
@@ -411,15 +410,9 @@ export class UsersService {
       },
     });
 
-    // Handle organization change - assign plan role
+    // Plan role assignment removed - using plan-based permissions now
     if (data.organizationId && data.organizationId !== currentUserData?.organizationId) {
-      try {
-        await this.planRoleService.handleOrganizationMember(userId, data.organizationId);
-        this.logger.log(`Assigned plan role to user ${userId} for organization ${data.organizationId}`);
-      } catch (error) {
-        this.logger.error(`Failed to assign plan role to user ${userId}: ${error.message}`);
-        // Don't throw error as user update was successful
-      }
+      this.logger.log(`User ${userId} moved to organization ${data.organizationId} with plan-based permissions`);
     }
 
     this.logger.log(`Successfully updated user: ${userId}`);

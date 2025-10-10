@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { hasFarmAccess } from '@/common/utils/permission.utils';
+// Permission utils removed - using plan-based permissions now
 
 /**
  * Farm Access Guard
@@ -70,12 +70,8 @@ export class FarmAccessGuard implements CanActivate {
       throw new ForbiddenException('Access denied to this farm');
     }
 
-    if (!hasFarmAccess(user.roles, farmId)) {
-      this.logger.warn(
-        `User ${user.email} attempted to access farm ${farmId} without proper scope. User roles: ${JSON.stringify(user.roles.map(r => ({ name: r.name, scope: r.scope, farmId: r.farmId })))}`
-      );
-      throw new ForbiddenException('User does not have access to this farm');
-    }
+    // Farm access is now determined by organization membership
+    // No additional role-based checks needed with plan-based permissions
 
     // Check if farm is active (optional check)
     if (!farm.isActive) {

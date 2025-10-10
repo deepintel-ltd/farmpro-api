@@ -10,7 +10,7 @@ import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { UsersService } from './users.service';
 import {
   RequirePermission,
-  RequireRoleLevel,
+  
 } from '../common/decorators/authorization.decorators';
 
 interface AuthenticatedRequest extends ExpressRequest {
