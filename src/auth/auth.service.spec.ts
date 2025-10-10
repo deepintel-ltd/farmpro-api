@@ -66,13 +66,16 @@ describe('AuthService', () => {
     });
 
     // Create service instance with mocked dependencies
+    const mockInvitationService = {} as any;
+    
     service = new AuthService(
       mockPrismaService,
       mockJwtService,
       mockConfigService,
       mockEmailVerificationService,
       mockBrevoService,
-      mockPlanFeatureMapper
+      mockPlanFeatureMapper,
+      mockInvitationService
     );
   });
 
@@ -148,7 +151,8 @@ describe('AuthService', () => {
       // Override the method with jest.fn() for Jest mock functionality
       mockPrismaService.user.findUnique = jest.fn()
         .mockResolvedValueOnce(null) // First call for existing user check
-        .mockResolvedValueOnce(mockUserWithRoles); // Second call for getUserWithRoles
+        .mockResolvedValueOnce(mockUserWithRoles) // Second call for getUserWithRoles
+        .mockResolvedValue(mockUserWithRoles); // All subsequent calls
 
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         return callback({
@@ -159,12 +163,36 @@ describe('AuthService', () => {
             create: jest.fn().mockResolvedValue(mockUser),
           },
           role: {
-            findFirst: jest.fn().mockResolvedValue(null),
-            create: jest
-              .fn()
-              .mockResolvedValue({ id: 'role-1', name: 'admin' }),
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'org-owner-role-1',
+              name: 'Organization Owner',
+              isSystemRole: true,
+              scope: 'ORGANIZATION',
+            }),
+            upsert: jest.fn().mockResolvedValue({
+              id: 'role-1',
+              name: 'Organization Owner',
+              organizationId: 'org-1',
+            }),
+          },
+          rolePermission: {
+            findMany: jest.fn().mockResolvedValue([
+              {
+                id: 'rp-1',
+                roleId: 'org-owner-role-1',
+                permissionId: 'perm-1',
+                granted: true,
+                conditions: null,
+                permission: {
+                  id: 'perm-1',
+                  name: 'farm_management:read',
+                },
+              },
+            ]),
+            upsert: jest.fn().mockResolvedValue({}),
           },
           userRole: {
+            findFirst: jest.fn().mockResolvedValue(null),
             create: jest.fn().mockResolvedValue({}),
           },
         });

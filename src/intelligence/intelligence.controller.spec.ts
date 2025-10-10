@@ -468,6 +468,7 @@ describe('IntelligenceController', () => {
         timestamp: new Date(),
         version: '1.0.0',
         models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        enabled: true,
       };
 
       intelligenceService.healthCheck.mockResolvedValue(mockResponse);
