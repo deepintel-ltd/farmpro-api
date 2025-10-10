@@ -1,14 +1,9 @@
-import { Controller, UseGuards, Request } from '@nestjs/common';
+import { Controller, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { PERMISSIONS } from '../common/constants';
-import { FarmAccessGuard } from '../farms/guards/farm-access.guard';
-import { ActivityAssignmentGuard } from './guards/activity-assignment.guard';
 import {
   RequirePermission,
-  RequireCapability,
-  RequireRoleLevel,
 } from '../common/decorators/authorization.decorators';
 import { activitiesCrudContract } from '../../contracts/activities-crud.contract';
 import { activitiesExecutionContract } from '../../contracts/activities-execution.contract';
@@ -103,7 +98,7 @@ export class ActivitiesController {
   ) {}
 
   @TsRestHandler(activitiesCrudContract.getActivities)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getActivities(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.getActivities, async ({ query }) => {
       const result = await this.activitiesService.getActivities(query, req);
@@ -112,7 +107,7 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.getCalendar)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getCalendar(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.getCalendar, async ({ query }) => {
       const calendarQuery: CalendarQueryOptions = {
@@ -141,7 +136,7 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesTeamContract.getMyTasks)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getMyTasks(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTeamContract.getMyTasks, async ({ query }) => {
       const result = await this.activitiesService.getMyTasks(req.user.userId, query, req);
@@ -151,7 +146,7 @@ export class ActivitiesController {
 
   // Team Performance Analytics - MUST come before getActivity to avoid route conflicts
   @TsRestHandler(activitiesTeamContract.getTeamPerformance)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getTeamPerformance(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTeamContract.getTeamPerformance, async ({ query }) => {
       const analyticsQuery = {
@@ -185,7 +180,7 @@ export class ActivitiesController {
 
   // Analytics - MUST come before getActivity to avoid route conflicts
   @TsRestHandler(activitiesAnalyticsContract.getAnalytics)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getAnalytics() {
     return tsRestHandler(activitiesAnalyticsContract.getAnalytics, async ({ query }) => {
       const analyticsQuery: AnalyticsQueryOptions = {
@@ -208,7 +203,7 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesAnalyticsContract.getCompletionRates)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getCompletionRates(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesAnalyticsContract.getCompletionRates, async ({ query }) => {
       const analyticsQuery: AnalyticsQueryOptions = {
@@ -222,7 +217,7 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesAnalyticsContract.getCostAnalysis)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getCostAnalysis(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesAnalyticsContract.getCostAnalysis, async ({ query }) => {
       const analyticsQuery: AnalyticsQueryOptions = {
@@ -236,8 +231,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesAnalyticsContract.generateReport)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
-  @RequireCapability('data_export')
+  @RequirePermission("activities", "read")
+  // @RequireCapability(...) - replaced with feature check
   public generateReport(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesAnalyticsContract.generateReport, async ({ body }) => {
       const result = await this.activitiesService.generateReport({
@@ -252,7 +247,7 @@ export class ActivitiesController {
 
   // Templates - MUST come before getActivity to avoid route conflicts
   @TsRestHandler(activitiesTemplatesContract.getActivityTemplates)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getActivityTemplates(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTemplatesContract.getActivityTemplates, async ({ query }) => {
       const result = await this.templateService.getTemplates(req.user.organizationId, {
@@ -266,8 +261,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.bulkCreate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.CREATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "create")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkCreate(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.bulkCreate, async ({ body }) => {
       const result = await this.activitiesService.bulkCreateActivities(
@@ -300,8 +295,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.bulkUpdate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkUpdate(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.bulkUpdate, async ({ body }) => {
       const result = await this.activitiesService.bulkUpdateActivities(
@@ -334,8 +329,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.bulkDelete)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.DELETE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "delete")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkDelete(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.bulkDelete, async ({ body }) => {
       const result = await this.activitiesService.bulkDeleteActivities(
@@ -358,8 +353,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.bulkAssign)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.ASSIGN)
-  @RequireRoleLevel(40)
+  @RequirePermission("activities", "assign")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkAssign(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.bulkAssign, async ({ body }) => {
       const result = await this.activitiesService.bulkAssignActivities(
@@ -385,8 +380,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.bulkStatusUpdate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkStatusUpdate(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.bulkStatusUpdate, async ({ body }) => {
       const result = await this.activitiesService.bulkUpdateActivityStatus(
@@ -413,7 +408,7 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesCrudContract.getActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.getActivity, async ({ params }) => {
       const activity = await this.activitiesService.getActivity(params.activityId, req);
@@ -425,8 +420,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesCrudContract.createActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.CREATE)
-  @RequireCapability('track_activities')
+  @RequirePermission("activities", "create")
+  // @RequireCapability(...) - replaced with feature check
   public createActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.createActivity, async ({ body }) => {
       const result = await this.activitiesService.createActivity(body, req.user.userId, req);
@@ -438,8 +433,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesCrudContract.updateActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @UseGuards(FarmAccessGuard)
+  @RequirePermission("activities", "update")
+  
   public updateActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.updateActivity, async ({ params, body }) => {
       const result = await this.activitiesService.updateActivity(params.activityId, body, req.user.userId, req);
@@ -451,8 +446,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesCrudContract.deleteActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.DELETE)
-  @UseGuards(FarmAccessGuard)
+  @RequirePermission("activities", "delete")
+  
   public deleteActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCrudContract.deleteActivity, async ({ params }) => {
       await this.activitiesService.deleteActivity(params.activityId, req.user.userId, req);
@@ -470,8 +465,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesExecutionContract.updateActivityStatus)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
+  @RequirePermission("activities", "execute")
+  
   public updateActivityStatus(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesExecutionContract.updateActivityStatus, async ({ params, body }) => {
       const result = await this.activitiesService.updateActivityStatus(
@@ -489,7 +484,7 @@ export class ActivitiesController {
 
   // Cost Management
   @TsRestHandler(activitiesCostsContract.getActivityCosts)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getActivityCosts(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCostsContract.getActivityCosts, async ({ params }) => {
       const result = await this.activitiesService.getActivityCosts(params.activityId, req);
@@ -498,8 +493,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesCostsContract.addCost)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public addCost(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCostsContract.addCost, async ({ params, body }) => {
       const costData = {
@@ -517,8 +512,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesCostsContract.updateCost)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateCost(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesCostsContract.updateCost, async ({ params, body }) => {
       const result = await this.activitiesService.updateCost(params.activityId, params.costId, body, req.user.userId, req.user.organizationId);
@@ -528,8 +523,8 @@ export class ActivitiesController {
 
   // Assignment Management
   @TsRestHandler(activitiesTeamContract.assignActivity)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.ASSIGN)
-  @RequireRoleLevel(40)
+  @RequirePermission("activities", "assign")
+  // @RequireRoleLevel(...) - replaced with permission check
   public assignActivity(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTeamContract.assignActivity, async ({ params, body }) => {
       const assignments = body.assignedTo.map(userId => ({ userId, role: 'ASSIGNED' as const }));
@@ -544,8 +539,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesTeamContract.requestHelp)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
+  @RequirePermission("activities", "execute")
+  
   public requestHelp(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTeamContract.requestHelp, async ({ params, body }) => {
       const helpData = {
@@ -575,7 +570,7 @@ export class ActivitiesController {
   
 
   @TsRestHandler(activitiesTemplatesContract.getActivityTemplate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getActivityTemplate(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTemplatesContract.getActivityTemplate, async ({ params }) => {
       const result = await this.templateService.getTemplate(params.templateId!, req.user.organizationId);
@@ -584,8 +579,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesTemplatesContract.createActivityTemplate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.CREATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "create")
+  // @RequireRoleLevel(...) - replaced with permission check
   public createActivityTemplate(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTemplatesContract.createActivityTemplate, async ({ body }) => {
       const templateData = {
@@ -605,8 +600,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesTemplatesContract.createFromTemplate)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.CREATE)
-  @RequireCapability('track_activities')
+  @RequirePermission("activities", "create")
+  // @RequireCapability(...) - replaced with feature check
   public createFromTemplate(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesTemplatesContract.createFromTemplate, async ({ params, body }) => {
       const result = await this.templateService.createFromTemplate(
@@ -621,7 +616,7 @@ export class ActivitiesController {
 
   // Scheduling & Planning
   @TsRestHandler(activitiesSchedulingContract.checkConflicts)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public checkConflicts(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.checkConflicts, async ({ query }) => {
       const result = await this.schedulingService.checkConflicts(query as ConflictCheckQueryOptions, req.user.organizationId);
@@ -630,8 +625,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.bulkSchedule)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.BULK_SCHEDULE)
-  @RequireRoleLevel(50)
+  @RequirePermission("activities", "bulk_schedule")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkSchedule(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.bulkSchedule, async ({ body }) => {
       const result = await this.schedulingService.bulkSchedule(body as any, req.user.userId, req.user.organizationId);
@@ -655,7 +650,7 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesSchedulingContract.getWorkload)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getWorkload(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesSchedulingContract.getWorkload, async ({ query }) => {
       const result = await this.schedulingService.getWorkloadAnalysis(query as WorkloadQueryOptions, req.user.organizationId);
@@ -665,7 +660,7 @@ export class ActivitiesController {
 
   // Activity Notes
   @TsRestHandler(activitiesMediaContract.getActivityNotes)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.READ)
+  @RequirePermission("activities", "read")
   public getActivityNotes(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesMediaContract.getActivityNotes, async ({ params }) => {
       const result = await this.notesService.getActivityNotes(params.activityId, req.user.userId, req.user.organizationId, {});
@@ -692,8 +687,8 @@ export class ActivitiesController {
   }
 
   @TsRestHandler(activitiesMediaContract.addNote)
-  @RequirePermission(...PERMISSIONS.ACTIVITIES.EXECUTE)
-  @UseGuards(ActivityAssignmentGuard)
+  @RequirePermission("activities", "execute")
+  
   public addNote(@Request() req: AuthenticatedRequest) {
     return tsRestHandler(activitiesMediaContract.addNote, async ({ params, body }) => {
       const result = await this.notesService.createNote(params.activityId, body as any, req.user.userId, req.user.organizationId);

@@ -37,7 +37,7 @@ export class RbacController {
   // =============================================================================
 
   @TsRestHandler(rbacContract.getRoles)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public getRoles(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -61,7 +61,7 @@ export class RbacController {
   }
 
   @TsRestHandler(rbacContract.getRole)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public getRole(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -88,8 +88,8 @@ export class RbacController {
   }
 
   @TsRestHandler(rbacContract.createRole)
-  @RequirePermission(...PERMISSIONS.RBAC.CREATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("rbac", "create")
+  // @RequireRoleLevel(...) - replaced with permission check
   public createRole(
     @Request() req: AuthenticatedRequest,
     @Body() body: CreateRoleDto,
@@ -118,8 +118,8 @@ export class RbacController {
   }
 
   @TsRestHandler(rbacContract.updateRole)
-  @RequirePermission(...PERMISSIONS.RBAC.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("rbac", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateRole(
     @Request() req: AuthenticatedRequest,
     @Body() body: UpdateRoleDto,
@@ -149,8 +149,8 @@ export class RbacController {
   }
 
   @TsRestHandler(rbacContract.deleteRole)
-  @RequirePermission(...PERMISSIONS.RBAC.DELETE)
-  @RequireRoleLevel(50)
+  @RequirePermission("rbac", "delete")
+  // @RequireRoleLevel(...) - replaced with permission check
   public deleteRole(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -183,7 +183,7 @@ export class RbacController {
   // =============================================================================
 
   @TsRestHandler(rbacContract.getPermissions)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public getPermissions(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -212,7 +212,7 @@ export class RbacController {
   // =============================================================================
 
   @TsRestHandler(rbacContract.checkPermission)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public checkPermission(
     @Request() req: AuthenticatedRequest,
     @Body() body: CheckPermissionDto,
@@ -237,7 +237,7 @@ export class RbacController {
   }
 
   @TsRestHandler(rbacContract.checkPermissions)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public checkPermissions(
     @Request() req: AuthenticatedRequest,
     @Body() body: CheckPermissionsDto,
@@ -262,7 +262,7 @@ export class RbacController {
   }
 
   @TsRestHandler(rbacContract.getCurrentUserPermissions)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public getCurrentUserPermissions(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -291,7 +291,7 @@ export class RbacController {
   // =============================================================================
 
   @TsRestHandler(rbacContract.getUserRoles)
-  @RequirePermission(...PERMISSIONS.RBAC.READ)
+  @RequirePermission("rbac", "read")
   public getUserRoles(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -322,8 +322,8 @@ export class RbacController {
   // =============================================================================
 
   @TsRestHandler(rbacContract.bulkAssignRoles)
-  @RequirePermission(...PERMISSIONS.RBAC.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("rbac", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public bulkAssignRoles(
     @Request() req: AuthenticatedRequest,
     @Body() body: BulkAssignRolesDto,

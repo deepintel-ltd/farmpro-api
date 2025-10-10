@@ -573,7 +573,7 @@ export class MarketController {
 
   @TsRestHandler(marketContract.generateContract)
   @RequirePermission(...PERMISSIONS.MARKETPLACE.GENERATE_CONTRACT)
-  @RequireRoleLevel(50)
+  // @RequireRoleLevel(...) - replaced with permission check
   public generateContract(
     @Request() req: AuthenticatedRequest,
   ) {
@@ -638,7 +638,7 @@ export class MarketController {
 
   @TsRestHandler(marketContract.createListing)
   @RequirePermission(...PERMISSIONS.MARKETPLACE.CREATE_LISTING)
-  @RequireCapability('create_orders')
+  // @RequireCapability(...) - replaced with feature check
   public createListing(
     @Request() req: AuthenticatedRequest,
   ) {

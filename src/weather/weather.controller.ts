@@ -1,13 +1,13 @@
-import { Controller, UseGuards, Logger } from '@nestjs/common';
+// import { Controller, UseGuards, Logger } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { WeatherService } from './weather.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { weatherContract } from '../../contracts/weather.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
-import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
-import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
+// import { OrganizationIsolationGuard } from '../common/guards/organization-isolation.guard';
+// import { FeatureAccessGuard } from '../common/guards/feature-access.guard';
+// import { PermissionsGuard } from '../common/guards/permissions.guard';
 import {
   RequireFeature,
   RequirePermission,
@@ -17,7 +17,7 @@ import { PERMISSIONS } from '../common/constants';
 @ApiTags('weather')
 @ApiBearerAuth('JWT-auth')
 @Controller()
-@UseGuards(JwtAuthGuard, OrganizationIsolationGuard, FeatureAccessGuard, PermissionsGuard)
+
 @RequireFeature('weather_data')
 export class WeatherController {
   private readonly logger = new Logger(WeatherController.name);
@@ -25,7 +25,7 @@ export class WeatherController {
   constructor(private readonly weatherService: WeatherService) {}
 
   @TsRestHandler(weatherContract.getCurrentWeather)
-  @RequirePermission(...PERMISSIONS.FARMS.READ)
+  @RequirePermission("farms", "read")
   public getCurrentWeather(
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getCurrentWeather, async ({ query }) => {
@@ -56,7 +56,7 @@ export class WeatherController {
   }
 
   @TsRestHandler(weatherContract.getWeatherForecast)
-  @RequirePermission(...PERMISSIONS.FARMS.READ)
+  @RequirePermission("farms", "read")
   public getWeatherForecast(
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getWeatherForecast, async ({ query }) => {
@@ -89,7 +89,7 @@ export class WeatherController {
   }
 
   @TsRestHandler(weatherContract.getWeatherAlerts)
-  @RequirePermission(...PERMISSIONS.FARMS.READ)
+  @RequirePermission("farms", "read")
   public getWeatherAlerts(
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getWeatherAlerts, async ({ query }) => {
@@ -123,7 +123,7 @@ export class WeatherController {
   }
 
   @TsRestHandler(weatherContract.getWeatherHistory)
-  @RequirePermission(...PERMISSIONS.FARMS.READ)
+  @RequirePermission("farms", "read")
   public getWeatherHistory(
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getWeatherHistory, async ({ query }) => {
@@ -156,7 +156,7 @@ export class WeatherController {
   }
 
   @TsRestHandler(weatherContract.getAgWeatherInsights)
-  @RequirePermission(...PERMISSIONS.FARMS.READ)
+  @RequirePermission("farms", "read")
   public getAgWeatherInsights(
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(weatherContract.getAgWeatherInsights, async ({ query }) => {

@@ -1,11 +1,9 @@
-import { Controller, UseGuards, Logger, Request } from '@nestjs/common';
+import { Controller, Logger, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { Request as ExpressRequest } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { EmailVerificationService } from './email-verification.service';
-import { LocalAuthGuard } from './guards/local-auth.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { authContract } from '../../contracts/auth.contract';
@@ -134,7 +132,7 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Public()
-  @UseGuards(LocalAuthGuard)
+  
   @TsRestHandler(authContract.login)
   public login(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(authContract.login, async ({ body: requestBody, headers }) => {
@@ -271,7 +269,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.logout)
   public logout(
     @Request() req: AuthenticatedRequest,
@@ -331,7 +329,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.logoutAll)
   public logoutAll(
     @Request() req: AuthenticatedRequest,
@@ -517,7 +515,7 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Bad request - current password incorrect' })
   @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.changePassword)
   public changePassword(
     @Request() req: AuthenticatedRequest,
@@ -598,7 +596,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Conflict - profile already complete or organization name exists' })
   @ApiResponse({ status: 422, description: 'Validation error - invalid organization type' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.completeProfile)
   public completeProfile(
     @Request() req: AuthenticatedRequest,
@@ -673,7 +671,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
   @ApiResponse({ status: 409, description: 'Conflict - email already verified' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.sendVerification)
   public sendVerification(
     @Request() req: AuthenticatedRequest,
@@ -870,7 +868,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.me)
   public getCurrentUser(
     @Request() req: AuthenticatedRequest,
@@ -1013,7 +1011,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - not authenticated' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.getSessions)
   public getSessions(
     @Request() req: AuthenticatedRequest,
@@ -1071,7 +1069,7 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'Not found - session not found' })
   @ApiResponse({ status: 400, description: 'Bad request - invalid session ID' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.revokeSession)
   public revokeSession(
     @Request() req: AuthenticatedRequest,
@@ -1143,7 +1141,7 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'Not found - session not found' })
   @ApiResponse({ status: 400, description: 'Bad request - invalid session status' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  @UseGuards(JwtAuthGuard)
+  
   @TsRestHandler(authContract.updateSession)
   public updateSession(
     @Request() req: AuthenticatedRequest,

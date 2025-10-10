@@ -29,7 +29,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getProfile)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -59,7 +59,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updateProfile)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequirePermission("users", "update")
   public updateProfile(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -96,7 +96,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.uploadAvatar)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequirePermission("users", "update")
   @UseInterceptors(FileInterceptor('avatar'))
   public uploadAvatar(
     @Request() req: AuthenticatedRequest,
@@ -146,7 +146,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.deleteAvatar)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequirePermission("users", "update")
   public deleteAvatar(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -181,7 +181,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getUsers)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getUsers(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -221,7 +221,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.getUsersWithQuery)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getUsersWithQuery(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -265,7 +265,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getPreferences)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getPreferences(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -296,7 +296,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updatePreferences)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequirePermission("users", "update")
   public updatePreferences(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -332,7 +332,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getMyActivity)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getMyActivity(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -369,7 +369,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.getMyStats)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getMyStats(
     @Request() req: AuthenticatedRequest,
     @Query() query: any,
@@ -407,7 +407,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getUser)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getUserById(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -439,8 +439,8 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updateUser)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("users", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateUser(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -474,8 +474,8 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.activateUser)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("users", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public activateUser(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -511,7 +511,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getNotificationSettings)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getNotificationSettings(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -542,7 +542,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.updateNotificationSettings)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
+  @RequirePermission("users", "update")
   public updateNotificationSettings(
     @Request() req: AuthenticatedRequest,
     @Body() body: any,
@@ -578,7 +578,7 @@ export class UsersController {
   // =============================================================================
 
   @TsRestHandler(userContract.getUserActivity)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getUserActivity(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,
@@ -616,7 +616,7 @@ export class UsersController {
   }
 
   @TsRestHandler(userContract.getUserStats)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
+  @RequirePermission("users", "read")
   public getUserStats(
     @Request() req: AuthenticatedRequest,
     @Param('id') userId: string,

@@ -13,7 +13,6 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { EmailVerificationService } from '@/auth/email-verification.service';
 import { BrevoService } from '@/external-service/brevo/brevo.service';
 import { PlanFeatureMapperService } from '@/billing/services/plan-feature-mapper.service';
-import { PlanRoleService } from '@/billing/services/plan-role.service';
 import { InvitationService } from '@/organizations/services/invitation.service';
 import { SubscriptionTier } from '@prisma/client';
 import { hash, verify } from '@node-rs/argon2';
@@ -81,7 +80,6 @@ export class AuthService {
     private readonly emailVerificationService: EmailVerificationService,
     private readonly brevoService: BrevoService,
     private readonly planFeatureMapper: PlanFeatureMapperService,
-    private readonly planRoleService: PlanRoleService,
     private readonly invitationService: InvitationService,
   ) {
     this.JWT_EXPIRES_IN = this.configService.get<number>(
@@ -231,19 +229,8 @@ export class AuthService {
       return user;
     });
 
-    // Assign plan-based role to the user
-    try {
-      await this.planRoleService.assignPlanRoleToUser(
-        result.id,
-        result.organizationId!,
-        SubscriptionTier.FREE,
-      );
-      this.logger.log(`Assigned FREE plan role to user: ${result.id}`);
-    } catch (error) {
-      this.logger.error(`Failed to assign plan role to user: ${error.message}`);
-      // Don't throw error here as the user creation was successful
-      // Role assignment can be retried separately
-    }
+    // Plan-based permissions are now handled by UserContextService
+    // No need to assign roles - permissions are determined by plan tier
 
     const tokens = await this.generateTokens(
       result.id,
@@ -695,10 +682,33 @@ export class AuthService {
     email: string,
     organizationId: string,
   ): Promise<TokensResponse> {
+    // Get user context to include plan tier and platform admin status
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        organization: {
+          include: {
+            subscription: {
+              include: { plan: true },
+            },
+          },
+        },
+        userRoles: {
+          where: { isActive: true },
+          include: { role: true },
+        },
+      },
+    });
+
+    const planTier = user?.organization?.subscription?.plan?.tier || 'FREE';
+    const isPlatformAdmin = user?.userRoles?.some(ur => ur.role.isPlatformAdmin) || false;
+
     const payload = {
       email,
       sub: userId,
       organizationId,
+      planTier,
+      isPlatformAdmin,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -1012,19 +1022,8 @@ export class AuthService {
       return updatedUser;
     });
 
-    // Assign plan-based role to the user
-    try {
-      await this.planRoleService.assignPlanRoleToUser(
-        user.id,
-        result.organizationId!,
-        SubscriptionTier.FREE,
-      );
-      this.logger.log(`Assigned FREE plan role to user: ${user.id}`);
-    } catch (error) {
-      this.logger.error(`Failed to assign plan role to user: ${error.message}`);
-      // Don't throw error here as the user creation was successful
-      // Role assignment can be retried separately
-    }
+    // Plan-based permissions are now handled by UserContextService
+    // No need to assign roles - permissions are determined by plan tier
 
     // Generate new tokens with updated user information
     const tokens = await this.generateTokens(

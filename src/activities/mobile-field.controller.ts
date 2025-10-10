@@ -1,6 +1,6 @@
-import { Controller, UseGuards, Request } from '@nestjs/common';
+// import { Controller, UseGuards, Request } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { MobileFieldService } from './mobile-field.service';
 import { mobileFieldContract } from '../../contracts/mobile-field.contract';
@@ -10,7 +10,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+
 export class MobileFieldController {
   constructor(private readonly mobileFieldService: MobileFieldService) {}
 

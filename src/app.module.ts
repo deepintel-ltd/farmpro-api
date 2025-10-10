@@ -18,6 +18,7 @@ import { HealthModule } from '@/health/health.module';
 import { AppCacheModule } from '@/common/cache.module';
 import { BrevoModule } from '@/external-service/brevo/brevo.module';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
+import { AuthorizationGuard } from '@/common/guards/authorization.guard';
 import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 import { BillingModule } from '@/billing/billing.module';
@@ -26,6 +27,7 @@ import { UsersModule } from '@/users/users.module';
 import { TransactionsModule } from '@/transactions/transactions.module';
 import { ExecutiveDashboardModule } from '@/executive-dashboard/executive-dashboard.module';
 import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware';
+import { CommonModule } from '@/common/common.module';
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware
     }),
     ThrottlerModule.forRoot(getRateLimitConfig()),
     PrismaModule,
+    CommonModule,
     AuthModule,
     RbacModule,
     PlatformAdminModule,
@@ -60,6 +63,10 @@ import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthorizationGuard,
     },
   ],
 })

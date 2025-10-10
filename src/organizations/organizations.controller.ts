@@ -39,7 +39,7 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getProfile)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -67,8 +67,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.updateProfile)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -106,8 +106,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.uploadLogo)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   @UseInterceptors(FileInterceptor('file'))
   public uploadLogo(
     @Request() req: AuthenticatedRequest,
@@ -142,7 +142,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getSettings)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getSettings(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -170,8 +170,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.updateSettings)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateSettings(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -213,8 +213,8 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.requestVerification)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public requestVerification(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -250,7 +250,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getVerificationStatus)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getVerificationStatus(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -285,7 +285,7 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getAnalytics)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getAnalytics(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -315,7 +315,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getActivityFeed)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getActivityFeed(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -346,7 +346,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getComplianceReport)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getComplianceReport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -384,7 +384,7 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getTeam)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getTeam(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -410,7 +410,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getTeamStats)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getTeamStats(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -444,7 +444,7 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getIntegrations)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getIntegrations(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -470,8 +470,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.configureIntegration)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public configureIntegration(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -511,8 +511,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.updateIntegration)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateIntegration(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -553,7 +553,7 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.deleteIntegration)
   @RequirePermission(...PERMISSIONS.ORGANIZATIONS.DELETE)
-  @RequireRoleLevel(50)
+  // @RequireRoleLevel(...) - replaced with permission check
   public deleteIntegration(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -592,7 +592,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getIntegrationStatus)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getIntegrationStatus(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -632,7 +632,7 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.requestExport)
   @RequirePermission(...PERMISSIONS.ORGANIZATIONS.EXPORT)
-  @RequireRoleLevel(50)
+  // @RequireRoleLevel(...) - replaced with permission check
   public requestExport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -666,7 +666,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getExports)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getExports(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getExports, async () => {
       try {
@@ -688,7 +688,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getExport)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getExport(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -718,7 +718,7 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.createBackup)
   @RequirePermission(...PERMISSIONS.ORGANIZATIONS.BACKUP)
-  @RequireRoleLevel(50)
+  // @RequireRoleLevel(...) - replaced with permission check
   public createBackup(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -756,7 +756,7 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getBilling)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getBilling(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -784,7 +784,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getUsage)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getUsage(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -812,7 +812,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getPlans)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getPlans(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getPlans, async () => {
       try {
@@ -834,8 +834,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.subscribe)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public subscribe(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -866,8 +866,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.updateSubscription)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateSubscription(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -901,7 +901,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getInvoices)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getInvoices(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -931,7 +931,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getInvoice)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getInvoice(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -967,7 +967,7 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.getOrganizations)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getOrganizations(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getOrganizations,
@@ -994,7 +994,7 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getOrganization)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.READ)
+  @RequirePermission("organizations", "read")
   public getOrganization(): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getOrganization,
@@ -1024,7 +1024,7 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.createOrganization)
   @RequirePermission(...PERMISSIONS.ORGANIZATIONS.CREATE)
-  @RequireRoleLevel(50)
+  // @RequireRoleLevel(...) - replaced with permission check
   public createOrganization(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -1056,8 +1056,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.updateOrganization)
-  @RequirePermission(...PERMISSIONS.ORGANIZATIONS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("organizations", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public updateOrganization(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -1099,7 +1099,7 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.deleteOrganization)
   @RequirePermission(...PERMISSIONS.ORGANIZATIONS.DELETE)
-  @RequireRoleLevel(50)
+  // @RequireRoleLevel(...) - replaced with permission check
   public deleteOrganization(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -1141,8 +1141,8 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.sendInvitation)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("users", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public sendInvitation(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -1194,8 +1194,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.getPendingInvitations)
-  @RequirePermission(...PERMISSIONS.USERS.READ)
-  @RequireRoleLevel(50)
+  @RequirePermission("users", "read")
+  // @RequireRoleLevel(...) - replaced with permission check
   public getPendingInvitations(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -1239,8 +1239,8 @@ export class OrganizationsController {
   }
 
   @TsRestHandler(organizationContract.cancelInvitation)
-  @RequirePermission(...PERMISSIONS.USERS.UPDATE)
-  @RequireRoleLevel(50)
+  @RequirePermission("users", "update")
+  // @RequireRoleLevel(...) - replaced with permission check
   public cancelInvitation(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {

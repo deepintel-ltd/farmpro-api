@@ -11,7 +11,6 @@ import { PaymentMethodService } from './services/payment-method.service';
 import { PaymentService } from './services/payment.service';
 import { UsageTrackingService } from './services/usage-tracking.service';
 import { PlanFeatureMapperService } from './services/plan-feature-mapper.service';
-import { PlanRoleService } from './services/plan-role.service';
 import { StripeProvider } from './providers/stripe.provider';
 import { PaystackProvider } from './providers/paystack.provider';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -31,7 +30,6 @@ import { BrevoModule } from '../external-service/brevo/brevo.module';
     PaymentService,
     UsageTrackingService,
     PlanFeatureMapperService,
-    PlanRoleService,
     StripeProvider,
     PaystackProvider,
   ],
@@ -44,7 +42,6 @@ import { BrevoModule } from '../external-service/brevo/brevo.module';
     PaymentService,
     UsageTrackingService,
     PlanFeatureMapperService,
-    PlanRoleService,
     StripeProvider,
     PaystackProvider,
   ],

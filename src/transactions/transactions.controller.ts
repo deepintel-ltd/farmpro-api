@@ -1,13 +1,13 @@
-import { Controller, UseGuards } from '@nestjs/common';
+// import { Controller, UseGuards } from '@nestjs/common';
 import { tsRestHandler, TsRestHandler } from '@ts-rest/nest';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+// import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { transactionsContract } from '@contracts/transactions.contract';
 import { TransactionsService } from './transactions.service';
 import { GetCurrentUser, CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
