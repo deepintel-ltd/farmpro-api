@@ -694,16 +694,19 @@ async function initializeSampleFarms(organizations: any[]) {
     const maxFarms = Math.min(org.maxFarms || 1, 3);
     
     for (let i = 1; i <= maxFarms; i++) {
-      const farm = await prisma.farm.upsert({
+      const farmName = `${org.name} Farm ${i}`;
+      
+      // Check if farm already exists
+      const existingFarm = await prisma.farm.findFirst({
         where: {
-          id: `${org.id}-farm-${i}`
-        },
-        update: {
-          updatedAt: new Date()
-        },
-        create: {
-          id: `${org.id}-farm-${i}`,
-          name: `${org.name} Farm ${i}`,
+          name: farmName,
+          organizationId: org.id
+        }
+      });
+
+      const farm = existingFarm || await prisma.farm.create({
+        data: {
+          name: farmName,
           organizationId: org.id,
           totalArea: Math.floor(Math.random() * 1000) + 100, // 100-1100 acres
           establishedDate: new Date(),
