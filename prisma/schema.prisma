@@ -44,7 +44,6 @@ model User {
   observations          Observation[]
   createdOrders         Order[]                @relation("OrderCreatedBy")
   priceAlerts           PriceAlert[]
-  userRoles             UserRole[]
   organization          Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
@@ -69,78 +68,6 @@ model EmailVerification {
   @@index([tokenHash])
   @@index([expiresAt])
   @@map("email_verifications")
-}
-
-model Role {
-  id              String           @id @default(cuid())
-  name            String
-  description     String?
-  organizationId  String?
-  level           Int              @default(0)
-  isActive        Boolean          @default(true)
-  isSystemRole    Boolean          @default(false)
-  isPlatformAdmin Boolean          @default(false)
-  scope           RoleScope        @default(ORGANIZATION)
-  metadata        Json?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  permissions     RolePermission[]
-  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userRoles       UserRole[]
-
-  @@unique([name, organizationId])
-  @@index([organizationId])
-  @@index([isPlatformAdmin])
-  @@index([scope])
-  @@map("roles")
-}
-
-model Permission {
-  id                 String           @id @default(cuid())
-  resource           String
-  action             String
-  conditions         Json?
-  description        String?
-  isSystemPermission Boolean          @default(false)
-  createdAt          DateTime         @default(now())
-  rolePermissions    RolePermission[]
-
-  @@unique([resource, action])
-  @@index([resource])
-  @@map("permissions")
-}
-
-model RolePermission {
-  id           String     @id @default(cuid())
-  roleId       String
-  permissionId String
-  granted      Boolean    @default(true)
-  conditions   Json?
-  createdAt    DateTime   @default(now())
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-  @@unique([roleId, permissionId])
-  @@map("role_permissions")
-}
-
-model UserRole {
-  id         String    @id @default(cuid())
-  userId     String
-  roleId     String
-  farmId     String?
-  expiresAt  DateTime?
-  isActive   Boolean   @default(true)
-  assignedBy String?
-  assignedAt DateTime  @default(now())
-  metadata   Json?
-  role       Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, roleId, farmId])
-  @@index([userId])
-  @@index([roleId])
-  @@map("user_roles")
 }
 
 model Organization {
@@ -181,7 +108,6 @@ model Organization {
   paymentMethods    PaymentMethod[]
   ratings           Rating[]             @relation("RatingGiven")
   ratingsReceived   Rating[]             @relation("RatingReceived")
-  roles             Role[]
   subscription      Subscription?
   transactions      Transaction[]
   transactionCategories TransactionCategory[]
@@ -1291,11 +1217,6 @@ enum CostType {
   OTHER
 }
 
-enum RoleScope {
-  PLATFORM
-  ORGANIZATION
-  FARM
-}
 
 enum ListingStatus {
   ACTIVE

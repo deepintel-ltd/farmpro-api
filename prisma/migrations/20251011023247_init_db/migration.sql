@@ -44,9 +44,6 @@ CREATE TYPE "public"."ActivityNoteType" AS ENUM ('OBSERVATION', 'ISSUE', 'RECOMM
 CREATE TYPE "public"."CostType" AS ENUM ('LABOR', 'EQUIPMENT', 'MATERIAL', 'FUEL', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "public"."RoleScope" AS ENUM ('PLATFORM', 'ORGANIZATION', 'FARM');
-
--- CreateEnum
 CREATE TYPE "public"."ListingStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'EXPIRED', 'SOLD');
 
 -- CreateEnum
@@ -120,64 +117,6 @@ CREATE TABLE "public"."email_verifications" (
     "usedAt" TIMESTAMP(3),
 
     CONSTRAINT "email_verifications_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."roles" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "organizationId" TEXT,
-    "level" INTEGER NOT NULL DEFAULT 0,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "isSystemRole" BOOLEAN NOT NULL DEFAULT false,
-    "isPlatformAdmin" BOOLEAN NOT NULL DEFAULT false,
-    "scope" "public"."RoleScope" NOT NULL DEFAULT 'ORGANIZATION',
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."permissions" (
-    "id" TEXT NOT NULL,
-    "resource" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
-    "conditions" JSONB,
-    "description" TEXT,
-    "isSystemPermission" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."role_permissions" (
-    "id" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
-    "permissionId" TEXT NOT NULL,
-    "granted" BOOLEAN NOT NULL DEFAULT true,
-    "conditions" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "public"."user_roles" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
-    "farmId" TEXT,
-    "expiresAt" TIMESTAMP(3),
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "assignedBy" TEXT,
-    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "metadata" JSONB,
-
-    CONSTRAINT "user_roles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1022,36 +961,6 @@ CREATE INDEX "email_verifications_tokenHash_idx" ON "public"."email_verification
 CREATE INDEX "email_verifications_expiresAt_idx" ON "public"."email_verifications"("expiresAt");
 
 -- CreateIndex
-CREATE INDEX "roles_organizationId_idx" ON "public"."roles"("organizationId");
-
--- CreateIndex
-CREATE INDEX "roles_isPlatformAdmin_idx" ON "public"."roles"("isPlatformAdmin");
-
--- CreateIndex
-CREATE INDEX "roles_scope_idx" ON "public"."roles"("scope");
-
--- CreateIndex
-CREATE UNIQUE INDEX "roles_name_organizationId_key" ON "public"."roles"("name", "organizationId");
-
--- CreateIndex
-CREATE INDEX "permissions_resource_idx" ON "public"."permissions"("resource");
-
--- CreateIndex
-CREATE UNIQUE INDEX "permissions_resource_action_key" ON "public"."permissions"("resource", "action");
-
--- CreateIndex
-CREATE UNIQUE INDEX "role_permissions_roleId_permissionId_key" ON "public"."role_permissions"("roleId", "permissionId");
-
--- CreateIndex
-CREATE INDEX "user_roles_userId_idx" ON "public"."user_roles"("userId");
-
--- CreateIndex
-CREATE INDEX "user_roles_roleId_idx" ON "public"."user_roles"("roleId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_roles_userId_roleId_farmId_key" ON "public"."user_roles"("userId", "roleId", "farmId");
-
--- CreateIndex
 CREATE INDEX "organizations_type_idx" ON "public"."organizations"("type");
 
 -- CreateIndex
@@ -1488,21 +1397,6 @@ ALTER TABLE "public"."users" ADD CONSTRAINT "users_organizationId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "public"."email_verifications" ADD CONSTRAINT "email_verifications_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."roles" ADD CONSTRAINT "roles_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."role_permissions" ADD CONSTRAINT "role_permissions_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "public"."permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."role_permissions" ADD CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "public"."roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "public"."roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."invitations" ADD CONSTRAINT "invitations_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
