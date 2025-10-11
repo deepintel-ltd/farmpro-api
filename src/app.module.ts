@@ -27,7 +27,7 @@ import { UsersModule } from '@/users/users.module';
 import { TransactionsModule } from '@/transactions/transactions.module';
 import { ExecutiveDashboardModule } from '@/executive-dashboard/executive-dashboard.module';
 import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware';
-import { OrganizationImpersonationMiddleware } from '@/common/middleware/organization-impersonation.middleware';
+import { OrganizationImpersonationGuard } from '@/common/guards/organization-impersonation.guard';
 import { CommonModule } from '@/common/common.module';
 
 @Module({
@@ -70,6 +70,10 @@ import { CommonModule } from '@/common/common.module';
     },
     {
       provide: APP_GUARD,
+      useClass: OrganizationImpersonationGuard,
+    },
+    {
+      provide: APP_GUARD,
       useClass: AuthorizationGuard,
     },
   ],
@@ -77,8 +81,6 @@ import { CommonModule } from '@/common/common.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
-      .apply(OrganizationImpersonationMiddleware)
-      .forRoutes({ path: '*', method: RequestMethod.ALL }) // Apply to all routes first
       .apply(UsageLimitMiddleware)
       .forRoutes({ path: '*', method: RequestMethod.ALL }); // Apply to all routes
   }

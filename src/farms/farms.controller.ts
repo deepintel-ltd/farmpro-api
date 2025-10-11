@@ -14,6 +14,10 @@ import { OrganizationId } from '../common/decorators/organization-context.decora
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
+  organizationFilter?: {
+    organizationId: string;
+    isImpersonation: boolean;
+  };
 }
 
 @ApiTags('farms')
