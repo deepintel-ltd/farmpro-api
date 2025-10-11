@@ -22,8 +22,6 @@ describe('Platform Admin E2E Tests', () => {
   beforeEach(async () => {
     // Clean up platform admin related tables before each test
     await testContext.cleanupTables([
-      'user_roles',
-      'roles',
       'users',
       'organizations',
       'farms',
@@ -58,28 +56,8 @@ describe('Platform Admin E2E Tests', () => {
       hashedPassword,
       emailVerified: true,
       isActive: true,
+      isPlatformAdmin: true, // Set platform admin flag directly
       organizationId: testOrganization.id
-    });
-
-    // Create platform admin role
-    const platformAdminRole = await testContext.prisma.role.create({
-      data: {
-        name: 'Platform Administrator',
-        description: 'Platform-wide administrator role',
-        isPlatformAdmin: true,
-        isSystemRole: true,
-        scope: 'PLATFORM',
-        level: 1000
-      }
-    });
-
-    // Assign platform admin role to user
-    await testContext.prisma.userRole.create({
-      data: {
-        userId: platformAdminUser.id,
-        roleId: platformAdminRole.id,
-        isActive: true
-      }
     });
 
     // Create regular user
@@ -756,7 +734,7 @@ describe('Platform Admin E2E Tests', () => {
       expect(response.body.email).toBe(regularUser.email);
       expect(response.body.name).toBe(regularUser.name);
       expect(response.body.organization).toBeDefined();
-      expect(response.body.userRoles).toBeDefined();
+      expect(response.body.isPlatformAdmin).toBeDefined();
     });
 
     it('should fail to get details for non-existent user', async () => {

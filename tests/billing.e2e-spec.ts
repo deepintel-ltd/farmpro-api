@@ -1,10 +1,10 @@
 import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
-import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import { SubscriptionPlan, SubscriptionStatus, Organization, Subscription, Invoice } from '@prisma/client';
 
 describe('Billing E2E Tests', () => {
   let testContext: TestContext;
-  let testOrganization: any;
+  let testOrganization: Organization;
   let accessToken: string;
   let testPlan: SubscriptionPlan;
 
@@ -344,8 +344,8 @@ describe('Billing E2E Tests', () => {
   });
 
   describe('Invoices', () => {
-    let testInvoice: any;
-    let testSubscription: any;
+    let testInvoice: Invoice;
+    let testSubscription: Subscription;
     beforeEach(async () => {
       // Create a subscription for the invoice
       testSubscription = await testContext.prisma.subscription.create({
@@ -483,19 +483,7 @@ describe('Billing E2E Tests', () => {
         email: 'admin-org@farmpro.app',
       });
 
-      // Create a platform admin role
-      const adminRole = await testContext.prisma.role.create({
-        data: {
-          name: 'Platform Admin',
-          description: 'Platform administrator with full access',
-          organizationId: adminOrg.id,
-          isPlatformAdmin: true,
-          isSystemRole: true,
-          scope: 'PLATFORM',
-        },
-      });
-
-      // Create an admin user
+      // Create an admin user with platform admin privileges
       const adminPassword = await hash('AdminPassword123!');
       const adminUser = await testContext.createUser({
         email: 'admin@farmpro.app',
@@ -503,15 +491,8 @@ describe('Billing E2E Tests', () => {
         hashedPassword: adminPassword,
         emailVerified: true,
         isActive: true,
+        isPlatformAdmin: true, // Set platform admin flag directly
         organizationId: adminOrg.id,
-      });
-
-      // Assign platform admin role to user
-      await testContext.prisma.userRole.create({
-        data: {
-          userId: adminUser.id,
-          roleId: adminRole.id,
-        },
       });
 
       // Login as admin
@@ -568,7 +549,7 @@ describe('Billing E2E Tests', () => {
   });
 
   describe('Subscription Plan Changes and Feature Updates', () => {
-    let testSubscription: any;
+    let testSubscription: Subscription;
 
     beforeEach(async () => {
       // Create a test subscription

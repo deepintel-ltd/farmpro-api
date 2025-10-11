@@ -1,5 +1,9 @@
 import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
+import type { 
+  InventoryCollection
+} from '../contracts/schemas';
+import type { Response } from 'supertest';
 
 describe('Inventory E2E Tests', () => {
   let testContext: TestContext;
@@ -32,7 +36,7 @@ describe('Inventory E2E Tests', () => {
         zipCode: '90210',
         country: 'US'
       },
-      plan: 'enterprise',
+      plan: 'ENTERPRISE',
       maxUsers: 100,
       maxFarms: 50,
       features: ['all_features'],
@@ -86,56 +90,60 @@ describe('Inventory E2E Tests', () => {
 
   describe('GET /api/inventory', () => {
     it('should return 200 with empty data when no inventory exists', async () => {
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/inventory')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('data');
-      expect(response.body).toHaveProperty('meta');
-      expect(response.body.data).toEqual([]);
-      expect(response.body.meta.totalCount).toBe(0);
+      const inventoryCollection = response.body as InventoryCollection;
+      expect(inventoryCollection).toHaveProperty('data');
+      expect(inventoryCollection).toHaveProperty('meta');
+      expect(inventoryCollection.data).toEqual([]);
+      expect(inventoryCollection.meta.totalCount).toBe(0);
     });
 
     it('should handle farmId parameter with CUID format', async () => {
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/inventory?farmId=${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('data');
-      expect(response.body).toHaveProperty('meta');
+      const inventoryCollection = response.body as InventoryCollection;
+      expect(inventoryCollection).toHaveProperty('data');
+      expect(inventoryCollection).toHaveProperty('meta');
     });
 
     it('should handle farmId parameter with CUID format and pagination', async () => {
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/inventory?farmId=${farmId}&page[size]=20`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('data');
-      expect(response.body).toHaveProperty('meta');
-      expect(response.body.meta.perPage).toBe(20);
+      const inventoryCollection = response.body as InventoryCollection;
+      expect(inventoryCollection).toHaveProperty('data');
+      expect(inventoryCollection).toHaveProperty('meta');
+      expect(inventoryCollection.meta.perPage).toBe(20);
     });
 
     it('should handle URL-encoded pagination parameters', async () => {
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/inventory?farmId=${farmId}&page%5Bsize%5D=20`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('data');
-      expect(response.body).toHaveProperty('meta');
-      expect(response.body.meta.perPage).toBe(20);
+      const inventoryCollection = response.body as InventoryCollection;
+      expect(inventoryCollection).toHaveProperty('data');
+      expect(inventoryCollection).toHaveProperty('meta');
+      expect(inventoryCollection.meta.perPage).toBe(20);
     });
 
     it('should handle the specific failing request from the user', async () => {
       // This is the exact request that was failing
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/inventory?farmId=cmgbl0tbh008w1c336ijcd987&page%5Bsize%5D=20')
         .set('Authorization', `Bearer ${accessToken}`);
@@ -154,25 +162,34 @@ describe('Inventory E2E Tests', () => {
 
     it('should validate farmId parameter format', async () => {
       // Test with invalid farmId format
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/inventory?farmId=invalid-id')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(400);
 
-      expect(response.body).toHaveProperty('errors');
-      expect(response.body.errors[0]).toHaveProperty('code');
+      // Check the actual error response structure
+      expect(response.body).toHaveProperty('queryResult');
+      expect(response.body.queryResult).toHaveProperty('issues');
+      expect(response.body.queryResult.issues).toBeInstanceOf(Array);
+      expect(response.body.queryResult.issues[0]).toHaveProperty('code');
+      expect(response.body.queryResult.issues[0].code).toBe('invalid_string');
     });
 
     it('should validate pagination parameters', async () => {
       // Test with invalid page size
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/inventory?farmId=${farmId}&page[size]=1000`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(400);
 
-      expect(response.body).toHaveProperty('errors');
+      // Check the actual error response structure
+      expect(response.body).toHaveProperty('queryResult');
+      expect(response.body.queryResult).toHaveProperty('issues');
+      expect(response.body.queryResult.issues).toBeInstanceOf(Array);
+      expect(response.body.queryResult.issues[0]).toHaveProperty('code');
+      expect(response.body.queryResult.issues[0].code).toBe('too_big');
     });
   });
 });

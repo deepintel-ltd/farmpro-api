@@ -140,8 +140,8 @@ export const IntelligenceExportRequestSchema = z.object({
   includeAnalyses: z.boolean().default(true).describe('Include farm analyses in export'),
   includeHistory: z.boolean().default(true).describe('Include intelligence history in export'),
   dateRange: z.object({
-    start: z.date().describe('Start date for data filtering'),
-    end: z.date().describe('End date for data filtering'),
+    start: z.string().transform((str) => new Date(str)).describe('Start date for data filtering'),
+    end: z.string().transform((str) => new Date(str)).describe('End date for data filtering'),
   }).optional().describe('Optional date range filter'),
 });
 

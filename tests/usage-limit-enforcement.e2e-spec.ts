@@ -36,7 +36,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
     testOrganizations = await createTestOrganizations();
     
     // Create test users for each organization
-    testUsers = await createTestUsers();
+    await createTestUsers();
   });
 
   describe('User Limit Enforcement', () => {
@@ -51,7 +51,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id);
 
       // Try to create a second user (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -77,7 +77,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create users up to the limit
       for (let i = 1; i < basicPlan!.maxUsers; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/users')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -90,7 +90,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       }
 
       // Try to create one more user (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -115,7 +115,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create many users (should all succeed)
       for (let i = 1; i <= 10; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/users')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -141,7 +141,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id);
 
       // Create first farm (should succeed)
-      const firstFarmResponse = await testContext.request
+      const firstFarmResponse = await testContext.request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -154,7 +154,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       expect(firstFarmResponse.status).toBe(201);
 
       // Try to create second farm (should fail)
-      const secondFarmResponse = await testContext.request
+      const secondFarmResponse = await testContext.request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -181,7 +181,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create farms up to the limit
       for (let i = 1; i <= basicPlan!.maxFarms; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/farms')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -195,7 +195,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       }
 
       // Try to create one more farm (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -222,7 +222,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id);
 
       // Create a farm first
-      const farmResponse = await testContext.request
+      const farmResponse = await testContext.request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -237,7 +237,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create activities up to the limit
       for (let i = 1; i <= freePlan!.maxActivitiesPerMonth; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/activities')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -251,7 +251,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       }
 
       // Try to create one more activity (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/activities')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -277,7 +277,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       const accessToken = await getAccessToken(enterpriseOrg.id);
 
       // Create a farm first
-      const farmResponse = await testContext.request
+      const farmResponse = await testContext.request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -292,7 +292,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create many activities (should all succeed)
       for (let i = 1; i <= 100; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/activities')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -319,7 +319,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id);
 
       // Try to create a listing (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/marketplace/listings')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -347,7 +347,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create listings up to the limit
       for (let i = 1; i <= basicPlan!.maxActiveListings; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/marketplace/listings')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -362,7 +362,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       }
 
       // Try to create one more listing (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/marketplace/listings')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -389,7 +389,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create many listings (should all succeed)
       for (let i = 1; i <= 20; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/marketplace/listings')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -417,7 +417,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Create users up to 80% of limit (2 out of 3)
       for (let i = 1; i < basicPlan!.maxUsers; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/users')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -430,7 +430,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       }
 
       // Next request should include warning header
-      const response = await testContext.request
+      const response = await testContext.request()
         .get('/users')
         .set('Authorization', `Bearer ${accessToken}`);
 
@@ -462,7 +462,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Should be able to create users beyond FREE plan limit
       for (let i = 1; i <= 10; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/users')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -476,7 +476,7 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       // Should be able to create farms beyond FREE plan limit
       for (let i = 1; i <= 5; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/farms')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({

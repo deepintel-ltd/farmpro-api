@@ -1,11 +1,12 @@
 import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
+import { User, Organization, Farm } from '@prisma/client';
 
 describe('Intelligence E2E Tests', () => {
   let testContext: TestContext;
-  let testUser: any;
-  let testOrganization: any;
-  let testFarm: any;
+  let testUser: User;
+  let testOrganization: Organization;
+  let testFarm: Farm;
   let accessToken: string;
 
   beforeAll(async () => {
@@ -18,32 +19,32 @@ describe('Intelligence E2E Tests', () => {
   }, 30000);
 
   afterEach(async () => {
-    // Clean up intelligence-related tables after each test
+    // Clean up intelligence-related tables after each test (but not farms, users, organizations as they're recreated in beforeEach)
     await testContext.cleanupTables([
       'activity_optimizations',
       'market_analyses',
       'farm_analyses',
-      'intelligence_responses',
-      'farms',
-      'users',
-      'organizations'
+      'intelligence_responses'
     ]);
   });
 
   beforeEach(async () => {
+    // Create unique identifiers for this test run
+    const testId = Math.random().toString(36).substring(7);
+    
     // Create test organization
     testOrganization = await testContext.createOrganization({
-      name: 'Test Intelligence Organization',
+      name: `Test Intelligence Organization ${testId}`,
       type: 'INTEGRATED_FARM',
-      email: 'test@intelligence.com',
-      plan: 'professional' // Use professional plan to get intelligence features
+      email: `test-${testId}@intelligence.com`,
+      plan: 'PRO' // Use PRO plan to get intelligence features
     });
     
 
     // Create test user
     const hashedPassword = await hash('TestPassword123!');
     testUser = await testContext.createUser({
-      email: 'testuser@intelligence.com',
+      email: `testuser-${testId}@intelligence.com`,
       name: 'Test Intelligence User',
       phone: '+1234567890',
       hashedPassword,
@@ -52,66 +53,13 @@ describe('Intelligence E2E Tests', () => {
       organizationId: testOrganization.id
     });
 
-    // Create admin role and assign to user for intelligence permissions
-    const adminRole = await testContext.prisma.role.create({
-      data: {
-        name: 'Admin',
-        description: 'Administrator role with all permissions',
-        organizationId: testOrganization.id,
-        level: 100,
-        isActive: true,
-        isSystemRole: false,
-      },
-    });
-
-    // Create intelligence permissions
-    const intelligencePermissions = await Promise.all([
-      testContext.prisma.permission.upsert({
-        where: { resource_action: { resource: 'intelligence', action: 'create' } },
-        update: {},
-        create: {
-          resource: 'intelligence',
-          action: 'create',
-          description: 'Create intelligence responses',
-        },
-      }),
-      testContext.prisma.permission.upsert({
-        where: { resource_action: { resource: 'intelligence', action: 'read' } },
-        update: {},
-        create: {
-          resource: 'intelligence',
-          action: 'read',
-          description: 'Read intelligence responses',
-        },
-      }),
-    ]);
-
-    // Assign permissions to admin role
-    await Promise.all(
-      intelligencePermissions.map(permission =>
-        testContext.prisma.rolePermission.create({
-          data: {
-            roleId: adminRole.id,
-            permissionId: permission.id,
-            granted: true,
-          },
-        })
-      )
-    );
-
-    // Assign admin role to user
-    await testContext.prisma.userRole.create({
-      data: {
-        userId: testUser.id,
-        roleId: adminRole.id,
-        isActive: true,
-      },
-    });
+    // Intelligence permissions are handled by plan-based permissions
+    // PRO plan includes intelligence module access
 
     // Create test farm
     testFarm = await testContext.prisma.farm.create({
       data: {
-        name: 'Test Intelligence Farm',
+        name: `Test Intelligence Farm ${testId}`,
         organizationId: testOrganization.id,
         location: {
           latitude: 40.7128,
@@ -130,7 +78,7 @@ describe('Intelligence E2E Tests', () => {
       .request()
       .post('/auth/login')
       .send({
-        email: 'testuser@intelligence.com',
+        email: `testuser-${testId}@intelligence.com`,
         password: 'TestPassword123!'
       })
       .expect(200);
@@ -511,7 +459,7 @@ describe('Intelligence E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      response.body.data.forEach((analysis: any) => {
+      response.body.data.forEach((analysis: { farmId: string }) => {
         expect(analysis.farmId).toBe(testFarm.id);
       });
     });
@@ -1055,7 +1003,7 @@ describe('Intelligence E2E Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      response.body.data.forEach((item: any) => {
+      response.body.data.forEach((item: { farmId: string }) => {
         expect(item.farmId).toBe(testFarm.id);
       });
     });
@@ -1240,8 +1188,8 @@ describe('Intelligence E2E Tests', () => {
         includeAnalyses: true,
         includeHistory: true,
         dateRange: {
-          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-          end: new Date()
+          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+          end: new Date().toISOString()
         }
       };
 
@@ -1262,8 +1210,8 @@ describe('Intelligence E2E Tests', () => {
         includeAnalyses: true,
         includeHistory: true,
         dateRange: {
-          start: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 60 days ago
-          end: new Date()
+          start: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days ago
+          end: new Date().toISOString()
         }
       };
 

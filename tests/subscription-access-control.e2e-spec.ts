@@ -244,7 +244,7 @@ describe('Subscription Access Control E2E Tests', () => {
       });
 
       // Change plan to PRO
-      const response = await testContext.request
+      const response = await testContext.request()
         .patch(`/billing/subscriptions/${subscription.id}/change-plan`)
         .set('Authorization', `Bearer ${await getAccessToken(freeOrg.id)}`)
         .send({
@@ -294,7 +294,7 @@ describe('Subscription Access Control E2E Tests', () => {
       });
 
       // Change plan to BASIC
-      const response = await testContext.request
+      const response = await testContext.request()
         .patch(`/billing/subscriptions/${subscription.id}/change-plan`)
         .set('Authorization', `Bearer ${await getAccessToken(proOrg.id)}`)
         .send({
@@ -341,21 +341,21 @@ describe('Subscription Access Control E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id);
 
       // Should be able to access marketplace
-      const marketplaceResponse = await testContext.request
+      const marketplaceResponse = await testContext.request()
         .get('/marketplace/listings')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(marketplaceResponse.status).toBe(200);
 
       // Should be able to access orders
-      const ordersResponse = await testContext.request
+      const ordersResponse = await testContext.request()
         .get('/orders')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(ordersResponse.status).toBe(200);
 
       // Should be able to access inventory
-      const inventoryResponse = await testContext.request
+      const inventoryResponse = await testContext.request()
         .get('/inventory')
         .set('Authorization', `Bearer ${accessToken}`);
 
@@ -370,14 +370,14 @@ describe('Subscription Access Control E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id);
 
       // Should not be able to access analytics
-      const analyticsResponse = await testContext.request
+      const analyticsResponse = await testContext.request()
         .get('/analytics/dashboard')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(analyticsResponse.status).toBe(403);
 
       // Should not be able to access intelligence
-      const intelligenceResponse = await testContext.request
+      const intelligenceResponse = await testContext.request()
         .get('/intelligence/insights')
         .set('Authorization', `Bearer ${accessToken}`);
 
@@ -392,14 +392,14 @@ describe('Subscription Access Control E2E Tests', () => {
       const accessToken = await getAccessToken(proOrg.id);
 
       // Should be able to access analytics
-      const analyticsResponse = await testContext.request
+      const analyticsResponse = await testContext.request()
         .get('/analytics/dashboard')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(analyticsResponse.status).toBe(200);
 
       // Should be able to access intelligence
-      const intelligenceResponse = await testContext.request
+      const intelligenceResponse = await testContext.request()
         .get('/intelligence/insights')
         .set('Authorization', `Bearer ${accessToken}`);
 
@@ -419,7 +419,7 @@ describe('Subscription Access Control E2E Tests', () => {
 
       // Create users up to the limit
       for (let i = 0; i < freePlan!.maxUsers; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/users')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -432,7 +432,7 @@ describe('Subscription Access Control E2E Tests', () => {
       }
 
       // Try to create one more user (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -456,7 +456,7 @@ describe('Subscription Access Control E2E Tests', () => {
 
       // Create farms up to the limit
       for (let i = 0; i < basicPlan!.maxFarms; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/farms')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({
@@ -470,7 +470,7 @@ describe('Subscription Access Control E2E Tests', () => {
       }
 
       // Try to create one more farm (should fail)
-      const response = await testContext.request
+      const response = await testContext.request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -503,13 +503,13 @@ describe('Subscription Access Control E2E Tests', () => {
       const accessToken = await getAccessToken(freeOrg.id, platformAdmin.id);
 
       // Should be able to access premium features even with FREE plan
-      const analyticsResponse = await testContext.request
+      const analyticsResponse = await testContext.request()
         .get('/analytics/dashboard')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(analyticsResponse.status).toBe(200);
 
-      const intelligenceResponse = await testContext.request
+      const intelligenceResponse = await testContext.request()
         .get('/intelligence/insights')
         .set('Authorization', `Bearer ${accessToken}`);
 
@@ -536,7 +536,7 @@ describe('Subscription Access Control E2E Tests', () => {
 
       // Create users beyond the limit (should succeed for platform admin)
       for (let i = 0; i < freePlan!.maxUsers + 5; i++) {
-        const response = await testContext.request
+        const response = await testContext.request()
           .post('/users')
           .set('Authorization', `Bearer ${accessToken}`)
           .send({

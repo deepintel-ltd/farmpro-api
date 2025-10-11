@@ -1,5 +1,13 @@
 import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
+import type { 
+  FarmResource, 
+  FarmCollection, 
+  CreateFarmRequest, 
+  UpdateFarmRequest,
+  CommodityCollection 
+} from '../contracts/schemas';
+import type { Response } from 'supertest';
 
 describe('Farms E2E Tests', () => {
   let testContext: TestContext;
@@ -98,16 +106,17 @@ describe('Farms E2E Tests', () => {
         isActive: true
       });
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(2);
-      expect(response.body.meta.pagination.total).toBe(2);
-      expect(response.body.data[0].type).toBe('farms');
-      expect(response.body.data[0].attributes.name).toBeDefined();
+      const farmCollection = response.body as FarmCollection;
+      expect(farmCollection.data).toHaveLength(2);
+      expect(farmCollection.meta.pagination.total).toBe(2);
+      expect(farmCollection.data[0].type).toBe('farms');
+      expect(farmCollection.data[0].attributes.name).toBeDefined();
     });
 
     it('should filter farms by search term', async () => {
@@ -139,14 +148,15 @@ describe('Farms E2E Tests', () => {
         isActive: true
       });
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/farms?search=Green')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(1);
-      expect(response.body.data[0].attributes.name).toBe('Green Valley Farm');
+      const farmCollection = response.body as FarmCollection;
+      expect(farmCollection.data).toHaveLength(1);
+      expect(farmCollection.data[0].attributes.name).toBe('Green Valley Farm');
     });
 
     it('should filter farms by active status', async () => {
@@ -178,14 +188,15 @@ describe('Farms E2E Tests', () => {
         isActive: false
       });
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/farms?isActive=true')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(1);
-      expect(response.body.data[0].attributes.name).toBe('Active Farm');
+      const farmCollection = response.body as FarmCollection;
+      expect(farmCollection.data).toHaveLength(1);
+      expect(farmCollection.data[0].attributes.name).toBe('Active Farm');
     });
 
     it('should paginate farms correctly', async () => {
@@ -206,16 +217,17 @@ describe('Farms E2E Tests', () => {
         });
       }
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get('/farms?page[number]=2&page[size]=5')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(5);
-      expect(response.body.meta.pagination.page).toBe(2);
-      expect(response.body.meta.pagination.limit).toBe(5);
-      expect(response.body.meta.pagination.total).toBe(15);
+      const farmCollection = response.body as FarmCollection;
+      expect(farmCollection.data).toHaveLength(5);
+      expect(farmCollection.meta.pagination.page).toBe(2);
+      expect(farmCollection.meta.pagination.limit).toBe(5);
+      expect(farmCollection.meta.pagination.total).toBe(15);
     });
 
     it('should fail without authentication', async () => {
@@ -249,18 +261,19 @@ describe('Farms E2E Tests', () => {
     });
 
     it('should get farm by ID successfully', async () => {
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data.type).toBe('farms');
-      expect(response.body.data.id).toBe(farmId);
-      expect(response.body.data.attributes.name).toBe('Test Farm');
-      expect(response.body.data.attributes.size).toBe(100.5);
-      expect(response.body.data.attributes.cropTypes).toEqual(['wheat', 'corn']);
-      expect(response.body.data.attributes.certifications).toEqual(['organic']);
+      const farmResource = response.body as FarmResource;
+      expect(farmResource.data.type).toBe('farms');
+      expect(farmResource.data.id).toBe(farmId);
+      expect(farmResource.data.attributes.name).toBe('Test Farm');
+      expect(farmResource.data.attributes.size).toBe(100.5);
+      expect(farmResource.data.attributes.cropTypes).toEqual(['wheat', 'corn']);
+      expect(farmResource.data.attributes.certifications).toEqual(['organic']);
     });
 
     it('should fail with non-existent farm ID', async () => {
@@ -291,7 +304,7 @@ describe('Farms E2E Tests', () => {
 
   describe('POST /farms', () => {
     it('should create farm successfully', async () => {
-      const farmData = {
+      const farmData: CreateFarmRequest = {
         data: {
           type: 'farms',
           attributes: {
@@ -299,7 +312,13 @@ describe('Farms E2E Tests', () => {
             location: {
               latitude: 37.7749,
               longitude: -122.4194,
-              address: '123 New Farm Road, San Francisco, CA'
+              address: {
+                street: '123 New Farm Road',
+                city: 'San Francisco',
+                state: 'CA',
+                zipCode: '94102',
+                country: 'US'
+              }
             },
             size: 150.75,
             cropTypes: ['wheat', 'corn', 'soybeans'],
@@ -309,19 +328,20 @@ describe('Farms E2E Tests', () => {
         }
       };
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(farmData)
         .expect(201);
 
-      expect(response.body.data.type).toBe('farms');
-      expect(response.body.data.attributes.name).toBe('New Farm');
-      expect(response.body.data.attributes.size).toBe(150.75);
-      expect(response.body.data.attributes.cropTypes).toEqual(['wheat', 'corn', 'soybeans']);
-      expect(response.body.data.attributes.certifications).toEqual(['organic', 'sustainable']);
-      expect(response.body.data.attributes.isActive).toBe(true);
+      const farmResource = response.body as FarmResource;
+      expect(farmResource.data.type).toBe('farms');
+      expect(farmResource.data.attributes.name).toBe('New Farm');
+      expect(farmResource.data.attributes.size).toBe(150.75);
+      expect(farmResource.data.attributes.cropTypes).toEqual(['wheat', 'corn', 'soybeans']);
+      expect(farmResource.data.attributes.certifications).toEqual(['organic', 'sustainable']);
+      expect(farmResource.data.attributes.isActive).toBe(true);
     });
 
     it('should fail with invalid farm data', async () => {
@@ -333,7 +353,13 @@ describe('Farms E2E Tests', () => {
             location: {
               latitude: 200, // Invalid: latitude out of range
               longitude: -122.4194,
-              address: '' // Invalid: empty address
+              address: {
+                street: '', // Invalid: empty address
+                city: '',
+                state: '',
+                zipCode: '',
+                country: ''
+              }
             },
             size: -10, // Invalid: negative size
             cropTypes: [], // Invalid: empty crop types
@@ -370,7 +396,7 @@ describe('Farms E2E Tests', () => {
     });
 
     it('should fail without authentication', async () => {
-      const farmData = {
+      const farmData: CreateFarmRequest = {
         data: {
           type: 'farms',
           attributes: {
@@ -378,9 +404,15 @@ describe('Farms E2E Tests', () => {
             location: {
               latitude: 37.7749,
               longitude: -122.4194,
-              address: '123 Unauthorized Road, San Francisco, CA'
+              address: {
+                street: '123 Unauthorized Road',
+                city: 'San Francisco',
+                state: 'CA',
+                zipCode: '94102',
+                country: 'US'
+              }
             },
-            totalArea: 100.5,
+            size: 100.5,
             cropTypes: ['wheat'],
             establishedDate: '2020-01-01T00:00:00Z'
           }
@@ -417,7 +449,7 @@ describe('Farms E2E Tests', () => {
     });
 
     it('should update farm successfully', async () => {
-      const updateData = {
+      const updateData: UpdateFarmRequest = {
         data: {
           type: 'farms',
           id: farmId,
@@ -430,21 +462,22 @@ describe('Farms E2E Tests', () => {
         }
       };
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .patch(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(200);
 
-      expect(response.body.data.attributes.name).toBe('Updated Farm Name');
-      expect(response.body.data.attributes.size).toBe(200.75);
-      expect(response.body.data.attributes.cropTypes).toEqual(['wheat', 'corn', 'soybeans']);
-      expect(response.body.data.attributes.certifications).toEqual(['organic']);
+      const farmResource = response.body as FarmResource;
+      expect(farmResource.data.attributes.name).toBe('Updated Farm Name');
+      expect(farmResource.data.attributes.size).toBe(200.75);
+      expect(farmResource.data.attributes.cropTypes).toEqual(['wheat', 'corn', 'soybeans']);
+      expect(farmResource.data.attributes.certifications).toEqual(['organic']);
     });
 
     it('should update farm location successfully', async () => {
-      const updateData = {
+      const updateData: UpdateFarmRequest = {
         data: {
           type: 'farms',
           id: farmId,
@@ -452,27 +485,35 @@ describe('Farms E2E Tests', () => {
             location: {
               latitude: 38.7749,
               longitude: -121.4194,
-              address: '456 Updated Address, Sacramento, CA'
+              address: {
+                street: '456 Updated Address',
+                city: 'Sacramento',
+                state: 'CA',
+                zipCode: '95814',
+                country: 'US'
+              }
             }
           }
         }
       };
 
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .patch(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send(updateData)
         .expect(200);
 
-      expect(response.body.data.attributes.location.latitude).toBe(38.7749);
-      expect(response.body.data.attributes.location.longitude).toBe(-121.4194);
-      expect(response.body.data.attributes.location.address).toBe('456 Updated Address, Sacramento, CA');
+      const farmResource = response.body as FarmResource;
+      expect(farmResource.data.attributes.location.latitude).toBe(38.7749);
+      expect(farmResource.data.attributes.location.longitude).toBe(-121.4194);
+      expect(farmResource.data.attributes.location.address.street).toBe('456 Updated Address');
+      expect(farmResource.data.attributes.location.address.city).toBe('Sacramento');
     });
 
     it('should fail with non-existent farm ID', async () => {
       const nonExistentId = 'cmg4g0000000000000000000000';
-      const updateData = {
+      const updateData: UpdateFarmRequest = {
         data: {
           type: 'farms',
           id: nonExistentId,
@@ -491,7 +532,7 @@ describe('Farms E2E Tests', () => {
     });
 
     it('should fail with invalid update data', async () => {
-      const invalidUpdateData = {
+      const invalidUpdateData: UpdateFarmRequest = {
         data: {
           type: 'farms',
           id: farmId,
@@ -511,7 +552,7 @@ describe('Farms E2E Tests', () => {
     });
 
     it('should fail without authentication', async () => {
-      const updateData = {
+      const updateData: UpdateFarmRequest = {
         data: {
           type: 'farms',
           id: farmId,
@@ -559,13 +600,14 @@ describe('Farms E2E Tests', () => {
         .expect(204);
 
       // Verify farm is soft deleted (inactive)
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data.attributes.isActive).toBe(false);
+      const farmResource = response.body as FarmResource;
+      expect(farmResource.data.attributes.isActive).toBe(false);
     });
 
     it('should fail with non-existent farm ID', async () => {
@@ -644,15 +686,16 @@ describe('Farms E2E Tests', () => {
     });
 
     it('should get farm commodities successfully', async () => {
-      const response = await testContext
+      const response: Response = await testContext
         .request()
         .get(`/farms/${farmId}/commodities`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveLength(2);
-      expect(response.body.data[0].type).toBe('commodities');
-      expect(response.body.data[0].attributes.name).toBeDefined();
+      const commodityCollection = response.body as CommodityCollection;
+      expect(commodityCollection.data).toHaveLength(2);
+      expect(commodityCollection.data[0].type).toBe('commodities');
+      expect(commodityCollection.data[0].attributes.name).toBeDefined();
     });
 
     it('should fail with non-existent farm ID', async () => {
@@ -681,7 +724,7 @@ describe('Farms E2E Tests', () => {
   describe('Farm Integration Tests', () => {
     it('should complete full farm lifecycle', async () => {
       // 1. Create farm
-      const createResponse = await testContext
+      const createResponse: Response = await testContext
         .request()
         .post('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
@@ -693,7 +736,13 @@ describe('Farms E2E Tests', () => {
               location: {
                 latitude: 37.7749,
                 longitude: -122.4194,
-                address: '123 Lifecycle Road, San Francisco, CA'
+                address: {
+                  street: '123 Lifecycle Road',
+                  city: 'San Francisco',
+                  state: 'CA',
+                  zipCode: '94102',
+                  country: 'US'
+                }
               },
               size: 200.0,
               cropTypes: ['wheat', 'corn'],
@@ -704,7 +753,8 @@ describe('Farms E2E Tests', () => {
         })
         .expect(201);
 
-      const farmId = createResponse.body.data.id;
+      const farmResource = createResponse.body as FarmResource;
+      const farmId = farmResource.data.id;
 
       // 2. Get farm
       await testContext
@@ -731,14 +781,15 @@ describe('Farms E2E Tests', () => {
         .expect(200);
 
       // 4. Verify update
-      const getResponse = await testContext
+      const getResponse: Response = await testContext
         .request()
         .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(getResponse.body.data.attributes.name).toBe('Updated Lifecycle Farm');
-      expect(getResponse.body.data.attributes.size).toBe(250.0);
+      const updatedFarmResource = getResponse.body as FarmResource;
+      expect(updatedFarmResource.data.attributes.name).toBe('Updated Lifecycle Farm');
+      expect(updatedFarmResource.data.attributes.size).toBe(250.0);
 
       // 5. Delete farm
       await testContext
@@ -749,17 +800,18 @@ describe('Farms E2E Tests', () => {
         .expect(204);
 
       // 6. Verify deletion (soft delete - farm should be inactive)
-      const deleteResponse = await testContext
+      const deleteResponse: Response = await testContext
         .request()
         .get(`/farms/${farmId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(deleteResponse.body.data.attributes.isActive).toBe(false);
+      const deletedFarmResource = deleteResponse.body as FarmResource;
+      expect(deletedFarmResource.data.attributes.isActive).toBe(false);
     });
 
     it('should handle concurrent farm operations', async () => {
-      const farmPromises = [];
+      const farmPromises: Promise<Response>[] = [];
 
       // Create multiple farms concurrently
       for (let i = 1; i <= 5; i++) {
@@ -776,7 +828,13 @@ describe('Farms E2E Tests', () => {
                   location: {
                     latitude: 37.7749 + (i * 0.001),
                     longitude: -122.4194 + (i * 0.001),
-                    address: `${i} Concurrent Road, San Francisco, CA`
+                    address: {
+                      street: `${i} Concurrent Road`,
+                      city: 'San Francisco',
+                      state: 'CA',
+                      zipCode: '94102',
+                      country: 'US'
+                    }
                   },
                   size: 100 + i,
                   cropTypes: ['wheat'],
@@ -809,17 +867,19 @@ describe('Farms E2E Tests', () => {
       
       // Verify successful farms were created
       successfulResponses.forEach(response => {
-        expect(response.body.data.attributes.name).toContain('Concurrent Farm');
+        const farmResource = response.body as FarmResource;
+        expect(farmResource.data.attributes.name).toContain('Concurrent Farm');
       });
 
       // Verify farms were created in the database
-      const listResponse = await testContext
+      const listResponse: Response = await testContext
         .request()
         .get('/farms')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(listResponse.body.data.length).toBeGreaterThanOrEqual(successfulResponses.length);
+      const farmCollection = listResponse.body as FarmCollection;
+      expect(farmCollection.data.length).toBeGreaterThanOrEqual(successfulResponses.length);
     });
   });
 });

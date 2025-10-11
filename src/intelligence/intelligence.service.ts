@@ -3,7 +3,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { OpenAIService } from './openai.service';
 import { UnifiedStorageService } from '../common/services/storage.service';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import {
   IntelligenceRequest,
   IntelligenceResponse,
@@ -441,17 +441,31 @@ export class IntelligenceService {
     try {
       this.logger.log(`Exporting intelligence data for farm ${request.farmId} as PDF`);
 
-      // Verify farm exists
       const farm = await this.prisma.farm.findUnique({
         where: { id: request.farmId },
+        include: {
+          organization: {
+            include: {
+              users: {
+                take: 1, // Get the first user from the organization
+                select: { id: true }
+              }
+            }
+          }
+        }
       });
 
       if (!farm) {
         throw new NotFoundException('Farm not found');
       }
 
+      const userId = farm.organization.users[0]?.id;
+      if (!userId) {
+        throw new NotFoundException('No users found in organization');
+      }
+
       // Process export immediately
-      const exportData = await this.gatherIntelligenceData(request);
+      const exportData = await this.gatherIntelligenceData({ ...request, userId });
       const fileInfo = await this.generatePdfExport(exportData);
       
       return {
@@ -584,7 +598,7 @@ Always provide practical, actionable advice based on agricultural best practices
 
   // Export helper methods
 
-  private async gatherIntelligenceData(request: IntelligenceExportRequest): Promise<any> {
+  private async gatherIntelligenceData(request: IntelligenceExportRequest & { userId?: string }): Promise<any> {
     const data: any = {
       farmId: request.farmId,
       exportDate: new Date(),
@@ -615,7 +629,7 @@ Always provide practical, actionable advice based on agricultural best practices
       });
 
       data.marketAnalyses = await this.prisma.marketAnalysis.findMany({
-        where: whereClause,
+        where: { userId: request.userId || '' },
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
@@ -704,7 +718,7 @@ Always provide practical, actionable advice based on agricultural best practices
         new Date(insight.createdAt).toLocaleDateString(),
       ]);
       
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['ID', 'Content', 'Priority', 'Category', 'Created At']],
         body: insightsData,
         startY: yPosition,
@@ -728,7 +742,7 @@ Always provide practical, actionable advice based on agricultural best practices
         new Date(analysis.createdAt).toLocaleDateString(),
       ]);
       
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['ID', 'Analysis Type', 'Score', 'Created At']],
         body: analysesData,
         startY: yPosition,
@@ -752,7 +766,7 @@ Always provide practical, actionable advice based on agricultural best practices
         new Date(analysis.createdAt).toLocaleDateString(),
       ]);
       
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['ID', 'Analysis Type', 'Commodity', 'Created At']],
         body: marketData,
         startY: yPosition,

@@ -79,25 +79,10 @@ describe('Authorization Integration Tests', () => {
       organizationId: farmOrganization.id
     });
 
-    // Create platform admin role and assign it to the user
-    const platformAdminRole = await testContext.prisma.role.create({
-      data: {
-        name: 'platform_admin',
-        description: 'Platform Administrator',
-        organizationId: farmOrganization.id,
-        level: 1000,
-        isActive: true,
-        isSystemRole: true,
-        isPlatformAdmin: true
-      }
-    });
-
-    await testContext.prisma.userRole.create({
-      data: {
-        userId: platformAdminUser.id,
-        roleId: platformAdminRole.id,
-        isActive: true
-      }
+    // Set platform admin flag directly on user
+    await testContext.prisma.user.update({
+      where: { id: platformAdminUser.id },
+      data: { isPlatformAdmin: true }
     });
 
     // Create test farm
