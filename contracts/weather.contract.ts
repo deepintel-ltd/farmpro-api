@@ -1,6 +1,7 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 import { JsonApiQuerySchema, JsonApiErrorResponseSchema } from './schemas';
+import { CuidQueryParam } from './common';
 
 const c = initContract();
 
@@ -233,7 +234,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/current',
     query: z.object({
-      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
+      farmId: CuidQueryParam('farmId'),
     }),
     responses: {
       200: CurrentWeatherResponseSchema,
@@ -252,7 +253,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/forecast',
     query: z.object({
-      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
+      farmId: CuidQueryParam('farmId'),
       days: z.coerce.number().min(1).max(14).optional().default(7),
       includeHourly: z.coerce.boolean().optional().default(false),
     }),
@@ -273,7 +274,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/alerts',
     query: z.object({
-      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
+      farmId: CuidQueryParam('farmId'),
       activeOnly: z.coerce.boolean().optional().default(true),
       severity: AlertSeveritySchema.optional(),
       type: WeatherAlertTypeSchema.optional(),
@@ -295,7 +296,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/history',
     query: z.object({
-      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
+      farmId: CuidQueryParam('farmId'),
       startDate: z.string().date(),
       endDate: z.string().date(),
       includeAgMetrics: z.coerce.boolean().optional().default(false),
@@ -316,7 +317,7 @@ export const weatherContract = c.router({
     method: 'GET',
     path: '/weather/ag-insights',
     query: z.object({
-      farmId: z.string().regex(/^c[a-z0-9]{24}$/, 'Invalid CUID format'),
+      farmId: CuidQueryParam('farmId'),
       cropType: z.string().optional(),
       growthStage: z.string().optional(),
     }),

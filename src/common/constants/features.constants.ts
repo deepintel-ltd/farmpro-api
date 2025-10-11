@@ -25,6 +25,7 @@ export const FEATURES = {
   USERS: 'users',
   ORGANIZATIONS: 'organizations',
   RBAC: 'rbac',
+  WEATHER: 'weather_data',
 } as const;
 
 /**

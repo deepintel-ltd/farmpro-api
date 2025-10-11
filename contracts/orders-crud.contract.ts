@@ -26,12 +26,13 @@ import {
   CommonErrorResponses,
   CollectionErrorResponses,
   CuidPathParam,
+  CuidQueryParam,
 } from './common';
 
 /**
- * CUID validation schema
+ * CUID validation schema - supports both CUID and CUID2 formats
  */
-const cuidSchema = z.string().regex(/^c[0-9a-z]{24}$/, 'Invalid CUID format');
+const cuidSchema = CuidQueryParam('ID');
 
 const c = initContract();
 

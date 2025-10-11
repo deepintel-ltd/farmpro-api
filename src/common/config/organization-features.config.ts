@@ -26,6 +26,7 @@ export const ORGANIZATION_FEATURES: Record<
       'media',
       'orders',
       'marketplace',
+      'weather',
     ],
     capabilities: [
       'create_farms',
@@ -104,6 +105,7 @@ export const ORGANIZATION_FEATURES: Record<
       'deliveries',
       'intelligence',
       'media',
+      'weather',
     ],
     capabilities: [
       'create_farms',

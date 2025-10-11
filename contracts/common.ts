@@ -64,6 +64,14 @@ export const CuidPathParam = (resourceName: string) =>
     id: z.string().cuid(`${resourceName} ID must be a valid CUID`),
   });
 
+export const CuidQueryParam = (paramName: string) =>
+  z.string().regex(/^(c[a-z0-9]{24}|[a-z0-9]{24})$/, `${paramName} must be a valid CUID or CUID2 format`);
+
+export const Cuid2PathParam = (resourceName: string) =>
+  z.object({
+    id: z.string().regex(/^(c[a-z0-9]{24}|[a-z0-9]{24})$/, `${resourceName} ID must be a valid CUID or CUID2 format`),
+  });
+
 // =============================================================================
 // Contract Validation and Type Checking Utilities
 // =============================================================================

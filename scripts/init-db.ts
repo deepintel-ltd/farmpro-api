@@ -53,17 +53,17 @@ class PlanFeatureMapper {
   private getBaseModules(tier: SubscriptionTier): string[] {
     const moduleMap: Record<SubscriptionTier, string[]> = {
       FREE: ['farm_management', 'activities', 'marketplace', 'orders', 'inventory', 'media'],
-      BASIC: ['farm_management', 'activities', 'marketplace', 'orders', 'inventory', 'deliveries', 'media'],
+      BASIC: ['farm_management', 'activities', 'marketplace', 'orders', 'inventory', 'deliveries', 'media', 'weather'],
       PRO: [
         'farm_management', 'activities', 'inventory', 'analytics', 
         'marketplace', 'orders', 'trading', 'deliveries', 
-        'observations', 'crop_cycles', 'intelligence', 'media'
+        'observations', 'crop_cycles', 'intelligence', 'media', 'weather'
       ],
       ENTERPRISE: [
         'farm_management', 'activities', 'inventory', 'analytics',
         'marketplace', 'orders', 'trading', 'deliveries',
         'observations', 'sensors', 'crop_cycles', 'areas',
-        'seasons', 'drivers', 'tracking', 'intelligence', 'media'
+        'seasons', 'drivers', 'tracking', 'intelligence', 'media', 'weather'
       ],
     };
 
@@ -87,15 +87,15 @@ class PlanFeatureMapper {
   private getBaseFeatures(tier: SubscriptionTier): string[] {
     const featureMap: Record<SubscriptionTier, string[]> = {
       FREE: ['basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management'],
-      BASIC: ['basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management'],
+      BASIC: ['basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management', 'weather_data'],
       PRO: [
         'basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management',
-        'advanced_analytics', 'ai_insights', 'api_access', 'custom_roles'
+        'advanced_analytics', 'ai_insights', 'api_access', 'custom_roles', 'weather_data'
       ],
       ENTERPRISE: [
         'basic_farm_management', 'marketplace_access', 'order_management', 'inventory_management',
         'advanced_analytics', 'ai_insights', 'api_access', 'custom_roles',
-        'white_label', 'priority_support', 'unlimited_usage'
+        'white_label', 'priority_support', 'unlimited_usage', 'weather_data'
       ],
     };
 
