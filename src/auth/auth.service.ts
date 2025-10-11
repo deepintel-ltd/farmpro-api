@@ -56,9 +56,13 @@ interface UserWithOrganization {
     name: string;
     type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
     isVerified: boolean;
-    plan: string;
     features: string[];
     allowedModules: string[];
+    subscription?: {
+      plan: {
+        tier: string;
+      };
+    };
   } | null;
 }
 
@@ -113,13 +117,35 @@ export class AuthService {
           type: organizationType,
           email,
           isActive: true,
-          plan: SubscriptionTier.FREE,
           maxUsers: 1,
           maxFarms: 1,
           features,
           allowedModules,
         },
       });
+
+      // Create subscription for the organization
+      const freePlan = await tx.subscriptionPlan.findFirst({
+        where: { tier: 'FREE' }
+      });
+
+      if (freePlan) {
+        await tx.subscription.create({
+          data: {
+            organizationId: organization.id,
+            planId: freePlan.id,
+            status: 'ACTIVE',
+            currency: 'USD',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+            autoRenew: true,
+            metadata: {
+              createdBy: 'auth-service',
+              createdAt: new Date().toISOString()
+            }
+          }
+        });
+      }
 
       const user = await tx.user.create({
         data: {
@@ -794,7 +820,7 @@ export class AuthService {
         name: user.organization.name,
         type: user.organization.type,
         isVerified: user.organization.isVerified,
-        plan: user.organization.plan,
+        plan: user.organization.subscription?.plan?.tier || 'FREE',
         features: user.organization.features,
         allowedModules: user.organization.allowedModules,
       } : null,
@@ -861,7 +887,6 @@ export class AuthService {
           type: organizationType,
           email: user.email,
           isActive: true,
-          plan: SubscriptionTier.FREE,
           maxUsers: 1,
           maxFarms: 1,
           features,

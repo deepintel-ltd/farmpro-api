@@ -100,7 +100,8 @@ export class UserContextService {
     }
 
     const planTier =
-      (user.organization?.subscription?.plan?.tier as SubscriptionTier) || 'FREE';
+      (user.organization?.subscription?.plan?.tier as SubscriptionTier) || 
+      'FREE';
     const isPlatformAdmin = user.isPlatformAdmin;
 
     // Get permissions from plan tier

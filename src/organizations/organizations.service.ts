@@ -1468,7 +1468,7 @@ export class OrganizationsService {
 
     // Mock billing data
     const billing = {
-      planId: organization.plan,
+      planId: organization.subscription?.plan?.tier || 'FREE',
       billingCycle: 'monthly',
       paymentMethod: 'card_****1234',
       status: 'active',
@@ -1833,7 +1833,6 @@ export class OrganizationsService {
           phone: attributes.phone,
           address: attributes.address,
           taxId: attributes.taxId,
-          plan: planTier,
           maxUsers: attributes.maxUsers || 5,
           maxFarms: attributes.maxFarms || 1,
           features: features,
@@ -1861,7 +1860,30 @@ export class OrganizationsService {
         },
       });
 
-      this.logger.log(`Organization created: ${organization.name} (${organization.id})`);
+      // Create subscription for the organization
+      const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
+        where: { tier: planTier }
+      });
+
+      if (subscriptionPlan) {
+        await this.prisma.subscription.create({
+          data: {
+            organizationId: organization.id,
+            planId: subscriptionPlan.id,
+            status: 'ACTIVE',
+            currency: 'USD',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+            autoRenew: true,
+            metadata: {
+              createdBy: 'organization-service',
+              createdAt: new Date().toISOString()
+            }
+          }
+        });
+      }
+
+      this.logger.log(`Organization created: ${organization.name} (${organization.id}) with ${planTier} subscription`);
 
       return {
         data: this.transformToJsonApi(organization),
@@ -1898,7 +1920,6 @@ export class OrganizationsService {
           ...(attributes.description && { description: attributes.description }),
           ...(attributes.isActive !== undefined && { isActive: attributes.isActive }),
           ...(attributes.isVerified !== undefined && { isVerified: attributes.isVerified }),
-          ...(attributes.plan && { plan: attributes.plan }),
           ...(attributes.maxUsers && { maxUsers: attributes.maxUsers }),
           ...(attributes.maxFarms && { maxFarms: attributes.maxFarms }),
           ...(attributes.features && { features: attributes.features }),
@@ -1922,6 +1943,36 @@ export class OrganizationsService {
           },
         },
       });
+
+      // Handle plan change if provided
+      if (attributes.plan) {
+        const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
+          where: { tier: attributes.plan }
+        });
+
+        if (subscriptionPlan) {
+          await this.prisma.subscription.upsert({
+            where: { organizationId: organization.id },
+            update: {
+              planId: subscriptionPlan.id,
+              updatedAt: new Date()
+            },
+            create: {
+              organizationId: organization.id,
+              planId: subscriptionPlan.id,
+              status: 'ACTIVE',
+              currency: 'USD',
+              currentPeriodStart: new Date(),
+              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+              autoRenew: true,
+              metadata: {
+                updatedBy: 'organization-service',
+                updatedAt: new Date().toISOString()
+              }
+            }
+          });
+        }
+      }
 
       this.logger.log(`Organization updated: ${organization.name} (${organization.id})`);
 
@@ -1986,7 +2037,7 @@ export class OrganizationsService {
         type: organization.type,
         isActive: organization.isActive,
         isVerified: organization.isVerified,
-        plan: organization.plan,
+        plan: organization.subscription?.plan?.tier || 'FREE',
         maxUsers: organization.maxUsers,
         maxFarms: organization.maxFarms,
         features: organization.features || [],

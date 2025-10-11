@@ -6,7 +6,7 @@
 -- 1️⃣ Create System Organization (for platform administration)
 INSERT INTO "organizations" (
   "id", "name", "type", "email", "phone", "address",
-  "description", "isVerified", "isActive", "plan",
+  "description", "isVerified", "isActive",
   "maxUsers", "maxFarms", "features", "allowedModules",
   "allowCustomRoles", "currency", "createdAt", "updatedAt"
 ) VALUES (
@@ -17,7 +17,7 @@ INSERT INTO "organizations" (
   '+1-000-000-0000',
   '{"street":"Platform HQ","city":"System","state":"SY","zipCode":"00000","country":"USA"}',
   'System organization for platform administration and management',
-  true, true, 'ENTERPRISE',
+  true, true,
   999999, 999999,
   ARRAY['all_features'],
   ARRAY['farm_management','activities','inventory','analytics','marketplace','orders','trading','deliveries','observations','sensors','crop_cycles','areas','seasons','drivers','tracking','intelligence','media','rbac'],

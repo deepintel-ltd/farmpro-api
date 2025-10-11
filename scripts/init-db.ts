@@ -1,6 +1,30 @@
 import { PrismaClient, SubscriptionTier } from '@prisma/client';
 import { hash } from '@node-rs/argon2';
 
+// =============================================================================
+// TYPE DEFINITIONS FOR TYPE SAFETY
+// =============================================================================
+
+interface SampleOrganization {
+  name: string;
+  type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
+  email: string;
+  phone: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+  description: string;
+  plan: SubscriptionTier; // Required plan field
+  maxUsers: number;
+  maxFarms: number;
+  currency: 'USD' | 'NGN';
+  allowCustomRoles: boolean;
+}
+
 const prisma = new PrismaClient();
 
 // =============================================================================
@@ -95,7 +119,7 @@ const planFeatureMapper = new PlanFeatureMapper();
 // SAMPLE ORGANIZATIONS INITIALIZATION
 // =============================================================================
 
-const SAMPLE_ORGANIZATIONS = [
+const SAMPLE_ORGANIZATIONS: SampleOrganization[] = [
   {
     name: 'FarmPro Platform',
     type: 'FARM_OPERATION',
@@ -414,19 +438,53 @@ const SAMPLE_USERS = [
 ];
 
 // =============================================================================
+// VALIDATION FUNCTIONS
+// =============================================================================
+
+function validateOrganizationPlans(organizations: SampleOrganization[]): void {
+  console.log('🔍 Validating organization plans...');
+  
+  const validPlans: SubscriptionTier[] = ['FREE', 'BASIC', 'PRO', 'ENTERPRISE'];
+  const errors: string[] = [];
+  
+  organizations.forEach((org, index) => {
+    if (!org.plan) {
+      errors.push(`Organization ${index + 1} (${org.name}) is missing plan field`);
+    } else if (!validPlans.includes(org.plan)) {
+      errors.push(`Organization ${index + 1} (${org.name}) has invalid plan: ${org.plan}`);
+    }
+  });
+  
+  if (errors.length > 0) {
+    console.error('❌ Organization plan validation failed:');
+    errors.forEach(error => console.error(`   - ${error}`));
+    throw new Error('Organization plan validation failed');
+  }
+  
+  console.log('✅ All organizations have valid plans');
+}
+
+// =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
 
 async function upsertOrganization(data: any) {
-  const { address, ...orgData } = data;
+  const { address, plan, ...orgData } = data;
   
   // First try to find by name
   const existing = await prisma.organization.findFirst({
-    where: { name: data.name }
+    where: { name: data.name },
+    include: {
+      subscription: {
+        include: { plan: true }
+      }
+    }
   });
   
+  let organization;
+  
   if (existing) {
-    return await prisma.organization.update({
+    organization = await prisma.organization.update({
       where: { id: existing.id },
       data: {
         ...orgData,
@@ -434,18 +492,50 @@ async function upsertOrganization(data: any) {
         updatedAt: new Date()
       }
     });
+  } else {
+    organization = await prisma.organization.create({
+      data: {
+        ...orgData,
+        address: address as any,
+        isVerified: true,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
   }
   
-  return await prisma.organization.create({
-    data: {
-      ...orgData,
-      address: address as any,
-      isVerified: true,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+  // Create or update subscription record
+  if (plan) {
+    const subscriptionPlan = await prisma.subscriptionPlan.findFirst({
+      where: { tier: plan }
+    });
+    
+    if (subscriptionPlan) {
+      await prisma.subscription.upsert({
+        where: { organizationId: organization.id },
+        update: {
+          planId: subscriptionPlan.id,
+          updatedAt: new Date()
+        },
+        create: {
+          organizationId: organization.id,
+          planId: subscriptionPlan.id,
+          status: 'ACTIVE',
+          currency: organization.currency,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          autoRenew: true,
+          metadata: {
+            createdBy: 'init-db-script',
+            createdAt: new Date().toISOString()
+          }
+        }
+      });
     }
-  });
+  }
+  
+  return organization;
 }
 
 async function upsertUser(data: any, organizationId: string) {
@@ -543,7 +633,12 @@ async function initializeOrganizations() {
   const organizations = [];
   
   for (const orgData of SAMPLE_ORGANIZATIONS) {
-    const { plan, type, ...orgDataWithoutPlan } = orgData;
+    const { type, plan, ...orgDataWithoutPlan } = orgData;
+    
+    // Validate that plan is provided
+    if (!plan) {
+      throw new Error(`Organization ${orgData.name} is missing required plan field`);
+    }
     
     // Get features and modules from plan
     const { allowedModules, features } = planFeatureMapper.getOrganizationFeatures(type, plan as SubscriptionTier);
@@ -551,7 +646,7 @@ async function initializeOrganizations() {
     const organization = await upsertOrganization({
       ...orgDataWithoutPlan,
       type,
-      plan,
+      plan, // Pass plan to create subscription
       features,
       allowedModules
     });
@@ -844,6 +939,9 @@ async function initializeDatabase() {
   try {
     console.log('🚀 Starting comprehensive database initialization...\n');
     
+    // Validate organization plans before initialization
+    validateOrganizationPlans(SAMPLE_ORGANIZATIONS);
+    
     // Initialize core data
     const organizations = await initializeOrganizations();
     const users = await initializeUsers(organizations);
@@ -885,6 +983,26 @@ async function initializeDatabase() {
     console.log('   • BASIC: Full farm operations, basic analytics');
     console.log('   • PRO: Advanced features, AI insights, API access');
     console.log('   • ENTERPRISE: Full platform access, custom roles');
+    
+    // Show plan distribution - reload organizations with subscription data
+    const orgsWithSubscriptions = await prisma.organization.findMany({
+      include: {
+        subscription: {
+          include: { plan: true }
+        }
+      }
+    });
+    
+    const planDistribution = orgsWithSubscriptions.reduce((acc, org) => {
+      const plan = org.subscription?.plan?.tier || 'UNKNOWN';
+      acc[plan] = (acc[plan] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    console.log('\n📊 Organization Plan Distribution:');
+    Object.entries(planDistribution).forEach(([plan, count]) => {
+      console.log(`   • ${plan}: ${count} organizations`);
+    });
     
     console.log('\n🎪 Demo Data Ready:');
     console.log('   • Sample activities for testing workflow management');

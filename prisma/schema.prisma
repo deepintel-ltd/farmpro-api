@@ -84,7 +84,6 @@ model Organization {
   logo              String?
   isVerified        Boolean              @default(false)
   isActive          Boolean              @default(true)
-  plan              String               @default("basic")
   maxUsers          Int                  @default(5)
   maxFarms          Int                  @default(1)
   features          String[]
