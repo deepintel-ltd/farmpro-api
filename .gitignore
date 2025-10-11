@@ -36,3 +36,4 @@ coverage/
 
 # Testing
 .nyc_output/
+/claude.md 
