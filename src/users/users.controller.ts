@@ -4,7 +4,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request as ExpressRequest } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Secured } from '../common/decorators/secured.decorator';
-import { FEATURES, PERMISSIONS } from '../common/constants';
+import { FEATURES } from '../common/constants';
 import { userContract } from '../../contracts/users.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { UsersService } from './users.service';

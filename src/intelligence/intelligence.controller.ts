@@ -7,7 +7,7 @@ import { IntelligenceService } from './intelligence.service';
 import { Public } from '@/auth/decorators/public.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { Secured } from '../common/decorators/secured.decorator';
-import { FEATURES, PERMISSIONS } from '../common/constants';
+import { FEATURES } from '../common/constants';
 import {
   RequirePermission,
 } from '../common/decorators/authorization.decorators';

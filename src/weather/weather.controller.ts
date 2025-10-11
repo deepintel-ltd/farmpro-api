@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Logger } from '@nestjs/common';
+import { Controller, Logger } from '@nestjs/common';
 import { TsRestHandler, tsRestHandler } from '@ts-rest/nest';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { WeatherService } from './weather.service';
@@ -12,7 +12,7 @@ import {
   RequireFeature,
   RequirePermission,
 } from '../common/decorators/authorization.decorators';
-import { PERMISSIONS } from '../common/constants';
+// import { PERMISSIONS } from '../common/constants';
 
 @ApiTags('weather')
 @ApiBearerAuth('JWT-auth')

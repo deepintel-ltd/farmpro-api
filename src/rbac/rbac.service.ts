@@ -733,12 +733,7 @@ export class RbacService {
   // Helper Methods
   // =============================================================================
 
-  async hasPermission(
-    userId: string,
-    resource: string,
-    action: string,
-    context?: { organizationId?: string; farmId?: string },
-  ): Promise<boolean> {
+  async hasPermission(): Promise<boolean> {
     // Permission checking now handled by plan-based permissions
     // This method is kept for backward compatibility but always returns true
     // as permissions are now determined by subscription plan

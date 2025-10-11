@@ -1,4 +1,4 @@
-import { Controller, UseGuards } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { tsRestHandler, TsRestHandler } from '@ts-rest/nest';
 // import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { transactionsContract } from '@contracts/transactions.contract';

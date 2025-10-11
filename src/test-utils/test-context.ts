@@ -919,6 +919,7 @@ export class TestContext {
    * Assign Organization Owner role to user (has all permissions from init-test-db.ts)
    */
   async assignOrganizationOwnerRole(userId: string, organizationId: string): Promise<void> {
+    console.log('Assigning Organization Owner role to user', userId, organizationId);
     // Find the Organization Owner role (created by init-test-db.ts)
     let organizationOwnerRole = await this.prisma.role.findFirst({
       where: {

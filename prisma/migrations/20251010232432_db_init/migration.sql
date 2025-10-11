@@ -1,6 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "public"."AuthProvider" AS ENUM ('LOCAL', 'GOOGLE', 'GITHUB');
 
@@ -81,6 +78,9 @@ CREATE TYPE "public"."PaymentProvider" AS ENUM ('STRIPE', 'PAYSTACK');
 
 -- CreateEnum
 CREATE TYPE "public"."PaymentStatus" AS ENUM ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELED', 'REFUNDED');
+
+-- CreateEnum
+CREATE TYPE "public"."InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'EXPIRED', 'CANCELLED');
 
 -- CreateTable
 CREATE TABLE "public"."users" (
@@ -201,7 +201,7 @@ CREATE TABLE "public"."organizations" (
     "allowedModules" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "featureFlags" JSONB,
     "allowCustomRoles" BOOLEAN NOT NULL DEFAULT false,
-    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'USD',
     "suspendedAt" TIMESTAMP(3),
     "suspensionReason" TEXT,
     "verifiedAt" TIMESTAMP(3),
@@ -211,6 +211,26 @@ CREATE TABLE "public"."organizations" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "organizations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."invitations" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "status" "public"."InvitationStatus" NOT NULL DEFAULT 'PENDING',
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "inviterEmail" TEXT NOT NULL,
+    "inviterName" TEXT NOT NULL,
+    "roleName" TEXT,
+    "message" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "invitations_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -439,7 +459,7 @@ CREATE TABLE "public"."inventory" (
     "quality" TEXT,
     "location" TEXT,
     "status" "public"."InventoryStatus" NOT NULL DEFAULT 'AVAILABLE',
-    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'USD',
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -462,7 +482,7 @@ CREATE TABLE "public"."orders" (
     "deliveryLocation" TEXT NOT NULL,
     "terms" JSONB,
     "totalAmount" DECIMAL(65,30),
-    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'USD',
     "buyerOrgId" TEXT NOT NULL,
     "supplierOrgId" TEXT,
     "createdById" TEXT NOT NULL,
@@ -543,7 +563,7 @@ CREATE TABLE "public"."transactions" (
     "categoryId" TEXT,
     "type" "public"."TransactionType" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
-    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'USD',
     "status" "public"."TransactionStatus" NOT NULL,
     "description" TEXT NOT NULL,
     "reference" TEXT,
@@ -552,6 +572,7 @@ CREATE TABLE "public"."transactions" (
     "requiresApproval" BOOLEAN NOT NULL DEFAULT false,
     "approvedBy" TEXT,
     "approvedAt" TIMESTAMP(3),
+    "createdById" TEXT,
     "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -800,7 +821,7 @@ CREATE TABLE "public"."marketplace_listings" (
     "isPublic" BOOLEAN NOT NULL DEFAULT true,
     "images" TEXT[],
     "status" "public"."ListingStatus" NOT NULL DEFAULT 'ACTIVE',
-    "currency" "public"."Currency" NOT NULL DEFAULT 'NGN',
+    "currency" "public"."Currency" NOT NULL DEFAULT 'USD',
     "views" INTEGER NOT NULL DEFAULT 0,
     "inquiries" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1038,6 +1059,24 @@ CREATE INDEX "organizations_isActive_suspendedAt_idx" ON "public"."organizations
 
 -- CreateIndex
 CREATE INDEX "organizations_currency_idx" ON "public"."organizations"("currency");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invitations_token_key" ON "public"."invitations"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invitations_tokenHash_key" ON "public"."invitations"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "invitations_email_idx" ON "public"."invitations"("email");
+
+-- CreateIndex
+CREATE INDEX "invitations_organizationId_idx" ON "public"."invitations"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "invitations_status_idx" ON "public"."invitations"("status");
+
+-- CreateIndex
+CREATE INDEX "invitations_expiresAt_idx" ON "public"."invitations"("expiresAt");
 
 -- CreateIndex
 CREATE INDEX "farms_organizationId_idx" ON "public"."farms"("organizationId");
@@ -1466,6 +1505,9 @@ ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_roleId_fkey" FOREIG
 ALTER TABLE "public"."user_roles" ADD CONSTRAINT "user_roles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."invitations" ADD CONSTRAINT "invitations_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."farms" ADD CONSTRAINT "farms_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "public"."organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1580,6 +1622,9 @@ ALTER TABLE "public"."drivers" ADD CONSTRAINT "drivers_organizationId_fkey" FORE
 ALTER TABLE "public"."tracking_updates" ADD CONSTRAINT "tracking_updates_deliveryId_fkey" FOREIGN KEY ("deliveryId") REFERENCES "public"."deliveries"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "public"."users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "public"."orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1689,4 +1734,3 @@ ALTER TABLE "public"."payments" ADD CONSTRAINT "payments_paymentMethodId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "public"."usage_records" ADD CONSTRAINT "usage_records_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "public"."subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
