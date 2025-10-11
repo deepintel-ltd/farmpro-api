@@ -18,6 +18,7 @@ import { AppCacheModule } from '@/common/cache.module';
 import { BrevoModule } from '@/external-service/brevo/brevo.module';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { AuthorizationGuard } from '@/common/guards/authorization.guard';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { getRateLimitConfig } from '@/common/config/rate-limit.config';
 import { PlatformAdminModule } from '@/platform-admin/platform-admin.module';
 import { BillingModule } from '@/billing/billing.module';
@@ -61,6 +62,10 @@ import { CommonModule } from '@/common/common.module';
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,

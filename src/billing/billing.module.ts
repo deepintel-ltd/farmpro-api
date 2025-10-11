@@ -15,10 +15,11 @@ import { StripeProvider } from './providers/stripe.provider';
 import { PaystackProvider } from './providers/paystack.provider';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BrevoModule } from '../external-service/brevo/brevo.module';
+import { CommonModule } from '../common/common.module';
 
 @Global()
 @Module({
-  imports: [PrismaModule, ConfigModule, ScheduleModule.forRoot(), BrevoModule],
+  imports: [PrismaModule, ConfigModule, ScheduleModule.forRoot(), BrevoModule, CommonModule],
   controllers: [BillingController],
   providers: [
     BillingService,

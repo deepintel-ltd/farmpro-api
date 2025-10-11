@@ -21,7 +21,7 @@ describe('Activities E2E Tests', () => {
 
   beforeEach(async () => {
     // Clean up activities-related tables before each test
-    // Note: We preserve system roles and permissions
+    // Note: We preserve system data and use simplified plan-based permissions
     await testContext.prisma.$executeRaw`SET session_replication_role = replica;`;
     await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_notes" CASCADE;`;
     await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_costs" CASCADE;`;
@@ -29,18 +29,16 @@ describe('Activities E2E Tests', () => {
     await testContext.prisma.$executeRaw`TRUNCATE TABLE "farm_activities" CASCADE;`;
     await testContext.prisma.$executeRaw`TRUNCATE TABLE "farms" CASCADE;`;
     await testContext.prisma.$executeRaw`TRUNCATE TABLE "areas" CASCADE;`;
-    await testContext.prisma.$executeRaw`DELETE FROM "user_roles";`;
-    await testContext.prisma.$executeRaw`DELETE FROM "users";`;
-    await testContext.prisma.$executeRaw`DELETE FROM "role_permissions" WHERE "roleId" IN (SELECT id FROM roles WHERE "isSystemRole" = false);`;
-    await testContext.prisma.$executeRaw`DELETE FROM "roles" WHERE "isSystemRole" = false;`;
-    await testContext.prisma.$executeRaw`DELETE FROM "organizations";`;
+    await testContext.prisma.$executeRaw`DELETE FROM "users" WHERE "isPlatformAdmin" = false;`;
+    await testContext.prisma.$executeRaw`DELETE FROM "organizations" WHERE "id" NOT IN (SELECT "organizationId" FROM "users" WHERE "isPlatformAdmin" = true);`;
     await testContext.prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
     
-    // Create test organization
+    // Create test organization with PRO plan for full activities permissions
     testOrganization = await testContext.createOrganization({
       name: 'Test Farm Organization',
       type: 'FARM_OPERATION',
-      email: 'test@farm.com'
+      email: 'test@farm.com',
+      plan: 'PRO'
     });
 
     // Create test user
@@ -93,6 +91,32 @@ describe('Activities E2E Tests', () => {
       .expect(200);
 
     accessToken = loginResponse.body.data.attributes.tokens.accessToken;
+    console.log('Access token:', accessToken);
+    
+    // Debug: Check organization plan and user context
+    const org = await testContext.prisma.organization.findUnique({
+      where: { id: testOrganization.id },
+      include: { subscription: { include: { plan: true } } }
+    });
+    console.log('Organization plan:', org?.subscription?.plan?.tier);
+    console.log('Organization features:', org?.features);
+    console.log('Organization modules:', org?.allowedModules);
+    
+    // Debug: Check user context
+    const user = await testContext.prisma.user.findUnique({
+      where: { id: testUser.id },
+      include: {
+        organization: {
+          include: {
+            subscription: {
+              include: { plan: true }
+            }
+          }
+        }
+      }
+    });
+    console.log('User organization plan:', user?.organization?.subscription?.plan?.tier);
+    console.log('User organization subscription:', user?.organization?.subscription);
     
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -136,9 +160,12 @@ describe('Activities E2E Tests', () => {
         .request()
         .post('/activities')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send(activityData)
-        .expect(201);
+        .send(activityData);
 
+      console.log('Response status:', response.status);
+      console.log('Response body:', JSON.stringify(response.body, null, 2));
+      
+      expect(response.status).toBe(201);
       expect(response.body.data.type).toBe('activities');
       expect(response.body.data.attributes.name).toBe(activityData.name);
       expect(response.body.data.attributes.type).toBe(activityData.type);

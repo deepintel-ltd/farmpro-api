@@ -84,7 +84,19 @@ export class UserContextService {
     }
 
     if (!user.organizationId) {
-      throw new Error(`User ${userId} has no organization`);
+      return {
+        userId: user.id,
+        email: user.email,
+        organizationId: null,
+        isPlatformAdmin: user.isPlatformAdmin,
+        planTier: 'FREE' as SubscriptionTier,
+        permissions: new Set<string>(),
+        features: new Set<string>(),
+        modules: new Set<string>(),
+        can: () => false,
+        hasFeature: () => false,
+        hasModule: () => false,
+      };
     }
 
     const planTier =

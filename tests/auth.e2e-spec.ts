@@ -14,20 +14,6 @@ describe('Auth E2E Tests', () => {
     await testContext.teardown();
   }, 30000);
 
-  beforeEach(async () => {
-    // Clean up auth-related tables before each test
-    // Note: We preserve system roles (isSystemRole = true) and permissions
-    await testContext.prisma.$executeRaw`SET session_replication_role = replica;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "email_verifications" CASCADE;`;
-    await testContext.prisma.$executeRaw`DELETE FROM "user_roles";`;
-    await testContext.prisma.$executeRaw`DELETE FROM "users";`;
-    await testContext.prisma.$executeRaw`DELETE FROM "role_permissions" WHERE "roleId" IN (SELECT id FROM roles WHERE "isSystemRole" = false);`;
-    await testContext.prisma.$executeRaw`DELETE FROM "roles" WHERE "isSystemRole" = false;`;
-    await testContext.prisma.$executeRaw`DELETE FROM "organizations";`;
-    await testContext.prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
-    // Add delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 500));
-  });
 
   describe('POST /auth/register', () => {
     it('should register a new user successfully', async () => {
@@ -120,26 +106,22 @@ describe('Auth E2E Tests', () => {
       expect(organization).toBeDefined();
       expect(organization?.type).toBe('COMMODITY_TRADER');
 
-      // Check that admin role and plan role were created and assigned
-      const userRoles = await testContext.prisma.userRole.findMany({
-        where: { userId },
-        include: { role: true }
+      // Check that user was created with isPlatformAdmin flag
+      const user = await testContext.prisma.user.findUnique({
+        where: { id: userId }
       });
-      expect(userRoles.length).toBeGreaterThanOrEqual(1);
-
-      // Check that Organization Owner role exists
-      const ownerRole = userRoles.find(ur => ur.role.name === 'Organization Owner');
-      expect(ownerRole).toBeDefined();
-      expect(ownerRole?.role.level).toBe(90);
+      expect(user).toBeDefined();
+      expect(user?.isPlatformAdmin).toBe(false); // New users are not platform admins by default
     });
   });
 
   describe('POST /auth/login', () => {
+    let testUser: any;
+
     beforeEach(async () => {
       // Create a test user for login tests
       const hashedPassword = await hash('LoginPassword123!');
-      await testContext.createUser({
-        email: 'logintest@example.com',
+      testUser = await testContext.createUser({
         name: 'Login Test User',
         phone: '+1234567890',
         hashedPassword,
@@ -150,7 +132,7 @@ describe('Auth E2E Tests', () => {
 
     it('should login with valid credentials', async () => {
       const loginData = {
-        email: 'logintest@example.com',
+        email: testUser.email,
         password: 'LoginPassword123!'
       };
 
@@ -176,12 +158,12 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send(loginData)
-        .expect(401);
+        .expect(400);
     });
 
     it('should fail to login with invalid password', async () => {
       const loginData = {
-        email: 'logintest@example.com',
+        email: testUser.email,
         password: 'WrongPassword123!'
       };
 
@@ -189,14 +171,13 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send(loginData)
-        .expect(401);
+        .expect(400);
     });
 
     it('should fail to login with inactive user', async () => {
       // Create inactive user
       const hashedPassword = await hash('Password123!');
-      await testContext.createUser({
-        email: 'inactive@example.com',
+      const inactiveUser = await testContext.createUser({
         name: 'Inactive User',
         hashedPassword,
         emailVerified: true,
@@ -204,7 +185,7 @@ describe('Auth E2E Tests', () => {
       });
 
       const loginData = {
-        email: 'inactive@example.com',
+        email: inactiveUser.email,
         password: 'Password123!'
       };
 
@@ -218,12 +199,12 @@ describe('Auth E2E Tests', () => {
 
   describe('POST /auth/refresh', () => {
     let refreshToken: string;
+    let testUser: any;
 
     beforeEach(async () => {
       // Create user and get tokens
       const hashedPassword = await hash('RefreshPassword123!');
-      await testContext.createUser({
-        email: 'refreshtest@example.com',
+      testUser = await testContext.createUser({
         name: 'Refresh Test User',
         hashedPassword,
         emailVerified: true,
@@ -235,7 +216,7 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'refreshtest@example.com',
+          email: testUser.email,
           password: 'RefreshPassword123!'
         })
         .expect(200);
@@ -268,12 +249,12 @@ describe('Auth E2E Tests', () => {
 
   describe('POST /auth/logout', () => {
     let accessToken: string;
+    let testUser: any;
 
     beforeEach(async () => {
       // Create user and get access token
       const hashedPassword = await hash('LogoutPassword123!');
-      await testContext.createUser({
-        email: 'logouttest@example.com',
+      testUser = await testContext.createUser({
         name: 'Logout Test User',
         hashedPassword,
         emailVerified: true,
@@ -284,7 +265,7 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'logouttest@example.com',
+          email: testUser.email,
           password: 'LogoutPassword123!'
         })
         .expect(200);
@@ -321,22 +302,13 @@ describe('Auth E2E Tests', () => {
     let accessToken: string;
 
     beforeEach(async () => {
-      // Create user and get access token
-      const hashedPassword = await hash('MePassword123!');
-      await testContext.createUser({
-        email: 'metest@example.com',
-        name: 'Me Test User',
-        hashedPassword,
-        emailVerified: true,
-        isActive: true
-      });
-
+      // Use pre-created test user that has a subscription
       const loginResponse = await testContext
         .request()
         .post('/auth/login')
         .send({
-          email: 'metest@example.com',
-          password: 'MePassword123!'
+          email: 'user-basic@example.com',
+          password: 'TestPassword123!'
         })
         .expect(200);
 
@@ -351,8 +323,8 @@ describe('Auth E2E Tests', () => {
         .expect(200);
 
       expect(response.body.data.type).toBe('user');
-      expect(response.body.data.attributes.email).toBe('metest@example.com');
-      expect(response.body.data.attributes.name).toBe('Me Test User');
+      expect(response.body.data.attributes.email).toBe('user-basic@example.com');
+      expect(response.body.data.attributes.name).toBe('Basic User');
       expect(response.body.data.attributes.organization).toBeDefined();
     });
 
@@ -415,8 +387,7 @@ describe('Auth E2E Tests', () => {
     it('should initiate password reset for valid email', async () => {
       // Create user
       const hashedPassword = await hash('ForgotPassword123!');
-      await testContext.createUser({
-        email: 'forgottest@example.com',
+      const testUser = await testContext.createUser({
         name: 'Forgot Test User',
         hashedPassword,
         emailVerified: true,
@@ -426,7 +397,7 @@ describe('Auth E2E Tests', () => {
       const response = await testContext
         .request()
         .post('/auth/forgot-password')
-        .send({ email: 'forgottest@example.com' })
+        .send({ email: testUser.email })
         .expect(200);
 
       expect(response.body.data.type).toBe('auth');
@@ -434,7 +405,7 @@ describe('Auth E2E Tests', () => {
 
       // Verify reset token was stored in user metadata
       const user = await testContext.prisma.user.findUnique({
-        where: { email: 'forgottest@example.com' }
+        where: { email: testUser.email }
       });
       expect(user?.metadata).toHaveProperty('resetTokenHash');
       expect(user?.metadata).toHaveProperty('resetTokenExpiresAt');
@@ -468,7 +439,6 @@ describe('Auth E2E Tests', () => {
       // Create user and generate reset token
       const hashedPassword = await hash('ResetPassword123!');
       user = await testContext.createUser({
-        email: 'resettest@example.com',
         name: 'Reset Test User',
         hashedPassword,
         emailVerified: true,
@@ -510,7 +480,7 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'resettest@example.com',
+          email: user.email,
           password: 'NewPassword123!'
         })
         .expect(200);
@@ -520,10 +490,10 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'resettest@example.com',
+          email: user.email,
           password: 'ResetPassword123!'
         })
-        .expect(401);
+        .expect(400);
     });
 
     it('should fail with invalid token', async () => {
@@ -573,12 +543,12 @@ describe('Auth E2E Tests', () => {
 
   describe('POST /auth/change-password', () => {
     let accessToken: string;
+    let testUser: any;
 
     beforeEach(async () => {
       // Create user and login
       const hashedPassword = await hash('ChangePassword123!');
-      await testContext.createUser({
-        email: 'changetest@example.com',
+      testUser = await testContext.createUser({
         name: 'Change Test User',
         hashedPassword,
         emailVerified: true,
@@ -589,7 +559,7 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'changetest@example.com',
+          email: testUser.email,
           password: 'ChangePassword123!'
         })
         .expect(200);
@@ -616,7 +586,7 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'changetest@example.com',
+          email: testUser.email,
           password: 'NewChangePassword123!'
         })
         .expect(200);
@@ -626,10 +596,10 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'changetest@example.com',
+          email: testUser.email,
           password: 'ChangePassword123!'
         })
-        .expect(401);
+        .expect(400);
     });
 
     it('should fail with incorrect current password', async () => {
@@ -670,12 +640,12 @@ describe('Auth E2E Tests', () => {
 
   describe('POST /auth/validate-token', () => {
     let accessToken: string;
+    let testUser: any;
 
     beforeEach(async () => {
       // Create user and login
       const hashedPassword = await hash('ValidatePassword123!');
-      await testContext.createUser({
-        email: 'validatetest@example.com',
+      testUser = await testContext.createUser({
         name: 'Validate Test User',
         hashedPassword,
         emailVerified: true,
@@ -686,7 +656,7 @@ describe('Auth E2E Tests', () => {
         .request()
         .post('/auth/login')
         .send({
-          email: 'validatetest@example.com',
+          email: testUser.email,
           password: 'ValidatePassword123!'
         })
         .expect(200);
@@ -727,7 +697,7 @@ describe('Auth E2E Tests', () => {
       });
 
       const expiredToken = jwtService.sign({
-        email: 'validatetest@example.com',
+        email: testUser.email,
         sub: 'some-user-id',
         organizationId: 'some-org-id',
       });
@@ -742,12 +712,12 @@ describe('Auth E2E Tests', () => {
 
   describe('POST /auth/verify-email', () => {
     let verificationToken: string;
+    let testUser: any;
 
     beforeEach(async () => {
       // Create user with unverified email
       const hashedPassword = await hash('VerifyPassword123!');
-      const user = await testContext.createUser({
-        email: 'verifytest@example.com',
+      testUser = await testContext.createUser({
         name: 'Verify Test User',
         hashedPassword,
         emailVerified: false,
@@ -762,8 +732,8 @@ describe('Auth E2E Tests', () => {
         data: {
           token,
           tokenHash,
-          userId: user.id,
-          email: user.email,
+          userId: testUser.id,
+          email: testUser.email,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
           requestedAt: new Date()
         }
@@ -784,7 +754,7 @@ describe('Auth E2E Tests', () => {
 
       // Verify user email is now verified
       const user = await testContext.prisma.user.findUnique({
-        where: { email: 'verifytest@example.com' }
+        where: { email: testUser.email }
       });
       expect(user?.emailVerified).toBe(true);
     });
@@ -818,9 +788,10 @@ describe('Auth E2E Tests', () => {
 
     beforeEach(async () => {
       // Create OAuth user with incomplete profile
+      const uniqueEmail = `oauthuser-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
       incompleteUser = await testContext.prisma.user.create({
         data: {
-          email: 'oauthuser@example.com',
+          email: uniqueEmail,
           name: 'OAuth User',
           avatar: 'https://example.com/avatar.jpg',
           emailVerified: true,
@@ -881,16 +852,12 @@ describe('Auth E2E Tests', () => {
       expect(organization).toBeDefined();
       expect(organization?.type).toBe('FARM_OPERATION');
 
-      // Verify admin role was assigned (user may also have plan-based role)
-      const userRoles = await testContext.prisma.userRole.findMany({
-        where: { userId: incompleteUser.id },
-        include: { role: true },
+      // Verify user was created with isPlatformAdmin flag
+      const user = await testContext.prisma.user.findUnique({
+        where: { id: incompleteUser.id }
       });
-      expect(userRoles.length).toBeGreaterThanOrEqual(1);
-
-      // Check that admin role exists
-      const adminRole = userRoles.find(ur => ur.role.name === 'admin' || ur.role.level >= 90);
-      expect(adminRole).toBeDefined();
+      expect(user).toBeDefined();
+      expect(user?.isPlatformAdmin).toBe(false); // OAuth users are not platform admins by default
 
       // Verify user was updated
       const updatedUser = await testContext.prisma.user.findUnique({

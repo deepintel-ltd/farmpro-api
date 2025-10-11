@@ -124,13 +124,6 @@ describe('UsersService', () => {
           id: 'org-123',
           name: 'Test Organization',
         },
-        roles: [
-          {
-            id: 'role-123',
-            name: 'user',
-            permissions: ['read'],
-          },
-        ],
         metadata: { preferences: { theme: 'dark' } },
         createdAt: '2023-01-01T00:00:00.000Z',
         updatedAt: '2023-01-01T00:00:00.000Z',
@@ -138,10 +131,14 @@ describe('UsersService', () => {
 
       expect(mockPrismaService.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'user-123' },
-        include: expect.objectContaining({
-          organization: expect.any(Object),
-          userRoles: expect.any(Object),
-        }),
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
     });
 
@@ -195,10 +192,14 @@ describe('UsersService', () => {
       expect(mockPrismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-123' },
         data: updateData,
-        include: expect.objectContaining({
-          organization: expect.any(Object),
-          userRoles: expect.any(Object),
-        }),
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
     });
 
@@ -308,7 +309,7 @@ describe('UsersService', () => {
             name: 'John Doe',
             phone: '+1234567890',
             isActive: true,
-            roles: ['user'],
+            isPlatformAdmin: undefined,
             lastLoginAt: '2023-01-01T00:00:00.000Z',
             createdAt: '2023-01-01T00:00:00.000Z',
           },
@@ -329,21 +330,24 @@ describe('UsersService', () => {
       await service.searchUsers(mockCurrentUser, query);
 
       expect(mockPrismaService.user.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({
+        where: {
           organizationId: 'org-123',
           OR: [
             { name: { contains: 'john', mode: 'insensitive' } },
             { email: { contains: 'john', mode: 'insensitive' } },
           ],
           isActive: true,
-          userRoles: {
-            some: {
-              role: { name: 'user' },
-              isActive: true,
-            },
-          },
-        }),
-        select: expect.any(Object),
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          isActive: true,
+          isPlatformAdmin: true,
+          lastLoginAt: true,
+          createdAt: true,
+        },
         skip: 0,
         take: 25,
         orderBy: { createdAt: 'desc' },
@@ -358,15 +362,24 @@ describe('UsersService', () => {
       await service.searchUsers(mockCurrentUser, farmQuery);
 
       expect(mockPrismaService.user.findMany).toHaveBeenCalledWith({
-        where: expect.objectContaining({
-          userRoles: {
-            some: {
-              farmId: 'farm-123',
-              isActive: true,
-            },
-          },
-        }),
-        select: expect.any(Object),
+        where: {
+          organizationId: 'org-123',
+          OR: [
+            { name: { contains: 'john', mode: 'insensitive' } },
+            { email: { contains: 'john', mode: 'insensitive' } },
+          ],
+          isActive: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          isActive: true,
+          isPlatformAdmin: true,
+          lastLoginAt: true,
+          createdAt: true,
+        },
         skip: 0,
         take: 25,
         orderBy: { createdAt: 'desc' },
@@ -416,8 +429,8 @@ describe('UsersService', () => {
         phone: null,
         avatar: null,
         isActive: true,
+        isPlatformAdmin: false,
         organization: { id: 'org-123', name: 'Test Organization' },
-        roles: [],
         metadata: {},
         createdAt: '2023-01-01T00:00:00.000Z',
         updatedAt: '2023-01-01T00:00:00.000Z',

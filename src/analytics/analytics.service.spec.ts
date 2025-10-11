@@ -33,7 +33,6 @@ describe('AnalyticsService', () => {
       id: 'role-1',
       name: 'Analyst',
       level: 50,
-      scope: 'ORGANIZATION' as any,
     }],
     organization: {
       id: '550e8400-e29b-41d4-a716-446655440001',

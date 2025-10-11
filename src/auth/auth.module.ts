@@ -41,10 +41,6 @@ import { OrganizationsModule } from '@/organizations/organizations.module';
     JwtStrategy,
     LocalAuthGuard,
     JwtAuthGuard,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
   ],
   exports: [AuthService, EmailVerificationService, JwtAuthGuard],
 })

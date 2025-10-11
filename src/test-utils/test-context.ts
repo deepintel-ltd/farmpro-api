@@ -236,8 +236,52 @@ export class TestContext {
       ...overrides,
     };
 
-    return await this.prisma.organization.create({
-      data: defaultData,
+    return await this.prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: defaultData,
+      });
+
+      const planId = `test-plan-${plan.toLowerCase()}`;
+      await tx.subscriptionPlan.upsert({
+        where: { id: planId },
+        update: {},
+        create: {
+          id: planId,
+          name: `Test ${plan} Plan`,
+          tier: plan,
+          description: `Test ${plan} plan for testing`,
+          priceUSD: 0,
+          priceNGN: 0,
+          billingInterval: 'MONTHLY',
+          maxUsers: plan === 'FREE' ? 1 : plan === 'BASIC' ? 5 : plan === 'PRO' ? 25 : 999999,
+          maxFarms: plan === 'FREE' ? 1 : plan === 'BASIC' ? 2 : plan === 'PRO' ? 5 : 999999,
+          hasAdvancedAnalytics: plan === 'PRO' || plan === 'ENTERPRISE',
+          hasAIInsights: plan === 'PRO' || plan === 'ENTERPRISE',
+          hasAPIAccess: plan === 'PRO' || plan === 'ENTERPRISE',
+          hasCustomRoles: plan === 'ENTERPRISE',
+          hasPrioritySupport: plan === 'PRO' || plan === 'ENTERPRISE',
+          hasWhiteLabel: plan === 'ENTERPRISE',
+          features: {},
+          isActive: true,
+          isPublic: true,
+        },
+      });
+
+      await tx.subscription.create({
+        data: {
+          id: `sub-${organization.id}`,
+          organizationId: organization.id,
+          planId: planId,
+          status: 'ACTIVE',
+          currency: 'USD',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          billingInterval: 'MONTHLY',
+          autoRenew: true,
+        },
+      });
+
+      return organization;
     });
   }
 
@@ -254,8 +298,10 @@ export class TestContext {
       organizationId = org.id;
     }
 
+    const email = overrides.email || `test-user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
+
     const defaultData: Prisma.UserUncheckedCreateInput = {
-      email: `test-user-${Date.now()}@example.com`,
+      email,
       name: `Test User ${Date.now()}`,
       organizationId,
       isActive: true,
@@ -293,8 +339,11 @@ export class TestContext {
       organizationId = org.id;
     }
 
+    // Generate unique email if not provided
+    const email = overrides.email || `test-user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
+
     const defaultData: Prisma.UserUncheckedCreateInput = {
-      email: `test-user-${Date.now()}@example.com`,
+      email,
       name: `Test User ${Date.now()}`,
       organizationId,
       isActive: true,

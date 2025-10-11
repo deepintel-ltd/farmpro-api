@@ -36,6 +36,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             isVerified: true,
             isActive: true,
             suspendedAt: true,
+            subscription: {
+              select: {
+                plan: {
+                  select: {
+                    tier: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -49,7 +59,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const isPlatformAdmin = user.isPlatformAdmin;
 
     // For platform admins and users with incomplete profiles, organization is optional
-    if (!isPlatformAdmin && user.profileComplete !== false) {
+    if (!isPlatformAdmin && user.profileComplete === true) {
       // Regular users with complete profiles must have organization
       if (!user.organization) {
         throw new UnauthorizedException('User must belong to an organization');
@@ -97,7 +107,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         id: user.organization.id,
         name: user.organization.name,
         type: user.organization.type,
-        plan: user.organization.plan,
+        plan: user.organization.subscription?.plan?.tier || user.organization.plan,
         features: user.organization.features,
         allowedModules: user.organization.allowedModules,
         isVerified: user.organization.isVerified,
