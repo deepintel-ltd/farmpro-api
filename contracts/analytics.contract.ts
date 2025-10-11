@@ -1,6 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { CommonQueryParams, CommonErrorResponses } from './common';
+import { CommonQueryParams, CommonErrorResponses, CuidQueryParam } from './common';
 
 const c = initContract();
 
@@ -63,7 +63,7 @@ export const AnalyticsResponseSchema = z.object({
     id: z.string(),
     attributes: z.object({
       period: AnalyticsPeriodSchema,
-      farmId: z.string().cuid().optional(),
+      farmId: CuidQueryParam('farmId').optional(),
       metrics: z.array(AnalyticsMetricSchema),
       charts: z.array(AnalyticsChartSchema),
       insights: z.array(AnalyticsInsightSchema).optional(),
@@ -80,13 +80,13 @@ export const AnalyticsResponseSchema = z.object({
 
 export const BaseAnalyticsQuerySchema = z.object({
   period: AnalyticsPeriodSchema.optional().default('month'),
-  farmId: z.string().cuid().optional(),
+  farmId: CuidQueryParam('farmId').optional(),
   includeInsights: z.coerce.boolean().optional().default(true),
   useCache: z.coerce.boolean().optional().default(true),
 });
 
 export const FinancialQuerySchema = BaseAnalyticsQuerySchema.extend({
-  commodityId: z.string().cuid().optional(),
+  commodityId: CuidQueryParam('commodityId').optional(),
   includeBreakdown: z.coerce.boolean().optional().default(false),
   compareWithPrevious: z.coerce.boolean().optional().default(true),
 });
@@ -98,21 +98,21 @@ export const ActivityQuerySchema = BaseAnalyticsQuerySchema.extend({
 });
 
 export const MarketQuerySchema = BaseAnalyticsQuerySchema.extend({
-  commodityId: z.string().cuid().optional(),
+  commodityId: CuidQueryParam('commodityId').optional(),
   region: z.string().optional(),
   includePredictions: z.coerce.boolean().optional().default(false),
 });
 
 export const FarmToMarketQuerySchema = BaseAnalyticsQuerySchema.extend({
-  cropCycleId: z.string().cuid().optional(),
-  commodityId: z.string().cuid().optional(),
+  cropCycleId: CuidQueryParam('cropCycleId').optional(),
+  commodityId: CuidQueryParam('commodityId').optional(),
   includeQuality: z.coerce.boolean().optional().default(true),
   includePricing: z.coerce.boolean().optional().default(true),
 });
 
 export const CustomerInsightsQuerySchema = BaseAnalyticsQuerySchema.extend({
-  organizationId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
+  organizationId: CuidQueryParam('organizationId').optional(),
+  farmId: CuidQueryParam('farmId').optional(),
   includeSegmentation: z.boolean().default(true),
   includeBehaviorAnalysis: z.boolean().default(true),
   includeRetentionMetrics: z.boolean().default(true),
@@ -122,7 +122,7 @@ export const ExportRequestSchema = z.object({
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   format: z.enum(['csv', 'excel', 'json']),
   period: AnalyticsPeriodSchema,
-  farmId: z.string().cuid().optional(),
+  farmId: CuidQueryParam('farmId').optional(),
   includeCharts: z.coerce.boolean().optional().default(false),
   includeInsights: z.coerce.boolean().optional().default(true),
 });
@@ -132,8 +132,8 @@ export const ReportRequestSchema = z.object({
   title: z.string(),
   type: z.enum(['dashboard', 'financial', 'activities', 'market', 'farm-to-market']),
   period: AnalyticsPeriodSchema,
-  farmIds: z.array(z.string().cuid()).optional(),
-  commodities: z.array(z.string().cuid()).optional(),
+  farmIds: z.array(CuidQueryParam('farmId')).optional(),
+  commodities: z.array(CuidQueryParam('commodityId')).optional(),
   includeComparisons: z.coerce.boolean().optional().default(false),
   includePredictions: z.coerce.boolean().optional().default(false),
   format: z.enum(['pdf', 'html', 'excel']),

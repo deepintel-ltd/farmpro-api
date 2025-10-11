@@ -214,6 +214,7 @@ export class UserContextService {
     if (plan.hasPrioritySupport) features.add('priority_support');
     if (plan.hasWhiteLabel) features.add('white_label');
     if (plan.hasWeatherData) features.add('weather_data');
+    if (plan.hasAdvancedAnalytics) features.add('analytics');
 
     return features;
   }

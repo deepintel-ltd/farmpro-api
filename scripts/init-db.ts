@@ -468,6 +468,44 @@ function validateOrganizationPlans(organizations: SampleOrganization[]): void {
 // UTILITY FUNCTIONS
 // =============================================================================
 
+/**
+ * Get realistic coordinates for organization locations
+ */
+function getLocationCoordinates(city: string): { latitude: number; longitude: number } {
+  const locationMap: Record<string, { latitude: number; longitude: number }> = {
+    // System locations
+    'System': { latitude: 40.7128, longitude: -74.0060 }, // New York City
+    
+    // California locations
+    'Rural Valley': { latitude: 36.7783, longitude: -119.4179 }, // Central Valley, CA
+    'Tech Valley': { latitude: 37.7749, longitude: -122.4194 }, // San Francisco Bay Area, CA
+    
+    // Texas locations
+    'Trade City': { latitude: 32.7767, longitude: -96.7970 }, // Dallas, TX
+    
+    // Florida locations
+    'Logistics Hub': { latitude: 25.7617, longitude: -80.1918 }, // Miami, FL
+    
+    // Iowa locations
+    'Agri City': { latitude: 41.5868, longitude: -93.6250 }, // Des Moines, IA
+    
+    // Oregon locations
+    'Green Valley': { latitude: 45.5152, longitude: -122.6784 }, // Portland, OR
+    
+    // New York locations
+    'New York': { latitude: 40.7128, longitude: -74.0060 }, // New York City, NY
+    
+    // Nebraska locations
+    'Rural Town': { latitude: 41.2565, longitude: -95.9345 }, // Omaha, NE
+    
+    // Default fallback
+    'default': { latitude: 39.8283, longitude: -98.5795 } // Geographic center of USA
+  };
+  
+  const key = city in locationMap ? city : 'default';
+  return locationMap[key];
+}
+
 async function upsertOrganization(data: any) {
   const { address, plan, ...orgData } = data;
   
@@ -704,6 +742,13 @@ async function initializeSampleFarms(organizations: any[]) {
         }
       });
 
+      // Get coordinates for the organization's location
+      const coordinates = getLocationCoordinates(org.address.city);
+      
+      // Add some variation to coordinates for multiple farms in same organization
+      const latVariation = (Math.random() - 0.5) * 0.1; // ±0.05 degrees
+      const lonVariation = (Math.random() - 0.5) * 0.1; // ±0.05 degrees
+      
       const farm = existingFarm || await prisma.farm.create({
         data: {
           name: farmName,
@@ -715,7 +760,9 @@ async function initializeSampleFarms(organizations: any[]) {
             city: org.address.city,
             state: org.address.state,
             zipCode: org.address.zipCode,
-            country: org.address.country
+            country: org.address.country,
+            latitude: coordinates.latitude + latVariation,
+            longitude: coordinates.longitude + lonVariation
           },
           isActive: true,
           createdAt: new Date(),
@@ -728,6 +775,47 @@ async function initializeSampleFarms(organizations: any[]) {
     }
   }
   
+  // Update existing farms that don't have coordinates
+  console.log('📍 Updating existing farms with coordinates...');
+  const farmsWithoutCoords = await prisma.farm.findMany({
+    where: {
+      OR: [
+        { location: { path: ['latitude'], equals: null } },
+        { location: { path: ['longitude'], equals: null } }
+      ]
+    },
+    include: {
+      organization: {
+        select: { address: true }
+      }
+    }
+  });
+
+  for (const farm of farmsWithoutCoords) {
+    const address = farm.organization.address as any;
+    const coordinates = getLocationCoordinates(address.city);
+    
+    // Add some variation for farms in same organization
+    const latVariation = (Math.random() - 0.5) * 0.1;
+    const lonVariation = (Math.random() - 0.5) * 0.1;
+    
+    const updatedLocation = {
+      ...(farm.location as any),
+      latitude: coordinates.latitude + latVariation,
+      longitude: coordinates.longitude + lonVariation
+    };
+    
+    await prisma.farm.update({
+      where: { id: farm.id },
+      data: { 
+        location: updatedLocation,
+        updatedAt: new Date()
+      }
+    });
+    
+    console.log(`   ✅ Updated coordinates for ${farm.name}`);
+  }
+
   return farms;
 }
 
