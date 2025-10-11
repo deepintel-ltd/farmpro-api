@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import { JsonApiResourceSchema, JsonApiCollectionSchema, JsonApiErrorResponseSchema } from './schemas';
 
 // =============================================================================
@@ -21,7 +22,7 @@ export const MarketplaceCommoditySchema = z.object({
     region: z.string(),
   }),
   supplier: z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string(),
     rating: z.number().min(1).max(5),
     verificationStatus: z.enum(['verified', 'pending', 'rejected']),
@@ -60,7 +61,7 @@ export const MarketplaceSupplierSchema = z.object({
   deliveryOptions: z.array(z.enum(['pickup', 'delivery', 'shipping'])),
   paymentTerms: z.array(z.enum(['cash', 'credit', 'escrow'])),
   commodities: z.array(z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string(),
     category: z.string(),
   })),
@@ -97,7 +98,7 @@ export const MarketplaceBuyerSchema = z.object({
   verificationStatus: z.enum(['verified', 'pending', 'rejected']),
   orderVolume: z.number().positive().optional(),
   preferredCommodities: z.array(z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string(),
     category: z.string(),
   })),
@@ -117,8 +118,8 @@ export const MarketplaceBuyerCollectionSchema = JsonApiCollectionSchema(Marketpl
 // =============================================================================
 
 export const MarketplaceSearchFiltersSchema = z.object({
-  commodities: z.array(z.string().cuid()).optional(),
-  suppliers: z.array(z.string().cuid()).optional(),
+  commodities: z.array(CuidQueryParam('id')).optional(),
+  suppliers: z.array(CuidQueryParam('id')).optional(),
   location: z.object({
     center: z.object({
       lat: z.number(),
@@ -192,7 +193,7 @@ export const PriceDataPointSchema = z.object({
 });
 
 export const PriceTrendsResponseSchema = z.object({
-  commodityId: z.string().cuid(),
+  commodityId: CuidQueryParam('id'),
   commodityName: z.string(),
   region: z.string(),
   period: z.string(),
@@ -212,7 +213,7 @@ export const PriceTrendsResponseSchema = z.object({
 // =============================================================================
 
 export const PriceAlertSchema = z.object({
-  commodityId: z.string().cuid(),
+  commodityId: CuidQueryParam('id'),
   commodityName: z.string(),
   region: z.string().optional(),
   alertType: z.enum(['above', 'below', 'change']),
@@ -232,7 +233,7 @@ export const PriceAlertRequestSchema = z.object({
   data: z.object({
     type: z.literal('price-alerts'),
     attributes: z.object({
-      commodityId: z.string().cuid(),
+      commodityId: CuidQueryParam('id'),
       region: z.string().optional(),
       alertType: z.enum(['above', 'below', 'change']),
       threshold: z.number().positive(),
@@ -247,7 +248,7 @@ export const PriceAlertRequestSchema = z.object({
 // =============================================================================
 
 export const MarketAnalysisResponseSchema = z.object({
-  commodityId: z.string().cuid(),
+  commodityId: CuidQueryParam('id'),
   commodityName: z.string(),
   region: z.string(),
   period: z.string(),
@@ -287,7 +288,7 @@ export const DemandForecastDataPointSchema = z.object({
 });
 
 export const DemandForecastResponseSchema = z.object({
-  commodityId: z.string().cuid(),
+  commodityId: CuidQueryParam('id'),
   commodityName: z.string(),
   region: z.string(),
   timeframe: z.string(),
@@ -306,9 +307,9 @@ export const DemandForecastResponseSchema = z.object({
 // =============================================================================
 
 export const SupplyOpportunitySchema = z.object({
-  commodityId: z.string().cuid(),
+  commodityId: CuidQueryParam('id'),
   commodityName: z.string(),
-  buyerId: z.string().cuid(),
+  buyerId: CuidQueryParam('id'),
   buyerName: z.string(),
   requiredQuantity: z.number().positive(),
   unit: z.string(),
@@ -335,9 +336,9 @@ export const SupplyOpportunitySchema = z.object({
 export const SupplyOpportunityCollectionSchema = JsonApiCollectionSchema(SupplyOpportunitySchema);
 
 export const BuyingOpportunitySchema = z.object({
-  commodityId: z.string().cuid(),
+  commodityId: CuidQueryParam('id'),
   commodityName: z.string(),
-  supplierId: z.string().cuid(),
+  supplierId: CuidQueryParam('id'),
   supplierName: z.string(),
   availableQuantity: z.number().positive(),
   unit: z.string(),
@@ -368,7 +369,7 @@ export const MatchRequestSchema = z.object({
     type: z.literal('match-requests'),
     attributes: z.object({
       type: z.enum(['supply', 'demand']),
-      commodityId: z.string().cuid(),
+      commodityId: CuidQueryParam('id'),
       quantity: z.number().positive(),
       qualityRequirements: z.record(z.string(), z.any()).optional(),
       location: z.object({
@@ -391,7 +392,7 @@ export const MatchRequestSchema = z.object({
 });
 
 export const MatchResultSchema = z.object({
-  id: z.string().cuid(),
+  id: CuidQueryParam('id'),
   type: z.string(),
   compatibilityScore: z.number().min(0).max(1),
   distance: z.number().positive(),
@@ -407,7 +408,7 @@ export const MatchResponseSchema = z.object({
   matches: z.array(MatchResultSchema),
   totalMatches: z.number().int().min(0),
   searchCriteria: z.object({
-    commodityId: z.string().cuid(),
+    commodityId: CuidQueryParam('id'),
     quantity: z.number().positive(),
     maxDistance: z.number().positive(),
   }),
@@ -421,7 +422,7 @@ export const ContractTemplateSchema = z.object({
   name: z.string(),
   description: z.string(),
   type: z.enum(['purchase', 'sale', 'supply', 'distribution']),
-  commodityId: z.string().cuid().optional(),
+  commodityId: CuidQueryParam('id').optional(),
   region: z.string().optional(),
   templateContent: z.string(),
   customizableFields: z.array(z.string()),
@@ -449,8 +450,8 @@ export const ContractGenerationRequestSchema = z.object({
   data: z.object({
     type: z.literal('contract-generation'),
     attributes: z.object({
-      templateId: z.string().cuid(),
-      orderId: z.string().cuid(),
+      templateId: CuidQueryParam('id'),
+      orderId: CuidQueryParam('id'),
       customizations: z.object({
         paymentTerms: z.string().optional(),
         deliveryTerms: z.string().optional(),
@@ -463,9 +464,9 @@ export const ContractGenerationRequestSchema = z.object({
 });
 
 export const ContractGenerationResponseSchema = z.object({
-  contractId: z.string().cuid(),
-  templateId: z.string().cuid(),
-  orderId: z.string().cuid(),
+  contractId: CuidQueryParam('id'),
+  templateId: CuidQueryParam('id'),
+  orderId: CuidQueryParam('id'),
   generatedContract: z.string(),
   customizations: z.record(z.string(), z.any()).optional(),
   status: z.enum(['draft', 'ready_for_review', 'approved']),
@@ -478,7 +479,7 @@ export const ContractGenerationResponseSchema = z.object({
 // =============================================================================
 
 export const MarketplaceListingSchema = z.object({
-  inventoryId: z.string().cuid(),
+  inventoryId: CuidQueryParam('id'),
   title: z.string(),
   description: z.string(),
   quantity: z.number().positive(),
@@ -510,7 +511,7 @@ export const CreateListingRequestSchema = z.object({
   data: z.object({
     type: z.literal('marketplace-listings'),
     attributes: z.object({
-      inventoryId: z.string().cuid(),
+      inventoryId: CuidQueryParam('id'),
       title: z.string().min(1).max(255),
       description: z.string().optional(),
       quantity: z.number().positive(),

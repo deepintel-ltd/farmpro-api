@@ -1,6 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
-import { CommonQueryParams, CommonErrorResponses } from './common';
+import { CommonQueryParams, CommonErrorResponses, CuidQueryParam } from './common';
 import { JsonApiResourceSchema, JsonApiCollectionSchema } from './schemas';
 
 const c = initContract();
@@ -40,7 +40,7 @@ export const RiskIndicatorSchema = z.object({
     operationalRisk: z.enum(['Low', 'Medium', 'High']),
   }),
   alerts: z.array(z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     type: z.enum(['financial', 'operational', 'market', 'compliance']),
     severity: z.enum(['low', 'medium', 'high', 'critical']),
     title: z.string(),
@@ -84,7 +84,7 @@ export const CashFlowAnalysisSchema = z.object({
 });
 
 export const ExecutiveMetricSchema = z.object({
-  id: z.string().cuid(),
+  id: CuidQueryParam('id'),
   name: z.string(),
   value: z.union([
     z.string(), 
@@ -108,7 +108,7 @@ export const ExecutiveDashboardSchema = z.object({
   cashFlow: CashFlowAnalysisSchema,
   keyMetrics: z.array(ExecutiveMetricSchema),
   pendingActions: z.array(z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     type: z.enum(['approval', 'review', 'decision', 'follow_up']),
     title: z.string(),
     description: z.string(),
@@ -118,7 +118,7 @@ export const ExecutiveDashboardSchema = z.object({
     createdAt: z.string().datetime(),
   })),
   insights: z.array(z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     category: z.enum(['performance', 'efficiency', 'market', 'sustainability', 'risk']),
     title: z.string(),
     description: z.string(),

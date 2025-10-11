@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import { JsonApiErrorResponseSchema } from './common';
 import { JsonApiCollectionSchema } from './schemas';
 
@@ -25,11 +26,11 @@ export const TransactionStatusSchema = z.enum([
 ]);
 
 export const TransactionSchema = z.object({
-  id: z.string().cuid(),
-  organizationId: z.string().cuid(),
-  orderId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
-  categoryId: z.string().cuid().optional(),
+  id: CuidQueryParam('id'),
+  organizationId: CuidQueryParam('id'),
+  orderId: CuidQueryParam('id').optional(),
+  farmId: CuidQueryParam('id').optional(),
+  categoryId: CuidQueryParam('id').optional(),
   type: TransactionTypeSchema,
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
@@ -40,11 +41,11 @@ export const TransactionSchema = z.object({
   paidDate: z.string().datetime().optional(),
   requiresApproval: z.boolean().default(false),
   createdBy: z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string()
   }),
   approvedBy: z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string()
   }).optional(),
   approvedAt: z.string().datetime().optional(),
@@ -64,13 +65,13 @@ export const CreateTransactionRequestSchema = z.object({
       amount: z.number().positive(),
       currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
       description: z.string().min(1).max(500),
-      orderId: z.string().cuid().optional(),
-      farmId: z.string().cuid().optional(),
-      categoryId: z.string().cuid().optional(),
+      orderId: CuidQueryParam('id').optional(),
+      farmId: CuidQueryParam('id').optional(),
+      categoryId: CuidQueryParam('id').optional(),
       dueDate: z.string().datetime().optional(),
       requiresApproval: z.boolean().default(false),
       createdBy: z.object({
-        id: z.string().cuid(),
+        id: CuidQueryParam('id'),
         name: z.string()
       }).optional(),
       metadata: z.record(z.any()).optional()
@@ -85,7 +86,7 @@ export const UpdateTransactionRequestSchema = z.object({
       status: TransactionStatusSchema.optional(),
       amount: z.number().positive().optional(),
       description: z.string().min(1).max(500).optional(),
-      categoryId: z.string().cuid().optional(),
+      categoryId: CuidQueryParam('id').optional(),
       paidDate: z.string().datetime().optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -96,9 +97,9 @@ export const TransactionFiltersSchema = z.object({
   // Direct field filters
   type: TransactionTypeSchema.optional(),
   status: TransactionStatusSchema.optional(),
-  farmId: z.string().cuid().optional(),
-  orderId: z.string().cuid().optional(),
-  categoryId: z.string().cuid().optional(),
+  farmId: CuidQueryParam('id').optional(),
+  orderId: CuidQueryParam('id').optional(),
+  categoryId: CuidQueryParam('id').optional(),
   requiresApproval: z.coerce.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
@@ -108,9 +109,9 @@ export const TransactionFiltersSchema = z.object({
   // JSON:API compliant filter syntax
   'filter[type]': TransactionTypeSchema.optional(),
   'filter[status]': TransactionStatusSchema.optional(),
-  'filter[farmId]': z.string().cuid().optional(),
-  'filter[orderId]': z.string().cuid().optional(),
-  'filter[categoryId]': z.string().cuid().optional(),
+  'filter[farmId]': CuidQueryParam('id').optional(),
+  'filter[orderId]': CuidQueryParam('id').optional(),
+  'filter[categoryId]': CuidQueryParam('id').optional(),
   'filter[requiresApproval]': z.coerce.boolean().optional(),
   'filter[startDate]': z.string().datetime().optional(),
   'filter[endDate]': z.string().datetime().optional(),
@@ -124,7 +125,7 @@ export const TransactionFiltersSchema = z.object({
 });
 
 export const TransactionSummaryQuerySchema = z.object({
-  farmId: z.string().cuid().optional(),
+  farmId: CuidQueryParam('id').optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   type: TransactionTypeSchema.optional()
@@ -155,7 +156,7 @@ export const BulkUpdateRequestSchema = z.object({
   data: z.object({
     type: z.literal('bulk-transactions'),
     attributes: z.object({
-      transactionIds: z.array(z.string().cuid()),
+      transactionIds: z.array(CuidQueryParam('id')),
       updates: z.object({
         status: TransactionStatusSchema.optional(),
         description: z.string().min(1).max(500).optional(),
@@ -169,7 +170,7 @@ export const BulkDeleteRequestSchema = z.object({
   data: z.object({
     type: z.literal('bulk-transactions'),
     attributes: z.object({
-      transactionIds: z.array(z.string().cuid()),
+      transactionIds: z.array(CuidQueryParam('id')),
       reason: z.string().min(1).max(200).optional()
     })
   })
@@ -179,7 +180,7 @@ export const BulkMarkPaidRequestSchema = z.object({
   data: z.object({
     type: z.literal('bulk-transactions'),
     attributes: z.object({
-      transactionIds: z.array(z.string().cuid()),
+      transactionIds: z.array(CuidQueryParam('id')),
       paidDate: z.string().datetime().optional(),
       reference: z.string().optional(),
       metadata: z.record(z.any()).optional()
@@ -192,8 +193,8 @@ export const BulkMarkPaidRequestSchema = z.object({
 // =============================================================================
 
 export const TransactionCategorySchema = z.object({
-  id: z.string().cuid(),
-  organizationId: z.string().cuid(),
+  id: CuidQueryParam('id'),
+  organizationId: CuidQueryParam('id'),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
@@ -250,11 +251,11 @@ export const RejectionRequestSchema = z.object({
 });
 
 export const PendingApprovalSchema = z.object({
-  id: z.string().cuid(),
-  organizationId: z.string().cuid(),
-  transactionId: z.string().cuid(),
+  id: CuidQueryParam('id'),
+  organizationId: CuidQueryParam('id'),
+  transactionId: CuidQueryParam('id'),
   requestedBy: z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string()
   }),
   requestedAt: z.string().datetime(),
@@ -301,7 +302,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     summary: 'Get transaction by ID'
   },
@@ -321,7 +322,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     body: UpdateTransactionRequestSchema,
     summary: 'Update transaction'
@@ -375,7 +376,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     body: z.object({
       data: z.object({
@@ -405,7 +406,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     body: z.object({
       data: z.object({
@@ -555,7 +556,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     body: UpdateCategoryRequestSchema,
     summary: 'Update transaction category'
@@ -579,7 +580,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     summary: 'Delete transaction category'
   },
@@ -603,7 +604,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     body: ApprovalRequestSchema,
     summary: 'Approve a transaction'
@@ -624,7 +625,7 @@ export const transactionsContract = c.router({
       500: JsonApiErrorResponseSchema
     },
     pathParams: z.object({
-      id: z.string().cuid()
+      id: CuidQueryParam('id')
     }),
     body: RejectionRequestSchema,
     summary: 'Reject a transaction'
@@ -647,7 +648,7 @@ export const transactionsContract = c.router({
       page: z.coerce.number().int().positive().default(1),
       limit: z.coerce.number().int().positive().max(100).default(20),
       priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-      farmId: z.string().cuid().optional()
+      farmId: CuidQueryParam('id').optional()
     }),
     summary: 'Get transactions pending approval'
   },
@@ -688,8 +689,8 @@ export const transactionsContract = c.router({
       endDate: z.string().datetime(),
       groupBy: z.enum(['day', 'week', 'month', 'quarter']).default('month'),
       type: z.enum(['FARM_EXPENSE', 'FARM_REVENUE', 'all']).optional(),
-      farmId: z.string().cuid().optional(),
-      organizationId: z.string().cuid().optional()
+      farmId: CuidQueryParam('id').optional(),
+      organizationId: CuidQueryParam('id').optional()
     }),
     summary: 'Get transaction trends aggregated by time period'
   }

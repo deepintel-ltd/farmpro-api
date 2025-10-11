@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 
 // Base schemas
 export const IntelligenceRequestSchema = z.object({
@@ -7,7 +8,7 @@ export const IntelligenceRequestSchema = z.object({
   model: z.enum(['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo']).default('gpt-3.5-turbo').describe('OpenAI model to use'),
   temperature: z.number().min(0).max(2).default(0.7).describe('Temperature for response generation'),
   maxTokens: z.number().min(1).max(4000).default(1000).describe('Maximum tokens in response'),
-  userId: z.string().cuid().optional().describe('User making the request (added by controller)'),
+  userId: CuidQueryParam('userId').optional().describe('User making the request (added by controller)'),
   farmId: z.string().optional().describe('Farm context for the request'),
 });
 
@@ -23,7 +24,7 @@ export const IntelligenceResponseSchema = z.object({
     totalTokens: z.number().describe('Total tokens used'),
   }).describe('Token usage statistics'),
   createdAt: z.date().describe('Response creation timestamp'),
-  userId: z.string().cuid().describe('User who made the request'),
+  userId: CuidQueryParam('userId').describe('User who made the request'),
   farmId: z.string().optional().describe('Farm context'),
 });
 
@@ -41,7 +42,7 @@ export const FarmAnalysisRequestSchema = z.object({
     'sustainability_score'
   ]).describe('Type of analysis to perform'),
   data: z.record(z.string(), z.any()).describe('Farm data for analysis'),
-  userId: z.string().cuid().optional().describe('User requesting analysis (added by controller)'),
+  userId: CuidQueryParam('id').optional().describe('User requesting analysis (added by controller)'),
 });
 
 export const FarmAnalysisResponseSchema = z.object({
@@ -53,7 +54,7 @@ export const FarmAnalysisResponseSchema = z.object({
   confidence: z.number().min(0).max(1).describe('Confidence score (0-1)'),
   data: z.record(z.string(), z.any()).describe('Analysis results data'),
   createdAt: z.date().describe('Analysis timestamp'),
-  userId: z.string().cuid().describe('User who requested analysis'),
+  userId: CuidQueryParam('id').describe('User who requested analysis'),
 });
 
 // Market intelligence schemas
@@ -69,7 +70,7 @@ export const MarketIntelligenceRequestSchema = z.object({
     'risk_assessment',
     'opportunity_identification'
   ]).describe('Type of market analysis'),
-  userId: z.string().cuid().optional().describe('User requesting analysis (added by controller)'),
+  userId: CuidQueryParam('id').optional().describe('User requesting analysis (added by controller)'),
 });
 
 export const MarketIntelligenceResponseSchema = z.object({
@@ -86,7 +87,7 @@ export const MarketIntelligenceResponseSchema = z.object({
   recommendations: z.array(z.string()).describe('Trading recommendations'),
   riskFactors: z.array(z.string()).describe('Identified risk factors'),
   createdAt: z.date().describe('Analysis timestamp'),
-  userId: z.string().cuid().describe('User who requested analysis'),
+  userId: CuidQueryParam('id').describe('User who requested analysis'),
 });
 
 // Activity optimization schemas
@@ -104,7 +105,7 @@ export const ActivityOptimizationRequestSchema = z.object({
     }).optional().describe('Weather constraints'),
   }).describe('Optimization constraints'),
   objectives: z.array(z.enum(['maximize_yield', 'minimize_cost', 'minimize_time', 'maximize_quality', 'minimize_risk'])).describe('Optimization objectives'),
-  userId: z.string().cuid().optional().describe('User requesting optimization (added by controller)'),
+  userId: CuidQueryParam('id').optional().describe('User requesting optimization (added by controller)'),
 });
 
 export const ActivityOptimizationResponseSchema = z.object({
@@ -130,7 +131,7 @@ export const ActivityOptimizationResponseSchema = z.object({
     cost: z.number().describe('Estimated cost'),
   })).describe('Alternative optimization approaches'),
   createdAt: z.date().describe('Optimization timestamp'),
-  userId: z.string().cuid().describe('User who requested optimization'),
+  userId: CuidQueryParam('id').describe('User who requested optimization'),
 });
 
 // Export schemas
@@ -188,7 +189,7 @@ export const IntelligenceErrorSchema = z.object({
 export const IntelligenceQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1).describe('Page number'),
   limit: z.coerce.number().min(1).max(100).default(20).describe('Items per page'),
-  userId: z.string().cuid().optional().describe('Filter by user'),
+  userId: CuidQueryParam('id').optional().describe('Filter by user'),
   farmId: z.string().optional().describe('Filter by farm'),
   type: z.enum(['general', 'farm_analysis', 'market_intelligence', 'activity_optimization']).optional().describe('Filter by type'),
   startDate: z.date().optional().describe('Filter by start date'),

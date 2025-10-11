@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import {
   OrderMessageResourceSchema,
   OrderMessageCollectionSchema,
@@ -110,7 +111,7 @@ export const ordersMessagingContract = c.router({
       200: z.object({
         data: z.object({
           type: z.literal('contracts'),
-          id: z.string().cuid(),
+          id: CuidQueryParam('id'),
           attributes: z.object({
             url: z.string().url(),
             terms: z.string(),

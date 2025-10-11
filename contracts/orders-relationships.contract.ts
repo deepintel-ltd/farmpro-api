@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import {
   UserResourceSchema,
 } from './schemas';
@@ -57,7 +58,7 @@ export const ordersRelationshipsContract = c.router({
         data: z
           .object({
             type: z.literal('users'),
-            id: z.string().cuid(),
+            id: CuidQueryParam('id'),
           })
           .nullable(),
         links: z
@@ -82,7 +83,7 @@ export const ordersRelationshipsContract = c.router({
         data: z
           .object({
             type: z.literal('users'),
-            id: z.string().cuid(),
+            id: CuidQueryParam('id'),
           })
           .nullable(),
         links: z

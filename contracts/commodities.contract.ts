@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import {
   CommodityResourceSchema,
   CommodityCollectionSchema,
@@ -113,7 +114,7 @@ export const commodityContract = c.router({
         data: z.array(
           z.object({
             type: z.literal('orders'),
-            id: z.string().cuid(),
+            id: CuidQueryParam('id'),
           }),
         ),
         links: z

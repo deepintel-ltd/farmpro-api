@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import {
   OrderAnalyticsQuerySchema,
   OrderFinancialSummaryQuerySchema,
@@ -36,7 +37,7 @@ export const ordersAnalyticsContract = c.router({
             successRate: z.number(),
             averageValue: z.number(),
             topCommodities: z.array(z.object({
-              commodityId: z.string().cuid(),
+              commodityId: CuidQueryParam('id'),
               name: z.string(),
               count: z.number(),
             })),
@@ -115,7 +116,7 @@ export const ordersAnalyticsContract = c.router({
       202: z.object({
         data: z.object({
           type: z.literal('report-jobs'),
-          id: z.string().cuid(),
+          id: CuidQueryParam('id'),
           attributes: z.object({
             status: z.enum(['pending', 'processing', 'completed', 'failed']),
             estimatedCompletion: z.string().datetime().optional(),

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 
 // =============================================================================
 // Core Transaction Schemas
@@ -20,11 +21,11 @@ export const TransactionStatusSchema = z.enum([
 ]);
 
 export const TransactionSchema = z.object({
-  id: z.string().cuid(),
-  organizationId: z.string().cuid(),
-  orderId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
-  categoryId: z.string().cuid().optional(),
+  id: CuidQueryParam('id'),
+  organizationId: CuidQueryParam('id'),
+  orderId: CuidQueryParam('id').optional(),
+  farmId: CuidQueryParam('id').optional(),
+  categoryId: CuidQueryParam('id').optional(),
   type: TransactionTypeSchema,
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
@@ -34,7 +35,7 @@ export const TransactionSchema = z.object({
   dueDate: z.string().datetime().optional(),
   paidDate: z.string().datetime().optional(),
   requiresApproval: z.boolean().default(false),
-  approvedBy: z.string().cuid().optional(),
+  approvedBy: CuidQueryParam('id').optional(),
   approvedAt: z.string().datetime().optional(),
   metadata: z.record(z.any()).optional(),
   createdAt: z.string().datetime()
@@ -52,9 +53,9 @@ export const CreateTransactionRequestSchema = z.object({
       amount: z.number().positive(),
       currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']).default('NGN'),
       description: z.string().min(1).max(500),
-      orderId: z.string().cuid().optional(),
-      farmId: z.string().cuid().optional(),
-      categoryId: z.string().cuid().optional(),
+      orderId: CuidQueryParam('id').optional(),
+      farmId: CuidQueryParam('id').optional(),
+      categoryId: CuidQueryParam('id').optional(),
       dueDate: z.string().datetime().optional(),
       requiresApproval: z.boolean().default(false),
       metadata: z.record(z.any()).optional()
@@ -69,7 +70,7 @@ export const UpdateTransactionRequestSchema = z.object({
       status: TransactionStatusSchema.optional(),
       amount: z.number().positive().optional(),
       description: z.string().min(1).max(500).optional(),
-      categoryId: z.string().cuid().optional(),
+      categoryId: CuidQueryParam('id').optional(),
       paidDate: z.string().datetime().optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -79,9 +80,9 @@ export const UpdateTransactionRequestSchema = z.object({
 export const TransactionFiltersSchema = z.object({
   type: TransactionTypeSchema.optional(),
   status: TransactionStatusSchema.optional(),
-  farmId: z.string().cuid().optional(),
-  orderId: z.string().cuid().optional(),
-  categoryId: z.string().cuid().optional(),
+  farmId: CuidQueryParam('id').optional(),
+  orderId: CuidQueryParam('id').optional(),
+  categoryId: CuidQueryParam('id').optional(),
   requiresApproval: z.coerce.boolean().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
@@ -108,7 +109,7 @@ export const BulkUpdateRequestSchema = z.object({
   data: z.object({
     type: z.literal('bulk-transactions'),
     attributes: z.object({
-      transactionIds: z.array(z.string().cuid()),
+      transactionIds: z.array(CuidQueryParam('id')),
       updates: z.object({
         status: TransactionStatusSchema.optional(),
         description: z.string().min(1).max(500).optional(),
@@ -122,7 +123,7 @@ export const BulkDeleteRequestSchema = z.object({
   data: z.object({
     type: z.literal('bulk-transactions'),
     attributes: z.object({
-      transactionIds: z.array(z.string().cuid()),
+      transactionIds: z.array(CuidQueryParam('id')),
       reason: z.string().min(1).max(200).optional()
     })
   })
@@ -132,7 +133,7 @@ export const BulkMarkPaidRequestSchema = z.object({
   data: z.object({
     type: z.literal('bulk-transactions'),
     attributes: z.object({
-      transactionIds: z.array(z.string().cuid()),
+      transactionIds: z.array(CuidQueryParam('id')),
       paidDate: z.string().datetime().optional(),
       reference: z.string().optional(),
       metadata: z.record(z.any()).optional()
@@ -145,8 +146,8 @@ export const BulkMarkPaidRequestSchema = z.object({
 // =============================================================================
 
 export const TransactionCategorySchema = z.object({
-  id: z.string().cuid(),
-  organizationId: z.string().cuid(),
+  id: CuidQueryParam('id'),
+  organizationId: CuidQueryParam('id'),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
@@ -186,7 +187,7 @@ export const ApprovalRequestSchema = z.object({
   data: z.object({
     type: z.literal('transaction-approvals'),
     attributes: z.object({
-      approvedBy: z.string().cuid(),
+      approvedBy: CuidQueryParam('id'),
       approvalNotes: z.string().max(500).optional(),
       metadata: z.record(z.any()).optional()
     })
@@ -197,7 +198,7 @@ export const RejectionRequestSchema = z.object({
   data: z.object({
     type: z.literal('transaction-approvals'),
     attributes: z.object({
-      rejectedBy: z.string().cuid(),
+      rejectedBy: CuidQueryParam('id'),
       rejectionReason: z.string().min(1).max(500),
       metadata: z.record(z.any()).optional()
     })
@@ -205,10 +206,10 @@ export const RejectionRequestSchema = z.object({
 });
 
 export const PendingApprovalSchema = z.object({
-  id: z.string().cuid(),
-  organizationId: z.string().cuid(),
-  transactionId: z.string().cuid(),
-  requestedBy: z.string().cuid(),
+  id: CuidQueryParam('id'),
+  organizationId: CuidQueryParam('id'),
+  transactionId: CuidQueryParam('id'),
+  requestedBy: CuidQueryParam('id'),
   requestedAt: z.string().datetime(),
   amount: z.number().positive(),
   currency: z.enum(['NGN', 'USD', 'EUR', 'GBP']),

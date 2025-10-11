@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import {
   MarketplaceCommodityCollectionSchema,
   MarketplaceSupplierCollectionSchema,
@@ -66,7 +67,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/suppliers',
     query: AllQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       location: z.string().optional(),
       rating: z.coerce.number().min(1).max(5).optional(),
       verificationStatus: z.enum(['verified', 'pending', 'rejected']).optional(),
@@ -99,7 +100,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/buyers',
     query: AllQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       location: z.string().optional(),
       orderVolume: z.coerce.number().positive().optional(),
       rating: z.coerce.number().min(1).max(5).optional(),
@@ -133,7 +134,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/price-trends',
     query: CommonQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       region: z.string().optional(),
       period: z.enum(['7d', '30d', '90d', '1y']).optional(),
       grade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
@@ -189,7 +190,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/market-analysis',
     query: CommonQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       region: z.string().optional(),
       period: z.enum(['7d', '30d', '90d', '1y']).optional(),
     }),
@@ -209,7 +210,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/demand-forecast',
     query: CommonQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       region: z.string().optional(),
       timeframe: z.enum(['1m', '3m', '6m', '1y']).optional(),
     }),
@@ -225,7 +226,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/supply-opportunities',
     query: AllQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       location: z.string().optional(),
       deliveryDate: z.string().datetime().optional(),
       priceRange: z.string().optional(), // "min-max" format
@@ -242,7 +243,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/buying-opportunities',
     query: AllQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       location: z.string().optional(),
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
       priceRange: z.string().optional(), // "min-max" format
@@ -275,7 +276,7 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/contract-templates',
     query: AllQueryParams.extend({
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       type: z.enum(['purchase', 'sale', 'supply', 'distribution']).optional(),
       region: z.string().optional(),
     }),
@@ -323,7 +324,7 @@ export const marketContract = c.router({
     path: '/marketplace/my-listings',
     query: AllQueryParams.extend({
       status: z.enum(['active', 'inactive', 'expired', 'sold']).optional(),
-      commodityId: z.string().cuid().optional(),
+      commodityId: CuidQueryParam('id').optional(),
       expiryDate: z.string().datetime().optional(),
     }),
     responses: {

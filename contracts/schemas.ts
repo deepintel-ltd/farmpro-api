@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 
 // =============================================================================
 // Core Resource Schemas
@@ -69,7 +70,7 @@ export const UserSchema = z.object({
 export const InventorySchema = z.object({
   farmId: z.string().cuid('Invalid farm ID'),
   commodityId: z.string().cuid('Invalid commodity ID'),
-  harvestId: z.string().cuid().optional(),
+  harvestId: CuidQueryParam('id').optional(),
   quantity: z.number().positive('Quantity must be positive'),
   unit: z.string().min(1, 'Unit is required'),
   quality: z.object({
@@ -110,12 +111,12 @@ export const InventorySchema = z.object({
  * Inventory movement schema for tracking changes
  */
 export const InventoryMovementSchema = z.object({
-  inventoryId: z.string().cuid(),
+  inventoryId: CuidQueryParam('id'),
   type: z.enum(['adjustment', 'reservation', 'release', 'transfer', 'consumption']),
   quantity: z.number(),
   reason: z.string(),
   notes: z.string().optional(),
-  performedBy: z.string().cuid(),
+  performedBy: CuidQueryParam('id'),
   performedAt: z.string().datetime(),
   metadata: z.record(z.string(), z.any()).optional()
 });
@@ -124,7 +125,7 @@ export const InventoryMovementSchema = z.object({
  * Inventory quality test schema
  */
 export const InventoryQualityTestSchema = z.object({
-  inventoryId: z.string().cuid(),
+  inventoryId: CuidQueryParam('id'),
   testType: z.enum(['moisture', 'protein', 'contamination', 'pesticide', 'custom']),
   testDate: z.string().datetime(),
   testedBy: z.string(),
@@ -172,7 +173,7 @@ export const InventoryValuationSchema = z.object({
   method: z.enum(['fifo', 'lifo', 'average', 'current_market']),
   totalValue: z.number().positive(),
   commodityBreakdown: z.array(z.object({
-    commodityId: z.string().cuid(),
+    commodityId: CuidQueryParam('id'),
     commodityName: z.string(),
     quantity: z.number().positive(),
     unitValue: z.number().positive(),
@@ -191,7 +192,7 @@ export const InventoryValuationSchema = z.object({
  * Cost basis schema
  */
 export const CostBasisSchema = z.object({
-  inventoryId: z.string().cuid(),
+  inventoryId: CuidQueryParam('id'),
   productionCosts: z.number().positive(),
   storageCosts: z.number().min(0),
   handlingCosts: z.number().min(0),
@@ -229,8 +230,8 @@ export const AgingReportSchema = z.object({
  * Demand forecast schema
  */
 export const DemandForecastSchema = z.object({
-  commodityId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
+  commodityId: CuidQueryParam('id').optional(),
+  farmId: CuidQueryParam('id').optional(),
   period: z.string(),
   forecastData: z.array(z.object({
     date: z.string().datetime(),
@@ -250,10 +251,10 @@ export const DemandForecastSchema = z.object({
  * Reorder points schema
  */
 export const ReorderPointsSchema = z.object({
-  commodityId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
+  commodityId: CuidQueryParam('id').optional(),
+  farmId: CuidQueryParam('id').optional(),
   reorderPoints: z.array(z.object({
-    commodityId: z.string().cuid(),
+    commodityId: CuidQueryParam('id'),
     commodityName: z.string(),
     currentStock: z.number().min(0),
     reorderPoint: z.number().min(0),
@@ -268,14 +269,14 @@ export const ReorderPointsSchema = z.object({
  * Replenishment plan schema
  */
 export const ReplenishmentPlanSchema = z.object({
-  commodityId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
+  commodityId: CuidQueryParam('id').optional(),
+  farmId: CuidQueryParam('id').optional(),
   timeHorizon: z.enum(['30', '60', '90', '180']),
   plan: z.array(z.object({
     date: z.string().datetime(),
     action: z.enum(['order', 'harvest', 'transfer', 'maintain']),
     quantity: z.number().min(0),
-    commodityId: z.string().cuid(),
+    commodityId: CuidQueryParam('id'),
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     notes: z.string().optional()
   })),
@@ -296,7 +297,7 @@ export const WasteAnalysisSchema = z.object({
     percentage: z.number().min(0).max(100)
   })),
   wasteByCommodity: z.array(z.object({
-    commodityId: z.string().cuid(),
+    commodityId: CuidQueryParam('id'),
     commodityName: z.string(),
     quantity: z.number().min(0),
     value: z.number().min(0)
@@ -309,7 +310,7 @@ export const WasteAnalysisSchema = z.object({
  * Traceability schema
  */
 export const TraceabilitySchema = z.object({
-  inventoryId: z.string().cuid(),
+  inventoryId: CuidQueryParam('id'),
   chain: z.array(z.object({
     step: z.string(),
     location: z.string(),
@@ -460,7 +461,7 @@ export const TraceabilityResourceSchema = JsonApiResourceSchema(TraceabilitySche
  * JSON API error object schema following specification
  */
 export const JsonApiErrorSchema = z.object({
-  id: z.string().cuid().optional(),
+  id: CuidQueryParam('id').optional(),
   status: z.string().regex(/^\d{3}$/, 'Status must be a 3-digit HTTP status code'),
   code: z.string().optional(),
   title: z.string().min(1, 'Error title is required'),
@@ -569,9 +570,9 @@ export const UpdateInventoryRequestSchema = JsonApiUpdateRequestSchema(Inventory
 // Inventory-specific request schemas
 
 export const InventoryTransferRequestSchema = z.object({
-  fromInventoryId: z.string().cuid(),
+  fromInventoryId: CuidQueryParam('id'),
   toLocation: z.object({
-    farmId: z.string().cuid(),
+    farmId: CuidQueryParam('id'),
     facility: z.string(),
     section: z.string().optional()
   }),
@@ -775,7 +776,7 @@ export const OrganizationVerificationRequestSchema = z.object({
 export const OrganizationAnalyticsQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional(),
   metric: z.string().optional(),
-  farmId: z.string().cuid().optional()
+  farmId: CuidQueryParam('id').optional()
 });
 
 /**
@@ -785,7 +786,7 @@ export const OrganizationActivityQuerySchema = z.object({
   limit: z.coerce.number().positive().max(100).optional(),
   days: z.coerce.number().positive().max(365).optional(),
   type: z.string().optional(),
-  userId: z.string().cuid().optional()
+  userId: CuidQueryParam('id').optional()
 });
 
 /**
@@ -794,7 +795,7 @@ export const OrganizationActivityQuerySchema = z.object({
 export const OrganizationComplianceQuerySchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'year']).optional(),
   standard: z.string().optional(),
-  farmId: z.string().cuid().optional()
+  farmId: CuidQueryParam('id').optional()
 });
 
 /**
@@ -869,7 +870,7 @@ export const OrganizationUsageSchema = z.object({
  * Organization team member schema
  */
 export const OrganizationTeamMemberSchema = z.object({
-  id: z.string().cuid(),
+  id: CuidQueryParam('id'),
   name: z.string(),
   email: z.string().email(),
   role: z.string(),
@@ -883,8 +884,8 @@ export const OrganizationTeamMemberSchema = z.object({
  */
 export const OrganizationTeamStatsSchema = z.object({
   period: z.string(),
-  roleId: z.string().cuid().optional(),
-  farmId: z.string().cuid().optional(),
+  roleId: CuidQueryParam('id').optional(),
+  farmId: CuidQueryParam('id').optional(),
   totalMembers: z.number(),
   activeMembers: z.number(),
   productivity: z.number(),
@@ -923,13 +924,13 @@ export const UserQueryParamsSchema = z.object({
   search: z.string().optional(),
   role: z.string().optional(),
   isActive: z.coerce.boolean().optional(),
-  farmId: z.string().cuid().optional(),
+  farmId: CuidQueryParam('id').optional(),
 });
 
 // Role Assignment
 export const AssignRoleRequestSchema = z.object({
-  roleId: z.string().cuid(),
-  farmId: z.string().cuid().optional(),
+  roleId: CuidQueryParam('id'),
+  farmId: CuidQueryParam('id').optional(),
   expiresAt: z.string().datetime().optional(),
 });
 
@@ -986,18 +987,18 @@ export const StatsQueryParamsSchema = z.object({
 
 // User Profile Response
 export const UserProfileResponseSchema = z.object({
-  id: z.string().cuid(),
+  id: CuidQueryParam('id'),
   email: z.string().email(),
   name: z.string(),
   phone: z.string().nullable(),
   avatar: z.string().url().nullable(),
   isActive: z.boolean(),
   organization: z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string(),
   }),
   roles: z.array(z.object({
-    id: z.string().cuid(),
+    id: CuidQueryParam('id'),
     name: z.string(),
     permissions: z.array(z.string()),
   })),
@@ -1008,7 +1009,7 @@ export const UserProfileResponseSchema = z.object({
 
 // Activity Log
 export const ActivityLogItemSchema = z.object({
-  id: z.string().cuid(),
+  id: CuidQueryParam('id'),
   action: z.string(),
   entity: z.string(),
   entityId: z.string().nullable(),

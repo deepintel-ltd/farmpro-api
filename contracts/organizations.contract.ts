@@ -1,5 +1,6 @@
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
+import { CuidQueryParam } from './common';
 import {
   OrganizationResourceSchema,
   OrganizationCollectionSchema,
@@ -356,8 +357,8 @@ export const organizationContract = c.router({
     path: '/organizations/team/stats',
     query: z.object({
       period: z.string().optional(),
-      roleId: z.string().cuid().optional(),
-      farmId: z.string().cuid().optional(),
+      roleId: CuidQueryParam('roleId').optional(),
+      farmId: CuidQueryParam('farmId').optional(),
     }),
     responses: {
       200: OrganizationTeamStatsResourceSchema,
