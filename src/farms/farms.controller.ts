@@ -274,36 +274,4 @@ export class FarmsController {
     );
   }
 
-  @TsRestHandler(farmContract.getFarmDashboardStats)
-  @RequirePermission('farms', 'read')
-  public getFarmDashboardStats(
-    @Request() req: AuthenticatedRequest,
-    @OrganizationId() organizationId: string,
-  ): ReturnType<typeof tsRestHandler> {
-    return tsRestHandler(farmContract.getFarmDashboardStats, async ({ params, query }) => {
-      try {
-        const result = await this.farmsService.getFarmDashboardStats(
-          params.id,
-          {
-            period: query.period,
-            includeTrends: query.includeTrends,
-          },
-          organizationId,
-        );
-
-        return {
-          status: 200 as const,
-          body: result,
-        };
-      } catch (error: unknown) {
-        this.logger.error('Get farm dashboard stats failed:', error);
-
-        return ErrorResponseUtil.internalServerError(
-          error,
-          'Failed to retrieve farm dashboard statistics',
-          'GET_FARM_DASHBOARD_STATS_FAILED',
-        );
-      }
-    });
-  }
 }

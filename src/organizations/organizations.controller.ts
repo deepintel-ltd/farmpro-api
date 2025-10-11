@@ -14,6 +14,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Secured } from '../common/decorators/secured.decorator';
 import { FEATURES, PERMISSIONS } from '../common/constants';
 import { organizationContract } from '../../contracts/organizations.contract';
+import { farmContract } from '../../contracts/farms.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import {
   RequirePermission,
@@ -1301,5 +1302,42 @@ export class OrganizationsController {
         }
       },
     );
+  }
+
+  // =============================================================================
+  // Dashboard Stats
+  // =============================================================================
+
+  @TsRestHandler(farmContract.getOrganizationDashboardStats)
+  @RequirePermission("farms", "read")
+  public getOrganizationDashboardStats(
+    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(farmContract.getOrganizationDashboardStats, async ({ query }) => {
+      try {
+        const result = await this.organizationsService.getOrganizationDashboardStats(
+          organizationId,
+          {
+            farmId: query.farmId,
+            period: query.period,
+            includeTrends: query.includeTrends,
+          },
+        );
+
+        return {
+          status: 200 as const,
+          body: result,
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get organization dashboard stats failed:', error);
+
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve organization dashboard statistics',
+          'GET_ORGANIZATION_DASHBOARD_STATS_FAILED',
+        );
+      }
+    });
   }
 }

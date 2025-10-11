@@ -167,13 +167,13 @@ export const farmContract = c.router({
     },
     summary: 'Get farm-order relationship identifiers',
   },
-
-  // Get farm dashboard stats
-  getFarmDashboardStats: {
+  
+  getOrganizationDashboardStats: {
     method: 'GET',
-    path: '/farms/:id/dashboard-stats',
-    pathParams: CuidPathParam('Farm'),
+    path: '/farms/dashboard-stats',
     query: z.object({
+      farmId: z.string().optional(),
+      organizationId: z.string().optional(),
       period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
       includeTrends: z.boolean().optional().default(true),
     }).merge(CommonQueryParams),
@@ -181,8 +181,16 @@ export const farmContract = c.router({
       200: z.object({
         data: z.object({
           id: z.string(),
-          type: z.literal('farm-dashboard-stats'),
+          type: z.literal('organization-dashboard-stats'),
           attributes: z.object({
+            totalFarms: z.object({
+              value: z.number(),
+              trend: z.object({
+                direction: z.enum(['up', 'down', 'stable']),
+                percentage: z.number(),
+                label: z.string(),
+              }),
+            }),
             totalArea: z.object({
               value: z.number(),
               unit: z.string(),
@@ -208,7 +216,7 @@ export const farmContract = c.router({
                 label: z.string(),
               }),
             }),
-            completionRate: z.object({
+            averageCompletionRate: z.object({
               value: z.number(),
               unit: z.string(),
               trend: z.object({
@@ -219,13 +227,16 @@ export const farmContract = c.router({
             }),
             period: z.string(),
             lastUpdated: z.string(),
+            scope: z.enum(['organization', 'farm']),
+            farmId: z.string().optional(),
+            organizationId: z.string().optional(),
           }),
         }),
       }),
       ...CommonErrorResponses,
     },
-    summary: 'Get farm dashboard statistics including total area, active activities, crop types, and completion rate',
-    description: 'Provides key farm metrics for dashboard display with trend analysis',
+    summary: 'Get organization-wide dashboard statistics aggregated across all farms',
+    description: 'Provides organization-level farm metrics for dashboard display with trend analysis. Can be filtered by specific farm or organization.',
   },
 });
 

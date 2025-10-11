@@ -2191,4 +2191,522 @@ export class OrganizationsService {
     const organizationCurrency = await this.getCurrency(organizationId);
     return this.currencyService.formatAmount(amount, organizationCurrency);
   }
+
+  // =============================================================================
+  // Dashboard Stats
+  // =============================================================================
+
+  async getOrganizationDashboardStats(
+    organizationId: string,
+    query: { farmId?: string; period?: string; includeTrends?: boolean }
+  ): Promise<{ data: { id: string; type: string; attributes: any } }> {
+    const startTime = Date.now();
+    
+    try {
+      const { farmId, period = 'month', includeTrends = true } = query;
+      
+      // Validate input parameters
+      this.validateDashboardQuery(query);
+      
+      this.logger.log(`Getting dashboard stats for organization: ${organizationId}, farmId: ${farmId}, period: ${period}`);
+
+      // Check if organization exists and is active
+      const organization = await this.prisma.organization.findUnique({
+        where: { 
+          id: organizationId,
+          isActive: true
+        },
+        select: { id: true, name: true, isActive: true }
+      });
+
+      if (!organization) {
+        throw new NotFoundException(`Organization with ID ${organizationId} not found or inactive`);
+      }
+      const now = new Date();
+      const startDate = this.getStartDateForPeriod(period, now);
+      const previousStartDate = this.getStartDateForPeriod(period, new Date(startDate.getTime() - (now.getTime() - startDate.getTime())));
+
+      let result;
+      if (farmId) {
+        // Validate farm exists and belongs to organization
+        const farm = await this.prisma.farm.findFirst({
+          where: { 
+            id: farmId, 
+            organizationId,
+            isActive: true
+          },
+          select: { id: true, name: true }
+        });
+
+        if (!farm) {
+          throw new NotFoundException(`Farm with ID ${farmId} not found in organization ${organizationId} or inactive`);
+        }
+
+        // Get stats for specific farm
+        result = await this.getFarmDashboardStats(farmId, organizationId, { period, includeTrends, startDate, previousStartDate, now });
+      } else {
+        // Get stats for all farms in organization
+        result = await this.getOrganizationWideStats(organizationId, { period, includeTrends, startDate, previousStartDate, now });
+      }
+
+      // Log performance metrics
+      const duration = Date.now() - startTime;
+      this.logger.log(`Dashboard stats retrieved successfully in ${duration}ms for organization ${organizationId}`);
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`Failed to get dashboard stats for organization ${organizationId} after ${duration}ms:`, error);
+      
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      // Log unexpected errors for monitoring
+      this.logger.error(`Unexpected error in getOrganizationDashboardStats:`, {
+        organizationId,
+        query,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      throw new BadRequestException('Failed to retrieve dashboard statistics');
+    }
+  }
+
+  private validateDashboardQuery(query: { farmId?: string; period?: string; includeTrends?: boolean }): void {
+    const { farmId, period, includeTrends } = query;
+    
+    // Validate farmId format if provided
+    if (farmId && (!farmId.match(/^[a-zA-Z0-9]+$/) || farmId.length < 10)) {
+      throw new BadRequestException('Invalid farm ID format');
+    }
+    
+    // Validate period
+    const validPeriods = ['week', 'month', 'quarter', 'year'];
+    if (period && !validPeriods.includes(period)) {
+      throw new BadRequestException(`Invalid period. Must be one of: ${validPeriods.join(', ')}`);
+    }
+    
+    // Validate includeTrends
+    if (includeTrends !== undefined && typeof includeTrends !== 'boolean') {
+      throw new BadRequestException('includeTrends must be a boolean value');
+    }
+  }
+
+  private async getFarmDashboardStats(
+    farmId: string,
+    organizationId: string,
+    options: { period: string; includeTrends: boolean; startDate: Date; previousStartDate: Date; now: Date }
+  ): Promise<{ data: { id: string; type: string; attributes: any } }> {
+    const { period, includeTrends, startDate, previousStartDate, now } = options;
+
+    // Verify farm exists and belongs to organization
+    const farm = await this.prisma.farm.findFirst({
+      where: { id: farmId, organizationId },
+    });
+
+    if (!farm) {
+      throw new NotFoundException(`Farm with ID ${farmId} not found in organization ${organizationId}`);
+    }
+
+    // Fetch farm-specific data
+    const [
+      totalArea,
+      activeActivities,
+      cropTypes,
+      completionStats,
+      previousActiveActivities,
+      previousCropTypes,
+      previousCompletionStats
+    ] = await Promise.all([
+      this.getFarmTotalArea(farmId),
+      this.getFarmActiveActivitiesCount(farmId, startDate, now),
+      this.getFarmCropTypesCount(farmId),
+      this.getFarmCompletionRate(farmId, startDate, now),
+      
+      // Previous period data for trends
+      includeTrends ? this.getFarmActiveActivitiesCount(farmId, previousStartDate, startDate) : 0,
+      includeTrends ? this.getFarmCropTypesCount(farmId) : 0,
+      includeTrends ? this.getFarmCompletionRate(farmId, previousStartDate, startDate) : { completed: 0, total: 0 }
+    ]);
+
+    // Calculate trends
+    const activeActivitiesTrend = includeTrends ? this.calculateTrend(activeActivities, previousActiveActivities) : this.getStableTrend();
+    const cropTypesTrend = includeTrends ? this.calculateTrend(cropTypes, previousCropTypes) : this.getStableTrend();
+    const completionRateTrend = includeTrends ? this.calculateTrend(
+      completionStats.completed, 
+      previousCompletionStats.completed
+    ) : this.getStableTrend();
+
+    return {
+      data: {
+        id: farmId,
+        type: 'organization-dashboard-stats',
+        attributes: {
+          totalArea: {
+            value: totalArea.value,
+            unit: totalArea.unit,
+            trend: this.getStableTrend(),
+          },
+          activeActivities: {
+            value: activeActivities,
+            trend: activeActivitiesTrend,
+          },
+          cropTypes: {
+            value: cropTypes,
+            trend: cropTypesTrend,
+          },
+          averageCompletionRate: {
+            value: completionStats.rate,
+            unit: '%',
+            trend: completionRateTrend,
+          },
+          period,
+          lastUpdated: now.toISOString(),
+          scope: 'farm' as const,
+          farmId,
+          organizationId,
+        },
+      },
+    };
+  }
+
+  private async getOrganizationWideStats(
+    organizationId: string,
+    options: { period: string; includeTrends: boolean; startDate: Date; previousStartDate: Date; now: Date }
+  ): Promise<{ data: { id: string; type: string; attributes: any } }> {
+    const { period, includeTrends, startDate, previousStartDate, now } = options;
+
+    // Get all farms for the organization
+    const farms = await this.prisma.farm.findMany({
+      where: { organizationId },
+      select: { id: true, totalArea: true },
+    });
+
+    const totalFarms = farms.length;
+    const totalArea = farms.reduce((sum, farm) => sum + (farm.totalArea || 0), 0);
+
+    // Get aggregated stats across all farms
+    const [
+      activeActivities,
+      cropTypes,
+      completionStats,
+      previousActiveActivities,
+      previousCropTypes,
+      previousCompletionStats
+    ] = await Promise.all([
+      this.getOrganizationActiveActivitiesCount(organizationId, startDate, now),
+      this.getOrganizationCropTypesCount(organizationId),
+      this.getOrganizationCompletionRate(organizationId, startDate, now),
+      
+      // Previous period data for trends
+      includeTrends ? this.getOrganizationActiveActivitiesCount(organizationId, previousStartDate, startDate) : 0,
+      includeTrends ? this.getOrganizationCropTypesCount(organizationId) : 0,
+      includeTrends ? this.getOrganizationCompletionRate(organizationId, previousStartDate, startDate) : { completed: 0, total: 0 }
+    ]);
+
+    // Calculate trends
+    const totalFarmsTrend = this.getStableTrend(); // Total farms typically don't change frequently
+    const totalAreaTrend = this.getStableTrend(); // Total area typically doesn't change
+    const activeActivitiesTrend = includeTrends ? this.calculateTrend(activeActivities, previousActiveActivities) : this.getStableTrend();
+    const cropTypesTrend = includeTrends ? this.calculateTrend(cropTypes, previousCropTypes) : this.getStableTrend();
+    const completionRateTrend = includeTrends ? this.calculateTrend(
+      completionStats.completed, 
+      previousCompletionStats.completed
+    ) : this.getStableTrend();
+
+    return {
+      data: {
+        id: organizationId,
+        type: 'organization-dashboard-stats',
+        attributes: {
+          totalFarms: {
+            value: totalFarms,
+            trend: totalFarmsTrend,
+          },
+          totalArea: {
+            value: totalArea,
+            unit: 'hectares',
+            trend: totalAreaTrend,
+          },
+          activeActivities: {
+            value: activeActivities,
+            trend: activeActivitiesTrend,
+          },
+          cropTypes: {
+            value: cropTypes,
+            trend: cropTypesTrend,
+          },
+          averageCompletionRate: {
+            value: completionStats.rate,
+            unit: '%',
+            trend: completionRateTrend,
+          },
+          period,
+          lastUpdated: now.toISOString(),
+          scope: 'organization' as const,
+          organizationId,
+        },
+      },
+    };
+  }
+
+  // Helper methods for dashboard stats
+  private getStartDateForPeriod(period: string, now: Date): Date {
+    const date = new Date(now);
+    switch (period) {
+      case 'week':
+        date.setDate(date.getDate() - 7);
+        break;
+      case 'month':
+        date.setMonth(date.getMonth() - 1);
+        break;
+      case 'quarter':
+        date.setMonth(date.getMonth() - 3);
+        break;
+      case 'year':
+        date.setFullYear(date.getFullYear() - 1);
+        break;
+      default:
+        date.setMonth(date.getMonth() - 1);
+    }
+    return date;
+  }
+
+  private calculateTrend(current: number, previous: number): { direction: 'up' | 'down' | 'stable'; percentage: number; label: string } {
+    if (previous === 0) {
+      return current > 0 ? { direction: 'up', percentage: 100, label: 'New' } : this.getStableTrend();
+    }
+    
+    const percentage = ((current - previous) / previous) * 100;
+    const direction = Math.abs(percentage) < 1 ? 'stable' : percentage > 0 ? 'up' : 'down';
+    
+    return {
+      direction,
+      percentage: Math.abs(percentage),
+      label: direction === 'up' ? `+${percentage.toFixed(1)}%` : 
+             direction === 'down' ? `${percentage.toFixed(1)}%` : 'No change',
+    };
+  }
+
+  private getStableTrend(): { direction: 'up' | 'down' | 'stable'; percentage: number; label: string } {
+    return { direction: 'stable', percentage: 0, label: 'No change' };
+  }
+
+  // Farm-specific helper methods
+  private async getFarmTotalArea(farmId: string): Promise<{ value: number; unit: string }> {
+    try {
+      const farm = await this.prisma.farm.findUnique({
+        where: { id: farmId },
+        select: { totalArea: true }
+      });
+      
+      if (!farm) {
+        this.logger.warn(`Farm ${farmId} not found when getting total area`);
+        return { value: 0, unit: 'hectares' };
+      }
+      
+      return {
+        value: farm.totalArea || 0,
+        unit: 'hectares'
+      };
+    } catch (error) {
+      this.logger.error(`Error getting farm total area for ${farmId}:`, error);
+      return { value: 0, unit: 'hectares' };
+    }
+  }
+
+  private async getFarmActiveActivitiesCount(farmId: string, startDate: Date, endDate: Date): Promise<number> {
+    try {
+      const count = await this.prisma.farmActivity.count({
+        where: {
+          farmId,
+          status: {
+            in: ['IN_PROGRESS', 'PLANNED', 'SCHEDULED']
+          },
+          scheduledAt: {
+            gte: startDate,
+            lte: endDate
+          }
+        }
+      });
+      
+      return count;
+    } catch (error) {
+      this.logger.error(`Error getting farm active activities count for ${farmId}:`, error);
+      return 0;
+    }
+  }
+
+  private async getFarmCropTypesCount(farmId: string): Promise<number> {
+    try {
+      // Get unique crop types from active crop cycles
+      const cropTypes = await this.prisma.cropCycle.findMany({
+        where: {
+          farmId,
+          status: {
+            in: ['PLANTED', 'GROWING', 'MATURE']
+          }
+        },
+        select: {
+          commodity: {
+            select: {
+              category: true
+            }
+          }
+        },
+        distinct: ['commodityId']
+      });
+
+      const uniqueCategories = new Set(cropTypes.map(cycle => cycle.commodity.category));
+      return uniqueCategories.size;
+    } catch (error) {
+      this.logger.error(`Error getting farm crop types count for ${farmId}:`, error);
+      return 0;
+    }
+  }
+
+  private async getFarmCompletionRate(farmId: string, startDate: Date, endDate: Date): Promise<{ completed: number; total: number; rate: number }> {
+    try {
+      const [completed, total] = await Promise.all([
+        this.prisma.farmActivity.count({
+          where: {
+            farmId,
+            status: 'COMPLETED',
+            completedAt: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        }),
+        this.prisma.farmActivity.count({
+          where: {
+            farmId,
+            scheduledAt: {
+              gte: startDate,
+              lte: endDate
+            },
+            status: {
+              not: 'CANCELLED'
+            }
+          }
+        })
+      ]);
+
+      const rate = total > 0 ? (completed / total) * 100 : 0;
+      
+      return { completed, total, rate };
+    } catch (error) {
+      this.logger.error(`Error getting farm completion rate for ${farmId}:`, error);
+      return { completed: 0, total: 0, rate: 0 };
+    }
+  }
+
+  // Organization-wide helper methods
+  private async getOrganizationActiveActivitiesCount(organizationId: string, startDate: Date, endDate: Date): Promise<number> {
+    try {
+      const count = await this.prisma.farmActivity.count({
+        where: {
+          farm: {
+            organizationId
+          },
+          status: {
+            in: ['IN_PROGRESS', 'PLANNED', 'SCHEDULED']
+          },
+          scheduledAt: {
+            gte: startDate,
+            lte: endDate
+          }
+        }
+      });
+      
+      return count;
+    } catch (error) {
+      this.logger.error(`Error getting organization active activities count for ${organizationId}:`, error);
+      return 0;
+    }
+  }
+
+  private async getOrganizationCropTypesCount(organizationId: string): Promise<number> {
+    try {
+      // First get all farm IDs for the organization
+      const farms = await this.prisma.farm.findMany({
+        where: { organizationId },
+        select: { id: true }
+      });
+      
+      const farmIds = farms.map(farm => farm.id);
+      
+      if (farmIds.length === 0) {
+        return 0;
+      }
+      
+      // Get unique crop types from active crop cycles across all farms in the organization
+      const cropTypes = await this.prisma.cropCycle.findMany({
+        where: {
+          farmId: {
+            in: farmIds
+          },
+          status: {
+            in: ['PLANTED', 'GROWING', 'MATURE']
+          }
+        },
+        select: {
+          commodity: {
+            select: {
+              category: true
+            }
+          }
+        },
+        distinct: ['commodityId']
+      });
+
+      const uniqueCategories = new Set(cropTypes.map(cycle => cycle.commodity.category));
+      return uniqueCategories.size;
+    } catch (error) {
+      this.logger.error(`Error getting organization crop types count for ${organizationId}:`, error);
+      return 0;
+    }
+  }
+
+  private async getOrganizationCompletionRate(organizationId: string, startDate: Date, endDate: Date): Promise<{ completed: number; total: number; rate: number }> {
+    try {
+      const [completed, total] = await Promise.all([
+        this.prisma.farmActivity.count({
+          where: {
+            farm: {
+              organizationId
+            },
+            status: 'COMPLETED',
+            completedAt: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        }),
+        this.prisma.farmActivity.count({
+          where: {
+            farm: {
+              organizationId
+            },
+            scheduledAt: {
+              gte: startDate,
+              lte: endDate
+            },
+            status: {
+              not: 'CANCELLED'
+            }
+          }
+        })
+      ]);
+
+      const rate = total > 0 ? (completed / total) * 100 : 0;
+      
+      return { completed, total, rate };
+    } catch (error) {
+      this.logger.error(`Error getting organization completion rate for ${organizationId}:`, error);
+      return { completed: 0, total: 0, rate: 0 };
+    }
+  }
 }
