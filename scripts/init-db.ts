@@ -457,6 +457,7 @@ async function upsertUser(data: any, organizationId: string) {
     update: {
       ...userData,
       organizationId,
+      hashedPassword: await hash(password), // Always update password
       updatedAt: new Date()
     },
     create: {
