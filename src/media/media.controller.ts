@@ -9,8 +9,6 @@ import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import {
   RequirePermission,
 } from '../common/decorators/authorization.decorators';
-import { OrganizationId } from '../common/decorators/organization-context.decorator';
-
 @Controller()
 @Secured(FEATURES.MEDIA)
 export class MediaController {

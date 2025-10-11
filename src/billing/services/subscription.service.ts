@@ -550,11 +550,10 @@ export class SubscriptionService {
           },
         });
 
-        // Update organization to FREE plan features
+        // Update organization features (plan is now handled by subscription)
         await tx.organization.update({
           where: { id: organizationId },
           data: {
-            plan: 'FREE',
             allowedModules,
             features: planFeatures,
           },

@@ -68,7 +68,21 @@ export class InvitationService {
     // Check if organization exists and is active
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { id: true, name: true, plan: true, maxUsers: true, isActive: true },
+      select: { 
+        id: true, 
+        name: true, 
+        maxUsers: true, 
+        isActive: true,
+        subscription: {
+          select: {
+            plan: {
+              select: {
+                tier: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!organization) {
@@ -221,9 +235,17 @@ export class InvitationService {
           select: {
             id: true,
             name: true,
-            plan: true,
             maxUsers: true,
             isActive: true,
+            subscription: {
+              select: {
+                plan: {
+                  select: {
+                    tier: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -389,7 +411,15 @@ export class InvitationService {
         organization: {
           select: {
             name: true,
-            plan: true,
+            subscription: {
+              select: {
+                plan: {
+                  select: {
+                    tier: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -404,7 +434,7 @@ export class InvitationService {
       email: invitation.email,
       organizationId: invitation.organizationId,
       organizationName: invitation.organization.name,
-      organizationPlan: invitation.organization.plan,
+      organizationPlan: invitation.organization.subscription?.plan?.tier || 'FREE',
       status: invitation.status,
       expiresAt: invitation.expiresAt,
       createdAt: invitation.createdAt,

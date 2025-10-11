@@ -81,9 +81,17 @@ export class OrganizationValidationService {
         id: true,
         name: true,
         type: true,
-        plan: true,
         isVerified: true,
         createdAt: true,
+        subscription: {
+          select: {
+            plan: {
+              select: {
+                tier: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             users: true,
@@ -98,7 +106,7 @@ export class OrganizationValidationService {
       id: org.id,
       name: org.name,
       type: org.type,
-      plan: org.plan,
+      plan: org.subscription?.plan?.tier || 'FREE',
       isVerified: org.isVerified,
       createdAt: org.createdAt,
       userCount: org._count.users,

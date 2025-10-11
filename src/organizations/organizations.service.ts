@@ -1457,8 +1457,16 @@ export class OrganizationsService {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: {
-        plan: true,
         metadata: true,
+        subscription: {
+          select: {
+            plan: {
+              select: {
+                tier: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -1583,10 +1591,10 @@ export class OrganizationsService {
     const { attributes } = data;
 
     try {
+      // Update organization metadata only (plan is handled by subscription)
       await this.prisma.organization.update({
         where: { id: organizationId },
         data: {
-          plan: attributes.planId,
           metadata: {
             billingCycle: attributes.billingCycle,
             paymentMethod: attributes.paymentMethod,
@@ -1620,10 +1628,10 @@ export class OrganizationsService {
     const { planId, billingCycle } = requestData;
 
     try {
+      // Update organization metadata only (plan is handled by subscription)
       await this.prisma.organization.update({
         where: { id: organizationId },
         data: {
-          plan: planId,
           metadata: {
             billingCycle,
             updatedAt: new Date().toISOString(),
@@ -1862,7 +1870,7 @@ export class OrganizationsService {
 
       // Create subscription for the organization
       const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
-        where: { tier: planTier }
+        where: { tier: planTier as any }
       });
 
       if (subscriptionPlan) {

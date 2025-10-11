@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationImpersonationMiddleware } from './organization-impersonation.middleware';
 import { PrismaService } from '@/prisma/prisma.service';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import { Request, Response } from 'express';
 import { NextFunction } from 'express';
 
 describe('OrganizationImpersonationMiddleware', () => {
