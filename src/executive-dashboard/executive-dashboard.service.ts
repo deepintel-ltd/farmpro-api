@@ -30,13 +30,31 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   }
 
   /**
+   * Get organization ID from request context (respects x-organization-id header)
+   */
+  private getOrganizationIdFromRequest(request: any, user: CurrentUser): string {
+    // Check if organization impersonation is active
+    if (request?.organizationFilter?.organizationId) {
+      return request.organizationFilter.organizationId;
+    }
+    
+    // Fallback to user's organization
+    if (user?.organizationId) {
+      return user.organizationId;
+    }
+    
+    throw new Error('Organization ID not found in request context');
+  }
+
+  /**
    * Get comprehensive executive dashboard overview
    */
-  async getExecutiveDashboard(user: CurrentUser, query: z.infer<typeof ExecutiveDashboardQuerySchema>) {
+  async getExecutiveDashboard(user: CurrentUser, request: any, query: z.infer<typeof ExecutiveDashboardQuerySchema>) {
+    const organizationId = this.getOrganizationIdFromRequest(request, user);
     const startTime = Date.now();
-    this.logger.log(`Getting executive dashboard for user: ${user.userId}`);
+    this.logger.log(`Getting executive dashboard for user: ${user.userId}, organization: ${organizationId}`);
 
-    const cacheKey = `executive-dashboard-${user.organizationId}-${query.period}-${query.currency}`;
+    const cacheKey = `executive-dashboard-${organizationId}-${query.period}-${query.currency}`;
     
     if (query.useCache) {
       const cached = await this.cacheService.get(cacheKey);
@@ -55,30 +73,30 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
         pendingActions,
         insights,
       ] = await Promise.all([
-        this.calculateFinancialHealth(user, {
+        this.calculateFinancialHealth(user, request, {
           period: query.period,
           currency: query.currency,
           includeBreakdown: true,
           useCache: query.useCache,
         }),
-        this.calculateRiskIndicators(user, {
+        this.calculateRiskIndicators(user, request, {
           currency: query.currency,
           includeAlerts: true,
           useCache: query.useCache,
         }),
-        this.calculateCashFlowAnalysis(user, {
+        this.calculateCashFlowAnalysis(user, request, {
           period: query.period,
           currency: query.currency,
           includeProjections: query.includeProjections,
           projectionMonths: 6,
           useCache: query.useCache,
         }),
-        this.calculateKeyMetrics(user.organizationId, query.period, query.currency),
-        this.getPendingActions(user, {
+        this.calculateKeyMetrics(organizationId, query.period, query.currency),
+        this.getPendingActions(user, request, {
           limit: 10,
           useCache: query.useCache,
         }),
-        query.includeInsights ? this.getExecutiveInsights(user, {
+        query.includeInsights ? this.getExecutiveInsights(user, request, {
           limit: 10,
           useCache: query.useCache,
         }) : [],
@@ -109,11 +127,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Calculate financial health score
    */
-  async calculateFinancialHealth(user: CurrentUser, query: z.infer<typeof FinancialHealthQuerySchema>) {
+  async calculateFinancialHealth(user: CurrentUser, request: any, query: z.infer<typeof FinancialHealthQuerySchema>) {
+    const organizationId = this.getOrganizationIdFromRequest(request, user);
     const startTime = Date.now();
-    this.logger.log(`Calculating financial health for user: ${user.userId}`);
+    this.logger.log(`Calculating financial health for user: ${user.userId}, organization: ${organizationId}`);
 
-    const cacheKey = `financial-health-${user.organizationId}-${query.period}-${query.currency}`;
+    const cacheKey = `financial-health-${organizationId}-${query.period}-${query.currency}`;
     
     if (query.useCache) {
       const cached = await this.cacheService.get(cacheKey);
@@ -125,7 +144,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
 
     try {
       const transactions = await this.getTransactionsByPeriod(
-        user.organizationId, 
+        organizationId, 
         query.period,
         query.currency
       );
@@ -168,11 +187,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Calculate risk indicators
    */
-  async calculateRiskIndicators(user: CurrentUser, query: z.infer<typeof RiskIndicatorsQuerySchema>) {
+  async calculateRiskIndicators(user: CurrentUser, request: any, query: z.infer<typeof RiskIndicatorsQuerySchema>) {
+    const organizationId = this.getOrganizationIdFromRequest(request, user);
     const startTime = Date.now();
-    this.logger.log(`Calculating risk indicators for user: ${user.userId}`);
+    this.logger.log(`Calculating risk indicators for user: ${user.userId}, organization: ${organizationId}`);
 
-    const cacheKey = `risk-indicators-${user.organizationId}-${query.currency}`;
+    const cacheKey = `risk-indicators-${organizationId}-${query.currency}`;
     
     if (query.useCache) {
       const cached = await this.cacheService.get(cacheKey);
@@ -185,7 +205,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     try {
       const transactions = await this.prisma.transaction.findMany({
         where: { 
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           currency: query.currency as Currency,
         },
         orderBy: { createdAt: 'desc' },
@@ -194,8 +214,8 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       const orders = await this.prisma.order.findMany({
         where: { 
           OR: [
-            { buyerOrgId: user.organizationId },
-            { supplierOrgId: user.organizationId }
+            { buyerOrgId: organizationId },
+            { supplierOrgId: organizationId }
           ]
         },
         orderBy: { createdAt: 'desc' },
@@ -227,7 +247,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
           marketRisk,
           operationalRisk,
         },
-        alerts: query.includeAlerts ? await this.generateRiskAlerts(user.organizationId, query.currency) : [],
+        alerts: query.includeAlerts ? await this.generateRiskAlerts(organizationId, query.currency) : [],
         lastCalculated: new Date().toISOString(),
       };
 
@@ -246,11 +266,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Calculate cash flow analysis
    */
-  async calculateCashFlowAnalysis(user: CurrentUser, query: z.infer<typeof CashFlowQuerySchema>) {
+  async calculateCashFlowAnalysis(user: CurrentUser, request: any, query: z.infer<typeof CashFlowQuerySchema>) {
+    const organizationId = this.getOrganizationIdFromRequest(request, user);
     const startTime = Date.now();
-    this.logger.log(`Calculating cash flow analysis for user: ${user.userId}, organization: ${user.organizationId}, query: ${JSON.stringify(query)}`);
+    this.logger.log(`Calculating cash flow analysis for user: ${user.userId}, organization: ${organizationId}, query: ${JSON.stringify(query)}`);
 
-    const cacheKey = `cash-flow-${user.organizationId}-${query.period}-${query.currency}`;
+    const cacheKey = `cash-flow-${organizationId}-${query.period}-${query.currency}`;
     
     if (query.useCache) {
       const cached = await this.cacheService.get(cacheKey);
@@ -266,7 +287,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
         throw new Error(`Unsupported currency: ${query.currency}. Supported currencies are USD and NGN.`);
       }
       const transactions = await this.getTransactionsByPeriod(
-        user.organizationId, 
+        organizationId, 
         query.period,
         query.currency
       );
@@ -306,7 +327,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       this.logger.log(`Cash flow analysis calculated in ${Date.now() - startTime}ms`);
       return result;
     } catch (error) {
-      this.logger.error(`Error calculating cash flow analysis for user ${user.userId}, organization ${user.organizationId}: ${error.message}`, error.stack);
+      this.logger.error(`Error calculating cash flow analysis for user ${user.userId}, organization ${organizationId}: ${error.message}`, error.stack);
       // Return a default response instead of throwing to prevent 500 errors
       return {
         currentCashFlow: { amount: 0, currency: query.currency },
@@ -327,11 +348,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Get pending executive actions
    */
-  async getPendingActions(user: CurrentUser, query: z.infer<typeof PendingActionsQuerySchema>) {
+  async getPendingActions(user: CurrentUser, request: any, query: z.infer<typeof PendingActionsQuerySchema>) {
+    const organizationId = this.getOrganizationIdFromRequest(request, user);
     const startTime = Date.now();
-    this.logger.log(`Getting pending actions for user: ${user.userId}`);
+    this.logger.log(`Getting pending actions for user: ${user.userId}, organization: ${organizationId}`);
 
-    const cacheKey = `pending-actions-${user.organizationId}-${query.limit}`;
+    const cacheKey = `pending-actions-${organizationId}-${query.limit}`;
     
     if (query.useCache) {
       const cached = await this.cacheService.get(cacheKey);
@@ -345,7 +367,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
       // Get pending transaction approvals
       const pendingTransactions = await this.prisma.transaction.findMany({
         where: {
-          organizationId: user.organizationId,
+          organizationId: organizationId,
           requiresApproval: true,
           status: TransactionStatus.PENDING,
         },
@@ -386,11 +408,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
   /**
    * Get executive insights
    */
-  async getExecutiveInsights(user: CurrentUser, query: z.infer<typeof ExecutiveInsightsQuerySchema>) {
+  async getExecutiveInsights(user: CurrentUser, request: any, query: z.infer<typeof ExecutiveInsightsQuerySchema>) {
+    const organizationId = this.getOrganizationIdFromRequest(request, user);
     const startTime = Date.now();
-    this.logger.log(`Getting executive insights for user: ${user.userId}`);
+    this.logger.log(`Getting executive insights for user: ${user.userId}, organization: ${organizationId}`);
 
-    const cacheKey = `executive-insights-${user.organizationId}-${query.limit}`;
+    const cacheKey = `executive-insights-${organizationId}-${query.limit}`;
     
     if (query.useCache) {
       const cached = await this.cacheService.get(cacheKey);
@@ -402,7 +425,7 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
 
     try {
       // Generate insights based on current data
-      const insights = await this.generateInsights(user.organizationId);
+      const insights = await this.generateInsights(organizationId);
       
       const result = insights.slice(0, query.limit);
 

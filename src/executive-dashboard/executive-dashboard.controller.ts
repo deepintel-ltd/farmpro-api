@@ -41,7 +41,7 @@ export class ExecutiveDashboardController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getExecutiveDashboard, async ({ query }) => {
       try {
-        const data = await this.executiveDashboardService.getExecutiveDashboard(req.user, query);
+        const data = await this.executiveDashboardService.getExecutiveDashboard(req.user, req, query);
         
         return {
           status: 200 as const,
@@ -72,7 +72,7 @@ export class ExecutiveDashboardController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getFinancialHealth, async ({ query }) => {
       try {
-        const data = await this.executiveDashboardService.calculateFinancialHealth(req.user, query);
+        const data = await this.executiveDashboardService.calculateFinancialHealth(req.user, req, query);
         
         return {
           status: 200 as const,
@@ -103,7 +103,7 @@ export class ExecutiveDashboardController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getRiskIndicators, async ({ query }) => {
       try {
-        const data = await this.executiveDashboardService.calculateRiskIndicators(req.user, query);
+        const data = await this.executiveDashboardService.calculateRiskIndicators(req.user, req, query);
         
         return {
           status: 200 as const,
@@ -134,7 +134,7 @@ export class ExecutiveDashboardController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getCashFlowAnalysis, async ({ query }) => {
       try {
-        const data = await this.executiveDashboardService.calculateCashFlowAnalysis(req.user, query);
+        const data = await this.executiveDashboardService.calculateCashFlowAnalysis(req.user, req, query);
         
         return {
           status: 200 as const,
@@ -164,7 +164,7 @@ export class ExecutiveDashboardController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getPendingActions, async ({ query }) => {
       try {
-        const data = await this.executiveDashboardService.getPendingActions(req.user, query);
+        const data = await this.executiveDashboardService.getPendingActions(req.user, req, query);
         
         return {
           status: 200 as const,
@@ -199,7 +199,7 @@ export class ExecutiveDashboardController {
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getExecutiveInsights, async ({ query }) => {
       try {
-        const data = await this.executiveDashboardService.getExecutiveInsights(req.user, query);
+        const data = await this.executiveDashboardService.getExecutiveInsights(req.user, req, query);
         
         return {
           status: 200 as const,
