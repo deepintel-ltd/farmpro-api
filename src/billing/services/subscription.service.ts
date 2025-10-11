@@ -738,15 +738,6 @@ export class SubscriptionService {
               where: {
                 organizationId: subscription.organizationId,
                 isActive: true,
-                userRoles: {
-                  some: {
-                    role: {
-                      name: { in: ['admin', 'Organization Owner'] },
-                      isActive: true,
-                    },
-                    isActive: true,
-                  },
-                },
               },
               select: {
                 email: true,
@@ -854,15 +845,7 @@ export class SubscriptionService {
             where: {
               organizationId: subscription.organizationId,
               isActive: true,
-              userRoles: {
-                some: {
-                  role: {
-                    name: { in: ['admin', 'Organization Owner'] },
-                    isActive: true,
-                  },
-                  isActive: true,
-                },
-              },
+              // userRoles removed - using simplified RBAC system
             },
             select: {
               email: true,
@@ -957,15 +940,7 @@ export class SubscriptionService {
         where: {
           organizationId,
           isActive: true,
-          userRoles: {
-            some: {
-              role: {
-                name: { in: ['admin', 'Organization Owner'] },
-                isActive: true,
-              },
-              isActive: true,
-            },
-          },
+          // userRoles removed - using simplified RBAC system
         },
         select: {
           email: true,

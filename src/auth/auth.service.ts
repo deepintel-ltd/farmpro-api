@@ -35,7 +35,7 @@ import {
   SuccessMessageResponse,
 } from './dto/auth.dto';
 
-interface UserWithOrganizationAndRoles {
+interface UserWithOrganization {
   id: string;
   email: string;
   name: string;
@@ -47,6 +47,7 @@ interface UserWithOrganizationAndRoles {
   authProvider: 'LOCAL' | 'GOOGLE' | 'GITHUB' | null;
   lastLoginAt: Date | null;
   organizationId: string | null;
+  isPlatformAdmin: boolean;
   metadata?: UserMetadata | null;
   createdAt: Date;
   updatedAt: Date;
@@ -56,14 +57,9 @@ interface UserWithOrganizationAndRoles {
     type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
     isVerified: boolean;
     plan: string;
+    features: string[];
+    allowedModules: string[];
   } | null;
-  userRoles?: Array<{
-    role: {
-      id: string;
-      name: string;
-      level: number;
-    };
-  }>;
 }
 
 @Injectable()
@@ -142,89 +138,8 @@ export class AuthService {
         },
       });
 
-      const organizationOwnerRole = await tx.role.findFirst({
-        where: {
-          name: 'Organization Owner',
-          isSystemRole: true,
-          scope: 'ORGANIZATION',
-        },
-      });
-
-      if (!organizationOwnerRole) {
-        throw new BadRequestException('Organization Owner role not found. Please contact support.');
-      }
-
-      const adminRole = await tx.role.upsert({
-        where: {
-          name_organizationId: {
-            name: 'Organization Owner',
-            organizationId: organization.id,
-          },
-        },
-        create: {
-          name: 'Organization Owner',
-          description: 'Full control over organization and all resources',
-          organizationId: organization.id,
-          level: 90,
-          isActive: true,
-          isSystemRole: false,
-          scope: 'ORGANIZATION',
-        },
-        update: {}, // No update needed - role already exists with correct values
-      });
-
-      const systemRolePermissions = await tx.rolePermission.findMany({
-        where: { roleId: organizationOwnerRole.id },
-        include: { permission: true },
-      });
-
-      await Promise.all(
-        systemRolePermissions.map(rolePermission =>
-          tx.rolePermission.upsert({
-            where: {
-              roleId_permissionId: {
-                roleId: adminRole.id,
-                permissionId: rolePermission.permissionId,
-              },
-            },
-            create: {
-              roleId: adminRole.id,
-              permissionId: rolePermission.permissionId,
-              granted: rolePermission.granted,
-              conditions: rolePermission.conditions,
-            },
-            update: {
-              granted: rolePermission.granted,
-              conditions: rolePermission.conditions,
-            },
-          })
-        )
-      );
-
-      // Check if user role already exists
-      const existingUserRole = await tx.userRole.findFirst({
-        where: {
-          userId: user.id,
-          roleId: adminRole.id,
-          farmId: null,
-        },
-      });
-
-      if (!existingUserRole) {
-        await tx.userRole.create({
-          data: {
-            userId: user.id,
-            roleId: adminRole.id,
-            farmId: null,
-            isActive: true,
-          },
-        });
-      } else {
-        await tx.userRole.update({
-          where: { id: existingUserRole.id },
-          data: { isActive: true },
-        });
-      }
+      // Role assignment removed - using simplified RBAC system
+      // Permissions are now determined by subscription plan tier
 
       return user;
     });
@@ -240,7 +155,7 @@ export class AuthService {
 
     await this.updateRefreshToken(result.id, tokens.refreshToken);
 
-    const userWithRoles = await this.getUserWithRoles(result.id);
+    const userWithRoles = await this.getUserWithOrganization(result.id);
     if (!userWithRoles) {
       throw new BadRequestException('Failed to retrieve user after registration');
     }
@@ -582,7 +497,7 @@ export class AuthService {
   }
 
   async getCurrentUser(userId: string): Promise<AuthUserResponse> {
-    const user = await this.getUserWithRoles(userId);
+    const user = await this.getUserWithOrganization(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -598,7 +513,7 @@ export class AuthService {
 
     try {
       const payload = this.jwtService.verify(token);
-      const user = await this.getUserWithRoles(payload.sub);
+      const user = await this.getUserWithOrganization(payload.sub);
 
       if (!user?.isActive) {
         throw new UnauthorizedException('Invalid token');
@@ -610,44 +525,28 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, password: string): Promise<UserWithOrganizationAndRoles | null> {
+  async validateUser(email: string, password: string): Promise<UserWithOrganization | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-          where: {
-            isActive: true,
-          },
-        },
       },
     });
 
     if (user?.hashedPassword) {
       const isPasswordValid = await verify(user.hashedPassword, password);
       if (isPasswordValid) {
-        return this.omitSensitiveFields(user) as UserWithOrganizationAndRoles;
+        return this.omitSensitiveFields(user) as UserWithOrganization;
       }
     }
     return null;
   }
 
-  private async getUserWithRoles(userId: string): Promise<UserWithOrganizationAndRoles | null> {
+  private async getUserWithOrganization(userId: string): Promise<UserWithOrganization | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-          where: {
-            isActive: true,
-          },
-        },
       },
     });
 
@@ -693,15 +592,11 @@ export class AuthService {
             },
           },
         },
-        userRoles: {
-          where: { isActive: true },
-          include: { role: true },
-        },
       },
     });
 
     const planTier = user?.organization?.subscription?.plan?.tier || 'FREE';
-    const isPlatformAdmin = user?.userRoles?.some(ur => ur.role.isPlatformAdmin) || false;
+    const isPlatformAdmin = user?.isPlatformAdmin || false;
 
     const payload = {
       email,
@@ -881,7 +776,7 @@ export class AuthService {
     return result;
   }
 
-  private formatUserResponse(user: UserWithOrganizationAndRoles): AuthUserResponse {
+  private formatUserResponse(user: UserWithOrganization): AuthUserResponse {
     return {
       id: user.id,
       email: user.email,
@@ -900,12 +795,10 @@ export class AuthService {
         type: user.organization.type,
         isVerified: user.organization.isVerified,
         plan: user.organization.plan,
+        features: user.organization.features,
+        allowedModules: user.organization.allowedModules,
       } : null,
-      roles: user.userRoles?.map((userRole) => ({
-        id: userRole.role.id,
-        name: userRole.role.name,
-        level: userRole.role.level,
-      })) ?? [],
+      isPlatformAdmin: user.isPlatformAdmin,
       metadata: user.metadata,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
@@ -976,27 +869,6 @@ export class AuthService {
         },
       });
 
-      // Create admin role for the organization
-      const adminRole = await tx.role.create({
-        data: {
-          name: 'admin',
-          description: 'Organization administrator',
-          organizationId: organization.id,
-          level: 100,
-          isActive: true,
-          isSystemRole: false,
-        },
-      });
-
-      // Assign admin role to user
-      await tx.userRole.create({
-        data: {
-          userId: user.id,
-          roleId: adminRole.id,
-          isActive: true,
-        },
-      });
-
       // Update user with organization and profile completion status
       const updatedUser = await tx.user.update({
         where: { id: userId },
@@ -1008,14 +880,6 @@ export class AuthService {
         },
         include: {
           organization: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-            where: {
-              isActive: true,
-            },
-          },
         },
       });
 
@@ -1035,7 +899,7 @@ export class AuthService {
     await this.updateRefreshToken(result.id, tokens.refreshToken);
 
     // Format user response
-    const userResponse = this.formatUserResponse(result as UserWithOrganizationAndRoles);
+    const userResponse = this.formatUserResponse(result as UserWithOrganization);
 
     // Send welcome email
     await this.emailVerificationService.sendWelcomeEmail(
@@ -1079,19 +943,15 @@ export class AuthService {
 
       if (!organization) return;
 
-      // Get admin users separately
+      // Get admin users separately (platform admins or organization owners)
       const adminUsers = await this.prisma.user.findMany({
         where: {
           organizationId,
-          userRoles: {
-            some: {
-              role: {
-                name: { in: ['admin', 'Organization Owner'] },
-                isActive: true,
-              },
-              isActive: true,
-            },
-          },
+          OR: [
+            { isPlatformAdmin: true },
+            // For now, we'll consider all users in the organization as potential admins
+            // In the future, you might want to add an isOrganizationAdmin field
+          ],
         },
         select: {
           email: true,
@@ -1287,14 +1147,6 @@ export class AuthService {
       where: { email },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-          where: {
-            isActive: true,
-          },
-        },
       },
     });
 
@@ -1312,14 +1164,6 @@ export class AuthService {
         },
         include: {
           organization: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-            where: {
-              isActive: true,
-            },
-          },
         },
       });
     } else {
@@ -1333,14 +1177,6 @@ export class AuthService {
         },
         include: {
           organization: true,
-          userRoles: {
-            include: {
-              role: true,
-            },
-            where: {
-              isActive: true,
-            },
-          },
         },
       });
     }
@@ -1354,7 +1190,7 @@ export class AuthService {
 
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-    const userResponse = this.formatUserResponse(user as UserWithOrganizationAndRoles);
+    const userResponse = this.formatUserResponse(user as UserWithOrganization);
 
     return {
       tokens,

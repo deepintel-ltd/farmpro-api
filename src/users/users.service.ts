@@ -24,18 +24,6 @@ export class UsersService {
         organization: {
           select: { id: true, name: true },
         },
-        userRoles: {
-          where: { isActive: true },
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: { permission: true },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -54,11 +42,7 @@ export class UsersService {
       avatar: userProfile.avatar || null,
       isActive: userProfile.isActive,
       organization: userProfile.organization,
-      roles: userProfile.userRoles.map(ur => ({
-        id: ur.role.id,
-        name: ur.role.name,
-        permissions: ur.role.permissions.map(rp => rp.permission.action),
-      })),
+      isPlatformAdmin: userProfile.isPlatformAdmin,
       metadata: (userProfile.metadata as Record<string, any>) || {},
       createdAt: userProfile.createdAt.toISOString(),
       updatedAt: userProfile.updatedAt.toISOString(),
@@ -86,18 +70,6 @@ export class UsersService {
         organization: {
           select: { id: true, name: true },
         },
-        userRoles: {
-          where: { isActive: true },
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: { permission: true },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -111,11 +83,7 @@ export class UsersService {
       avatar: updatedUser.avatar ?? null,
       isActive: updatedUser.isActive,
       organization: updatedUser.organization,
-      roles: updatedUser.userRoles.map(ur => ({
-        id: ur.role.id,
-        name: ur.role.name,
-        permissions: ur.role.permissions.map(rp => rp.permission.action),
-      })),
+      isPlatformAdmin: updatedUser.isPlatformAdmin,
       metadata: (updatedUser.metadata as Record<string, any>) || {},
       createdAt: updatedUser.createdAt.toISOString(),
       updatedAt: updatedUser.updatedAt.toISOString(),
@@ -189,23 +157,9 @@ export class UsersService {
       where.isActive = query.isActive;
     }
 
-    if (query.role) {
-      where.userRoles = {
-        some: {
-          role: { name: query.role },
-          isActive: true,
-        },
-      };
-    }
-
-    if (query.farmId) {
-      where.userRoles = {
-        some: {
-          farmId: query.farmId,
-          isActive: true,
-        },
-      };
-    }
+    // Role and farmId filters removed - using simplified RBAC system
+    // if (query.role) { ... }
+    // if (query.farmId) { ... }
 
     const [users, totalCount] = await Promise.all([
       this.prisma.user.findMany({
@@ -218,12 +172,7 @@ export class UsersService {
           isActive: true,
           lastLoginAt: true,
           createdAt: true,
-          userRoles: {
-            where: { isActive: true },
-            select: {
-              role: { select: { name: true } },
-            },
-          },
+          isPlatformAdmin: true,
         },
         skip,
         take: limit,
@@ -241,7 +190,7 @@ export class UsersService {
         name: u.name,
         phone: u.phone,
         isActive: u.isActive,
-        roles: u.userRoles.map(ur => ur.role.name),
+        isPlatformAdmin: u.isPlatformAdmin,
         lastLoginAt: u.lastLoginAt?.toISOString() || null,
         createdAt: u.createdAt.toISOString(),
       })),
@@ -285,23 +234,9 @@ export class UsersService {
       where.isActive = query.isActive;
     }
 
-    if (query.role) {
-      where.userRoles = {
-        some: {
-          role: { name: query.role },
-          isActive: true,
-        },
-      };
-    }
-
-    if (query.farmId) {
-      where.userRoles = {
-        some: {
-          farmId: query.farmId,
-          isActive: true,
-        },
-      };
-    }
+    // Role and farmId filters removed - using simplified RBAC system
+    // if (query.role) { ... }
+    // if (query.farmId) { ... }
 
     const [users, totalCount] = await Promise.all([
       this.prisma.user.findMany({
@@ -314,12 +249,7 @@ export class UsersService {
           isActive: true,
           lastLoginAt: true,
           createdAt: true,
-          userRoles: {
-            where: { isActive: true },
-            select: {
-              role: { select: { name: true } },
-            },
-          },
+          isPlatformAdmin: true,
         },
         skip,
         take: limit,
@@ -337,7 +267,7 @@ export class UsersService {
         name: u.name,
         phone: u.phone,
         isActive: u.isActive,
-        roles: u.userRoles.map(ur => ur.role.name),
+        isPlatformAdmin: u.isPlatformAdmin,
         lastLoginAt: u.lastLoginAt?.toISOString() || null,
         createdAt: u.createdAt.toISOString(),
       })),
@@ -397,16 +327,6 @@ export class UsersService {
       },
       include: {
         organization: { select: { id: true, name: true } },
-        userRoles: {
-          where: { isActive: true },
-          include: {
-            role: {
-              include: {
-                permissions: { include: { permission: true } },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -425,11 +345,7 @@ export class UsersService {
       avatar: user.avatar || null,
       isActive: user.isActive,
       organization: user.organization,
-      roles: user.userRoles.map(ur => ({
-        id: ur.role.id,
-        name: ur.role.name,
-        permissions: ur.role.permissions.map(rp => rp.permission.action),
-      })),
+      isPlatformAdmin: user.isPlatformAdmin,
       metadata: (user.metadata as Record<string, any>) || {},
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),

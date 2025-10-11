@@ -390,19 +390,7 @@ export class PlatformAdminService {
       where: { id: userId },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: {
-                    permission: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+        // userRoles removed - using simplified RBAC system
       },
     });
 

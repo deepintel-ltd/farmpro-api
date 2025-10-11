@@ -24,15 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Load user with full authorization context
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isActive: true,
-        organizationId: true,
-        profileComplete: true,
-        refreshTokenExpiresAt: true,
-        metadata: true,
+      include: {
         organization: {
           select: {
             id: true,
@@ -46,33 +38,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             suspendedAt: true,
           },
         },
-        userRoles: {
-          where: { isActive: true },
-          select: {
-            id: true,
-            farmId: true,
-            role: {
-              select: {
-                id: true,
-                name: true,
-                level: true,
-                scope: true,
-                isPlatformAdmin: true,
-                permissions: {
-                  where: { granted: true },
-                  select: {
-                    permission: {
-                      select: {
-                        resource: true,
-                        action: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -81,9 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Check if user is platform admin
-    const isPlatformAdmin = user.userRoles.some(
-      (ur) => ur.role.isPlatformAdmin,
-    );
+    const isPlatformAdmin = user.isPlatformAdmin;
 
     // For platform admins and users with incomplete profiles, organization is optional
     if (!isPlatformAdmin && user.profileComplete !== false) {
@@ -113,23 +76,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
     }
 
-    // Extract roles
-    const roles = user.userRoles.map((ur) => ({
-      id: ur.role.id,
-      name: ur.role.name,
-      level: ur.role.level,
-      scope: ur.role.scope,
-      farmId: ur.farmId || undefined,
-    }));
-
-    // Extract and flatten permissions
-    const permissionsSet = new Set<string>();
-    user.userRoles.forEach((ur) => {
-      ur.role.permissions.forEach((rp) => {
-        permissionsSet.add(`${rp.permission.resource}:${rp.permission.action}`);
-      });
-    });
-    const permissions = Array.from(permissionsSet);
+    // In simplified RBAC, permissions are determined by plan tier
+    // No need to extract roles or permissions from database
+    const roles: any[] = [];
+    const permissions: string[] = [];
 
     // Get capabilities based on organization type (if organization exists)
     const capabilities = user.organization 

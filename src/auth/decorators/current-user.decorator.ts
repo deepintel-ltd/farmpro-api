@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { OrganizationType, RoleScope } from '@prisma/client';
+import { OrganizationType } from '@prisma/client';
 
 export interface CurrentUser {
   userId: string;
@@ -13,7 +13,6 @@ export interface CurrentUser {
     id: string;
     name: string;
     level: number;
-    scope: RoleScope;
     farmId?: string;
   }>;
 

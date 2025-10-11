@@ -4,7 +4,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { AuthModule } from '@/auth/auth.module';
-import { RbacModule } from '@/rbac/rbac.module';
 import { FarmsModule } from '@/farms/farms.module';
 import { InventoryModule } from '@/inventory/inventory.module';
 import { OrganizationsModule } from '@/organizations/organizations.module';
@@ -38,7 +37,6 @@ import { CommonModule } from '@/common/common.module';
     PrismaModule,
     CommonModule,
     AuthModule,
-    RbacModule,
     PlatformAdminModule,
     FarmsModule,
     InventoryModule,

@@ -76,10 +76,6 @@ export class UserContextService {
             },
           },
         },
-        userRoles: {
-          where: { isActive: true },
-          include: { role: true },
-        },
       },
     });
 
@@ -93,9 +89,7 @@ export class UserContextService {
 
     const planTier =
       (user.organization?.subscription?.plan?.tier as SubscriptionTier) || 'FREE';
-    const isPlatformAdmin = user.userRoles.some(
-      ur => ur.role.isPlatformAdmin,
-    );
+    const isPlatformAdmin = user.isPlatformAdmin;
 
     // Get permissions from plan tier
     const planPermissions = getPlanPermissions(planTier);

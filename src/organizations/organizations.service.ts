@@ -1137,25 +1137,7 @@ export class OrganizationsService {
           email: true,
           isActive: true,
           lastLoginAt: true,
-          userRoles: {
-            include: {
-              role: {
-                select: {
-                  name: true,
-                  permissions: {
-                    include: {
-                      permission: {
-                        select: {
-                          resource: true,
-                          action: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          isPlatformAdmin: true,
         },
         orderBy: { name: 'asc' },
       });
@@ -1169,10 +1151,10 @@ export class OrganizationsService {
           attributes: {
             name: user.name,
             email: user.email,
-            role: user.userRoles[0]?.role.name || 'Member',
+            isPlatformAdmin: user.isPlatformAdmin,
             isActive: user.isActive,
             lastActive: user.lastLoginAt?.toISOString(),
-            permissions: user.userRoles[0]?.role.permissions.map(rp => `${rp.permission.resource}:${rp.permission.action}`) || [],
+            // permissions removed - using plan-based permissions
           },
         })),
       };

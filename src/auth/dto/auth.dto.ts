@@ -50,12 +50,10 @@ export interface AuthUserResponse {
     type: 'FARM_OPERATION' | 'COMMODITY_TRADER' | 'LOGISTICS_PROVIDER' | 'INTEGRATED_FARM';
     isVerified: boolean;
     plan: string;
+    features: string[];
+    allowedModules: string[];
   } | null;
-  roles: Array<{
-    id: string;
-    name: string;
-    level: number;
-  }>;
+  isPlatformAdmin: boolean;
   metadata?: any;
   createdAt: string;
   updatedAt: string;

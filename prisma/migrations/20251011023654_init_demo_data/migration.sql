@@ -97,54 +97,10 @@ INSERT INTO "subscriptions" (
   NOW(), NOW()
 );
 
--- 5️⃣ Create Basic Roles (for backward compatibility and team management)
--- Note: These are simplified roles for team management, not complex RBAC
-INSERT INTO "roles" (
-  "id", "name", "description", "organizationId", "level", "isActive", 
-  "isSystemRole", "isPlatformAdmin", "scope", "metadata", "createdAt", "updatedAt"
-) VALUES 
--- Platform Admin Role
-('ckx4z2yqr0080n8h8t6p5f7ji', 'Platform Admin', 'Full platform administration access', 
- 'ckx4z2yqr0010n8h8t6p5f7jb', 100, true, true, true, 'PLATFORM',
- '{"permissions":["*:*"],"restrictions":[]}', NOW(), NOW()),
+-- 5️⃣ Note: Roles and user_roles tables are not used in the simplified plan-based RBAC system
+-- The system uses plan-based permissions defined in code constants instead of database tables
 
--- Organization Admin Role (template)
-('ckx4z2yqr0090n8h8t6p5f7jj', 'Organization Admin', 'Organization administration role template', 
- NULL, 90, true, true, false, 'ORGANIZATION',
- '{"isTemplate":true,"permissions":["org_management"],"restrictions":["platform_admin"]}', NOW(), NOW()),
-
--- Farm Manager Role (template)
-('ckx4z2yqr00a0n8h8t6p5f7jk', 'Farm Manager', 'Farm management role template', 
- NULL, 80, true, true, false, 'ORGANIZATION',
- '{"isTemplate":true,"category":"management","roleType":"farm_manager","permissions":["farm_management","activity_management"]}', NOW(), NOW()),
-
--- Field Worker Role (template)
-('ckx4z2yqr00b0n8h8t6p5f7jl', 'Field Worker', 'Field worker role template', 
- NULL, 70, true, true, false, 'ORGANIZATION',
- '{"isTemplate":true,"category":"field","roleType":"field_worker","permissions":["activity_execution","data_entry"]}', NOW(), NOW()),
-
--- Viewer Role (template)
-('ckx4z2yqr00c0n8h8t6p5f7jm', 'Viewer', 'Read-only access role template', 
- NULL, 50, true, true, false, 'ORGANIZATION',
- '{"isTemplate":true,"category":"viewer","roleType":"viewer","permissions":["read_only"]}', NOW(), NOW());
-
--- 6️⃣ Assign Platform Admin Role to System User
-INSERT INTO "user_roles" (
-  "id", "userId", "roleId", "farmId", "expiresAt", "isActive", 
-  "assignedBy", "assignedAt", "metadata"
-) VALUES (
-  'ckx4z2yqr00d0n8h8t6p5f7jn', -- User role ID
-  'ckx4z2yqr0020n8h8t6p5f7jc', -- Platform admin user ID
-  'ckx4z2yqr0080n8h8t6p5f7ji', -- Platform admin role ID
-  NULL, -- No specific farm
-  NULL, -- No expiration
-  true,
-  'system', -- Assigned by system
-  NOW(),
-  '{"assignedBySystem":true}'
-);
-
--- 7️⃣ Create Sample Commodities (for marketplace)
+-- 6️⃣ Create Sample Commodities (for marketplace)
 INSERT INTO "commodities" (
   "id", "name", "category", "description", "unit", "quantity", "isActive", "isGlobal", "createdAt", "updatedAt"
 ) VALUES 
@@ -159,9 +115,9 @@ INSERT INTO "commodities" (
 ('ckx4z2yqr00m0n8h8t6p5f7jw', 'Oranges', 'FRUIT', 'Fresh oranges', 'kg', 0.0, true, true, NOW(), NOW()),
 ('ckx4z2yqr00n0n8h8t6p5f7jx', 'Coffee', 'BEVERAGE', 'Coffee beans', 'kg', 0.0, true, true, NOW(), NOW());
 
--- 8️⃣ Activity Types are handled as enums in the schema, not as a separate table
+-- 7️⃣ Activity Types are handled as enums in the schema, not as a separate table
 
--- 9️⃣ Additional sample data tables will be created as needed
+-- 8️⃣ Additional sample data tables will be created as needed
 
 -- =====================================================================
 --  MIGRATION COMPLETE
@@ -171,12 +127,11 @@ INSERT INTO "commodities" (
 --  ✅ Platform admin user
 --  ✅ Basic subscription plans (FREE, BASIC, PRO, ENTERPRISE)
 --  ✅ System organization subscription
---  ✅ Basic role templates (for team management)
---  ✅ Sample data (commodities, activity types, inventory categories, weather stations)
+--  ✅ Sample commodities for marketplace
 --  
---  ❌ NO complex permissions table (using PLAN_PERMISSIONS constant)
---  ❌ NO complex role-permission mappings (using plan-based permissions)
---  ❌ NO over-engineered RBAC system
+--  ❌ NO roles table (using plan-based permissions instead)
+--  ❌ NO user_roles table (using plan-based permissions instead)
+--  ❌ NO complex RBAC system (simplified plan-based approach)
 --  
 --  The new system uses:
 --  - Plan-based permissions (defined in code)

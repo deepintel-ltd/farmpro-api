@@ -1154,7 +1154,6 @@ export class OrganizationsController {
             email: body.data.attributes.email,
             organizationId: req.user.organizationId!,
             roleName: body.data.attributes.role,
-            teamRoleType: body.data.attributes.role as any,
             message: body.data.attributes.message,
             inviterName: req.user.name,
             inviterEmail: req.user.email,

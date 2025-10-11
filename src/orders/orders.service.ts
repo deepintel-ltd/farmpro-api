@@ -1478,9 +1478,7 @@ export class OrdersService extends CurrencyAwareService {
     const buyer = await this.prisma.user.findFirst({
       where: { 
         organizationId: order.buyerOrgId,
-        userRoles: {
-          some: { isActive: true }
-        }
+        // userRoles removed - using simplified RBAC system
       },
       select: { id: true, name: true, email: true },
     });
@@ -1504,9 +1502,7 @@ export class OrdersService extends CurrencyAwareService {
     const seller = await this.prisma.user.findFirst({
       where: { 
         organizationId: order.supplierOrgId,
-        userRoles: {
-          some: { isActive: true }
-        }
+        // userRoles removed - using simplified RBAC system
       },
       select: { id: true, name: true, email: true },
     });

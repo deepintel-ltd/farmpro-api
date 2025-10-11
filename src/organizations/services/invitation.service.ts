@@ -1,8 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { BrevoService } from '@/external-service/brevo/brevo.service';
-// PlanRoleService removed - using plan-based permissions now
-import { TeamRoleService, TeamRoleType } from './team-role.service';
 import { randomBytes, createHash } from 'crypto';
 import { InvitationStatus } from '@prisma/client';
 
@@ -10,7 +8,6 @@ export interface InvitationData {
   email: string;
   organizationId: string;
   roleName?: string;
-  teamRoleType?: TeamRoleType;
   message?: string;
   inviterName: string;
   inviterEmail: string;
@@ -42,7 +39,6 @@ export interface InvitationDetails {
   inviterEmail: string;
   roleName?: string;
   message?: string;
-  teamRoleType?: TeamRoleType;
 }
 
 @Injectable()
@@ -53,14 +49,13 @@ export class InvitationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly brevoService: BrevoService,
-    private readonly teamRoleService: TeamRoleService,
   ) {}
 
   /**
    * Send invitation to join organization
    */
   async sendInvitation(invitationData: InvitationData): Promise<InvitationResponse> {
-    const { email, organizationId, roleName, teamRoleType, message, inviterName, inviterEmail } = invitationData;
+    const { email, organizationId, roleName, message, inviterName, inviterEmail } = invitationData;
 
     this.logger.log(`Sending invitation to ${email} for organization ${organizationId} by ${inviterEmail}`);
 
@@ -145,9 +140,6 @@ export class InvitationService {
         inviterName,
         roleName: roleName || 'Team Member',
         message,
-        metadata: {
-          teamRoleType: teamRoleType || 'viewer',
-        },
       },
     });
 
@@ -337,20 +329,6 @@ export class InvitationService {
     // Plan role assignment removed - using plan-based permissions now
     this.logger.log(`User ${result.id} added to organization ${invitation.organizationId} with plan-based permissions`);
 
-    // Assign team role to the new user
-    try {
-      const teamRoleType = (invitation.metadata as any)?.teamRoleType || 'viewer';
-      await this.teamRoleService.assignTeamRoleToUser(
-        result.id,
-        invitation.organizationId,
-        teamRoleType as TeamRoleType
-      );
-      this.logger.log(`Assigned team role ${teamRoleType} to user ${result.id} for organization ${invitation.organizationId}`);
-    } catch (error) {
-      this.logger.error(`Failed to assign team role to user: ${error.message}`);
-      // Don't throw error as user creation was successful
-    }
-
     this.logger.log(`User ${result.email} successfully joined organization ${invitation.organization.name}`);
 
     return {
@@ -434,7 +412,6 @@ export class InvitationService {
       inviterEmail: invitation.inviterEmail,
       roleName: invitation.roleName,
       message: invitation.message,
-      teamRoleType: (invitation.metadata as any)?.teamRoleType,
     };
   }
 
