@@ -33,6 +33,7 @@ interface AuthenticatedSocket extends Socket {
       'Accept',
       'Authorization',
       'X-API-Key',
+      'X-Organization-Id',
     ],
   },
   namespace: '/activities',

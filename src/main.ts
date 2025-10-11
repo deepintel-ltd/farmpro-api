@@ -48,6 +48,7 @@ async function bootstrap() {
       'Accept',
       'Authorization',
       'X-API-Key',
+      'X-Organization-Id',
       'Cache-Control',
       'Pragma',
     ],

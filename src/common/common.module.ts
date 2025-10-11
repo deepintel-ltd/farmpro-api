@@ -4,6 +4,7 @@ import { JobQueueService } from './services/job-queue.service';
 import { MonitoringService } from './services/monitoring.service';
 import { QueryOptimizationService } from './services/query-optimization.service';
 import { UserContextService } from './services/user-context.service';
+import { OrganizationContextService } from './services/organization-context.service';
 import { AuthorizationGuard } from './guards/authorization.guard';
 import { PrismaModule } from '@/prisma/prisma.module';
 
@@ -15,6 +16,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     MonitoringService,
     QueryOptimizationService,
     UserContextService,
+    OrganizationContextService,
     AuthorizationGuard,
   ],
   exports: [
@@ -23,6 +25,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     MonitoringService,
     QueryOptimizationService,
     UserContextService,
+    OrganizationContextService,
     AuthorizationGuard,
   ],
 })

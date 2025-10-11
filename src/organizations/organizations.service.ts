@@ -30,16 +30,12 @@ export class OrganizationsService {
   // =============================================================================
 
   private getOrganizationIdFromRequest(request: any): string {
-    // For platform admins, check if organization is selected via header
-    if (request.user?.isPlatformAdmin && request.organizationFilter?.organizationId) {
-      return request.organizationFilter.organizationId;
-    }
-    
-    // Regular flow for non-platform admins
+    // Check if organization impersonation is active
     if (request.organizationFilter?.organizationId) {
       return request.organizationFilter.organizationId;
     }
     
+    // Fallback to user's organization
     if (request.user?.organizationId) {
       return request.user.organizationId;
     }
