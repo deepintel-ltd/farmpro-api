@@ -2,6 +2,7 @@ import { TestContext } from '../src/test-utils/test-context';
 import { hash } from '@node-rs/argon2';
 import { SubscriptionPlan, SubscriptionStatus, SubscriptionTier } from '@prisma/client';
 import { PlanFeatureMapperService } from '../src/billing/services/plan-feature-mapper.service';
+import * as jwt from 'jsonwebtoken';
 
 describe('Subscription Access Control E2E Tests', () => {
   let testContext: TestContext;
@@ -378,7 +379,7 @@ describe('Subscription Access Control E2E Tests', () => {
 
       // Should not be able to access intelligence
       const intelligenceResponse = await testContext.request()
-        .get('/intelligence/insights')
+        .get('/intelligence/generate')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(intelligenceResponse.status).toBe(403);
@@ -400,7 +401,7 @@ describe('Subscription Access Control E2E Tests', () => {
 
       // Should be able to access intelligence
       const intelligenceResponse = await testContext.request()
-        .get('/intelligence/insights')
+        .get('/intelligence/generate')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(intelligenceResponse.status).toBe(200);
@@ -510,7 +511,7 @@ describe('Subscription Access Control E2E Tests', () => {
       expect(analyticsResponse.status).toBe(200);
 
       const intelligenceResponse = await testContext.request()
-        .get('/intelligence/insights')
+        .get('/intelligence/generate')
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(intelligenceResponse.status).toBe(200);
@@ -716,8 +717,6 @@ describe('Subscription Access Control E2E Tests', () => {
   }
 
   async function getAccessToken(organizationId: string, userId?: string): Promise<string> {
-    // This is a simplified version - in real tests you'd use proper JWT generation
-    // For now, we'll create a mock token that the test context can recognize
     const user = userId 
       ? await testContext.prisma.user.findUnique({ where: { id: userId } })
       : await testContext.prisma.user.findFirst({ where: { organizationId } });
@@ -726,8 +725,27 @@ describe('Subscription Access Control E2E Tests', () => {
       throw new Error('User not found');
     }
 
-    // In a real implementation, you'd generate a proper JWT token
-    // For testing purposes, we'll use a simple string that the test context can validate
-    return `test-token-${user.id}-${organizationId}`;
+    // Get organization details
+    const organization = await testContext.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { subscription: { include: { plan: true } } }
+    });
+
+    if (!organization) {
+      throw new Error('Organization not found');
+    }
+
+    // Generate a proper JWT token for testing
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      organizationId: organizationId,
+      planTier: organization.subscription?.plan?.tier || 'FREE',
+      isPlatformAdmin: user.isPlatformAdmin || false,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
+    };
+
+    return jwt.sign(payload, process.env.JWT_SECRET || 'test-jwt-secret');
   }
 });

@@ -248,7 +248,7 @@ export class TestContext {
         create: {
           id: planId,
           name: `Test ${plan} Plan`,
-          tier: plan,
+          tier: plan.toUpperCase() as any,
           description: `Test ${plan} plan for testing`,
           priceUSD: 0,
           priceNGN: 0,

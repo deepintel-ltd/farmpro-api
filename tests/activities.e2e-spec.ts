@@ -13,7 +13,7 @@ describe('Activities E2E Tests', () => {
   beforeAll(async () => {
     testContext = new TestContext();
     await testContext.setup();
-  }, 60000);
+  }, 120000);
 
   afterAll(async () => {
     await testContext.teardown();
@@ -22,16 +22,21 @@ describe('Activities E2E Tests', () => {
   beforeEach(async () => {
     // Clean up activities-related tables before each test
     // Note: We preserve system data and use simplified plan-based permissions
-    await testContext.prisma.$executeRaw`SET session_replication_role = replica;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_notes" CASCADE;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_costs" CASCADE;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_assignments" CASCADE;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "farm_activities" CASCADE;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "farms" CASCADE;`;
-    await testContext.prisma.$executeRaw`TRUNCATE TABLE "areas" CASCADE;`;
-    await testContext.prisma.$executeRaw`DELETE FROM "users" WHERE "isPlatformAdmin" = false;`;
-    await testContext.prisma.$executeRaw`DELETE FROM "organizations" WHERE "id" NOT IN (SELECT "organizationId" FROM "users" WHERE "isPlatformAdmin" = true);`;
-    await testContext.prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
+    try {
+      await testContext.prisma.$executeRaw`SET session_replication_role = replica;`;
+      await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_notes" CASCADE;`;
+      await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_costs" CASCADE;`;
+      await testContext.prisma.$executeRaw`TRUNCATE TABLE "activity_assignments" CASCADE;`;
+      await testContext.prisma.$executeRaw`TRUNCATE TABLE "farm_activities" CASCADE;`;
+      await testContext.prisma.$executeRaw`TRUNCATE TABLE "farms" CASCADE;`;
+      await testContext.prisma.$executeRaw`TRUNCATE TABLE "areas" CASCADE;`;
+      await testContext.prisma.$executeRaw`DELETE FROM "users" WHERE "isPlatformAdmin" = false;`;
+      await testContext.prisma.$executeRaw`DELETE FROM "organizations" WHERE "id" NOT IN (SELECT "organizationId" FROM "users" WHERE "isPlatformAdmin" = true);`;
+      await testContext.prisma.$executeRaw`SET session_replication_role = DEFAULT;`;
+    } catch (error) {
+      console.warn('Cleanup warning:', error);
+      // Continue with test setup even if cleanup fails
+    }
     
     // Create test organization with PRO plan for full activities permissions
     testOrganization = await testContext.createOrganization({

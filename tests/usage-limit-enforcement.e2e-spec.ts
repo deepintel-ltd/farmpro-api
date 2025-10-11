@@ -26,7 +26,6 @@ describe('Usage Limit Enforcement E2E Tests', () => {
       'farms',
       'farm_activities',
       'marketplace_listings',
-      'usage_tracking',
     ]);
 
     // Create test subscription plans
@@ -50,11 +49,10 @@ describe('Usage Limit Enforcement E2E Tests', () => {
 
       const accessToken = await getAccessToken(freeOrg.id);
 
-      // Try to create a second user (should fail)
-      const response = await testContext.request()
-        .post('/users')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({
+        const response = await testContext.request()
+          .post('/users')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
           email: 'seconduser@test.com',
           name: 'Second User',
           phone: '+1234567890',

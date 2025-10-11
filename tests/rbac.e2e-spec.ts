@@ -4,10 +4,6 @@ import { hash } from '@node-rs/argon2';
 describe('Plan-Based Permission E2E Tests', () => {
   let testContext: TestContext;
 
-  // Test users with different plan tiers
-  let proUser: any;
-  let basicUser: any;
-  let freeUser: any;
   let proAccessToken: string;
   let basicAccessToken: string;
   let freeAccessToken: string;
@@ -114,8 +110,7 @@ describe('Plan-Based Permission E2E Tests', () => {
     // Create test users for each plan tier
     const hashedPassword = await hash('TestPassword123!');
     
-    // Pro user
-    proUser = await testContext.createUser({
+    await testContext.createUser({
       email: 'pro@test.com',
       name: 'Pro User',
       hashedPassword,
@@ -124,8 +119,7 @@ describe('Plan-Based Permission E2E Tests', () => {
       emailVerified: true,
     });
 
-    // Basic user
-    basicUser = await testContext.createUser({
+    await testContext.createUser({
       email: 'basic@test.com',
       name: 'Basic User',
       hashedPassword,
@@ -134,8 +128,7 @@ describe('Plan-Based Permission E2E Tests', () => {
       emailVerified: true,
     });
 
-    // Free user
-    freeUser = await testContext.createUser({
+    await testContext.createUser({
       email: 'free@test.com',
       name: 'Free User',
       hashedPassword,
@@ -321,7 +314,7 @@ describe('Plan-Based Permission E2E Tests', () => {
       // FREE users don't have API access
       await testContext
         .request()
-        .get('/api/status')
+        .get('/status')
         .set('Authorization', `Bearer ${freeAccessToken}`)
         .expect(403);
     });
