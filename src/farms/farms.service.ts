@@ -238,8 +238,189 @@ export class FarmsService {
   }
 
   // =============================================================================
+  // Farm Dashboard Stats
+  // =============================================================================
+
+  async getFarmDashboardStats(farmId: string, query: { period?: string; includeTrends?: boolean }, organizationId?: string) {
+    const { period = 'month', includeTrends = true } = query;
+    
+    this.logger.log(`Getting dashboard stats for farm: ${farmId}, period: ${period}`);
+
+    // Verify farm exists and user has access
+    const where: Prisma.FarmWhereInput = {
+      id: farmId,
+      ...(organizationId && { organizationId }),
+    };
+
+    const farm = await this.prisma.farm.findFirst({ where });
+    if (!farm) {
+      throw new NotFoundException(`Farm with ID ${farmId} not found`);
+    }
+
+    // Calculate date range based on period
+    const now = new Date();
+    const startDate = this.getStartDateForPeriod(period, now);
+    const previousStartDate = this.getStartDateForPeriod(period, new Date(startDate.getTime() - (now.getTime() - startDate.getTime())));
+
+    // Fetch all required data in parallel
+    const [
+      totalArea,
+      activeActivities,
+      cropTypes,
+      completionStats,
+      previousActiveActivities,
+      previousCropTypes,
+      previousCompletionStats
+    ] = await Promise.all([
+      // Current period data
+      this.getTotalArea(farmId),
+      this.getActiveActivitiesCount(farmId, startDate, now),
+      this.getCropTypesCount(farmId),
+      this.getCompletionRate(farmId, startDate, now),
+      
+      // Previous period data for trends
+      includeTrends ? this.getActiveActivitiesCount(farmId, previousStartDate, startDate) : 0,
+      includeTrends ? this.getCropTypesCount(farmId) : 0, // Crop types don't change frequently
+      includeTrends ? this.getCompletionRate(farmId, previousStartDate, startDate) : { completed: 0, total: 0 }
+    ]);
+
+    // Calculate trends
+    const activeActivitiesTrend = includeTrends ? this.calculateTrend(activeActivities, previousActiveActivities) : this.getStableTrend();
+    const cropTypesTrend = includeTrends ? this.calculateTrend(cropTypes, previousCropTypes) : this.getStableTrend();
+    const completionRateTrend = includeTrends ? this.calculateTrend(
+      completionStats.completed, 
+      previousCompletionStats.completed
+    ) : this.getStableTrend();
+
+    return {
+      data: {
+        id: farmId,
+        type: 'farm-dashboard-stats',
+        attributes: {
+          totalArea: {
+            value: totalArea.value,
+            unit: totalArea.unit,
+            trend: this.getStableTrend(), // Total area typically doesn't change
+          },
+          activeActivities: {
+            value: activeActivities,
+            trend: activeActivitiesTrend,
+          },
+          cropTypes: {
+            value: cropTypes,
+            trend: cropTypesTrend,
+          },
+          completionRate: {
+            value: completionStats.rate,
+            unit: '%',
+            trend: completionRateTrend,
+          },
+          period,
+          lastUpdated: now.toISOString(),
+        },
+      },
+    };
+  }
+
+  // =============================================================================
   // Helper Methods
   // =============================================================================
+
+  private async getTotalArea(farmId: string): Promise<{ value: number; unit: string }> {
+    const farm = await this.prisma.farm.findUnique({
+      where: { id: farmId },
+      select: { totalArea: true }
+    });
+    
+    return {
+      value: farm?.totalArea || 0,
+      unit: 'hectares'
+    };
+  }
+
+  private async getActiveActivitiesCount(farmId: string, startDate: Date, endDate: Date): Promise<number> {
+    return this.prisma.farmActivity.count({
+      where: {
+        farmId,
+        status: { in: ['PLANNED', 'IN_PROGRESS', 'SCHEDULED'] },
+        createdAt: { gte: startDate, lte: endDate }
+      }
+    });
+  }
+
+  private async getCropTypesCount(farmId: string): Promise<number> {
+    const farm = await this.prisma.farm.findUnique({
+      where: { id: farmId },
+      select: { cropTypes: true }
+    });
+    
+    return farm?.cropTypes?.length || 0;
+  }
+
+  private async getCompletionRate(farmId: string, startDate: Date, endDate: Date): Promise<{ completed: number; total: number; rate: number }> {
+    const [total, completed] = await Promise.all([
+      this.prisma.farmActivity.count({
+        where: {
+          farmId,
+          createdAt: { gte: startDate, lte: endDate }
+        }
+      }),
+      this.prisma.farmActivity.count({
+        where: {
+          farmId,
+          status: 'COMPLETED',
+          createdAt: { gte: startDate, lte: endDate }
+        }
+      })
+    ]);
+
+    return {
+      completed,
+      total,
+      rate: total > 0 ? Math.round((completed / total) * 100) : 0
+    };
+  }
+
+  private getStartDateForPeriod(period: string, referenceDate: Date): Date {
+    const date = new Date(referenceDate);
+    
+    switch (period) {
+      case 'week':
+        date.setDate(date.getDate() - 7);
+        break;
+      case 'month':
+        date.setMonth(date.getMonth() - 1);
+        break;
+      case 'quarter':
+        date.setMonth(date.getMonth() - 3);
+        break;
+      case 'year':
+        date.setFullYear(date.getFullYear() - 1);
+        break;
+      default:
+        date.setMonth(date.getMonth() - 1);
+    }
+    
+    return date;
+  }
+
+  private calculateTrend(current: number, previous: number): { direction: 'up' | 'down' | 'stable'; percentage: number; label: string } {
+    if (previous === 0) {
+      return current > 0 ? 
+        { direction: 'up', percentage: 100, label: `+${current}` } :
+        { direction: 'stable', percentage: 0, label: '→ 0' };
+    }
+
+    const percentage = Math.round(((current - previous) / previous) * 100);
+    const direction = percentage > 0 ? 'up' : percentage < 0 ? 'down' : 'stable';
+    const label = percentage > 0 ? `+${percentage}%` : percentage < 0 ? `${percentage}%` : '→ 0';
+
+    return { direction, percentage: Math.abs(percentage), label };
+  }
+
+  private getStableTrend(): { direction: 'up' | 'down' | 'stable'; percentage: number; label: string } {
+    return { direction: 'stable', percentage: 0, label: '→ 0' };
+  }
 
   private transformToJsonApi(farm: any): FarmResource['data'] {
     return {

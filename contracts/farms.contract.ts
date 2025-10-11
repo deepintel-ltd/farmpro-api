@@ -167,6 +167,66 @@ export const farmContract = c.router({
     },
     summary: 'Get farm-order relationship identifiers',
   },
+
+  // Get farm dashboard stats
+  getFarmDashboardStats: {
+    method: 'GET',
+    path: '/farms/:id/dashboard-stats',
+    pathParams: CuidPathParam('Farm'),
+    query: z.object({
+      period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
+      includeTrends: z.boolean().optional().default(true),
+    }).merge(CommonQueryParams),
+    responses: {
+      200: z.object({
+        data: z.object({
+          id: z.string(),
+          type: z.literal('farm-dashboard-stats'),
+          attributes: z.object({
+            totalArea: z.object({
+              value: z.number(),
+              unit: z.string(),
+              trend: z.object({
+                direction: z.enum(['up', 'down', 'stable']),
+                percentage: z.number(),
+                label: z.string(),
+              }),
+            }),
+            activeActivities: z.object({
+              value: z.number(),
+              trend: z.object({
+                direction: z.enum(['up', 'down', 'stable']),
+                percentage: z.number(),
+                label: z.string(),
+              }),
+            }),
+            cropTypes: z.object({
+              value: z.number(),
+              trend: z.object({
+                direction: z.enum(['up', 'down', 'stable']),
+                percentage: z.number(),
+                label: z.string(),
+              }),
+            }),
+            completionRate: z.object({
+              value: z.number(),
+              unit: z.string(),
+              trend: z.object({
+                direction: z.enum(['up', 'down', 'stable']),
+                percentage: z.number(),
+                label: z.string(),
+              }),
+            }),
+            period: z.string(),
+            lastUpdated: z.string(),
+          }),
+        }),
+      }),
+      ...CommonErrorResponses,
+    },
+    summary: 'Get farm dashboard statistics including total area, active activities, crop types, and completion rate',
+    description: 'Provides key farm metrics for dashboard display with trend analysis',
+  },
 });
 
 export type FarmContract = typeof farmContract;
