@@ -452,22 +452,85 @@ async function upsertUser(data: any, organizationId: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { organizationName, password, isPlatformAdmin, ...userData } = data;
   
-  return await prisma.user.upsert({
-    where: { email: data.email },
-    update: {
-      ...userData,
-      organizationId,
-      hashedPassword: await hash(password), // Always update password
-      updatedAt: new Date()
+  // Validate required fields
+  if (!password || password.trim() === '') {
+    throw new Error(`Password is required for user ${data.email}`);
+  }
+  
+  // Hash the password once
+  const hashedPassword = await hash(password);
+  
+  // First, try to find existing user
+  const existingUser = await prisma.user.findUnique({
+    where: { email: data.email }
+  });
+  
+  if (existingUser) {
+    // User exists - update with password and all other fields
+    console.log(`   🔄 Updating existing user: ${data.email}`);
+    return await prisma.user.update({
+      where: { email: data.email },
+      data: {
+        ...userData,
+        organizationId,
+        hashedPassword, // Always update password
+        updatedAt: new Date()
+      }
+    });
+  } else {
+    // User doesn't exist - create new
+    console.log(`   ➕ Creating new user: ${data.email}`);
+    return await prisma.user.create({
+      data: {
+        ...userData,
+        organizationId,
+        hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+  }
+}
+
+// =============================================================================
+// VALIDATION FUNCTIONS
+// =============================================================================
+
+async function validateUserPasswords() {
+  console.log('🔐 Validating user passwords...');
+  
+  const usersWithoutPasswords = await prisma.user.findMany({
+    where: {
+      hashedPassword: null
     },
-    create: {
-      ...userData,
-      organizationId,
-      hashedPassword: await hash(password),
-      createdAt: new Date(),
-      updatedAt: new Date()
+    select: {
+      id: true,
+      email: true,
+      name: true
     }
   });
+  
+  if (usersWithoutPasswords.length > 0) {
+    console.log(`⚠️  Found ${usersWithoutPasswords.length} users without passwords:`);
+    usersWithoutPasswords.forEach(user => {
+      console.log(`   - ${user.email} (${user.name})`);
+    });
+    
+    // Fix users without passwords by setting default password
+    for (const user of usersWithoutPasswords) {
+      const defaultPassword = 'TempPassword123!';
+      const hashedPassword = await hash(defaultPassword);
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { hashedPassword }
+      });
+      
+      console.log(`   ✅ Fixed password for ${user.email} (default: ${defaultPassword})`);
+    }
+  } else {
+    console.log('✅ All users have passwords');
+  }
 }
 
 // =============================================================================
@@ -791,6 +854,9 @@ async function initializeDatabase() {
     const activities = await initializeSampleActivities(farms, users);
     const inventory = await initializeSampleInventory(organizations, farms, commodities, users);
     const orders = await initializeSampleOrders(organizations, farms, commodities, users);
+    
+    // Validate all users have passwords
+    await validateUserPasswords();
     
     console.log('\n🎉 Comprehensive database initialization completed successfully!');
     console.log('\n📊 Summary:');
