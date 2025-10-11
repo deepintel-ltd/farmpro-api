@@ -14,6 +14,7 @@ import {
   RequireFeature,
   RequirePermission,
 } from '../common/decorators/authorization.decorators';
+import { OrganizationId } from '../common/decorators/organization-context.decorator';
 // import { PERMISSIONS } from '../common/constants';
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -36,6 +37,7 @@ export class ExecutiveDashboardController {
   @RequirePermission("analytics", "read")
   public getExecutiveDashboard(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getExecutiveDashboard, async ({ query }) => {
       try {
@@ -46,7 +48,7 @@ export class ExecutiveDashboardController {
           body: {
             data: {
               type: 'executive-dashboard',
-              id: req.user.organizationId,
+              id: organizationId,
               attributes: data,
             },
           },
@@ -66,6 +68,7 @@ export class ExecutiveDashboardController {
   @RequirePermission("analytics", "read")
   public getFinancialHealth(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getFinancialHealth, async ({ query }) => {
       try {
@@ -76,7 +79,7 @@ export class ExecutiveDashboardController {
           body: {
             data: {
               type: 'financial-health',
-              id: req.user.organizationId,
+              id: organizationId,
               attributes: data,
             },
           },
@@ -96,6 +99,7 @@ export class ExecutiveDashboardController {
   @RequirePermission("analytics", "read")
   public getRiskIndicators(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getRiskIndicators, async ({ query }) => {
       try {
@@ -106,7 +110,7 @@ export class ExecutiveDashboardController {
           body: {
             data: {
               type: 'risk-indicators',
-              id: req.user.organizationId,
+              id: organizationId,
               attributes: data,
             },
           },
@@ -126,6 +130,7 @@ export class ExecutiveDashboardController {
   @RequirePermission("analytics", "read")
   public getCashFlowAnalysis(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(executiveDashboardContract.getCashFlowAnalysis, async ({ query }) => {
       try {
@@ -136,7 +141,7 @@ export class ExecutiveDashboardController {
           body: {
             data: {
               type: 'cash-flow',
-              id: req.user.organizationId,
+              id: organizationId,
               attributes: data,
             },
           },

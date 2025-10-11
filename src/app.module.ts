@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -78,8 +78,8 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(OrganizationImpersonationMiddleware)
-      .forRoutes('*') // Apply to all routes first
+      .forRoutes({ path: '*', method: RequestMethod.ALL }) // Apply to all routes first
       .apply(UsageLimitMiddleware)
-      .forRoutes('*'); // Apply to all routes
+      .forRoutes({ path: '*', method: RequestMethod.ALL }); // Apply to all routes
   }
 }

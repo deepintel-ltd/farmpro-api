@@ -10,6 +10,7 @@ import {
   RequireFeature,
   RequirePermission,
 } from '../common/decorators/authorization.decorators';
+import { OrganizationId } from '../common/decorators/organization-context.decorator';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -32,12 +33,13 @@ export class FarmsController {
   @RequirePermission('farms', 'read')
   public getFarms(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(farmContract.getFarms, async ({ query }) => {
       try {
         const result = await this.farmsService.getFarms({
           ...query,
-          organizationId: req.user.organizationId,
+          organizationId,
         });
 
         return {
@@ -60,12 +62,13 @@ export class FarmsController {
   @RequirePermission('farms', 'read')
   public getFarm(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(farmContract.getFarm, async ({ params }) => {
       try {
         const result = await this.farmsService.getFarm(
           params.id,
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -89,12 +92,13 @@ export class FarmsController {
   @RequirePermission('farms', 'create')
   public createFarm(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(farmContract.createFarm, async ({ body }) => {
       try {
         const result = await this.farmsService.createFarm(
           body,
-          req.user.organizationId,
+          organizationId,
         );
 
         this.logger.log(`Farm created by user ${req.user.userId}`);
@@ -120,13 +124,14 @@ export class FarmsController {
   @RequirePermission('farms', 'update')
   public updateFarm(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(farmContract.updateFarm, async ({ params, body }) => {
       try {
         const result = await this.farmsService.updateFarm(
           params.id,
           body,
-          req.user.organizationId,
+          organizationId,
         );
 
         this.logger.log(`Farm ${params.id} updated by user ${req.user.userId}`);
@@ -154,10 +159,11 @@ export class FarmsController {
   @RequirePermission('farms', 'delete')
   public deleteFarm(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(farmContract.deleteFarm, async ({ params }) => {
       try {
-        await this.farmsService.deleteFarm(params.id, req.user.organizationId);
+        await this.farmsService.deleteFarm(params.id, organizationId);
 
         this.logger.log(`Farm ${params.id} deleted by user ${req.user.userId}`);
 
@@ -182,6 +188,7 @@ export class FarmsController {
   @TsRestHandler(farmContract.getFarmCommodities)
   public getFarmCommodities(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       farmContract.getFarmCommodities,
@@ -193,7 +200,7 @@ export class FarmsController {
               page: query['page[number]'] ?? 1,
               limit: query['page[size]'] ?? 10,
             },
-            req.user.organizationId,
+            organizationId,
           );
 
           return {
@@ -217,6 +224,7 @@ export class FarmsController {
   @TsRestHandler(farmContract.getFarmCommodityRelationships)
   public getFarmCommodityRelationships(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       farmContract.getFarmCommodityRelationships,
@@ -226,7 +234,7 @@ export class FarmsController {
           const commodities = await this.farmsService.getFarmCommodities(
             params.id,
             { page: 1, limit: 1000 }, // Get all relationships
-            req.user.organizationId,
+            organizationId,
           );
 
           const relationshipData = commodities.data.map((commodity) => ({

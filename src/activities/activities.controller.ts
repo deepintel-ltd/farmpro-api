@@ -19,6 +19,7 @@ import { ActivityTemplateService, CreateFromTemplateDto } from './activity-templ
 import { ActivitySchedulingService } from './activity-scheduling.service';
 import { ActivityNotesService } from './activity-notes.service';
 import { CalendarQueryOptions, AnalyticsQueryOptions, ConflictCheckQueryOptions, WorkloadQueryOptions } from './dto/activities.dto';
+import { OrganizationId } from '@/common/decorators/organization-context.decorator';
 
 
 interface AuthenticatedRequest extends ExpressRequest {
@@ -232,15 +233,17 @@ export class ActivitiesController {
 
   @TsRestHandler(activitiesAnalyticsContract.generateReport)
   @RequirePermission("activities", "read")
-  // @RequireCapability(...) - replaced with feature check
-  public generateReport(@Request() req: AuthenticatedRequest) {
+  public generateReport(
+    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
+  ) {
     return tsRestHandler(activitiesAnalyticsContract.generateReport, async ({ body }) => {
       const result = await this.activitiesService.generateReport({
         reportType: body.reportType,
         filters: body.filters,
         format: body.format,
         includeCharts: body.includeCharts
-      }, req.user.organizationId);
+      }, organizationId);
       return { status: 202 as const, body: result };
     });
   }

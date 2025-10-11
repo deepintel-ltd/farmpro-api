@@ -6,6 +6,7 @@ import { BillingService } from './billing.service';
 import { billingContract } from '../../contracts/billing.contract';
 import { ErrorResponseUtil } from '../common/utils/error-response.util';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
+import { OrganizationId } from '../common/decorators/organization-context.decorator';
 
 @Controller()
 
@@ -56,6 +57,7 @@ export class BillingController {
   @TsRestHandler(billingContract.getCurrentSubscription)
   public getCurrentSubscription(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.getCurrentSubscription,
@@ -63,7 +65,7 @@ export class BillingController {
         try {
           const result =
             await this.billingService.subscriptions.getCurrentSubscription(
-              req.user.organizationId,
+              organizationId,
             );
           return { status: 200 as const, body: result };
         } catch (error: unknown) {
@@ -81,11 +83,12 @@ export class BillingController {
   @TsRestHandler(billingContract.createSubscription)
   public createSubscription(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.createSubscription, async ({ body }) => {
       try {
         const result = await this.billingService.subscriptions.createSubscription(
-          req.user.organizationId,
+          organizationId,
           body.data.attributes as any,
         );
         return { status: 201 as const, body: result };
@@ -103,11 +106,12 @@ export class BillingController {
   @TsRestHandler(billingContract.updateSubscription)
   public updateSubscription(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.updateSubscription, async ({ body }) => {
       try {
         const result = await this.billingService.subscriptions.updateSubscription(
-          req.user.organizationId,
+          organizationId,
           body.data.attributes as any,
         );
         return { status: 200 as const, body: result };
@@ -127,11 +131,12 @@ export class BillingController {
   @TsRestHandler(billingContract.changePlan)
   public changePlan(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.changePlan, async ({ body }) => {
       try {
         const result = await this.billingService.subscriptions.changePlan(
-          req.user.organizationId,
+          organizationId,
           body.data.attributes as any,
         );
         return { status: 200 as const, body: result };
@@ -151,11 +156,12 @@ export class BillingController {
   @TsRestHandler(billingContract.cancelSubscription)
   public cancelSubscription(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.cancelSubscription, async ({ body }) => {
       try {
         const result = await this.billingService.subscriptions.cancelSubscription(
-          req.user.organizationId,
+          organizationId,
           body.data.attributes as any,
         );
         return { status: 200 as const, body: result };
@@ -175,12 +181,13 @@ export class BillingController {
   @TsRestHandler(billingContract.resumeSubscription)
   public resumeSubscription(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.resumeSubscription, async () => {
       try {
         const result =
           await this.billingService.subscriptions.resumeSubscription(
-            req.user.organizationId,
+            organizationId,
           );
         return { status: 200 as const, body: result };
       } catch (error: unknown) {
@@ -203,11 +210,12 @@ export class BillingController {
   @TsRestHandler(billingContract.getInvoices)
   public getInvoices(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.getInvoices, async ({ query }) => {
       try {
         const result = await this.billingService.invoices.findAll(
-          req.user.organizationId,
+          organizationId,
           query as any,
         );
         return { status: 200 as const, body: result };
@@ -224,12 +232,13 @@ export class BillingController {
   @TsRestHandler(billingContract.getInvoice)
   public getInvoice(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.getInvoice, async ({ params }) => {
       try {
         const result = await this.billingService.invoices.findOne(
           params.id,
-          req.user.organizationId,
+          organizationId,
         );
         return { status: 200 as const, body: result };
       } catch (error: unknown) {
@@ -246,6 +255,7 @@ export class BillingController {
   @TsRestHandler(billingContract.downloadInvoicePDF)
   public downloadInvoicePDF(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.downloadInvoicePDF,
@@ -253,7 +263,7 @@ export class BillingController {
         try {
           const result = await this.billingService.invoices.getInvoicePDF(
             params.id,
-            req.user.organizationId,
+            organizationId,
           );
           return { status: 200 as const, body: result };
         } catch (error: unknown) {
@@ -271,6 +281,7 @@ export class BillingController {
   @TsRestHandler(billingContract.payInvoice)
   public payInvoice(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.payInvoice, async ({ params, body }) => {
       try {
@@ -285,7 +296,7 @@ export class BillingController {
 
         const result = await paymentService.processPayment(
           params.id,
-          req.user.organizationId,
+          organizationId,
           body.data.attributes.paymentMethodId,
         );
         return { status: 200 as const, body: result };
@@ -309,11 +320,12 @@ export class BillingController {
   @TsRestHandler(billingContract.getPaymentMethods)
   public getPaymentMethods(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.getPaymentMethods, async () => {
       try {
         const result = await this.billingService.paymentMethods.findAll(
-          req.user.organizationId,
+          organizationId,
         );
         return { status: 200 as const, body: result };
       } catch (error: unknown) {
@@ -329,13 +341,14 @@ export class BillingController {
   @TsRestHandler(billingContract.createPaymentMethod)
   public createPaymentMethod(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.createPaymentMethod,
       async ({ body }) => {
         try {
           const result = await this.billingService.paymentMethods.create(
-            req.user.organizationId,
+            organizationId,
             body.data.attributes as any,
           );
           return { status: 201 as const, body: result };
@@ -354,6 +367,7 @@ export class BillingController {
   @TsRestHandler(billingContract.setDefaultPaymentMethod)
   public setDefaultPaymentMethod(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.setDefaultPaymentMethod,
@@ -361,7 +375,7 @@ export class BillingController {
         try {
           const result = await this.billingService.paymentMethods.setDefault(
             params.id,
-            req.user.organizationId,
+            organizationId,
           );
           return { status: 200 as const, body: result };
         } catch (error: unknown) {
@@ -379,6 +393,7 @@ export class BillingController {
   @TsRestHandler(billingContract.deletePaymentMethod)
   public deletePaymentMethod(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       billingContract.deletePaymentMethod,
@@ -386,7 +401,7 @@ export class BillingController {
         try {
           await this.billingService.paymentMethods.delete(
             params.id,
-            req.user.organizationId,
+            organizationId,
           );
           return { status: 204 as const, body: {} };
         } catch (error: unknown) {
@@ -408,11 +423,12 @@ export class BillingController {
   @TsRestHandler(billingContract.getUsageStats)
   public getUsageStats(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.getUsageStats, async () => {
       try {
         const result = await this.billingService.usage.getUsageStats(
-          req.user.organizationId,
+          organizationId,
         );
         return { status: 200 as const, body: result };
       } catch (error: unknown) {
@@ -428,11 +444,12 @@ export class BillingController {
   @TsRestHandler(billingContract.getFeatureUsage)
   public getFeatureUsage(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(billingContract.getFeatureUsage, async ({ params, query }) => {
       try {
         const result = await this.billingService.usage.getFeatureUsage(
-          req.user.organizationId,
+          organizationId,
           params.feature,
           query.startDate ? new Date(query.startDate) : undefined,
           query.endDate ? new Date(query.endDate) : undefined,

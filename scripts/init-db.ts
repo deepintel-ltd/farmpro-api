@@ -450,7 +450,7 @@ async function upsertOrganization(data: any) {
 
 async function upsertUser(data: any, organizationId: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { organizationName, password, isPlatformAdmin, ...userData } = data;
+  const { organizationName, password, ...userData } = data;
   
   // Validate required fields
   if (!password || password.trim() === '') {

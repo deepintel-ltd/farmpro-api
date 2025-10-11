@@ -19,6 +19,7 @@ import {
   RequirePermission,
   
 } from '../common/decorators/authorization.decorators';
+import { OrganizationId } from '../common/decorators/organization-context.decorator';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: CurrentUser;
@@ -42,11 +43,12 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getProfile(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getProfile, async () => {
       try {
         const result = await this.organizationsService.getProfile(
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -68,7 +70,6 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.updateProfile)
   @RequirePermission("organizations", "update")
-  // @RequireRoleLevel(...) - replaced with permission check
   public updateProfile(
     @Request() req: AuthenticatedRequest,
   ): ReturnType<typeof tsRestHandler> {
@@ -107,16 +108,16 @@ export class OrganizationsController {
 
   @TsRestHandler(organizationContract.uploadLogo)
   @RequirePermission("organizations", "update")
-  // @RequireRoleLevel(...) - replaced with permission check
   @UseInterceptors(FileInterceptor('file'))
   public uploadLogo(
     @Request() req: AuthenticatedRequest,
     @UploadedFile() file: any,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.uploadLogo, async () => {
       try {
         const result = await this.organizationsService.uploadLogo(
-          req.user.organizationId,
+          organizationId,
           file,
         );
 
@@ -144,12 +145,12 @@ export class OrganizationsController {
   @TsRestHandler(organizationContract.getSettings)
   @RequirePermission("organizations", "read")
   public getSettings(
-    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getSettings, async () => {
       try {
         const result = await this.organizationsService.getSettings(
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -174,13 +175,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public updateSettings(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.updateSettings,
       async ({ body }) => {
         try {
           const result = await this.organizationsService.updateSettings(
-            req.user.organizationId,
+            organizationId,
             body,
           );
 
@@ -213,17 +215,17 @@ export class OrganizationsController {
   // =============================================================================
 
   @TsRestHandler(organizationContract.requestVerification)
-  @RequirePermission("organizations", "update")
-  // @RequireRoleLevel(...) - replaced with permission check
+  @RequirePermission("organizations", "update")   
   public requestVerification(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.requestVerification,
       async ({ body }) => {
         try {
           const result = await this.organizationsService.requestVerification(
-            req.user.organizationId,
+            organizationId,
             body,
           );
 
@@ -252,14 +254,14 @@ export class OrganizationsController {
   @TsRestHandler(organizationContract.getVerificationStatus)
   @RequirePermission("organizations", "read")
   public getVerificationStatus(
-    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getVerificationStatus,
       async () => {
         try {
           const result = await this.organizationsService.getVerificationStatus(
-            req.user.organizationId,
+            organizationId,
           );
 
           return {
@@ -287,14 +289,14 @@ export class OrganizationsController {
   @TsRestHandler(organizationContract.getAnalytics)
   @RequirePermission("organizations", "read")
   public getAnalytics(
-    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getAnalytics,
       async ({ query }) => {
         try {
           const result = await this.organizationsService.getAnalytics(
-            req.user.organizationId,
+            organizationId,
             query,
           );
 
@@ -318,13 +320,14 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getActivityFeed(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getActivityFeed,
       async ({ query }) => {
         try {
           const result = await this.organizationsService.getActivityFeed(
-            req.user.organizationId,
+            organizationId,
             query,
           );
 
@@ -349,13 +352,14 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getComplianceReport(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getComplianceReport,
       async ({ query }) => {
         try {
           const result = await this.organizationsService.getComplianceReport(
-            req.user.organizationId,
+            organizationId,
             query,
           );
 
@@ -387,11 +391,12 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getTeam(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getTeam, async () => {
       try {
         const result = await this.organizationsService.getTeam(
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -413,13 +418,14 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getTeamStats(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getTeamStats,
       async ({ query }) => {
         try {
           const result = await this.organizationsService.getTeamStats(
-            req.user.organizationId,
+            organizationId,
             query,
           );
 
@@ -447,11 +453,12 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getIntegrations(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getIntegrations, async () => {
       try {
         const result = await this.organizationsService.getIntegrations(
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -474,13 +481,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public configureIntegration(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.configureIntegration,
       async ({ params, body }) => {
         try {
           const result = await this.organizationsService.configureIntegration(
-            req.user.organizationId,
+            organizationId,
             params.integrationId,
             body.data.attributes,
           );
@@ -515,13 +523,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public updateIntegration(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.updateIntegration,
       async ({ params, body }) => {
         try {
           const result = await this.organizationsService.updateIntegration(
-            req.user.organizationId,
+            organizationId,
             params.integrationId,
             body.data.attributes,
           );
@@ -556,13 +565,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public deleteIntegration(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.deleteIntegration,
       async ({ params }) => {
         try {
           const result = await this.organizationsService.deleteIntegration(
-            req.user.organizationId,
+            organizationId,
             params.integrationId,
           );
 
@@ -595,13 +605,14 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getIntegrationStatus(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getIntegrationStatus,
       async ({ params }) => {
         try {
           const result = await this.organizationsService.getIntegrationStatus(
-            req.user.organizationId,
+            organizationId,
             params.integrationId,
           );
 
@@ -635,13 +646,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public requestExport(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.requestExport,
       async ({ body }) => {
         try {
           const result = await this.organizationsService.requestExport(
-            req.user.organizationId,
+            organizationId,
             body,
           );
 
@@ -691,11 +703,12 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getExport(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getExport, async ({ params }) => {
       try {
         const result = await this.organizationsService.getExport(
-          req.user.organizationId,
+          organizationId,
           params.exportId,
         );
 
@@ -721,13 +734,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public createBackup(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.createBackup,
       async ({ body }) => {
         try {
           const result = await this.organizationsService.createBackup(
-            req.user.organizationId,
+            organizationId,
             body,
           );
 
@@ -759,11 +773,12 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getBilling(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getBilling, async () => {
       try {
         const result = await this.organizationsService.getBilling(
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -787,11 +802,12 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getUsage(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.getUsage, async () => {
       try {
         const result = await this.organizationsService.getUsage(
-          req.user.organizationId,
+          organizationId,
         );
 
         return {
@@ -838,11 +854,12 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public subscribe(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(organizationContract.subscribe, async ({ body }) => {
       try {
         const result = await this.organizationsService.subscribe(
-          req.user.organizationId,
+          organizationId,
           body,
         );
 
@@ -870,13 +887,14 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public updateSubscription(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.updateSubscription,
       async ({ body }) => {
         try {
           const result = await this.organizationsService.updateSubscription(
-            req.user.organizationId,
+            organizationId,
             body.data.attributes as { planId: string; billingCycle: string },
           );
 
@@ -904,13 +922,14 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getInvoices(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getInvoices,
       async ({ query }) => {
         try {
           const result = await this.organizationsService.getInvoices(
-            req.user.organizationId,
+            organizationId,
             query,
           );
 
@@ -934,13 +953,14 @@ export class OrganizationsController {
   @RequirePermission("organizations", "read")
   public getInvoice(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getInvoice,
       async ({ params }) => {
         try {
           const result = await this.organizationsService.getInvoice(
-            req.user.organizationId,
+            organizationId,
             params.invoiceId,
           );
 
@@ -1145,6 +1165,7 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public sendInvitation(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.sendInvitation,
@@ -1152,7 +1173,7 @@ export class OrganizationsController {
         try {
           const result = await this.invitationService.sendInvitation({
             email: body.data.attributes.email,
-            organizationId: req.user.organizationId!,
+            organizationId: organizationId!,
             roleName: body.data.attributes.role,
             message: body.data.attributes.message,
             inviterName: req.user.name,
@@ -1197,16 +1218,17 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public getPendingInvitations(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.getPendingInvitations,
       async () => {
         try {
           const invitations = await this.invitationService.getPendingInvitations(
-            req.user.organizationId!,
+            organizationId!,
           );
 
-          this.logger.log(`Retrieved ${invitations.length} pending invitations for organization ${req.user.organizationId}`);
+          this.logger.log(`Retrieved ${invitations.length} pending invitations for organization ${organizationId}`);
 
           return {
             status: 200 as const,
@@ -1242,6 +1264,7 @@ export class OrganizationsController {
   // @RequireRoleLevel(...) - replaced with permission check
   public cancelInvitation(
     @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
   ): ReturnType<typeof tsRestHandler> {
     return tsRestHandler(
       organizationContract.cancelInvitation,
@@ -1249,7 +1272,7 @@ export class OrganizationsController {
         try {
           await this.invitationService.cancelInvitation(
             params.id,
-            req.user.organizationId!,
+            organizationId!,
           );
 
           this.logger.log(`Cancelled invitation ${params.id} by user ${req.user.userId}`);
