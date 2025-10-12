@@ -45,6 +45,8 @@
     "contracts:publish:github": "node scripts/publish-contracts.js github",
     "contracts:publish:npm": "node scripts/publish-contracts.js npm",
     "contracts:publish:all": "node scripts/publish-contracts.js all",
+    "init-db": "ts-node scripts/init-db.ts",
+    "generate-demo-data": "ts-node scripts/demo-data-generator.ts",
     "db:init": "tsx scripts/init-db.ts",
     "db:verify": "tsx scripts/verify-init.ts",
     "setup:env": "node scripts/setup-env.js",
