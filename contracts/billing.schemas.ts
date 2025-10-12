@@ -188,15 +188,15 @@ export const CreateSubscriptionRequestSchema = JsonApiCreateRequestSchema(
     currency: CurrencySchema,
     billingInterval: BillingIntervalSchema.optional(),
     paymentMethodId: z.string().optional(),
-    startTrial: z.boolean().optional(),
+    startTrial: z.coerce.boolean().optional(),
   })
 );
 
 // Update Subscription Request
 export const UpdateSubscriptionRequestSchema = JsonApiCreateRequestSchema(
   z.object({
-    autoRenew: z.boolean().optional(),
-    cancelAtPeriodEnd: z.boolean().optional(),
+    autoRenew: z.coerce.boolean().optional(),
+    cancelAtPeriodEnd: z.coerce.boolean().optional(),
   }).partial()
 );
 
@@ -212,7 +212,7 @@ export const ChangePlanRequestSchema = JsonApiCreateRequestSchema(
 export const CancelSubscriptionRequestSchema = JsonApiCreateRequestSchema(
   z.object({
     cancelReason: z.string().optional(),
-    immediate: z.boolean().optional(),
+    immediate: z.coerce.boolean().optional(),
   })
 );
 
@@ -223,7 +223,7 @@ export const CreatePaymentMethodRequestSchema = JsonApiCreateRequestSchema(
     provider: PaymentProviderSchema,
     stripePaymentMethodId: z.string().optional(),
     paystackAuthorizationCode: z.string().optional(),
-    setAsDefault: z.boolean().optional(),
+    setAsDefault: z.coerce.boolean().optional(),
   })
 );
 

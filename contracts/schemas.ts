@@ -28,7 +28,7 @@ export const FarmSchema = z.object({
   cropTypes: z.array(z.string().min(1)).min(1, 'At least one crop type required'),
   establishedDate: z.string().datetime('Invalid date format'),
   certifications: z.array(z.string()).optional(),
-  isActive: z.boolean().optional()
+  isActive: z.coerce.boolean().optional()
 });
 
 /**

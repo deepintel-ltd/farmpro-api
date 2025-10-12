@@ -72,7 +72,7 @@ export const UpdateRoleRequestSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
   level: z.number().min(0).max(1000).optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.coerce.boolean().optional(),
   metadata: z.any().nullable().optional(),
 });
 
@@ -106,7 +106,7 @@ export const AssignUserRoleRequestSchema = z.object({
 export const UpdateUserRoleRequestSchema = z.object({
   farmId: z.string().optional(),
   expiresAt: z.string().datetime().optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.coerce.boolean().optional(),
   metadata: z.any().nullable().optional(),
 });
 

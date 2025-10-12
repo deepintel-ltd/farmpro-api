@@ -13,7 +13,7 @@ export const UpdateOrganizationRequestSchema = z.object({
       suspensionReason: z.string().min(10, 'Reason must be at least 10 characters').optional(),
 
       // Verification
-      isVerified: z.boolean().optional(),
+      isVerified: z.coerce.boolean().optional(),
 
       // Organization type
       organizationType: z.enum(['FARM_OPERATION', 'COMMODITY_TRADER', 'LOGISTICS_PROVIDER', 'INTEGRATED_FARM']).optional(),

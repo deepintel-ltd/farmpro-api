@@ -43,8 +43,8 @@ export const inventoryContract = c.router({
       status: z.enum(['AVAILABLE', 'RESERVED', 'SOLD', 'CONSUMED', 'EXPIRED']).optional(),
       location: z.string().optional(),
       qualityGrade: z.enum(['premium', 'grade_a', 'grade_b', 'standard']).optional(),
-      lowStock: z.boolean().optional(),
-      expiryAlert: z.boolean().optional(),
+      lowStock: z.coerce.boolean().optional(),
+      expiryAlert: z.coerce.boolean().optional(),
     }),
     responses: {
       200: InventoryCollectionSchema,
@@ -560,8 +560,8 @@ export const inventoryContract = c.router({
       commodityId: CuidQueryParam('id').optional(),
       farmId: CuidQueryParam('id').optional(),
       timeHorizon: z.enum(['30', '60', '90', '180']),
-      considerSeasonality: z.boolean().optional(),
-      includeGrowthPlanning: z.boolean().optional(),
+      considerSeasonality: z.coerce.boolean().optional(),
+      includeGrowthPlanning: z.coerce.boolean().optional(),
     }),
     responses: {
       200: z.object({
@@ -640,7 +640,7 @@ export const inventoryContract = c.router({
         status: z.array(z.string()).optional(),
       }),
       format: z.enum(['pdf', 'excel', 'csv']),
-      includeCharts: z.boolean().optional(),
+      includeCharts: z.coerce.boolean().optional(),
     }),
     responses: {
       202: z.object({ message: z.string() }),

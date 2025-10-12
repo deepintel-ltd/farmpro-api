@@ -100,7 +100,7 @@ export const ReminderAttributesSchema = NotificationAttributesSchema.extend({
   type: z.literal('reminder'),
   reminderType: z.enum(['task', 'activity', 'payment', 'maintenance', 'harvest', 'planting']),
   dueDate: z.string().datetime(),
-  isRecurring: z.boolean().optional(),
+  isRecurring: z.coerce.boolean().optional(),
   recurrencePattern: z.string().optional(),
   snoozeUntil: z.string().datetime().optional(),
 });

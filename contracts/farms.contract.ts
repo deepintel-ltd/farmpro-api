@@ -175,7 +175,7 @@ export const farmContract = c.router({
       farmId: z.string().optional(),
       organizationId: z.string().optional(),
       period: z.enum(['week', 'month', 'quarter', 'year']).optional().default('month'),
-      includeTrends: z.boolean().optional().default(true),
+      includeTrends: z.coerce.boolean().optional().default(true),
     }).merge(CommonQueryParams),
     responses: {
       200: z.object({

@@ -130,8 +130,8 @@ export const AgWeatherMetricsSchema = z.object({
   soilMoisture: z.number().min(0).max(100).optional().describe('Estimated soil moisture %'),
   evapotranspiration: z.number().optional().describe('ET in mm'),
   chillHours: z.number().optional().describe('Hours below 7°C'),
-  heatStress: z.boolean().optional(),
-  frostRisk: z.boolean().optional(),
+  heatStress: z.coerce.boolean().optional(),
+  frostRisk: z.coerce.boolean().optional(),
 });
 
 // =============================================================================
