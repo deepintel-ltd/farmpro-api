@@ -325,7 +325,15 @@ export {
   validateQueryParams,
   validatePathParams,
   validateResponse,
-  ContractValidator
+  ContractValidator,
+  CuidQueryParam,
+  Cuid2PathParam,
+  CommonQueryParams,
+  ResourceFieldsParams,
+  FilterParams,
+  AllQueryParams,
+  CommonErrorResponses,
+  CollectionErrorResponses
 } from './common';
 
 // =============================================================================
