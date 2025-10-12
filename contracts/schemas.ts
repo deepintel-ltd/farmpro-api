@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { CuidQueryParam } from './common';
+
+// Define CuidQueryParam locally to avoid dependency issues
+const CuidQueryParam = (paramName: string) =>
+  z.string().regex(/^(c[a-z0-9]{24}|[a-z0-9]{24})$/, `${paramName} must be a valid CUID or CUID2 format`);
 
 // =============================================================================
 // Core Resource Schemas
