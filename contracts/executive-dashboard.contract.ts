@@ -127,6 +127,15 @@ export const ExecutiveDashboardSchema = z.object({
     actionable: z.boolean(),
     recommendations: z.array(z.string()).optional(),
   })),
+  portfolio: z.object({
+    activeCycles: z.number(),
+    pipelineValue: z.object({
+      amount: z.number(),
+      currency: z.enum(['NGN', 'USD']).default('USD'),
+    }),
+    totalHectares: z.number(),
+    totalFarms: z.number(),
+  }),
   lastUpdated: z.string().datetime(),
 });
 
@@ -178,54 +187,6 @@ export const ExecutiveInsightsQuerySchema = z.object({
   limit: z.coerce.number().min(1).max(20).optional().default(10),
   useCache: z.coerce.boolean().optional().default(true),
 }).merge(CommonQueryParams);
-
-// Portfolio Summary Schema
-export const PortfolioSummarySchema = z.object({
-  activeCycles: z.number(),
-  pipelineValue: z.object({
-    amount: z.number(),
-    currency: z.enum(['NGN', 'USD']).default('USD'),
-  }),
-  totalHectares: z.number(),
-  totalFarms: z.number(),
-  lastUpdated: z.string().datetime(),
-});
-
-// Enhanced Financial Health Schema with detailed metrics
-export const EnhancedFinancialHealthSchema = z.object({
-  score: z.number().min(0).max(100),
-  trend: z.number(), // percentage change from previous period
-  factors: z.object({
-    cashFlow: z.number().min(0).max(100),
-    profitability: z.number().min(0).max(100),
-    growth: z.number().min(0).max(100),
-    efficiency: z.number().min(0).max(100),
-  }),
-  grade: z.enum(['A', 'B', 'C', 'D', 'F']),
-  recommendations: z.array(z.string()),
-  // Enhanced detailed metrics
-  detailedMetrics: z.object({
-    totalRevenue: z.object({
-      amount: z.number(),
-      currency: z.enum(['NGN', 'USD']).default('USD'),
-    }),
-    netProfit: z.object({
-      amount: z.number(),
-      currency: z.enum(['NGN', 'USD']).default('USD'),
-    }),
-    profitMargin: z.number(), // percentage
-    cashFlow: z.object({
-      amount: z.number(),
-      currency: z.enum(['NGN', 'USD']).default('USD'),
-    }),
-    burnRate: z.object({
-      amount: z.number(),
-      currency: z.enum(['NGN', 'USD']).default('USD'),
-    }),
-    runway: z.number(), // months
-  }),
-  lastCalculated: z.string().datetime(),
-});
 
 // =============================================================================
 // Contract Definition
@@ -356,40 +317,6 @@ export const executiveDashboardContract = c.router({
     description: 'Provides AI-powered insights and recommendations for strategic decision-making',
   },
 
-  // =============================================================================
-  // Portfolio Summary - New Endpoint
-  // =============================================================================
-  
-  getPortfolioSummary: {
-    method: 'GET',
-    path: '/executive-dashboard/portfolio-summary',
-    query: z.object({
-      currency: z.enum(['NGN', 'USD']).optional().default('USD'),
-      useCache: z.coerce.boolean().optional().default(true),
-    }).merge(CommonQueryParams),
-    responses: {
-      200: JsonApiResourceSchema(PortfolioSummarySchema),
-      ...CommonErrorResponses,
-    },
-    summary: 'Get portfolio summary metrics',
-    description: 'Provides aggregated portfolio metrics including active cycles, pipeline value, and total hectares',
-  },
-
-  // =============================================================================
-  // Enhanced Financial Health - Updated Endpoint
-  // =============================================================================
-  
-  getEnhancedFinancialHealth: {
-    method: 'GET',
-    path: '/executive-dashboard/financial-health/enhanced',
-    query: FinancialHealthQuerySchema,
-    responses: {
-      200: JsonApiResourceSchema(EnhancedFinancialHealthSchema),
-      ...CommonErrorResponses,
-    },
-    summary: 'Get enhanced financial health with detailed metrics',
-    description: 'Provides comprehensive financial health score with detailed revenue, profit, and cash flow metrics',
-  },
 });
 
 export type ExecutiveDashboardContract = typeof executiveDashboardContract;

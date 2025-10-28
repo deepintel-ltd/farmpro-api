@@ -72,6 +72,11 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
         keyMetrics,
         pendingActions,
         insights,
+        // Portfolio data
+        activeCycles,
+        totalHectares,
+        totalFarms,
+        pipelineValue,
       ] = await Promise.all([
         this.calculateFinancialHealth(user, request, {
           period: query.period,
@@ -100,6 +105,11 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
           limit: 10,
           useCache: query.useCache,
         }) : [],
+        // Portfolio calculations
+        this.getActiveCropCycles(organizationId),
+        this.getTotalHectares(organizationId),
+        this.getTotalFarms(organizationId),
+        this.calculatePipelineValue(organizationId, query.currency),
       ]);
 
       const result = {
@@ -109,6 +119,12 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
         keyMetrics,
         pendingActions,
         insights,
+        portfolio: {
+          activeCycles,
+          pipelineValue,
+          totalHectares,
+          totalFarms,
+        },
         lastUpdated: new Date().toISOString(),
       };
 
@@ -859,174 +875,58 @@ export class ExecutiveDashboardService extends CurrencyAwareService {
     return insights;
   }
 
-  /**
-   * Get portfolio summary metrics
-   */
-  async getPortfolioSummary(user: CurrentUser, request: any, query: { currency?: 'NGN' | 'USD'; useCache?: boolean; include?: string; sort?: string; 'page[number]'?: number; 'page[size]'?: number }) {
-    const organizationId = this.getOrganizationIdFromRequest(request, user);
-    const startTime = Date.now();
-    this.logger.log(`Getting portfolio summary for user: ${user.userId}, organization: ${organizationId}`);
-
-    const cacheKey = `portfolio-summary-${organizationId}-${query.currency}`;
-    
-    if (query.useCache) {
-      const cached = await this.cacheService.get(cacheKey);
-      if (cached) {
-        this.logger.log(`Cache hit for portfolio summary: ${Date.now() - startTime}ms`);
-        return cached;
-      }
-    }
-
-    try {
-      // Get active crop cycles through farm relationship
-      const activeCycles = await this.prisma.cropCycle.count({
-        where: {
-          area: {
-            farm: {
-              organizationId,
-            },
-          },
-          status: { in: ['PLANNED', 'PLANTED', 'GROWING', 'MATURE'] },
+  // Portfolio calculation methods
+  private async getActiveCropCycles(organizationId: string): Promise<number> {
+    return this.prisma.cropCycle.count({
+      where: {
+        area: { 
+          farm: { 
+            organizationId 
+          } 
         },
-      });
-
-      // Calculate pipeline value from active cycles
-      const activeCropCycles = await this.prisma.cropCycle.findMany({
-        where: {
-          area: {
-            farm: {
-              organizationId,
-            },
-          },
-          status: { in: ['PLANNED', 'PLANTED', 'GROWING', 'MATURE'] },
-        },
-        include: {
-          area: {
-            include: {
-              farm: true,
-            },
-          },
-        },
-      });
-
-      const pipelineValue = activeCropCycles.reduce((total, cycle) => {
-        // Estimate value based on farm size and commodity type
-        const estimatedValue = cycle.area?.farm?.totalArea ? cycle.area.farm.totalArea * 1000 : 0;
-        return total + estimatedValue;
-      }, 0);
-
-      // Get total hectares
-      const farms = await this.prisma.farm.findMany({
-        where: { organizationId },
-        select: { totalArea: true },
-      });
-
-      const totalHectares = farms.reduce((total, farm) => total + (farm.totalArea || 0), 0);
-
-      // Get total farms count
-      const totalFarms = await this.prisma.farm.count({
-        where: { organizationId },
-      });
-
-      const result = {
-        activeCycles,
-        pipelineValue: {
-          amount: pipelineValue,
-          currency: query.currency,
-        },
-        totalHectares,
-        totalFarms,
-        lastUpdated: new Date().toISOString(),
-      };
-
-      if (query.useCache) {
-        await this.cacheService.set(cacheKey, result, 600); // 10 minutes
-      }
-
-      this.logger.log(`Portfolio summary retrieved in ${Date.now() - startTime}ms`);
-      return result;
-    } catch (error) {
-      this.logger.error(`Error getting portfolio summary: ${error.message}`, error.stack);
-      throw error;
-    }
+        status: { in: ['PLANNED', 'PLANTED', 'GROWING', 'MATURE'] },
+      },
+    });
   }
 
-  /**
-   * Calculate enhanced financial health with detailed metrics
-   */
-  async calculateEnhancedFinancialHealth(user: CurrentUser, request: any, query: z.infer<typeof FinancialHealthQuerySchema>) {
-    const organizationId = this.getOrganizationIdFromRequest(request, user);
-    const startTime = Date.now();
-    this.logger.log(`Calculating enhanced financial health for user: ${user.userId}, organization: ${organizationId}`);
+  private async getTotalHectares(organizationId: string): Promise<number> {
+    const farms = await this.prisma.farm.findMany({
+      where: { organizationId },
+      select: { totalArea: true },
+    });
+    return farms.reduce((total, farm) => total + (farm.totalArea || 0), 0);
+  }
 
-    const cacheKey = `enhanced-financial-health-${organizationId}-${query.period}-${query.currency}`;
-    
-    if (query.useCache) {
-      const cached = await this.cacheService.get(cacheKey);
-      if (cached) {
-        this.logger.log(`Cache hit for enhanced financial health: ${Date.now() - startTime}ms`);
-        return cached;
-      }
-    }
+  private async getTotalFarms(organizationId: string): Promise<number> {
+    return this.prisma.farm.count({ 
+      where: { organizationId } 
+    });
+  }
 
-    try {
-      // Get basic financial health
-      const basicHealth = await this.calculateFinancialHealth(user, request, query) as any;
-      
-      const transactions = await this.getTransactionsByPeriod(
-        organizationId, 
-        query.period,
-        query.currency
-      );
-
-      // Calculate detailed metrics
-      const totalRevenue = this.sumTransactionsByType(transactions, TransactionType.FARM_REVENUE, query.currency);
-      const totalExpenses = this.sumTransactionsByType(transactions, TransactionType.FARM_EXPENSE, query.currency);
-      const netProfit = totalRevenue - totalExpenses;
-      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-      
-      const cashFlow = this.calculateOperatingCashFlow(transactions, query.currency);
-      const burnRate = this.calculateBurnRate(transactions, query.currency);
-      const runway = this.calculateRunway(transactions, query.currency);
-
-      const result = {
-        score: basicHealth.score,
-        trend: basicHealth.trend,
-        factors: basicHealth.factors,
-        grade: basicHealth.grade,
-        recommendations: basicHealth.recommendations,
-        lastCalculated: basicHealth.lastCalculated,
-        detailedMetrics: {
-          totalRevenue: {
-            amount: totalRevenue,
-            currency: query.currency,
-          },
-          netProfit: {
-            amount: netProfit,
-            currency: query.currency,
-          },
-          profitMargin: Math.round(profitMargin * 1000) / 1000, // Round to 3 decimal places
-          cashFlow: {
-            amount: cashFlow.amount,
-            currency: query.currency,
-          },
-          burnRate: {
-            amount: burnRate.amount,
-            currency: query.currency,
-          },
-          runway,
+  private async calculatePipelineValue(organizationId: string, currency: string): Promise<{amount: number, currency: string}> {
+    const activeCycles = await this.prisma.cropCycle.findMany({
+      where: {
+        area: { 
+          farm: { 
+            organizationId 
+          } 
         },
-      };
-
-      if (query.useCache) {
-        await this.cacheService.set(cacheKey, result, 600); // 10 minutes
-      }
-
-      this.logger.log(`Enhanced financial health calculated in ${Date.now() - startTime}ms`);
-      return result;
-    } catch (error) {
-      this.logger.error(`Error calculating enhanced financial health: ${error.message}`, error.stack);
-      throw error;
-    }
+        status: { in: ['PLANNED', 'PLANTED', 'GROWING', 'MATURE'] },
+      },
+      include: { 
+        area: { 
+          include: { 
+            farm: true 
+          } 
+        } 
+      },
+    });
+    
+    const estimatedValue = activeCycles.reduce((total, cycle) => {
+      const farmArea = cycle.area?.farm?.totalArea || 0;
+      return total + (farmArea * 1000); // $1000 per hectare estimate
+    }, 0);
+    
+    return { amount: estimatedValue, currency };
   }
 }
