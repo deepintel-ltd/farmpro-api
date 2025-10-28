@@ -227,4 +227,66 @@ export class ExecutiveDashboardController {
     });
   }
 
+  @TsRestHandler(executiveDashboardContract.getPortfolioSummary)
+  @RequirePermission("analytics", "read")
+  public getPortfolioSummary(
+    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getPortfolioSummary, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.getPortfolioSummary(req.user, req, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              type: 'portfolio-summary',
+              id: organizationId,
+              attributes: data,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get portfolio summary failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve portfolio summary',
+          'GET_PORTFOLIO_SUMMARY_FAILED',
+        );
+      }
+    });
+  }
+
+  @TsRestHandler(executiveDashboardContract.getEnhancedFinancialHealth)
+  @RequirePermission("analytics", "read")
+  public getEnhancedFinancialHealth(
+    @Request() req: AuthenticatedRequest,
+    @OrganizationId() organizationId: string,
+  ): ReturnType<typeof tsRestHandler> {
+    return tsRestHandler(executiveDashboardContract.getEnhancedFinancialHealth, async ({ query }) => {
+      try {
+        const data = await this.executiveDashboardService.calculateEnhancedFinancialHealth(req.user, req, query);
+        
+        return {
+          status: 200 as const,
+          body: {
+            data: {
+              type: 'enhanced-financial-health',
+              id: organizationId,
+              attributes: data,
+            },
+          },
+        };
+      } catch (error: unknown) {
+        this.logger.error('Get enhanced financial health failed:', error);
+        return ErrorResponseUtil.internalServerError(
+          error,
+          'Failed to retrieve enhanced financial health',
+          'GET_ENHANCED_FINANCIAL_HEALTH_FAILED',
+        );
+      }
+    });
+  }
+
 }
