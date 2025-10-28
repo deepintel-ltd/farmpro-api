@@ -161,12 +161,15 @@ model Farm {
   updatedAt             DateTime               @updatedAt
   activityOptimizations ActivityOptimization[]
   areas                 Area[]
+  budgets               Budget[]
   commodities           Commodity[]            @relation("FarmCommodities")
   activities            FarmActivity[]
   farmAnalyses          FarmAnalysis[]
+  infrastructure        Infrastructure[]
   organization          Organization           @relation(fields: [organizationId], references: [id])
   intelligenceResponses IntelligenceResponse[]
   inventory             Inventory[]
+  kpis                  KPI[]
   observations          Observation[]
   orders                Order[]                @relation("FarmOrders")
   seasons               Season[]
@@ -186,11 +189,13 @@ model Area {
   isActive     Boolean        @default(true)
   metadata     Json?
   createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   farm         Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
   cropCycles   CropCycle[]
   activities   FarmActivity[]
   observations Observation[]
   soilData     SoilData[]
+  harvests     Harvest[]
 
   @@index([farmId])
   @@map("areas")
@@ -244,28 +249,34 @@ model Commodity {
 }
 
 model CropCycle {
-  id            String         @id @default(cuid())
-  farmId        String
-  seasonId      String
-  areaId        String
-  commodityId   String
-  plantingDate  DateTime
-  harvestDate   DateTime?
-  plantedArea   Float
-  status        CropStatus
-  expectedYield Float?
-  actualYield   Float?
-  metadata      Json?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  area          Area           @relation(fields: [areaId], references: [id])
-  commodity     Commodity      @relation(fields: [commodityId], references: [id])
-  season        Season         @relation(fields: [seasonId], references: [id])
-  activities    FarmActivity[]
-  harvests      Harvest[]
+  id                   String         @id @default(cuid())
+  farmId               String
+  seasonId             String
+  areaId               String
+  commodityId          String
+  plantingDate         DateTime
+  harvestDate          DateTime?
+  expectedHarvestDate  DateTime?
+  plantedArea          Float
+  status               CropStatus
+  expectedYield        Float?
+  actualYield          Float?
+  yieldUnit            String?
+  variety              String?
+  generation           String?
+  notes                String?
+  metadata             Json?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  area                 Area           @relation(fields: [areaId], references: [id])
+  commodity            Commodity      @relation(fields: [commodityId], references: [id])
+  season               Season         @relation(fields: [seasonId], references: [id])
+  activities           FarmActivity[]
+  harvests             Harvest[]
 
   @@index([farmId])
   @@index([farmId, status])
+  @@index([generation])
   @@map("crop_cycles")
 }
 
@@ -416,18 +427,38 @@ model ActivityTemplate {
 }
 
 model Harvest {
-  id          String      @id @default(cuid())
-  cropCycleId String
-  harvestDate DateTime
-  quantity    Float
-  quality     String?
-  cost        Float?
-  metadata    Json?
-  createdAt   DateTime    @default(now())
-  cropCycle   CropCycle   @relation(fields: [cropCycleId], references: [id], onDelete: Cascade)
-  inventory   Inventory[]
+  id               String      @id @default(cuid())
+  farmId           String?
+  areaId           String?
+  cropCycleId      String
+  activityId       String?
+  cropType         String?
+  variety          String?
+  harvestDate      DateTime
+  quantity         Float
+  unit             String?
+  qualityGrade     String?
+  qualityMoisture  Float?
+  qualityNotes     String?
+  estimatedValue   Float?
+  actualRevenue    Float?
+  currency         String?     @default("NGN")
+  storageLocation  String?
+  inventoryId      String?
+  weather          Json?
+  notes            String?
+  cost             Float?
+  metadata         Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  area             Area?       @relation(fields: [areaId], references: [id])
+  cropCycle        CropCycle   @relation(fields: [cropCycleId], references: [id], onDelete: Cascade)
+  inventory        Inventory[]
 
   @@index([cropCycleId])
+  @@index([farmId])
+  @@index([areaId])
+  @@index([harvestDate])
   @@map("harvests")
 }
 
@@ -1103,6 +1134,142 @@ model UsageRecord {
   @@map("usage_records")
 }
 
+model Budget {
+  id          String             @id @default(cuid())
+  farmId      String
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  totalBudget Float
+  currency    String             @default("NGN")
+  status      BudgetStatus       @default(DRAFT)
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  farm        Farm               @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  allocations BudgetAllocation[]
+
+  @@index([farmId])
+  @@index([status])
+  @@index([farmId, status])
+  @@map("budgets")
+}
+
+model BudgetAllocation {
+  id        String            @id @default(cuid())
+  budgetId  String
+  category  BudgetCategory
+  allocated Float             @default(0)
+  spent     Float             @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  budget    Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@index([category])
+  @@map("budget_allocations")
+}
+
+model Infrastructure {
+  id                   String                      @id @default(cuid())
+  farmId               String
+  name                 String
+  type                 InfrastructureType
+  description          String?
+  status               InfrastructureStatus        @default(PLANNED)
+  startDate            DateTime
+  expectedEndDate      DateTime
+  actualEndDate        DateTime?
+  estimatedBudget      Float?
+  actualBudget         Float?
+  currency             String?                     @default("NGN")
+  progress             Int                         @default(0)
+  locationLat          Float?
+  locationLng          Float?
+  targetUptime         Float?
+  actualUptime         Float?
+  specifications       Json?
+  lastMaintenanceDate  DateTime?
+  nextMaintenanceDate  DateTime?
+  maintenanceSchedule  MaintenanceSchedule?
+  notes                String?
+  metadata             Json?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  farm                 Farm                        @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  uptimeLogs           InfrastructureUptimeLog[]
+
+  @@index([farmId])
+  @@index([type])
+  @@index([status])
+  @@index([farmId, type, status])
+  @@map("infrastructure")
+}
+
+model InfrastructureUptimeLog {
+  id               String         @id @default(cuid())
+  infrastructureId String
+  timestamp        DateTime
+  status           UptimeStatus
+  reason           String?
+  duration         Int?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  infrastructure   Infrastructure @relation(fields: [infrastructureId], references: [id], onDelete: Cascade)
+
+  @@index([infrastructureId])
+  @@index([timestamp])
+  @@map("infrastructure_uptime_logs")
+}
+
+model KPI {
+  id                  String            @id @default(cuid())
+  farmId              String
+  name                String
+  metric              KPIMetric
+  description         String?
+  targetValue         Float
+  targetOperator      KPIOperator
+  unit                String
+  currentValue        Float?
+  status              KPIStatus         @default(UNKNOWN)
+  warningThreshold    Float?
+  criticalThreshold   Float?
+  category            KPICategory
+  isActive            Boolean           @default(true)
+  alertsEnabled       Boolean           @default(true)
+  lastMeasured        DateTime?
+  metadata            Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  farm                Farm              @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  measurements        KPIMeasurement[]
+
+  @@index([farmId])
+  @@index([metric])
+  @@index([status])
+  @@index([farmId, metric])
+  @@index([farmId, status])
+  @@map("kpis")
+}
+
+model KPIMeasurement {
+  id          String   @id @default(cuid())
+  kpiId       String
+  value       Float
+  measuredAt  DateTime @default(now())
+  notes       String?
+  source      MeasurementSource @default(MANUAL)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@index([kpiId])
+  @@index([measuredAt])
+  @@map("kpi_measurements")
+}
+
 enum AuthProvider {
   LOCAL
   GOOGLE
@@ -1297,4 +1464,102 @@ enum InvitationStatus {
   ACCEPTED
   EXPIRED
   CANCELLED
+}
+
+enum BudgetStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum BudgetCategory {
+  LAND_PREP
+  PLANTING
+  FERTILIZING
+  IRRIGATION
+  PEST_CONTROL
+  HARVESTING
+  MAINTENANCE
+  INFRASTRUCTURE
+  PROCUREMENT
+  LABOR
+  OTHER
+}
+
+enum InfrastructureType {
+  BOREHOLE
+  IRRIGATION_SYSTEM
+  STORAGE
+  PROCESSING
+  FENCE
+  BUILDING
+  EQUIPMENT
+  OTHER
+}
+
+enum InfrastructureStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  OPERATIONAL
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum MaintenanceSchedule {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum UptimeStatus {
+  UP
+  DOWN
+}
+
+enum KPIMetric {
+  PEST_DAMAGE
+  DISEASE_DAMAGE
+  IRRIGATION_UPTIME
+  WEED_COVERAGE
+  PLANT_STAND_SUCCESS
+  BUDGET_VARIANCE
+  CASH_POSITION
+  LABOR_AVAILABILITY
+  EQUIPMENT_UPTIME
+  YIELD_ACHIEVEMENT
+  REVENUE_TARGET
+  COST_EFFICIENCY
+  ACTIVITY_COMPLETION
+  CUSTOM
+}
+
+enum KPIOperator {
+  LESS_THAN
+  LESS_THAN_EQUAL
+  GREATER_THAN
+  GREATER_THAN_EQUAL
+  EQUAL
+}
+
+enum KPIStatus {
+  ON_TARGET
+  WARNING
+  CRITICAL
+  UNKNOWN
+}
+
+enum KPICategory {
+  PRODUCTION
+  FINANCIAL
+  OPERATIONAL
+}
+
+enum MeasurementSource {
+  MANUAL
+  AUTOMATED
+  CALCULATED
 }

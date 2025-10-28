@@ -940,7 +940,7 @@ export class ActivitiesService {
           cropCycleId: activity.cropCycleId!,
           harvestDate: new Date(harvestData.completedAt || new Date()),
           quantity: harvestData.quantityHarvested,
-          quality: harvestData.qualityGrade,
+          qualityGrade: harvestData.qualityGrade,
           cost: harvestData.actualCost || 0,
           metadata: {
             activityId: activityId,
@@ -1020,7 +1020,7 @@ export class ActivitiesService {
       harvest: {
         id: result.harvest.id,
         quantity: result.harvest.quantity,
-        quality: result.harvest.quality,
+        qualityGrade: result.harvest.qualityGrade,
         harvestDate: result.harvest.harvestDate,
       },
       inventory: {
@@ -1039,7 +1039,7 @@ export class ActivitiesService {
       harvest: {
         id: result.harvest.id,
         quantity: result.harvest.quantity,
-        quality: result.harvest.quality,
+        qualityGrade: result.harvest.qualityGrade,
         harvestDate: result.harvest.harvestDate,
       },
       inventory: {

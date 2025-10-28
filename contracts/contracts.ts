@@ -32,6 +32,12 @@ import { mobileFieldContract } from './mobile-field.contract';
 import { weatherContract, type WeatherContract } from './weather.contract';
 import { transactionsContract, type TransactionsContract } from './transactions.contract';
 import { executiveDashboardContract, type ExecutiveDashboardContract } from './executive-dashboard.contract';
+import { farmAreasContract, type FarmAreasContract } from './farm-areas.contract';
+import { cropCyclesContract, type CropCyclesContract } from './crop-cycles.contract';
+import { farmBudgetsContract, type FarmBudgetsContract } from './farm-budgets.contract';
+import { harvestsContract, type HarvestsContract as FarmHarvestsContract } from './harvests.contract';
+import { infrastructureContract, type InfrastructureContract as FarmInfrastructureContract } from './infrastructure.contract';
+import { farmKPIsContract, type FarmKPIsContract as FarmKPIsContract } from './farm-kpis.contract';
 
 // Import common utilities
 import { initContract } from '@ts-rest/core';
@@ -80,6 +86,12 @@ export interface ApiContractDefinition {
   transactions: typeof transactionsContract;
   executiveDashboard: typeof executiveDashboardContract;
   health: typeof healthContract;
+  farmAreas: typeof farmAreasContract;
+  cropCycles: typeof cropCyclesContract;
+  farmBudgets: typeof farmBudgetsContract;
+  farmHarvests: typeof harvestsContract;
+  farmInfrastructure: typeof infrastructureContract;
+  farmKPIs: typeof farmKPIsContract;
 }
 
 // Create the contract with explicit typing
@@ -113,6 +125,12 @@ export const apiContract: ApiContractDefinition = c.router({
   weather: weatherContract,
   transactions: transactionsContract,
   executiveDashboard: executiveDashboardContract,
+  farmAreas: farmAreasContract,
+  cropCycles: cropCyclesContract,
+  farmBudgets: farmBudgetsContract,
+  farmHarvests: harvestsContract,
+  farmInfrastructure: infrastructureContract,
+  farmKPIs: farmKPIsContract,
   health: healthContract,
 });
 
@@ -250,4 +268,10 @@ export type {
   PlatformAdminContract,
   WeatherContract,
   TransactionsContract,
+  FarmAreasContract,
+  CropCyclesContract,
+  FarmBudgetsContract,
+  FarmHarvestsContract,
+  FarmInfrastructureContract,
+  FarmKPIsContract,
 };

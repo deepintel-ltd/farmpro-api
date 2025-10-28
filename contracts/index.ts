@@ -139,6 +139,31 @@ export type { TransactionsContract } from './transactions.contract';
 export { executiveDashboardContract } from './executive-dashboard.contract';
 export type { ExecutiveDashboardContract } from './executive-dashboard.contract';
 
+// Farm Areas contract
+export { farmAreasContract } from './farm-areas.contract';
+export type { FarmAreasContract } from './farm-areas.contract';
+
+// Crop Cycles contract
+export { cropCyclesContract } from './crop-cycles.contract';
+export type { CropCyclesContract } from './crop-cycles.contract';
+
+// Farm Budgets contract
+export { farmBudgetsContract } from './farm-budgets.contract';
+export type { FarmBudgetsContract } from './farm-budgets.contract';
+
+
+// Farm Harvests contract
+export { harvestsContract } from './harvests.contract';
+export type { HarvestsContract } from './harvests.contract';
+
+// Farm Infrastructure contract
+export { infrastructureContract } from './infrastructure.contract';
+export type { InfrastructureContract } from './infrastructure.contract';
+
+// Farm KPIs contract
+export { farmKPIsContract } from './farm-kpis.contract';
+export type { FarmKPIsContract } from './farm-kpis.contract';
+
 // =============================================================================
 // Schema Exports
 // =============================================================================

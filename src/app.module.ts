@@ -29,6 +29,12 @@ import { ExecutiveDashboardModule } from '@/executive-dashboard/executive-dashbo
 import { UsageLimitMiddleware } from '@/common/middleware/usage-limit.middleware';
 import { OrganizationImpersonationGuard } from '@/common/guards/organization-impersonation.guard';
 import { CommonModule } from '@/common/common.module';
+import { FarmAreasModule } from '@/farm-areas/farm-areas.module';
+import { CropCyclesModule } from '@/crop-cycles/crop-cycles.module';
+import { BudgetsModule } from '@/budgets/budgets.module';
+import { HarvestsModule } from '@/harvests/harvests.module';
+import { InfrastructureModule } from '@/infrastructure/infrastructure.module';
+import { KPIsModule } from '@/kpis/kpis.module';
 
 @Module({
   imports: [
@@ -57,6 +63,12 @@ import { CommonModule } from '@/common/common.module';
     UsersModule,
     TransactionsModule,
     ExecutiveDashboardModule,
+    FarmAreasModule,
+    CropCyclesModule,
+    BudgetsModule,
+    HarvestsModule,
+    InfrastructureModule,
+    KPIsModule,
   ],
   controllers: [],
   providers: [

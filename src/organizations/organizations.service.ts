@@ -808,7 +808,7 @@ export class OrganizationsService {
           select: {
             id: true,
             quantity: true,
-            quality: true,
+            qualityGrade: true,
             createdAt: true,
             cropCycle: {
               select: {
