@@ -15,8 +15,12 @@ import {
   MessageResourceSchema,
   SessionCollectionSchema,
   OAuthCallbackSchema,
+  Verify2FARequestSchema,
+  TwoFactorSetupResponseSchema,
+  Verify2FAResponseSchema,
+  BackupCodesResponseSchema,
 } from './auth.schemas';
-import { JsonApiErrorResponseSchema } from './schemas';
+import { JsonApiErrorResponseSchema, JsonApiResourceSchema } from './schemas';
 import { UuidPathParam } from './common';
 import { z } from 'zod';
 
@@ -318,6 +322,77 @@ export const authContract = c.router({
       500: JsonApiErrorResponseSchema,
     },
     summary: 'Update session status',
+  },
+
+  // Two-Factor Authentication
+  setup2FA: {
+    method: 'GET',
+    path: '/auth/2fa/setup',
+    responses: {
+      200: JsonApiResourceSchema(TwoFactorSetupResponseSchema),
+      401: JsonApiErrorResponseSchema,
+      409: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Get 2FA setup QR code and secret',
+    description: 'Returns QR code URL and secret key for setting up 2FA. If 2FA is already enabled, returns 409.',
+  },
+
+  verify2FA: {
+    method: 'POST',
+    path: '/auth/2fa/verify',
+    body: Verify2FARequestSchema,
+    responses: {
+      200: JsonApiResourceSchema(Verify2FAResponseSchema),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      422: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Verify 2FA code and enable 2FA',
+    description: 'Verifies the 6-digit code from authenticator app and enables 2FA. Returns backup codes.',
+  },
+
+  disable2FA: {
+    method: 'POST',
+    path: '/auth/2fa/disable',
+    body: z.object({
+      password: z.string().optional(), // Optional password verification for extra security
+    }).optional(),
+    responses: {
+      200: MessageResourceSchema,
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Disable two-factor authentication',
+  },
+
+  getBackupCodes: {
+    method: 'GET',
+    path: '/auth/2fa/backup-codes',
+    responses: {
+      200: JsonApiResourceSchema(BackupCodesResponseSchema),
+      401: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Get backup codes for 2FA',
+    description: 'Returns list of backup codes. Some codes may be marked as used.',
+  },
+
+  regenerateBackupCodes: {
+    method: 'POST',
+    path: '/auth/2fa/backup-codes/regenerate',
+    body: z.object({}),
+    responses: {
+      200: JsonApiResourceSchema(BackupCodesResponseSchema),
+      401: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema,
+    },
+    summary: 'Regenerate backup codes',
+    description: 'Generates new backup codes and invalidates old ones. Returns new codes.',
   },
 });
 

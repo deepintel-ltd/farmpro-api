@@ -693,6 +693,111 @@ export const transactionsContract = c.router({
       organizationId: CuidQueryParam('id').optional()
     }),
     summary: 'Get transaction trends aggregated by time period'
+  },
+
+  // Get transaction audit trail
+  getTransactionAuditTrail: {
+    method: 'GET',
+    path: '/transactions/:id/audit',
+    pathParams: z.object({
+      id: CuidQueryParam('id')
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          id: z.string(),
+          type: z.literal('transaction-audit'),
+          attributes: z.object({
+            transactionId: CuidQueryParam('id'),
+            auditTrail: z.array(z.object({
+              id: z.string(),
+              action: z.enum(['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'MARK_PAID', 'CANCEL']),
+              user: z.object({
+                id: CuidQueryParam('id'),
+                name: z.string(),
+                email: z.string().optional(),
+              }),
+              timestamp: z.string().datetime(),
+              changes: z.array(z.object({
+                field: z.string(),
+                oldValue: z.any(),
+                newValue: z.any(),
+              })).optional(),
+              metadata: z.record(z.any()).optional(),
+              ipAddress: z.string().optional(),
+            })),
+            createdAt: z.string().datetime(),
+          })
+        })
+      }),
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    summary: 'Get transaction audit trail'
+  },
+
+  // Lock transaction for editing
+  lockTransaction: {
+    method: 'POST',
+    path: '/transactions/:id/lock',
+    pathParams: z.object({
+      id: CuidQueryParam('id')
+    }),
+    body: z.object({
+      data: z.object({
+        type: z.literal('transaction-locks'),
+        attributes: z.object({}).optional() // Empty attributes - lock is server-determined
+      }).optional()
+    }).optional(),
+    responses: {
+      200: z.object({
+        data: z.object({
+          id: z.string(),
+          type: z.literal('transaction-lock'),
+          attributes: z.object({
+            transactionId: CuidQueryParam('id'),
+            lockedBy: z.object({
+              id: CuidQueryParam('id'),
+              name: z.string(),
+              email: z.string().optional(),
+            }),
+            lockedAt: z.string().datetime(),
+            expiresAt: z.string().datetime(),
+          })
+        })
+      }),
+      400: JsonApiErrorResponseSchema,
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      409: JsonApiErrorResponseSchema, // Conflict - already locked
+      500: JsonApiErrorResponseSchema
+    },
+    summary: 'Lock transaction for editing'
+  },
+
+  // Release transaction lock
+  releaseTransactionLock: {
+    method: 'DELETE',
+    path: '/transactions/:id/lock',
+    pathParams: z.object({
+      id: CuidQueryParam('id')
+    }),
+    responses: {
+      200: z.object({
+        data: z.object({
+          success: z.boolean(),
+          message: z.string().optional(),
+        })
+      }),
+      401: JsonApiErrorResponseSchema,
+      403: JsonApiErrorResponseSchema,
+      404: JsonApiErrorResponseSchema,
+      500: JsonApiErrorResponseSchema
+    },
+    summary: 'Release transaction lock'
   }
 });
 

@@ -155,6 +155,33 @@ export const OAuthCallbackSchema = z.object({
 });
 
 // =============================================================================
+// Two-Factor Authentication Schemas
+// =============================================================================
+
+export const Verify2FARequestSchema = z.object({
+  code: z.string().length(6, 'Verification code must be 6 digits').regex(/^\d{6}$/, 'Code must contain only digits'),
+});
+
+export const TwoFactorSetupResponseSchema = z.object({
+  qrCodeUrl: z.string().url('Invalid QR code URL'),
+  secret: z.string().min(16, 'Secret must be at least 16 characters'),
+});
+
+export const BackupCodeSchema = z.object({
+  code: z.string(),
+  used: z.boolean(),
+});
+
+export const Verify2FAResponseSchema = z.object({
+  enabled: z.boolean(),
+  backupCodes: z.array(BackupCodeSchema),
+});
+
+export const BackupCodesResponseSchema = z.object({
+  codes: z.array(BackupCodeSchema),
+});
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 
@@ -174,3 +201,9 @@ export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 export type OAuthCallback = z.infer<typeof OAuthCallbackSchema>;
+
+export type Verify2FARequest = z.infer<typeof Verify2FARequestSchema>;
+export type TwoFactorSetupResponse = z.infer<typeof TwoFactorSetupResponseSchema>;
+export type BackupCode = z.infer<typeof BackupCodeSchema>;
+export type Verify2FAResponse = z.infer<typeof Verify2FAResponseSchema>;
+export type BackupCodesResponse = z.infer<typeof BackupCodesResponseSchema>;
