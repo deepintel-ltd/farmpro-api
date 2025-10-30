@@ -164,6 +164,10 @@ export type { InfrastructureContract } from './infrastructure.contract';
 export { farmKPIsContract } from './farm-kpis.contract';
 export type { FarmKPIsContract } from './farm-kpis.contract';
 
+// Seasons contract
+export { seasonContract } from './seasons.contract';
+export type { SeasonContract } from './seasons.contract';
+
 // =============================================================================
 // Schema Exports
 // =============================================================================
@@ -254,6 +258,18 @@ export {
   TransactionSummarySchema
 } from './transactions.schemas';
 
+// Seasons schemas
+export {
+  SeasonStatusSchema,
+  SeasonTypeSchema,
+  SeasonAttributesSchema,
+  SeasonResourceSchema,
+  SeasonCollectionSchema,
+  CreateSeasonRequestSchema,
+  UpdateSeasonRequestSchema,
+  SeasonQueryParamsSchema
+} from './seasons.contract';
+
 // =============================================================================
 // Type Exports
 // =============================================================================
@@ -340,6 +356,17 @@ export type {
   TransactionFilters,
   TransactionSummary
 } from './transactions.schemas';
+
+// Seasons types
+export type {
+  SeasonStatus,
+  SeasonType,
+  SeasonAttributes,
+  SeasonResource,
+  SeasonCollection,
+  CreateSeasonRequest,
+  UpdateSeasonRequest
+} from './seasons.contract';
 
 // =============================================================================
 // Utility Exports

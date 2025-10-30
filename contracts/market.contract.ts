@@ -400,11 +400,35 @@ export const marketContract = c.router({
     method: 'GET',
     path: '/marketplace/intelligence',
     query: CommonQueryParams.extend({
-      commodities: z.array(z.string()).optional(),
+      commodities: z.union([
+        z.array(z.string()),
+        z.string().transform((val) => val.split(',').map(s => s.trim())),
+      ]).optional(),
       region: z.string().optional(),
-      includePriceForecasts: z.boolean().default(true),
-      includeDemandForecasts: z.boolean().default(true),
-      includeCompetitorAnalysis: z.boolean().default(false),
+      includePriceForecasts: z.preprocess(
+        (val) => {
+          if (typeof val === 'boolean') return val;
+          if (typeof val === 'string') return val === 'true';
+          return true;
+        },
+        z.boolean().default(true)
+      ),
+      includeDemandForecasts: z.preprocess(
+        (val) => {
+          if (typeof val === 'boolean') return val;
+          if (typeof val === 'string') return val === 'true';
+          return true;
+        },
+        z.boolean().default(true)
+      ),
+      includeCompetitorAnalysis: z.preprocess(
+        (val) => {
+          if (typeof val === 'boolean') return val;
+          if (typeof val === 'string') return val === 'true';
+          return false;
+        },
+        z.boolean().default(false)
+      ),
     }),
     responses: {
       200: z.object({
